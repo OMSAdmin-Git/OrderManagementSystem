@@ -1,0 +1,122 @@
+﻿/* ===================================================================
+   検索ブロック：レイアウト（項目＋検索ボタン）
+   -------------------------------------------------------------------
+   - PCでは「入力4項目 + ボタン」グリッド
+   - 入力欄の幅・高さ・余白を統一
+=================================================================== */
+
+.search-section {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(100px, 1fr)) auto;
+    gap: 8px;
+    align-items: end;
+}
+
+/* 入力欄（TextBox / DropDown） */
+.search-item input[type="text"],
+.search-item select {
+    width: 100%;
+    height: 38px;
+    padding: 6px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+    line-height: 1;
+}
+
+/* セレクトボックスのブラウザ差異吸収 */
+.search-item select {
+    -webkit-appearance: none;
+    appearance: none;
+    background-color: #fff;
+    background-image: none;
+}
+
+/* 検索ボタン（レイアウト調整用） */
+.process-container .button-item .btn-search {
+    width: auto;
+    height: 38px;
+    padding: 0 16px;
+    box-sizing: border-box;
+    line-height: 1;
+}
+
+/* ===================================================================
+   レスポンシブ（小画面 / スマホ対応）
+   -------------------------------------------------------------------
+   - 幅899px以下 → 1列化
+   - ボタンは右寄せ
+   - 幅549px以下 → ボタンも100%幅
+=================================================================== */
+
+@media (max-width: 899px) {
+    .search-section {
+        grid-template-columns: 1fr;
+    }
+
+    .button-item {
+        text-align: right;
+    }
+
+    .process-container .button-item .btn-search {
+        width: auto;
+    }
+}
+
+@media (max-width: 549px) {
+    .process-container .button-item .btn-search {
+        width: 100%;
+        text-align: center;
+    }
+}
+
+/* ===================================================================
+   検索ボタン（デザイン共通）
+   -------------------------------------------------------------------
+   - ASTI テーマに合わせた濃紺ベース
+   - secondary / tertiary のカラーバリエーションあり
+=================================================================== */
+
+.btn-search {
+    display: inline-block;
+    padding: 10px;
+    border: none;
+    border-radius: 5px;
+    background-color: var(--asti-navy);
+    color: #fff;
+    font-weight: bold;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.08s ease;
+}
+
+    .btn-search:hover {
+        background-color: var(--asti-pink);
+    }
+
+    /* セカンダリ（白ベース） */
+    .btn-search.secondary {
+        background-color: var(--asti-white);
+        color: var(--asti-navy);
+        border: 1px solid var(--asti-navy);
+    }
+
+        .btn-search.secondary:hover {
+            background-color: var(--asti-lightgray);
+        }
+
+    /* 第三系（白＋グレー） */
+    .btn-search.tertiary {
+        background-color: var(--asti-white);
+        color: var(--asti-gray);
+        border: 1px solid var(--asti-navy);
+    }
+
+        .btn-search.tertiary:hover {
+            background-color: var(--asti-lightgray);
+        }
+
+/* 幅100%バージョン */
+.btn-search-full {
+    width: 100%;
+}

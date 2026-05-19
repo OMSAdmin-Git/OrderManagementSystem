@@ -1,0 +1,132 @@
+﻿/* ================================================================
+   カラーパレット（ブランドカラー・状態色・アクセントカラー）
+   ----------------------------------------------------------------
+   UI 全体で使用する基準色をここで定義。
+   - ASTI ブランド色
+   - 中立色（グレー・白・黒）
+   - 成功系 / 警告系 などの状態色
+================================================================ */
+:root {
+    /* ASTI ブランドカラー */
+    --asti-blue: #437BBB;
+    --asti-lightblue: #AFC8E6;
+    --asti-pink: #E42D76;
+    --asti-lightpink: #F28FB3;
+    /* グレー系・白黒 */
+    --asti-gray: #8C8C8C;
+    --asti-lightgray: #A1ADD0;
+    --asti-white: #FFFFFF;
+    --asti-black: #000000;
+    /* 補助カラー */
+    --asti-navy: #2E3C78;
+    --asti-green: #3B782E;
+    --asti-lightgreen: #B1E6AF;
+    /* 状態色（Yes / No など） */
+    --y-bg-green: #e8f7e8;
+    --y-c-green: #145214;
+    --y-bc-green: #98d398;
+    --n-bg-red: #fff0f0;
+    --n-c-red: #7a1f1f;
+    --n-bc-red: #e0a0a0;
+}
+
+/* ================================================================
+   ページ全体の基本スタイル
+   ----------------------------------------------------------------
+   - 全体の背景色
+   - フォント設定
+================================================================ */
+body {
+    font-family: "Segoe UI", sans-serif;
+    background-color: #f5f5f5;
+}
+
+/* ================================================================
+   ボタンの共通スタイル
+   ----------------------------------------------------------------
+   UI 全体で統一感を持たせるためのベースデザイン。
+   修飾クラスで色バリエーションを変更。
+================================================================ */
+.btn-asti {
+    display: inline-block;
+    padding: 10px;
+    border: none;
+    border-radius: 5px;
+    background-color: var(--asti-blue);
+    color: #fff;
+    font-weight: bold;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.08s ease;
+}
+
+    .btn-asti:hover {
+        background-color: var(--asti-pink);
+    }
+
+    /* セカンダリ（白ベース＋青系） */
+    .btn-asti.secondary {
+        background-color: var(--asti-white);
+        color: var(--asti-blue);
+        border: 1px solid var(--asti-blue);
+    }
+
+        .btn-asti.secondary:hover {
+            background-color: var(--asti-lightblue);
+        }
+
+    /* 第三系（白ベース＋グレー） */
+    .btn-asti.tertiary {
+        background-color: var(--asti-white);
+        color: var(--asti-gray);
+        border: 1px solid var(--asti-gray);
+    }
+
+        .btn-asti.tertiary:hover {
+            background-color: var(--asti-lightgray);
+        }
+
+    /* Excel 操作用（緑基調） */
+    .btn-asti.excel {
+        background-color: var(--asti-green);
+    }
+
+        .btn-asti.excel:hover {
+            background-color: var(--asti-pink);
+        }
+
+    /* Excel セカンダリ（白＋緑） */
+    .btn-asti.secondary-excel {
+        background-color: var(--asti-white);
+        color: var(--asti-green);
+        border: 1px solid var(--asti-green);
+    }
+
+        .btn-asti.secondary-excel:hover {
+            background-color: var(--asti-lightgreen);
+        }
+
+/* 幅100%ボタン */
+.btn-asti-full {
+    width: 100%;
+}
+
+/* ================================================================
+   戻るボタン / ログアウトボタン
+   ----------------------------------------------------------------
+   - ページ上部やフッタに置くユーティリティ系の操作ボタン
+   - 控えめな UI デザインで他の主要ボタンと差別化
+================================================================ */
+.btn-logout,
+.btn-back {
+    padding: 6px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: transparent;
+    cursor: pointer;
+}
+
+    .btn-logout:hover,
+    .btn-back:hover {
+        background: #f2f2f2;
+    }

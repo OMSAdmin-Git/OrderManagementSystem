@@ -1,0 +1,685 @@
+﻿Imports System.Data
+Imports System.Text
+Imports OMS.Common
+Imports System.Xml
+Imports Oracle.ManagedDataAccess.Client
+Imports Oracle.ManagedDataAccess.Types
+
+Namespace OMS.Data
+    Public Class ProdPlanRuleRepository
+
+#Region "フィールド・コンストラクタ"
+        Private ReadOnly _connectionString As String
+
+        Public Sub New(connectionString As String)
+            _connectionString = connectionString
+        End Sub
+#End Region
+
+#Region "一覧取得"
+        ''' <summary>
+        ''' 生産計画条件マスタ単品取得
+        ''' </summary>
+        ''' <param name="conn"></param>
+        ''' <param name="tran"></param>
+        ''' <param name="customerSettingId"></param>
+        ''' <returns></returns>
+        Public Function GetProdPlanRule(conn As OracleConnection, tran As OracleTransaction, customerSettingId As Long) As ProdPlanRuleRow
+            'Public Function GetProdPlanRule(conn As OracleConnection, tran As OracleTransaction, customerSettingId As Long, orderType As Int16, proratedType As Int16) As ProdPlanRuleRow
+            Dim dt As New DataTable()
+            'conn.Open()
+            dt = GetProdPlanRuleList(conn, tran, customerSettingId)
+            'tran.Commit()
+            Dim dtr As ProdPlanRuleRow = Nothing
+            If (dt.Rows.Count = 1) Then
+                dtr = ToClass(dt(0))
+            End If
+            Return dtr
+        End Function
+
+        ''' <summary>
+        ''' 生産計画条件マスタ一覧取得
+        ''' </summary>
+        ''' <param name="conn"></param>
+        ''' <param name="tran"></param>
+        ''' <param name="customerSettingId"></param>
+        ''' <returns></returns>
+        Public Function GetProdPlanRuleList(conn As OracleConnection, tran As OracleTransaction, customerSettingId As Long) As DataTable
+            'Public Function GetProdPlanRuleList(conn As OracleConnection, tran As OracleTransaction, customerSettingId As Long, orderType As Int16, proratedType As Int16) As DataTable
+
+            Dim dt As New DataTable()
+            Dim sb As New StringBuilder()
+            sb.AppendLine("SELECT ")
+            sb.AppendLine("  prod_plan_rule_id      AS ""ProdPlanRuleId"",")
+            sb.AppendLine("  customer_setting_id    AS ""CustomerSettingId"",")
+            'sb.AppendLine("  order_type             AS ""OrderType"",")
+            sb.AppendLine("  split_flag             AS ""SplitFlag"",")
+            'sb.AppendLine("  prorated_type          AS ""ProratedType"",")
+            'sb.AppendLine("  fcst_rollup_type       AS ""FcstRollupType"",")
+            sb.AppendLine("  split_case_flag        AS ""SplitCaseFlag"",")
+            sb.AppendLine("  split_method_type      AS ""SplitMethodType"",")
+            sb.AppendLine("  split_ration_type      AS ""SplitRationType"",")
+            sb.AppendLine("  split_rouding_unit     AS ""SplitRoudingUnit"",")
+            sb.AppendLine("  carry_to_type          AS ""CarryToType"",")
+            sb.AppendLine("  split_start_type       AS ""SplitStartType"",")
+            'sb.AppendLine("  split_start_date       AS ""SplitStartDate"",")
+            sb.AppendLine("  active_flag            AS ""ActiveFlag"",")
+            sb.AppendLine("  created_at             AS ""CreatedAt"",")
+            sb.AppendLine("  created_user_id        AS ""CreatedUserId"",")
+            sb.AppendLine("  created_pg_id          AS ""CreatedPgId"",")
+            sb.AppendLine("  updated_at             AS ""UpdatedAt"",")
+            sb.AppendLine("  updated_user_id        AS ""UpdatedUserId"",")
+            sb.AppendLine("  updated_pg_id          AS ""UpdatedPgId""")
+            sb.AppendLine("FROM prod_plan_rule_mst ")
+            sb.AppendLine("WHERE 1=1 ")
+            Dim prm As New List(Of OracleParameter)()
+            sb.AppendLine("AND customer_setting_id = :p_customerSettingId ")
+            prm.Add(New OracleParameter(":p_customerSettingId", OracleDbType.Long) With {.Value = customerSettingId})
+            'sb.AppendLine("AND order_type = :p_orderType ")
+            'prm.Add(New OracleParameter(":p_orderType", OracleDbType.Int16) With {.Value = orderType})
+            'sb.AppendLine("AND prorated_type = :p_proratedType ")
+            'prm.Add(New OracleParameter(":p_proratedType", OracleDbType.Int16) With {.Value = proratedType})
+            Using cmd As New OracleCommand(sb.ToString(), conn)
+                cmd.BindByName = True
+                cmd.CommandType = CommandType.Text
+                If prm.Count > 0 Then cmd.Parameters.AddRange(prm.ToArray())
+                'conn.Open()
+                Using reader As OracleDataReader = cmd.ExecuteReader()
+                    dt.Load(reader)
+                End Using
+            End Using
+            Return dt
+
+        End Function
+
+        ' 生産計画条件マスタ一覧取得
+        Public Function GetProdPlanRuleList(
+            Optional ByVal customerCode As String = Nothing,
+            Optional ByVal customerName As String = Nothing,
+            Optional ByVal profitCenter As String = Nothing,
+            Optional ByVal customerUnitName As String = Nothing,
+            Optional ByVal prodMgmtUserId As String = Nothing,
+            Optional ByVal activeFlag As String = Nothing
+        ) As DataTable
+
+            Dim dt As New DataTable()
+            Dim sb As New StringBuilder()
+            sb.AppendLine("SELECT ")
+            sb.AppendLine("  prod_plan_rule_id      AS ""ProdPlanRuleId"",")
+            sb.AppendLine("  customer_setting_id    AS ""CustomerSettingId"",")
+            sb.AppendLine("  customer_code          AS ""CustomerCode"",")
+            sb.AppendLine("  customer_name          AS ""CustomerName"",")
+            sb.AppendLine("  profit_center          AS ""ProfitCenter"",")
+            sb.AppendLine("  customer_unit_id       AS ""CustomerUnitId"",")
+            sb.AppendLine("  customer_unit_name     AS ""CustomerUnitName"",")
+            sb.AppendLine("  prod_mgmt_user_id      AS ""ProdMgmtUserId"",")
+            sb.AppendLine("  split_flag             AS ""SplitFlag"",")
+            sb.AppendLine("  split_case_flag        AS ""SplitCaseFlag"",")
+            sb.AppendLine("  split_method_type      AS ""SplitMethodType"",")
+            sb.AppendLine("  split_ration_type      AS ""SplitRationType"",")
+            sb.AppendLine("  split_rouding_unit     AS ""SplitRoudingUnit"",")
+            sb.AppendLine("  carry_to_type          AS ""CarryToType"",")
+            sb.AppendLine("  split_start_type       AS ""SplitStartType"",")
+            sb.AppendLine("  active_flag            AS ""ActiveFlag"",")
+            sb.AppendLine("  created_at             AS ""CreatedAt"",")
+            sb.AppendLine("  created_user_id        AS ""CreatedUserId"",")
+            sb.AppendLine("  created_pg_id          AS ""CreatedPgId"",")
+            sb.AppendLine("  updated_at             AS ""UpdatedAt"",")
+            sb.AppendLine("  updated_user_id        AS ""UpdatedUserId"",")
+            sb.AppendLine("  updated_pg_id          AS ""UpdatedPgId""")
+            sb.AppendLine("FROM prod_plan_rule_list_view ")
+            sb.AppendLine("WHERE 1=1 ")
+
+            Dim prm As New List(Of OracleParameter)()
+
+            ' 文字列を安全にLIKEパターンへ（%と_をエスケープしてから %term% に）
+            Dim pCustomerCode As String = Utils.BuildLikePattern(customerCode, LikeMode.Contains)
+            Dim pCustomerName As String = Utils.BuildLikePattern(customerName, LikeMode.Contains)
+            Dim pProfitCenter As String = Utils.BuildLikePattern(profitCenter, LikeMode.Contains)
+            Dim pCustomerUnitName As String = Utils.BuildLikePattern(customerUnitName, LikeMode.Contains)
+            Dim pProdMgmtUserId As String = Utils.BuildLikePattern(prodMgmtUserId, LikeMode.Contains)
+            Dim pActiveFlag As String = If(String.IsNullOrWhiteSpace(activeFlag), Nothing, activeFlag.Trim())
+
+            If pCustomerCode IsNot Nothing Then
+                sb.AppendLine("AND customer_code LIKE :p_ccode ESCAPE '\' ")
+                prm.Add(New OracleParameter(":p_ccode", OracleDbType.Varchar2) With {.Value = pCustomerCode})
+            End If
+
+            If pCustomerName IsNot Nothing Then
+                sb.AppendLine("AND UPPER(customer_name) LIKE UPPER(:p_cname) ESCAPE '\' ")
+                prm.Add(New OracleParameter(":p_cname", OracleDbType.Varchar2) With {.Value = pCustomerName})
+            End If
+
+            If pProfitCenter IsNot Nothing Then
+                sb.AppendLine("AND UPPER(profit_center) LIKE UPPER(:p_pc) ESCAPE '\' ")
+                prm.Add(New OracleParameter(":p_pc", OracleDbType.Varchar2) With {.Value = pProfitCenter})
+            End If
+
+            If pCustomerUnitName IsNot Nothing Then
+                sb.AppendLine("AND UPPER(customer_unit_name) LIKE UPPER(:p_cuname) ESCAPE '\' ")
+                prm.Add(New OracleParameter(":p_cuname", OracleDbType.Varchar2) With {.Value = pCustomerUnitName})
+            End If
+
+            If pProdMgmtUserId IsNot Nothing Then
+                Dim isAdmin As Boolean = String.Equals(prodMgmtUserId, AdminUserID, StringComparison.OrdinalIgnoreCase)
+                If Not isAdmin Then
+                    sb.AppendLine("AND UPPER(prod_mgmt_user_id) LIKE UPPER(:p_user) ")
+                    prm.Add(New OracleParameter(":p_user", OracleDbType.Varchar2) With {.Value = pProdMgmtUserId})
+                End If
+            End If
+
+            If pActiveFlag IsNot Nothing Then
+                sb.AppendLine("AND UPPER(active_flag) = UPPER(:p_active) ")
+                prm.Add(New OracleParameter(":p_active", OracleDbType.Char) With {.Value = pActiveFlag})
+            End If
+
+            sb.AppendLine("ORDER BY customer_code, profit_center, customer_unit_id ")
+
+            Using conn As New OracleConnection(_connectionString)
+                Using cmd As New OracleCommand(sb.ToString(), conn)
+                    cmd.BindByName = True
+                    cmd.CommandType = CommandType.Text
+                    If prm.Count > 0 Then cmd.Parameters.AddRange(prm.ToArray())
+                    conn.Open()
+                    Using reader As OracleDataReader = cmd.ExecuteReader()
+                        dt.Load(reader)
+                    End Using
+                End Using
+            End Using
+
+            Return dt
+
+        End Function
+
+        ' 分割パターンマスタ一覧取得
+        Public Function GetSplitCaseList(
+            Optional ByVal prodPlanRuleId As String = Nothing,
+            Optional ByVal activeFlag As String = Nothing
+        ) As DataTable
+
+            Dim dt As New DataTable()
+            Dim sb As New StringBuilder()
+            sb.AppendLine("SELECT ")
+            sb.AppendLine("  split_case_id      AS ""SplitCaseId"",")
+            sb.AppendLine("  prod_plan_rule_id  AS ""ProdPlanRuleId"",")
+            sb.AppendLine("  qty                AS ""Qty"",")
+            sb.AppendLine("  qty_condition_type AS ""QtyConditionType"",")
+            sb.AppendLine("  split_method_type  AS ""SplitMethodType"",")
+            sb.AppendLine("  active_flag        AS ""ActiveFlag"",")
+            sb.AppendLine("  created_at         AS ""CreatedAt"",")
+            sb.AppendLine("  created_user_id    AS ""CreatedUserId"",")
+            sb.AppendLine("  created_pg_id      AS ""CreatedPgId"",")
+            sb.AppendLine("  updated_at         AS ""UpdatedAt"",")
+            sb.AppendLine("  updated_user_id    AS ""UpdatedUserId"",")
+            sb.AppendLine("  updated_pg_id      AS ""UpdatedPgId""")
+            sb.AppendLine("FROM split_case_list_view ")
+            sb.AppendLine("WHERE 1=1 ")
+
+            Dim prm As New List(Of OracleParameter)()
+            Dim pProdPlanRuleId As String = If(String.IsNullOrWhiteSpace(prodPlanRuleId), Nothing, prodPlanRuleId.Trim())
+            Dim pActiveFlag As String = If(String.IsNullOrWhiteSpace(activeFlag), Nothing, activeFlag.Trim())
+
+            If pProdPlanRuleId IsNot Nothing Then
+                sb.AppendLine("AND prod_plan_rule_id = :p_plan ")
+                prm.Add(New OracleParameter(":p_plan", OracleDbType.Varchar2) With {.Value = pProdPlanRuleId})
+            End If
+
+            If Not String.IsNullOrEmpty(pActiveFlag) Then
+                sb.AppendLine("AND UPPER(active_flag) = UPPER(:p_active) ")
+                prm.Add(New OracleParameter(":p_active", OracleDbType.Char) With {.Value = pActiveFlag})
+            End If
+
+            sb.AppendLine("ORDER BY qty, split_case_id ")
+
+            Using conn As New OracleConnection(_connectionString)
+                Using cmd As New OracleCommand(sb.ToString(), conn)
+                    cmd.BindByName = True
+                    cmd.CommandType = CommandType.Text
+                    If prm.Count > 0 Then cmd.Parameters.AddRange(prm.ToArray())
+                    conn.Open()
+                    Using reader As OracleDataReader = cmd.ExecuteReader()
+                        dt.Load(reader)
+                    End Using
+                End Using
+            End Using
+
+            Return dt
+
+        End Function
+
+#End Region
+
+#Region "単一取得"
+        ' ProfileId (NUMBER(10,0)) で一意に取得
+        Public Function GetProdPlanRule(prodPlanRuleId As Long) As DataTable
+            Dim dt As New DataTable()
+            Dim sb As New StringBuilder()
+            sb.AppendLine("SELECT ")
+            sb.AppendLine("  prod_plan_rule_id      AS ""ProdPlanRuleId"",")
+            sb.AppendLine("  customer_setting_id    AS ""CustomerSettingId"",")
+            sb.AppendLine("  customer_code          AS ""CustomerCode"",")
+            sb.AppendLine("  customer_name          AS ""CustomerName"",")
+            sb.AppendLine("  profit_center          AS ""ProfitCenter"",")
+            sb.AppendLine("  customer_unit_id       AS ""CustomerUnitId"",")
+            sb.AppendLine("  customer_unit_name     AS ""CustomerUnitName"",")
+            sb.AppendLine("  prod_mgmt_user_id      AS ""ProdMgmtUserId"",")
+            sb.AppendLine("  split_flag             AS ""SplitFlag"",")
+            sb.AppendLine("  split_case_flag        AS ""SplitCaseFlag"",")
+            sb.AppendLine("  split_method_type      AS ""SplitMethodType"",")
+            sb.AppendLine("  split_ration_type      AS ""SplitRationType"",")
+            sb.AppendLine("  split_rouding_unit     AS ""SplitRoudingUnit"",")
+            sb.AppendLine("  carry_to_type          AS ""CarryToType"",")
+            sb.AppendLine("  split_start_type       AS ""SplitStartType"",")
+            sb.AppendLine("  active_flag            AS ""ActiveFlag"",")
+            sb.AppendLine("  created_at             AS ""CreatedAt"",")
+            sb.AppendLine("  created_user_id        AS ""CreatedUserId"",")
+            sb.AppendLine("  created_pg_id          AS ""CreatedPgId"",")
+            sb.AppendLine("  updated_at             AS ""UpdatedAt"",")
+            sb.AppendLine("  updated_user_id        AS ""UpdatedUserId"",")
+            sb.AppendLine("  updated_pg_id          AS ""UpdatedPgId""")
+            sb.AppendLine("FROM prod_plan_rule_list_view ")
+            sb.AppendLine("WHERE prod_plan_rule_id = :p_prod_plan ")
+
+            Using conn As New OracleConnection(_connectionString)
+                Using cmd As New OracleCommand(sb.ToString(), conn)
+                    cmd.BindByName = True
+                    cmd.CommandType = CommandType.Text
+                    cmd.Parameters.Add(New OracleParameter(":p_prod_plan", OracleDbType.Int64) With {.Value = prodPlanRuleId})
+                    conn.Open()
+                    Using reader As OracleDataReader = cmd.ExecuteReader()
+                        dt.Load(reader)
+                    End Using
+                End Using
+            End Using
+
+            Return dt
+        End Function
+#End Region
+
+#Region "重複チェック"
+
+        Public Function ExistsProdPlanRule(
+            customerSettingId As Long,
+            Optional excludeProdPlanRuleId As Long = 0
+        ) As Boolean
+
+            Dim sql As String = "
+                SELECT 1
+                FROM prod_plan_rule_list_view
+                WHERE customer_setting_id = :p_custid
+            "
+
+            If excludeProdPlanRuleId > 0 Then
+                sql &= "    AND profile_id <> :p_exclude "
+            End If
+
+            sql &= " FETCH FIRST 1 ROWS ONLY "
+
+            Using conn As New OracleConnection(_connectionString)
+                Using cmd As New OracleCommand(sql, conn)
+                    cmd.BindByName = True
+                    cmd.Parameters.Add(":p_custid", OracleDbType.Int64).Value = customerSettingId
+
+                    ' 自レコード除外（更新時）
+                    If excludeProdPlanRuleId > 0 Then
+                        cmd.Parameters.Add(":p_exclude", OracleDbType.Int64).Value = excludeProdPlanRuleId
+                    End If
+
+                    conn.Open()
+                    Dim obj = cmd.ExecuteScalar()
+                    Return (obj IsNot Nothing AndAlso obj IsNot DBNull.Value)
+                End Using
+            End Using
+        End Function
+
+#End Region
+
+#Region "INSERT / UPDATE / DELETE（分割パターン）"
+
+        ' PROD_PLAN_RULE_MST INSERT: 1件追加し、新しい主キーを返す
+        Public Function InsertProdPlanRule(
+            customerSettingId As String,
+            splitFlag As String,
+            splitCaseFlag As String,
+            splitMethodType As String,
+            splitRationType As String,
+            splitRoudingUnit As String,
+            carryToType As String,
+            splitStartType As String,
+            userId As String,
+            pgId As String
+            ) As Long
+
+            Dim sql As String = "INSERT INTO prod_plan_rule_mst (
+                            customer_setting_id, 
+                            split_flag,
+                            split_case_flag, 
+                            split_method_type,
+                            split_ration_type,
+                            split_rouding_unit,
+                            carry_to_type,
+                            split_start_type,
+                            created_user_id, 
+                            created_pg_id,
+                            updated_user_id, 
+                            updated_pg_id
+                        ) VALUES (
+                            :customer_setting_id, 
+                            :split_flag, 
+                            :split_case_flag,
+                            :split_method_type, 
+                            :split_ration_type, 
+                            :split_rouding_unit, 
+                            :carry_to_type,
+                            :split_start_type,
+                            :created_user_id, 
+                            :created_pg_id,
+                            :updated_user_id, 
+                            :updated_pg_id
+                        )
+                        RETURNING prod_plan_rule_id INTO :p_newid
+                    "
+
+            Using conn As New OracleConnection(_connectionString)
+                conn.Open()
+                Using tran As OracleTransaction = conn.BeginTransaction()
+                    Using cmd As New OracleCommand(sql, conn)
+                        cmd.BindByName = True
+                        ' --- パラメータ ---
+                        AddInt32(cmd, ":customer_setting_id", Convert.ToInt32(customerSettingId))
+                        AddVarchar(cmd, ":split_flag", splitFlag)
+                        AddVarcharOrNull(cmd, ":split_case_flag", splitCaseFlag)
+                        AddInt32OrNull(cmd, ":split_method_type", Convert.ToInt32(splitMethodType))
+                        AddInt32OrNull(cmd, ":split_ration_type", Convert.ToInt32(splitRationType))
+                        AddInt32OrNull(cmd, ":split_rouding_unit", splitRoudingUnit)
+                        AddInt32OrNull(cmd, ":carry_to_type", Convert.ToInt32(carryToType))
+                        AddInt32OrNull(cmd, ":split_start_type", Convert.ToInt32(splitStartType))
+                        AddVarchar(cmd, ":created_user_id", userId)
+                        AddVarchar(cmd, ":created_pg_id", pgId)
+                        AddVarchar(cmd, ":updated_user_id", userId)
+                        AddVarchar(cmd, ":updated_pg_id", pgId)
+
+                        Dim pNewId = New OracleParameter(":p_newid", OracleDbType.Int64)
+                        pNewId.Direction = ParameterDirection.Output
+                        cmd.Parameters.Add(pNewId)
+
+                        cmd.ExecuteNonQuery()
+                        tran.Commit()
+
+                        If TypeOf pNewId.Value Is OracleDecimal Then
+                            Dim od As OracleDecimal = DirectCast(pNewId.Value, OracleDecimal)
+                            Return od.ToInt64()
+                        Else
+                            Return Convert.ToInt64(pNewId.Value.ToString())
+                        End If
+                    End Using
+                End Using
+            End Using
+        End Function
+
+        ' PROD_PLAN_RULE_MST UPDATE: 主キーで1件更新
+        Public Function UpdateProdPlanRule(
+            prodPlanRuleId As String,
+            splitFlag As String,
+            splitCaseFlag As String,
+            splitMethodType As String,
+            splitRationType As String,
+            splitRoudingUnit As String,
+            carryToType As String,
+            splitStartType As String,
+            activeFlag As String,
+            userId As String,
+            pgId As String
+            ) As Long
+
+            Dim sql As String = "UPDATE  prod_plan_rule_mst
+                                SET split_flag          =:split_flag, 
+                                split_case_flag         =:split_case_flag,
+                                split_method_type       =:split_method_type,
+                                split_ration_type       =:split_ration_type,
+                                split_rouding_unit      =:split_rouding_unit,
+                                carry_to_type           =:carry_to_type,
+                                split_start_type        =:split_start_type,
+                                active_flag             =:active_flag,
+                                updated_at              = SYSDATE,
+                                updated_user_id         =:updated_user_id,
+                                updated_pg_id           =:updated_pg_id
+                                WHERE prod_plan_rule_id = :prod_plan_rule_id
+                                "
+
+            Using conn As New OracleConnection(_connectionString)
+                conn.Open()
+                Using tran As OracleTransaction = conn.BeginTransaction()
+                    Using cmd As New OracleCommand(sql, conn)
+                        cmd.BindByName = True
+                        ' --- パラメータ ---
+                        AddVarchar(cmd, ":split_flag", splitFlag)
+                        AddVarcharOrNull(cmd, ":split_case_flag", splitCaseFlag)
+                        AddInt32OrNull(cmd, ":split_method_type", Convert.ToInt32(splitMethodType))
+                        AddInt32OrNull(cmd, ":split_ration_type", Convert.ToInt32(splitRationType))
+                        AddInt32OrNull(cmd, ":split_rouding_unit", splitRoudingUnit)
+                        AddInt32OrNull(cmd, ":carry_to_type", Convert.ToInt32(carryToType))
+                        AddInt32OrNull(cmd, ":split_start_type", Convert.ToInt32(splitStartType))
+                        AddVarchar(cmd, ":active_flag", activeFlag)
+                        AddVarchar(cmd, ":created_pg_id", pgId)
+                        AddVarchar(cmd, ":updated_user_id", userId)
+                        AddVarchar(cmd, ":updated_pg_id", pgId)
+                        AddInt32(cmd, ":prod_plan_rule_id", prodPlanRuleId)
+
+                        cmd.ExecuteNonQuery()
+                        tran.Commit()
+
+                        Return prodPlanRuleId
+
+                    End Using
+                End Using
+            End Using
+        End Function
+
+        ' SPLIT_CASE_MST　INSERT: 1件追加し、新しい主キーを返す（IDENTITY想定）
+        Public Function InsertSplitCase(
+            prodPlanRuleId As String,
+            qty As String,
+            qtyConditionType As String,
+            splitMethodType As String,
+            userId As String,
+            pgId As String
+        ) As Decimal
+
+            Dim newId As Decimal
+
+            Using cn As New OracleConnection(_connectionString)
+                cn.Open()
+                Using cmd As New OracleCommand() With {.Connection = cn, .BindByName = True}
+                    cmd.CommandText = "
+                        INSERT INTO split_case_mst (
+                            prod_plan_rule_id,
+                            qty,
+                            qty_condition_type,
+                            split_method_type,
+                            created_user_id, 
+                            created_pg_id,
+                            updated_user_id, 
+                            updated_pg_id
+                        ) VALUES (
+                            :prod_plan_rule_id,
+                            :qty,
+                            :qty_condition_type,
+                            :split_method_type,
+                            :created_user_id, 
+                            :created_pg_id,
+                            :updated_user_id, 
+                            :updated_pg_id
+                        )
+                        RETURNING split_case_id INTO :out_id
+                    "
+
+                    ' --- パラメータ ---
+                    AddInt32(cmd, ":prod_plan_rule_id", Convert.ToInt32(prodPlanRuleId))
+                    AddInt32(cmd, ":qty", Convert.ToInt32(qty))
+                    AddVarchar(cmd, ":qty_condition_type", qtyConditionType)
+                    AddInt32(cmd, ":split_method_type", Convert.ToInt32(splitMethodType))
+                    AddVarchar(cmd, ":created_user_id", userId)
+                    AddVarchar(cmd, ":created_pg_id", pgId)
+                    AddVarchar(cmd, ":updated_user_id", userId)
+                    AddVarchar(cmd, ":updated_pg_id", pgId)
+
+                    ' RETURNING 用
+                    'OracleParamHelper.AddOutDecimal(cmd, ":out_id")
+
+                    Dim pNewId = New OracleParameter(":out_id", OracleDbType.Int64)
+                    pNewId.Direction = ParameterDirection.Output
+                    cmd.Parameters.Add(pNewId)
+
+                    cmd.ExecuteNonQuery()
+                    'newId = Convert.ToDecimal(cmd.Parameters(":out_id").Value)
+
+                    If TypeOf pNewId.Value Is OracleDecimal Then
+                        Dim od As OracleDecimal = DirectCast(pNewId.Value, OracleDecimal)
+                        Return od.ToInt64()
+                    Else
+                        Return Convert.ToInt64(pNewId.Value.ToString())
+                    End If
+                End Using
+            End Using
+
+            Return newId
+        End Function
+
+        ' SPLIT_CASE_MST　UPDATE: 主キーで1件更新
+        Public Function UpdateSplitCase(
+            splitCaseId As String,
+            prodPlanRuleId As String,
+            qty As String,
+            qtyConditionType As String,
+            splitMethodType As String,
+            activeFlag As String,
+            userId As String,
+            pgId As String
+        ) As Integer
+
+            Dim affected As Integer
+
+            Using cn As New OracleConnection(_connectionString)
+                cn.Open()
+                Using cmd As New OracleCommand() With {.Connection = cn, .BindByName = True}
+                    cmd.CommandText = "
+                        UPDATE split_case_mst
+                           SET qty                  = :qty,
+                               qty_condition_type   = :qty_condition_type,
+                               split_method_type    = :split_method_type,
+                               active_flag          = :active_flag,
+                               updated_user_id      = :updated_user_id,
+                               updated_pg_id        = :updated_pg_id
+                         WHERE split_case_id        = :split_case_id
+                    "
+
+                    ' --- パラメータ ---
+                    AddInt32(cmd, ":qty", Convert.ToInt32(qty))
+                    AddVarchar(cmd, ":qty_condition_type", qtyConditionType)
+                    AddInt32(cmd, ":split_method_type", Convert.ToInt32(splitMethodType))
+                    AddChar(cmd, ":active_flag", activeFlag)
+                    AddVarchar(cmd, ":updated_user_id", userId)
+                    AddVarchar(cmd, ":updated_pg_id", pgId)
+                    AddInt32(cmd, ":split_case_id", Convert.ToInt32(splitCaseId))
+
+                    affected = cmd.ExecuteNonQuery()
+                End Using
+            End Using
+
+            Return affected
+        End Function
+
+        ' SPLIT_CASE_MST　DELETE: 主キーで1件削除
+        Public Function DeleteSplitCase(splitCaseId As String) As Integer
+            Dim affected As Integer
+
+            Using cn As New OracleConnection(_connectionString)
+                cn.Open()
+                Using cmd As New OracleCommand() With {.Connection = cn, .BindByName = True}
+                    cmd.CommandText = "
+                        DELETE FROM split_case_mst
+                        WHERE split_case_id = :split_case_id
+                    "
+                    AddDecimal(cmd, ":split_case_id", splitCaseId)
+                    affected = cmd.ExecuteNonQuery()
+                End Using
+            End Using
+
+            Return affected
+        End Function
+
+#End Region
+
+        ''' <summary>
+        ''' DataRow to class
+        ''' R.sagisaka create
+        ''' </summary>
+        ''' <param name="dt"></param>
+        ''' <returns></returns>
+        Public Function ToClass(dt As DataRow) As ProdPlanRuleRow
+            Dim udir = New ProdPlanRuleRow
+            udir.ProdPlanRuleId = dt.Field(Of Long?)("ProdPlanRuleId")
+            udir.CustomerSettingId = dt.Field(Of Long?)("CustomerSettingId")
+            'udir.OrderType = dt.Field(Of Int16?)("OrderType")
+            udir.SplitFlag = dt.Field(Of String)("SplitFlag")
+            'udir.ProratedType = dt.Field(Of Int16?)("ProratedType")
+            'udir.FcstRollupType = dt.Field(Of Int16?)("FcstRollupType")
+            udir.SplitCaseFlag = dt.Field(Of String)("SplitCaseFlag")
+            udir.SplitMethodType = dt.Field(Of Int16?)("SplitMethodType")
+            udir.SplitRationType = dt.Field(Of Int16?)("SplitRationType")
+            udir.SplitRoudingUnit = dt.Field(Of Long?)("SplitRoudingUnit")
+            udir.CarryToType = dt.Field(Of Int16?)("CarryToType")
+            udir.SplitStartType = dt.Field(Of Int16?)("SplitStartType")
+            'udir.SplitStartDate = dt.Field(Of Date?)("SplitStartDate")
+            udir.ActiveFlag = dt.Field(Of String)("ActiveFlag")
+            udir.CreatedAt = dt.Field(Of Date?)("CreatedAt")
+            udir.CreatedUserId = dt.Field(Of String)("CreatedUserId")
+            udir.CreatedPgId = dt.Field(Of String)("CreatedPgId")
+            udir.UpdatedAt = dt.Field(Of Date?)("UpdatedAt")
+            udir.UpdatedUserId = dt.Field(Of String)("UpdatedUserId")
+            udir.UpdatedPgId = dt.Field(Of String)("UpdatedPgId")
+            Return udir
+        End Function
+        ''' <summary>
+        ''' DataTable to class
+        ''' R.sagisaka create
+        ''' </summary>
+        ''' <param name="dt"></param>
+        ''' <returns></returns>
+        Public Function ToClass(dt As DataTable) As IEnumerable(Of ProdPlanRuleRow)
+
+            Dim osrs = New List(Of ProdPlanRuleRow)()
+
+            For Each dtRow In dt.Rows
+                osrs.Add(ToClass(dtRow))
+            Next
+
+            Return osrs
+        End Function
+
+    End Class
+
+    Public Class ProdPlanRuleRow
+        Public Property ProdPlanRuleId As Long          '生産計画条件ID      PROD_PLAN_RULE_ID   NUMBER(10,0)
+        Public Property CustomerSettingId As Long?      '取引先設定ID        CUSTOMER_SETTING_ID NUMBER(10,0)
+        'Public Property OrderType As Int16             '受注区分            ORDER_TYPE          NUMBER(1,0)
+        Public Property SplitFlag As String             '分割フラグ          SPLIT_FLAG          CHAR(1)
+        'Public Property ProratedType As Int16          '分割区分            PRORATED_TYPE       NUMBER(1,0)
+        'Public Property FcstRollupType As Int16        '内示まとめ          FCST_ROLLUP_TYPE    NUMBER(1,0)
+        Public Property SplitCaseFlag As String         '分割パターンフラグ  SPLIT_CASE_FLAG     CHAR(1)
+        Public Property SplitMethodType As Int16?       '分割方法            SPLIT_METHOD_TYPE   NUMBER(1,0)
+        Public Property SplitRationType As Int16?       '分割比              SPLIT_RATION_TYPE   NUMBER(1,0)
+        Public Property SplitRoudingUnit As Long?       'まるめ数            SPLIT_ROUDING_UNIT  NUMBER(10,0)
+        Public Property CarryToType As Int16?           '端数加算先          CARRY_TO_TYPE       NUMBER(1,0)
+        Public Property SplitStartType As Int16?        '分割開始区分        SPLIT_START_TYPE    NUMBER(1,0) 1:月初/2:前月第4週/3:納期の4週前
+        'Public Property SplitStartDate As Date         '分割開始日          SPLIT_START_DATE    Date
+        Public Property ActiveFlag As String            '有効フラグ          ACTIVE_FLAG         CHAR(1)
+        Public Property CreatedAt As Date?              '登録日時            CREATED_AT          DATE
+        Public Property CreatedUserId As String         '登録ユーザーID      CREATED_USER_ID     VARCHAR2(9)
+        Public Property CreatedPgId As String           '登録プログラムID    CREATED_PG_ID       VARCHAR2(150)
+        Public Property UpdatedAt As Date?              '更新日時            UPDATED_AT          DATE
+        Public Property UpdatedUserId As String         '更新ユーザーID      UPDATED_USER_ID     VARCHAR2(9)
+        Public Property UpdatedPgId As String           '更新プログラムID    UPDATED_PG_ID       VARCHAR2(150)
+    End Class
+End Namespace

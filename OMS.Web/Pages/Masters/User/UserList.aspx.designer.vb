@@ -1,0 +1,132 @@
+﻿'------------------------------------------------------------------------------
+' <自動生成>
+'     このコードはツールによって生成されました。
+'
+'     このファイルへの変更は、正しくない動作の原因になる可能性があり、
+'     コードが再生成されるときに損失したりします。 
+' </自動生成>
+'------------------------------------------------------------------------------
+
+Option Strict On
+Option Explicit On
+
+
+Partial Public Class UserList
+
+    '''<summary>
+    '''form1 コントロール。
+    '''</summary>
+    '''<remarks>
+    '''自動生成されたフィールド。
+    '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
+    '''</remarks>
+    Protected WithEvents form1 As Global.System.Web.UI.HtmlControls.HtmlForm
+
+    '''<summary>
+    '''lblUser コントロール。
+    '''</summary>
+    '''<remarks>
+    '''自動生成されたフィールド。
+    '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
+    '''</remarks>
+    Protected WithEvents lblUser As Global.System.Web.UI.WebControls.Label
+
+    '''<summary>
+    '''btnMasterMenu コントロール。
+    '''</summary>
+    '''<remarks>
+    '''自動生成されたフィールド。
+    '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
+    '''</remarks>
+    Protected WithEvents btnMasterMenu As Global.System.Web.UI.WebControls.Button
+
+    '''<summary>
+    '''txtSearchUserId コントロール。
+    '''</summary>
+    '''<remarks>
+    '''自動生成されたフィールド。
+    '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
+    '''</remarks>
+    Protected WithEvents txtSearchUserId As Global.System.Web.UI.HtmlControls.HtmlInputText
+
+    '''<summary>
+    '''lstSearchUserId コントロール。
+    '''</summary>
+    '''<remarks>
+    '''自動生成されたフィールド。
+    '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
+    '''</remarks>
+    Protected WithEvents lstSearchUserId As Global.System.Web.UI.HtmlControls.HtmlGenericControl
+
+    '''<summary>
+    '''txtSearchUserName コントロール。
+    '''</summary>
+    '''<remarks>
+    '''自動生成されたフィールド。
+    '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
+    '''</remarks>
+    Protected WithEvents txtSearchUserName As Global.System.Web.UI.HtmlControls.HtmlInputText
+
+    '''<summary>
+    '''lstSearchUserName コントロール。
+    '''</summary>
+    '''<remarks>
+    '''自動生成されたフィールド。
+    '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
+    '''</remarks>
+    Protected WithEvents lstSearchUserName As Global.System.Web.UI.HtmlControls.HtmlGenericControl
+
+    '''<summary>
+    '''chkSearchActiveOnly コントロール。
+    '''</summary>
+    '''<remarks>
+    '''自動生成されたフィールド。
+    '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
+    '''</remarks>
+    Protected WithEvents chkSearchActiveOnly As Global.System.Web.UI.HtmlControls.HtmlInputCheckBox
+
+    '''<summary>
+    '''btnSearchGv コントロール。
+    '''</summary>
+    '''<remarks>
+    '''自動生成されたフィールド。
+    '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
+    '''</remarks>
+    Protected WithEvents btnSearchGv As Global.System.Web.UI.HtmlControls.HtmlButton
+
+    '''<summary>
+    '''btnDefaultGv コントロール。
+    '''</summary>
+    '''<remarks>
+    '''自動生成されたフィールド。
+    '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
+    '''</remarks>
+    Protected WithEvents btnDefaultGv As Global.System.Web.UI.HtmlControls.HtmlButton
+
+    '''<summary>
+    '''gvUserList コントロール。
+    '''</summary>
+    '''<remarks>
+    '''自動生成されたフィールド。
+    '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
+    '''</remarks>
+    Protected WithEvents gvUserList As Global.System.Web.UI.WebControls.GridView
+
+    '''<summary>
+    '''lblResult コントロール。
+    '''</summary>
+    '''<remarks>
+    '''自動生成されたフィールド。
+    '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
+    '''</remarks>
+    Protected WithEvents lblResult As Global.System.Web.UI.WebControls.Label
+
+    '''<summary>
+    '''lblError コントロール。
+    '''</summary>
+    '''<remarks>
+    '''自動生成されたフィールド。
+    '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
+    '''</remarks>
+    Protected WithEvents lblError As Global.System.Web.UI.WebControls.Label
+End Class

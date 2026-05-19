@@ -1,0 +1,181 @@
+﻿/* ================================================================
+   入力フォーム共通：高さ・余白・表示調整
+   ----------------------------------------------------------------
+   - すべての入力コントロールの高さを統一
+   - 各画面の入力エリア（.process-container）内だけに限定して適用
+================================================================ */
+:root {
+    --ctrl-h: 30px; /* 入力項目の基準高さ */
+}
+
+/* 各種 input/select/textarea の見た目を統一 */
+.process-container input[type="text"],
+.process-container input[type="search"],
+.process-container input[type="password"],
+.process-container input[type="tel"],
+.process-container input[type="email"],
+.process-container input[type="number"],
+.process-container select,
+.process-container textarea {
+    height: var(--ctrl-h);
+    line-height: calc(var(--ctrl-h) - 2px); /* テキストの縦位置調整 */
+    padding: 2px 6px;
+    box-sizing: border-box;
+}
+
+/* セレクトボックス（ブラウザ差異対策） */
+.process-container select {
+    height: var(--ctrl-h);
+    line-height: var(--ctrl-h);
+    padding-right: 24px; /* ▼ の余白 */
+    -webkit-appearance: menulist;
+    appearance: auto;
+}
+
+/* テキストエリア：必要に応じて縦方向のみリサイズ許可 */
+.process-container textarea {
+    resize: vertical;
+}
+
+/* ================================================================
+   ラベル（項目名）の共通デザイン
+   ----------------------------------------------------------------
+   - 項目タイトル部分の背景色・幅の統一
+   - セカンダリ（灰色）バージョンも提供
+================================================================ */
+.label-title {
+    display: inline-block;
+    width: 160px;
+    background-color: var(--asti-blue);
+    border: 1px solid var(--asti-white);
+    color: #fff;
+    text-align: left;
+    padding: 5px;
+}
+
+    .label-title.secondary {
+        background-color: var(--asti-gray);
+    }
+
+/* ================================================================
+   操作用エリア（登録/検索ボタンなど）区切り
+   ----------------------------------------------------------------
+   - 上部に余白と薄い仕切り線
+   - secondary で区切り線なし
+================================================================ */
+.action-buttons {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+}
+
+    .action-buttons.secondary {
+        border-top: none;
+    }
+
+/* ================================================================
+   入力必須項目のバリデーション演出（.was-validated時のみ発火）
+   ----------------------------------------------------------------
+   - HTML5 の required/invalid を利用
+   - 背景/文字/枠線を赤系へ統一
+================================================================ */
+.was-validated input.field-required:required:invalid,
+.was-validated select.field-required:required:invalid,
+.was-validated textarea.field-required:required:invalid {
+    background-color: var(--n-bg-red);
+    color: var(--n-c-red);
+    border: 1px solid var(--n-bc-red);
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+/* ================================================================
+   バリデーションメッセージ（エラー表示）
+================================================================ */
+.validation-summary {
+    margin-top: 8px;
+    color: #d32f2f;
+}
+
+.field-error {
+    color: #d32f2f;
+    margin-left: 8px;
+    font-size: 12px;
+}
+
+/* ================================================================
+   更新ボタン（btn-update 系）
+   ----------------------------------------------------------------
+   - ASTI の濃紺系（navy）を基調とした別デザイン
+   - secondary / tertiary で派生
+================================================================ */
+.btn-update {
+    display: inline-block;
+    padding: 10px;
+    border: none;
+    border-radius: 5px;
+    background-color: var(--asti-navy);
+    color: #fff;
+    font-weight: bold;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.08s ease;
+}
+
+    .btn-update:hover {
+        background-color: var(--asti-pink);
+    }
+
+    /* セカンダリ（白＋紺） */
+    .btn-update.secondary {
+        background-color: var(--asti-white);
+        color: var(--asti-navy);
+        border: 1px solid var(--asti-navy);
+    }
+
+        .btn-update.secondary:hover {
+            background-color: var(--asti-lightgray);
+        }
+
+    /* 第三系（白＋グレー） */
+    .btn-update.tertiary {
+        background-color: var(--asti-white);
+        color: var(--asti-gray);
+        border: 1px solid var(--asti-navy);
+    }
+
+        .btn-update.tertiary:hover {
+            background-color: var(--asti-lightgray);
+        }
+
+/* ================================================================
+   レイアウト：入力セクション（Grid 形式のレイアウト）
+   ----------------------------------------------------------------
+   - PC幅では 8 カラム＋右端にボタン位置
+================================================================ */
+.input-section {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(180px, auto)) auto;
+    gap: 8px;
+    align-items: end;
+}
+
+/* ================================================================
+   レスポンシブ調整（スマホ/タブレット）
+   ----------------------------------------------------------------
+   - 899px以下は 1 カラムレイアウトへ切り替え
+   - ボタン area は右寄せに
+================================================================ */
+@media (max-width: 899px) {
+    .input-section {
+        grid-template-columns: 1fr; /* 1列化 */
+    }
+
+    .button-item {
+        text-align: right;
+    }
+
+    .process-container .button-item .btn-search {
+        width: auto;
+    }
+}

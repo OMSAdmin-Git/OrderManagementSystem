@@ -1,0 +1,124 @@
+﻿<%@ Page Language="vb" AutoEventWireup="false" CodeBehind="SelfFcst.aspx.vb" Inherits="OMS.Web.Pages.Orders.SelfFcst" MaintainScrollPositionOnPostback="true" %>
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="ja">
+<head runat="server">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>内示調整</title>
+    <link href="~/Styles/Common.css" rel="stylesheet" type="text/css" />
+    <link href="~/Styles/Process.css" rel="stylesheet" type="text/css" />
+    <link href="~/Styles/Search.css" rel="stylesheet" type="text/css" />
+    <script type="text/javascript" src="<%= ResolveUrl("~/Scripts/Custom/PreventEnterSubmit.js") %>"></script>
+    <script type="text/javascript" src="<%= ResolveUrl("~/Scripts/Custom/GridCheckAll.js") %>"></script>
+</head>
+<body>
+    <form id="form1" runat="server">
+        <div class="process-container">
+
+            <!-- ヘッダー -->
+            <div class="process-header">
+                <h1>内示調整</h1>
+                <div class="user-info">
+                    <asp:Label ID="lblUser" runat="server" Text="ようこそ"></asp:Label>
+                    &nbsp;               
+                    <asp:Button ID="btnOrderMenu" runat="server" CssClass="btn-back" Text="メニューへ" OnClick="btnOrderMenu_Click" />
+                </div>
+            </div>
+
+            <!-- 検索条件 -->
+            <div class="search-section">
+                <div class="search-item">
+                    <label for="txtSearchCustomerCode">取引先コード</label>
+                    <input type="text" id="txtSearchCustomerCode" list="lstSearchCustomerCode" runat="server" />
+                    <datalist id="lstSearchCustomerCode" runat="server"></datalist>
+                </div>
+                <div class="search-item">
+                    <label for="txtSearchCustomerName">取引先名</label>
+                    <input type="text" id="txtSearchCustomerName" list="lstSearchCustomerName" runat="server" />
+                    <datalist id="lstSearchCustomerName" runat="server"></datalist>
+                </div>
+                <div class="search-item">
+                    <label for="txtSearchProfitCenter">PC</label>
+                    <input type="text" id="txtSearchProfitCenter" list="lstSearchProfitCenter" runat="server" />
+                    <datalist id="lstSearchProfitCenter" runat="server"></datalist>
+                </div>
+                <div class="search-item">
+                    <label for="txtSearchCustomerUnitName">注文工場／担当者名</label>
+                    <input type="text" id="txtSearchCustomerUnitName" list="lstSearchCustomerUnitName" runat="server" />
+                    <datalist id="lstSearchCustomerUnitName" runat="server"></datalist>
+                </div>
+                <div class="search-item button-item">
+                    <asp:Button ID="btnSearchGv" runat="server" CssClass="btn-search" Text="検索" OnClick="btnSearchGv_Click" />
+                    <asp:Button ID="btnDefaultGv" runat="server" CssClass="btn-search secondary" Text="クリア" OnClick="btnDefaultGv_Click" />
+                </div>
+            </div>
+
+            <!-- 自社予測一覧 -->
+            <div class="data-list">
+                <div class="data-grid-wrapper">
+                    <asp:GridView ID="gvSelfFcst" runat="server"
+                        AutoGenerateColumns="False"
+                        CssClass="data-grid"
+                        BackColor="White"
+                        BorderColor="#CCCCCC" BorderStyle="None" BorderWidth="1px"
+                        CellPadding="4" ForeColor="Black" GridLines="Both"
+                        DataKeyNames="OrderId">
+                        <Columns>
+                            <asp:BoundField DataField="OrderId" HeaderText="受注ID" Visible="false" />
+                            <asp:BoundField DataField="CustomerSettingId" HeaderText="取引先設定ID" Visible="false" />
+                            <asp:BoundField DataField="CustomerCode" HeaderText="取引先コード" />
+                            <asp:BoundField DataField="CustomerName" HeaderText="取引先名" />
+                            <asp:BoundField DataField="ProfitCenter" HeaderText="PC" />
+                            <asp:BoundField DataField="CustomerUnitId" HeaderText="注文工場／担当者ID" Visible="false" />
+                            <asp:BoundField DataField="CustomerUnitName" HeaderText="注文工場／担当者名" />
+                            <asp:BoundField DataField="ProratedType" HeaderText="分割区分" />
+                            <asp:BoundField DataField="DueDate" HeaderText="希望納期" />
+                            <asp:BoundField DataField="ItemNo" HeaderText="品目No" />
+                            <asp:BoundField DataField="DemandQty" HeaderText="需要数" />
+                            <asp:BoundField DataField="SelfFcstDeleteFlag" HeaderText="自動削除フラグ" />
+                            <asp:BoundField DataField="Remarks" HeaderText="コメント" />
+                            <asp:TemplateField HeaderText="処理対象">
+                                <HeaderTemplate>
+                                    <input type="checkbox" id="chkSelfFcstAll"
+                                        onclick="OMS.Grid.toggleAll('<%= gvSelfFcst.ClientID %>', this, 'chkSelfFcst')" />
+                                    <label for="chkSelfFcstAll">処理対象</label>
+                                </HeaderTemplate>
+                                <ItemTemplate>
+                                    <asp:CheckBox ID="chkSelfFcst" runat="server" Checked="false" />
+                                </ItemTemplate>
+                                <ItemStyle HorizontalAlign="Center" />
+                                <HeaderStyle HorizontalAlign="Center" />
+                            </asp:TemplateField>
+                        </Columns>
+                        <FooterStyle BackColor="#CCCC99" ForeColor="Black" />
+                        <HeaderStyle BackColor="#333333" Font-Bold="True" ForeColor="White" />
+                        <PagerStyle BackColor="White" ForeColor="Black" HorizontalAlign="Right" />
+                        <SelectedRowStyle BackColor="#CC3333" Font-Bold="True" ForeColor="White" />
+                        <SortedAscendingCellStyle BackColor="#F7F7F7" />
+                        <SortedAscendingHeaderStyle BackColor="#4B4B4B" />
+                        <SortedDescendingCellStyle BackColor="#E5E5E5" />
+                        <SortedDescendingHeaderStyle BackColor="#242121" />
+                    </asp:GridView>
+                </div>
+            </div>
+
+            <!-- アクションボタン -->
+            <div class="action-buttons">
+                <asp:Button ID="btnSelfFcstDelete" runat="server"
+                    CssClass="btn-asti btn-asti-process"
+                    Text="削除"
+                    OnClientClick="return validateRequiredFromBtn(this);"
+                    OnClick="btnSelfFcstDelete_Click" />
+            </div>
+            <!-- 実行結果 -->
+            <div>
+                <br />
+                <asp:Label ID="lblResult" runat="server" ForeColor="Green" /><br />
+                <asp:Label ID="lblError" runat="server" ForeColor="Red" />
+            </div>
+
+        </div>
+    </form>
+</body>
+</html>

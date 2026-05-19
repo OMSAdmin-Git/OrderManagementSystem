@@ -1,0 +1,131 @@
+﻿/* ================================================================
+   ログイン画面：レイアウト（中央配置・ボックスデザイン）
+   ----------------------------------------------------------------
+   - ログインフォームを画面中央に配置
+   - 白背景＋影でカード風の見た目に統一
+================================================================ */
+.login-container {
+    width: 350px;
+    margin: 100px auto;
+    padding: 30px;
+    background-color: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0,0,0,0.2);
+}
+
+    .login-container h2 {
+        margin-bottom: 20px;
+        text-align: center;
+    }
+
+    /* ================================================================
+   ラベル・入力欄（フォーム項目の共通デザイン）
+   ----------------------------------------------------------------
+   - ラベル：ブロック要素で縦並び
+   - 入力欄：枠・余白・フォーカス可視化の統一
+================================================================ */
+    .login-container label {
+        display: block;
+        margin-top: 10px;
+    }
+
+    .login-container input[type="text"],
+    .login-container input[type="password"] {
+        display: block;
+        width: 100%;
+        padding: 8px;
+        margin-top: 5px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        box-sizing: border-box;
+        font-size: 14px;
+        line-height: 1.4;
+        color: #222;
+        background-color: #fff;
+    }
+
+        /* 入力欄：フォーカス時の視認性向上（アクセシビリティ） */
+        .login-container input[type="text"]:focus,
+        .login-container input[type="password"]:focus {
+            outline: none;
+            border-color: var(--asti-blue, #2E3C78);
+            box-shadow: 0 0 0 3px rgba(46, 60, 120, 0.15);
+        }
+
+    /* ================================================================
+   ボタン（ログインボタン / 共通ボタン）
+   ----------------------------------------------------------------
+   - 幅100%配置（スマホ対応）
+   - ホバー/アクティブ/フォーカスの統一動作
+================================================================ */
+    .login-container input[type="submit"],
+    .login-container input[type="button"],
+    .login-container button {
+        width: 100%;
+        margin-top: 20px;
+        padding: 10px;
+        border: none;
+        border-radius: 5px;
+        background-color: var(--asti-blue, #2E3C78);
+        color: #fff;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background-color 0.3s ease, transform 0.06s ease;
+    }
+
+        /* ホバー時：色変化 */
+        .login-container input[type="submit"]:hover,
+        .login-container input[type="button"]:hover,
+        .login-container button:hover {
+            background-color: var(--asti-pink, #e85a8f);
+        }
+
+        /* 押下時：わずかに沈む */
+        .login-container input[type="submit"]:active,
+        .login-container input[type="button"]:active,
+        .login-container button:active {
+            transform: translateY(1px);
+        }
+
+        /* キーボードフォーカス（アクセシビリティ） */
+        .login-container input[type="submit"]:focus,
+        .login-container input[type="button"]:focus,
+        .login-container button:focus {
+            outline: 2px solid var(--asti-pink, #e85a8f);
+            outline-offset: 2px;
+        }
+
+    /* ================================================================
+   エラーメッセージ（ログイン失敗時の表示）
+================================================================ */
+    .login-container .error-message {
+        margin-top: 10px;
+        text-align: center;
+        color: #d32f2f;
+        font-size: 14px;
+    }
+
+/* ================================================================
+   レスポンシブ（小画面用）
+   ----------------------------------------------------------------
+   - スマホなど画面幅が狭い場合は余白を小さく
+================================================================ */
+@media (max-width: 480px) {
+    .login-container {
+        width: 92%;
+        margin: 60px auto;
+        padding: 20px;
+        border-radius: 8px;
+    }
+
+        .login-container h2 {
+            font-size: 18px;
+            margin-bottom: 16px;
+        }
+
+        .login-container input[type="submit"],
+        .login-container input[type="button"],
+        .login-container button {
+            padding: 12px;
+        }
+}

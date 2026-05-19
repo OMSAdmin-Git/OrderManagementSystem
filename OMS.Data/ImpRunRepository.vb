@@ -1,0 +1,761 @@
+﻿Imports System.Data
+Imports System.Runtime.Remoting.Metadata.W3cXsd2001
+Imports System.Text
+Imports DocumentFormat.OpenXml.Drawing.Diagrams
+Imports DocumentFormat.OpenXml.Spreadsheet
+Imports OMS.Common
+Imports Oracle.ManagedDataAccess.Client
+
+Namespace OMS.Data
+    Public Class ImpRunRepository
+
+#Region "フィールド・コンストラクタ"
+        Private ReadOnly _connectionString As String
+
+        Public Sub New(connectionString As String)
+            _connectionString = connectionString
+        End Sub
+#End Region
+
+#Region "INSERT"
+        ''' <summary>
+        ''' ImpRunRow class をDBに追加する
+        ''' </summary>
+        ''' <param name="conn"></param>
+        ''' <param name="tran"></param>
+        ''' <param name="row"></param>
+        ''' <returns>string: Number:xxxx Errormessage</returns>
+        Public Function Insert(conn As OracleConnection, tran As OracleTransaction, row As ImpRunRow) As String
+
+            Dim records = New List(Of ImpRunRow)()
+            records.Add(row)
+            Return InsertRange(conn, tran, records)
+
+        End Function
+
+        ''' <summary>
+        ''' ImpRunRow class リストをDBに追加する (元のコード同等呼び出し
+        ''' </summary>
+        ''' <param name="records"></param>
+        Public Sub InsertRange(records As IEnumerable(Of ImpRunRow))
+
+            Using conn As New OracleConnection(_connectionString)
+                conn.Open()
+                Using tran As OracleTransaction = conn.BeginTransaction()
+                    InsertRange(conn, tran, records)
+                    tran.Commit()
+                End Using
+            End Using
+        End Sub
+        ''' <summary>
+        ''' InsertRange
+        ''' </summary>
+        ''' <param name="conn"></param>
+        ''' <param name="tran"></param>
+        ''' <param name="records"></param>
+        ''' <returns></returns>
+        Public Function InsertRange(conn As OracleConnection, tran As OracleTransaction, records As IEnumerable(Of ImpRunRow)) As String
+            Dim errorMessage As String = ""
+            If records Is Nothing Then Return errorMessage
+            Try
+#If False Then
+                Const sql As String =
+                "INSERT INTO imp_run (" &
+                "  imp_run_id, started_at, ended_at, status, started_user_id, " &
+                "  started_pg_id, file_count, row_count, error_count, remarks " &
+                ") VALUES (" &
+                "  :p_imp_run_id, :p_started_at, :p_ended_at, :p_status, :p_started_user_id, :p_started_pg_id, " &
+                "  :p_file_count, :p_row_count, :p_error_count, :p_remarks " &
+                ")"
+#Else
+                Const sql As String =
+                "INSERT INTO imp_run (" &
+                "  started_at, ended_at, status, started_user_id, " &
+                "  started_pg_id, file_count, row_count, error_count, remarks " &
+                ") VALUES (" &
+                "  :p_started_at, :p_ended_at, :p_status, :p_started_user_id, :p_started_pg_id, " &
+                "  :p_file_count, :p_row_count, :p_error_count, :p_remarks " &
+                ") RETURNING imp_run_id INTO :p_out_id"
+#End If
+                Using cmd As New OracleCommand(sql, conn)
+                    cmd.Transaction = tran
+                    cmd.BindByName = True
+                    cmd.CommandType = CommandType.Text
+
+                    For Each r In records
+                        cmd.Parameters.Clear()
+
+                        ' 例：文字列は SafeVarchar で桁超を丸め（定義長に合わせる）
+                        'cmd.Parameters.Add(":p_imp_run_id", OracleDbType.Varchar2, 36).Value = SafeVarchar(r.ImpRunId, 36)
+                        cmd.Parameters.Add(":p_started_at", OracleDbType.Date).Value = r.StartedAt
+                        cmd.Parameters.Add(":p_ended_at", OracleDbType.Date).Value = r.EndedAt
+                        cmd.Parameters.Add(":p_status", OracleDbType.Varchar2, 20).Value = SafeVarchar(r.Status, 20)
+                        cmd.Parameters.Add(":p_started_user_id", OracleDbType.Varchar2, 9).Value = SafeVarchar(r.StartedUserId, 9)
+                        cmd.Parameters.Add(":p_started_pg_id", OracleDbType.Varchar2, 150).Value = SafeVarchar(r.StartedPgId, 150)
+                        cmd.Parameters.Add(":p_file_count", OracleDbType.Decimal).Value = r.FileCount
+                        cmd.Parameters.Add(":p_row_count", OracleDbType.Decimal).Value = r.RowCount
+                        cmd.Parameters.Add(":p_error_count", OracleDbType.Int64).Value = r.ErrorCount
+                        cmd.Parameters.Add(":p_remarks", OracleDbType.Varchar2, 1000).Value = SafeVarchar(r.Remarks, 1000)
+
+                        Dim outParam As New OracleParameter(":p_out_id", OracleDbType.Int64)
+                        outParam.Direction = ParameterDirection.Output
+                        cmd.Parameters.Add(outParam)
+
+                        cmd.ExecuteNonQuery()
+
+                        ' 採番された値を元のオブジェクトに書き戻す
+                        If outParam.Value IsNot Nothing AndAlso Not IsDBNull(outParam.Value) Then
+                            r.ImpRunId = Convert.ToInt64(outParam.Value.ToString())
+                        End If
+
+                    Next
+
+                End Using
+            Catch e As OracleException
+                errorMessage = "Number: " & e.Number & vbCrLf & "Message: " & e.Message
+            Finally
+            End Try
+            Return errorMessage
+
+        End Function
+        'Get
+        'Get
+        'Public Function GetImpRun(conn As OracleConnection, tran As OracleTransaction,
+        '    Optional ByVal status As String = Nothing
+        ') As DataTable
+
+        '    Dim dt As New DataTable()
+        '    Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
+        '        cmd.CommandText = "
+        '                SELECT *
+        '                FROM imp_run
+        '                WHERE status = :p_status "
+        '        cmd.Parameters.Add(":p_status", OracleDbType.Varchar2, 20).Value = SafeVarchar(status, 20)
+
+        '        Using reader As OracleDataReader = cmd.ExecuteReader()
+        '            dt.Load(reader)
+        '        End Using
+        '    End Using
+        '    Return dt
+
+        'End Function
+
+#End Region
+
+        '''' <summary>
+        '''' 
+        '''' </summary>
+        '''' <param name="conn"></param>
+        '''' <param name="tran"></param>
+        '''' <param name="startedAt"></param>
+        '''' <param name="status"></param>
+        '''' <param name="startedUserId"></param>
+        '''' <returns></returns>
+        'Public Function GetImpRun(conn As OracleConnection, tran As OracleTransaction,
+        '    Optional ByVal startedAt As Date? = Nothing,
+        '    Optional ByVal impRunId As String = Nothing,
+        '    Optional ByVal status As String = Nothing,
+        '    Optional ByVal startedUserId As String = Nothing
+        ') As ImpRunRow
+
+        '    Dim dt As ImpRunRow = Nothing
+        '    Dim irl = GetImpRunRows(conn, tran, impRunId:=impRunId, status:=status, startedAt:=startedAt, startedUserId:=startedUserId)
+        '    If (irl.Rows.Count <> 0) Then
+        '        dt = ToClass(irl(0))
+        '    End If
+        '    Return dt
+        'End Function
+
+
+        ''' <summary>
+        ''' 
+        ''' </summary>
+        ''' <param name="conn"></param>
+        ''' <param name="tran"></param>
+        ''' <param name="startedAt"></param>
+        ''' <param name="status"></param>
+        ''' <param name="startedUserId"></param>
+        ''' <returns></returns>
+        Public Function GetImpRunRow(conn As OracleConnection, tran As OracleTransaction,
+            Optional ByVal startedAt As Date? = Nothing,
+            Optional ByVal impRunId As Long? = Nothing,
+            Optional ByVal status As String = Nothing,
+            Optional ByVal startedUserId As String = Nothing
+        ) As ImpRunRow
+
+            Dim dt As ImpRunRow = Nothing
+            Dim irl = GetImpRunRows(conn, tran, impRunId:=impRunId, status:=status, startedAt:=startedAt, startedUserId:=startedUserId)
+            If (irl.Rows.Count <> 0) Then
+                dt = ToClass(irl(0))
+            End If
+            Return dt
+        End Function
+
+        Public Function GetImpRunIdNext(conn As OracleConnection, tran As OracleTransaction) As String
+
+            Dim dt As New DataTable()
+            Dim sb As New StringBuilder()
+            Dim prm As New List(Of OracleParameter)()
+            sb.AppendLine("SELECT ")
+            sb.AppendLine("MAX(TO_NUMBER(imp_run_id)) as max_index")
+            sb.AppendLine("FROM imp_run ")
+
+            Using cmd As New OracleCommand(sb.ToString(), conn)
+                cmd.BindByName = True
+                cmd.CommandType = CommandType.Text
+                If prm.Count > 0 Then cmd.Parameters.AddRange(prm.ToArray())
+                Using reader As OracleDataReader = cmd.ExecuteReader()
+                    dt.Load(reader)
+                End Using
+            End Using
+            Dim rt = "0"
+            If (dt.Rows.Count <> 0) Then
+                Dim index = dt(0).Field(Of Decimal)("max_index")
+                rt = (index + 1).ToString()
+            End If
+
+            Return rt
+
+        End Function
+
+        ''' <summary>
+        ''' 
+        ''' </summary>
+        ''' <param name="conn"></param>
+        ''' <param name="tran"></param>
+        ''' <param name="startedAt"></param>
+        ''' <param name="status"></param>
+        ''' <param name="startedUserId"></param>
+        ''' <returns></returns>
+        Public Function GetImpRunStartedAt(conn As OracleConnection, tran As OracleTransaction,
+            ByVal startedAt As Date,
+            Optional ByVal status As String = Nothing,
+            Optional ByVal startedUserId As String = Nothing
+        ) As ImpRunRow
+
+            Dim dt As ImpRunRow = Nothing
+            Dim irl = GetImpRun(conn, tran, status, startedAt, startedUserId)
+            If (irl.Rows.Count <> 0) Then
+                dt = ToClass(irl(0))
+            End If
+            Return dt
+
+        End Function
+
+        ''' <summary>
+        ''' Imp_run Table から status / startedAt/startedUserId 条件でレコード抽出
+        ''' </summary>
+        ''' <param name="conn"></param>
+        ''' <param name="tran"></param>
+        ''' <param name="status"></param>
+        ''' <param name="startedAt"></param>
+        ''' <param name="startedUserId"></param>
+        ''' <returns></returns>
+        Public Function GetImpRunRows(conn As OracleConnection, tran As OracleTransaction,
+            Optional ByVal impRunId As Long? = Nothing,
+            Optional ByVal status As String = Nothing,
+            Optional ByVal startedAt As Date? = Nothing,
+            Optional ByVal startedUserId As String = Nothing
+        ) As DataTable
+
+            Dim dt As New DataTable()
+            Dim sb As New StringBuilder()
+            sb.AppendLine("SELECT * ")
+            sb.AppendLine("FROM imp_run ")
+            sb.AppendLine("WHERE 1=1 ")
+
+            Dim prm As New List(Of OracleParameter)()
+
+            ' 文字列を安全にLIKEパターンへ（%と_をエスケープしてから %term% に）
+            Dim pImpRunId As Long? = impRunId
+            Dim pStatus As String = Utils.BuildLikePattern(status, LikeMode.Contains)
+            Dim pStartedUserId As String = Utils.BuildLikePattern(startedUserId, LikeMode.Contains)
+            Dim pStartedAt = startedAt
+
+            If pImpRunId IsNot Nothing Then
+                sb.AppendLine("AND imp_run_id = :p_impRunId")
+                prm.Add(New OracleParameter(":p_impRunId", OracleDbType.Long) With {.Value = pImpRunId})
+            End If
+
+            If pStatus IsNot Nothing Then
+                sb.AppendLine("AND UPPER(status) LIKE UPPER(:p_status) ESCAPE '\' ")
+                prm.Add(New OracleParameter(":p_status", OracleDbType.Varchar2) With {.Value = pStatus})
+            End If
+
+            If pStartedUserId IsNot Nothing Then
+                sb.AppendLine("AND UPPER(started_user_id) LIKE UPPER(:p_startedUserId) ESCAPE '\' ")
+                prm.Add(New OracleParameter(":p_startedUserId", OracleDbType.Varchar2) With {.Value = pStartedUserId})
+            End If
+
+            If pStartedAt IsNot Nothing Then
+                sb.AppendLine("AND started_at = :p_startedAt ")
+                prm.Add(New OracleParameter(":p_startedAt", OracleDbType.Date) With {.Value = pStartedAt})
+            End If
+            Try
+
+                Using cmd As New OracleCommand(sb.ToString(), conn)
+                    cmd.BindByName = True
+                    cmd.CommandType = CommandType.Text
+                    If prm.Count > 0 Then cmd.Parameters.AddRange(prm.ToArray())
+                    Using reader As OracleDataReader = cmd.ExecuteReader()
+                        dt.Load(reader)
+                    End Using
+                End Using
+            Catch ex As Exception
+                Dim ers = ex.Message
+            End Try
+            Return dt
+
+        End Function
+
+        Public Function Delete(conn As OracleConnection, tran As OracleTransaction,
+                               Optional ByVal impRunId As Long? = Nothing) As String
+            Dim errorMessage As String = ""
+
+            Dim rt = GetImpRunRows(conn, tran, impRunId:=impRunId)
+            If (rt.Rows.Count = 0) Then
+                Return errorMessage
+            End If
+
+            Try
+
+                Dim dt As New DataTable()
+                Dim sb As New StringBuilder()
+                sb.AppendLine("DELETE ")
+                sb.AppendLine($"FROM imp_run ")
+                sb.AppendLine("WHERE 1=1 ")
+                Dim prm As New List(Of OracleParameter)()
+
+                If impRunId IsNot Nothing Then
+                    sb.AppendLine("AND imp_Run_Id = :p_impRunId ")
+                    prm.Add(New OracleParameter(":p_impRunId", OracleDbType.Long) With {.Value = impRunId})
+                End If
+
+                Using cmd As New OracleCommand(sb.ToString(), conn)
+                    cmd.BindByName = True
+                    cmd.CommandType = CommandType.Text
+                    If prm.Count > 0 Then cmd.Parameters.AddRange(prm.ToArray())
+                    cmd.ExecuteNonQuery()
+                End Using
+
+            Catch e As OracleException
+                errorMessage = "Number: " & e.Number & vbCrLf & "Message: " & e.Message
+            End Try
+            Return errorMessage
+
+        End Function
+        ''' <summary>
+        ''' Update
+        ''' </summary>
+        ''' <param name="conn"></param>
+        ''' <param name="tran"></param>
+        ''' <param name="kImpRunId"></param>
+        ''' <param name="kStartedAt"></param>
+        ''' <param name="kStatus"></param>
+        ''' <param name="kStartedUserId"></param>
+        ''' <param name="kStartedPgId"></param>
+        ''' <param name="endedAt"></param>
+        ''' <param name="status"></param>
+        ''' <param name="fileCount"></param>
+        ''' <param name="rowCount"></param>
+        ''' <param name="errorCount"></param>
+        ''' <returns></returns>
+        Public Function Update(conn As OracleConnection, tran As OracleTransaction,
+                                Optional ByVal kImpRunId As Long? = Nothing,
+                                Optional ByVal kStartedAt As Date? = Nothing,
+                                Optional ByVal kStatus As String = Nothing,
+                                Optional ByVal kStartedUserId As String = Nothing,
+                                Optional ByVal kStartedPgId As String = Nothing,
+                                Optional ByVal endedAt As Date? = Nothing,
+                                Optional ByVal status As String = Nothing,
+                                Optional ByVal fileCount As Integer? = Nothing,
+                                Optional ByVal rowCount As Integer? = Nothing,
+                                Optional ByVal errorCount As Long? = Nothing) As String
+
+            Dim errorMessage As String = ""
+            Try
+                Dim sb As New StringBuilder()
+                Dim prm As New List(Of OracleParameter)()
+                sb.AppendLine($"UPDATE imp_run ")
+                ' セット
+                sb.AppendLine($"SET ")
+
+                If endedAt IsNot Nothing Then
+                    sb.AppendLine($"ended_at = :p_endedAt, ")
+                    prm.Add(New OracleParameter(":p_endedAt", OracleDbType.Date) With {.Value = endedAt})
+                End If
+
+                If status IsNot Nothing Then
+                    sb.AppendLine($"status = :p_status, ")
+                    prm.Add(New OracleParameter(":p_status", OracleDbType.Varchar2) With {.Value = status})
+                End If
+
+                If fileCount IsNot Nothing Then
+                    sb.AppendLine($"file_count = :p_fileCount, ")
+                    prm.Add(New OracleParameter(":p_fileCount", OracleDbType.Int64) With {.Value = fileCount})
+                End If
+
+                If rowCount IsNot Nothing Then
+                    sb.AppendLine($"row_count = :p_rowCount, ")
+                    prm.Add(New OracleParameter(":p_rowCount", OracleDbType.Int64) With {.Value = rowCount})
+                End If
+
+                ' 最後のカンマ削除
+                If sb.Length > 0 Then
+                    Dim startPos As Integer = Math.Max(0, sb.Length - 5)
+                    sb.Replace(",", " ", startPos, sb.Length - startPos)
+                End If
+
+                sb.AppendLine(" WHERE 1=1 ")
+
+                ' 絞り込み
+                If kImpRunId IsNot Nothing Then
+                    sb.AppendLine("AND imp_run_id = :p_kImpRunId ")
+                    prm.Add(New OracleParameter(":p_kImpRunId", OracleDbType.Long) With {.Value = kImpRunId})
+                End If
+
+                If kStartedAt IsNot Nothing Then
+                    sb.AppendLine($"AND started_at = :p_kStartedAt ")
+                    prm.Add(New OracleParameter(":p_kStartedAt", OracleDbType.Date) With {.Value = kStartedAt})
+                End If
+
+                If kStatus IsNot Nothing Then
+                    sb.AppendLine($"AND status = :p_kStatus ")
+                    prm.Add(New OracleParameter(":p_kStatus", OracleDbType.Varchar2) With {.Value = kStatus})
+                End If
+
+                If kStartedUserId IsNot Nothing Then
+                    sb.AppendLine($"AND started_user_id = :p_kStartedUserId ")
+                    prm.Add(New OracleParameter(":p_kStartedUserId", OracleDbType.Varchar2) With {.Value = kStartedUserId})
+                End If
+
+                If kStartedPgId IsNot Nothing Then
+                    sb.AppendLine($"AND started_pg_id = :p_kStartedPgId ")
+                    prm.Add(New OracleParameter(":p_kStartedPgId", OracleDbType.Varchar2) With {.Value = kStartedPgId})
+                End If
+
+                Using cmd As New OracleCommand(sb.ToString(), conn)
+                    cmd.BindByName = True
+                    cmd.CommandType = CommandType.Text
+                    If prm.Count > 0 Then cmd.Parameters.AddRange(prm.ToArray())
+                    cmd.ExecuteNonQuery()
+                End Using
+
+            Catch e As OracleException
+                errorMessage = "Number: " & e.Number & vbCrLf & "Message: " & e.Message
+            Finally
+            End Try
+            Return errorMessage
+
+        End Function
+
+        ''' <summary>
+        ''' Imp_run Table から status / startedAt/startedUserId 条件でレコード抽出
+        ''' </summary>
+        ''' <param name="conn"></param>
+        ''' <param name="tran"></param>
+        ''' <param name="status"></param>
+        ''' <param name="startedAt"></param>
+        ''' <param name="startedUserId"></param>
+        ''' <returns></returns>
+        Public Function GetImpRun(conn As OracleConnection, tran As OracleTransaction,
+            Optional ByVal status As String = Nothing,
+            Optional ByVal startedAt As Date? = Nothing,
+            Optional ByVal startedUserId As String = Nothing
+        ) As DataTable
+
+            Dim dt As New DataTable()
+            Dim sb As New StringBuilder()
+            sb.AppendLine("SELECT ")
+            sb.AppendLine("FROM imp_run ")
+            sb.AppendLine("WHERE 1=1 ")
+
+            Dim prm As New List(Of OracleParameter)()
+
+            ' 文字列を安全にLIKEパターンへ（%と_をエスケープしてから %term% に）
+            Dim pStatus As String = Utils.BuildLikePattern(status, LikeMode.Contains)
+            Dim pStartedUserId As String = Utils.BuildLikePattern(startedUserId, LikeMode.Contains)
+            Dim pStartedAt = startedAt
+
+            If pStatus IsNot Nothing Then
+                sb.AppendLine("AND UPPER(pStatus) LIKE UPPER(:p_status) ESCAPE '\' ")
+                prm.Add(New OracleParameter(":p_status", OracleDbType.Varchar2) With {.Value = pStatus})
+            End If
+
+            If pStartedUserId IsNot Nothing Then
+                sb.AppendLine("AND UPPER(pStartedUserId) LIKE UPPER(:p_startedUserId) ESCAPE '\' ")
+                prm.Add(New OracleParameter(":p_startedUserId", OracleDbType.Varchar2) With {.Value = pStartedUserId})
+            End If
+
+            If pStartedAt IsNot Nothing Then
+                sb.AppendLine("AND started_at = :p_startedAt ")
+                prm.Add(New OracleParameter(":p_startedAt", OracleDbType.Date) With {.Value = pStartedAt})
+            End If
+
+            Using cmd As New OracleCommand(sb.ToString(), conn)
+                cmd.BindByName = True
+                cmd.CommandType = CommandType.Text
+                If prm.Count > 0 Then cmd.Parameters.AddRange(prm.ToArray())
+                Using reader As OracleDataReader = cmd.ExecuteReader()
+                    dt.Load(reader)
+                End Using
+            End Using
+            Return dt
+
+        End Function
+
+        Public Function GetImpRunId() As Integer
+
+            Const sql As String = "
+                SELECT NVL(MAX(TO_NUMBER(imp_run_id)), 0) FROM imp_run"
+
+            Using conn As New OracleConnection(_connectionString)
+                conn.Open()
+                Using cmd As New OracleCommand(sql, conn)
+                    cmd.BindByName = True
+
+
+                    Dim obj = cmd.ExecuteScalar()
+                    If obj Is Nothing OrElse obj Is DBNull.Value Then
+                        Return Nothing
+                    End If
+                    Return Convert.ToString(obj)
+                End Using
+            End Using
+        End Function
+
+        Public Function GetImpRunId(ByVal status As String,
+                                    ByVal updateUserId As String,
+                                    ByVal updatepgId As String) As Long
+
+            Const sql As String =
+                " SELECT " &
+                " MAX(imp_run_id) as imp_run_id " &
+                " FROM imp_run " &
+                " WHERE 1 = 1 " &
+                " AND status = :p_status " &
+                " AND started_user_id = :p_user_id " &
+                " AND started_pg_id = :p_updated_pg_id "
+
+            Using conn As New OracleConnection(_connectionString)
+                conn.Open()
+
+                Using cmd As New OracleCommand(sql, conn)
+                    cmd.BindByName = True
+                    cmd.CommandType = CommandType.Text
+                    cmd.Parameters.Clear()
+
+                    ' パラメータ設定
+                    cmd.Parameters.Add(":p_status", OracleDbType.Varchar2, 20).Value = SafeVarchar(status, 20)
+                    cmd.Parameters.Add(":p_user_id", OracleDbType.Varchar2, 9).Value = SafeVarchar(updateUserId, 9)
+                    cmd.Parameters.Add(":p_updated_pg_id", OracleDbType.Varchar2, 150).Value = SafeVarchar(updatepgId, 150)
+
+                    Dim obj = cmd.ExecuteScalar()
+                    If obj Is Nothing OrElse obj Is DBNull.Value Then
+                        Return Nothing
+                    End If
+                    Return Convert.ToString(obj)
+                End Using
+            End Using
+
+        End Function
+
+        '2026/03/26 酒井 st
+        Public Sub UpdateRange(ByVal ImpRunId As Long?,
+                                ByVal Status As String,
+                                Optional ByVal EndedAt As Date? = Nothing,
+                                Optional ByVal FileCount As Long? = Nothing,
+                                Optional ByVal RowCount As Long? = Nothing,
+                                Optional ByVal ErrorCount As Long? = Nothing,
+                                Optional ByVal Remarks As String = Nothing)
+
+            Using conn As New OracleConnection(_connectionString)
+                conn.Open()
+                Using tran As OracleTransaction = conn.BeginTransaction()
+
+                    Dim sb As New StringBuilder()
+                    Dim prm As New List(Of OracleParameter)()
+                    Dim isFirst As Boolean = True ' ★最初の項目判定用
+
+                    sb.AppendLine("UPDATE imp_run ")
+
+                    ' セット
+                    If Status IsNot Nothing Then
+                        If isFirst Then
+                            sb.AppendLine("SET status = :p_status ")
+                            isFirst = False
+                        Else
+                            sb.AppendLine(",status = :p_status ")
+                        End If
+                        prm.Add(New OracleParameter(":p_status", OracleDbType.Varchar2) With {.Value = Status})
+                    End If
+                    If EndedAt IsNot Nothing Then
+                        If isFirst Then
+                            sb.AppendLine("SET ended_at = :p_ed_at ")
+                            isFirst = False
+                        Else
+                            sb.AppendLine(",ended_at = :p_ed_at ")
+                        End If
+                        prm.Add(New OracleParameter(":p_ed_at", OracleDbType.Date) With {.Value = EndedAt})
+                    End If
+                    If FileCount IsNot Nothing Then
+                        If isFirst Then
+                            sb.AppendLine("SET file_count = :p_file_cnt ")
+                            isFirst = False
+                        Else
+                            sb.AppendLine(",file_count = :p_file_cnt ")
+                        End If
+                        prm.Add(New OracleParameter(":p_file_cnt", OracleDbType.Int64) With {.Value = FileCount})
+                    End If
+                    If RowCount IsNot Nothing Then
+                        If isFirst Then
+                            sb.AppendLine("SET row_count = :p_row_cnt ")
+                            isFirst = False
+                        Else
+                            sb.AppendLine(",row_count = :p_row_cnt ")
+                        End If
+                        prm.Add(New OracleParameter(":p_row_cnt", OracleDbType.Int64) With {.Value = RowCount})
+                    End If
+                    If ErrorCount IsNot Nothing Then
+                        If isFirst Then
+                            sb.AppendLine("error_count = :p_err_cnt ")
+                            isFirst = False
+                        Else
+                            sb.AppendLine(",error_count = :p_err_cnt ")
+                        End If
+                        prm.Add(New OracleParameter(":p_err_cnt", OracleDbType.Int64) With {.Value = ErrorCount})
+                    End If
+                    If Remarks IsNot Nothing Then
+                        If isFirst Then
+                            sb.AppendLine("SET Remarks = :p_remarks ")
+                            isFirst = False
+                        Else
+                            sb.AppendLine(",Remarks = :p_remarks ")
+                        End If
+                        prm.Add(New OracleParameter(":p_remarks", OracleDbType.Varchar2) With {.Value = Remarks})
+                    End If
+
+                    sb.AppendLine("WHERE 1=1 ")
+
+                    ' 絞り込み
+                    If ImpRunId IsNot Nothing Then
+                        sb.AppendLine("AND imp_run_id = :p_run_id ")
+                        prm.Add(New OracleParameter(":p_run_id", OracleDbType.Int64) With {.Value = ImpRunId})
+                    End If
+
+                    Using cmd As New OracleCommand(sb.ToString(), conn)
+                        cmd.Transaction = tran
+                        cmd.BindByName = True
+                        cmd.CommandType = CommandType.Text
+                        If prm.Count > 0 Then cmd.Parameters.AddRange(prm.ToArray())
+                        cmd.ExecuteNonQuery()
+
+
+                    End Using
+
+                    tran.Commit()
+
+                End Using
+            End Using
+        End Sub
+
+        Public Function ToClass(dt As DataRow) As ImpRunRow
+
+            Dim udir = New ImpRunRow
+            udir.ImpRunId = dt.Field(Of Long)("imp_run_id")
+            udir.StartedAt = dt.Field(Of Date?)("started_at")
+            udir.EndedAt = dt.Field(Of Date?)("ended_at")
+            udir.Status = dt.Field(Of String)("status")
+            udir.StartedUserId = dt.Field(Of String)("started_user_id")
+            udir.StartedPgId = dt.Field(Of String)("started_pg_id")
+            Dim d1 = dt.Field(Of Decimal?)("file_count")
+            Dim d2 = dt.Field(Of Decimal?)("row_count")
+            udir.FileCount = d1
+            udir.RowCount = d2
+            udir.ErrorCount = dt.Field(Of Long?)("error_count")
+            udir.Remarks = dt.Field(Of String)("remarks")
+            Return udir
+
+        End Function
+
+        Public Sub UpdateRange(records As IEnumerable(Of ImpRunRow))
+            If records Is Nothing Then Return
+
+            Using conn As New OracleConnection(_connectionString)
+                conn.Open()
+                Using tran As OracleTransaction = conn.BeginTransaction()
+
+                    Const sql As String =
+                        "UPDATE imp_run SET " &
+                        "  ended_at = :p_ed_at, " &
+                        "  status = :p_status, " &
+                        "  file_count = :p_file_cnt, " &
+                        "  row_count = :p_row_cnt, " &
+                        "  error_count = :p_err_cnt " &
+                        "WHERE imp_run_id = :p_run_id"
+
+                    Using cmd As New OracleCommand(sql, conn)
+                        cmd.Transaction = tran
+                        cmd.BindByName = True
+                        cmd.CommandType = CommandType.Text
+
+                        For Each r In records
+                            cmd.Parameters.Clear()
+
+                            cmd.Parameters.Add(":p_run_id", OracleDbType.Long).Value = r.ImpRunId
+                            cmd.Parameters.Add(":p_ed_at", OracleDbType.Date).Value = r.EndedAt
+
+                            ' ステータス
+                            cmd.Parameters.Add(":p_status", OracleDbType.Varchar2, 20).Value = r.Status
+
+                            ' 監査系
+                            cmd.Parameters.Add(":p_file_cnt", OracleDbType.Int32).Value = r.FileCount
+                            cmd.Parameters.Add(":p_row_cnt", OracleDbType.Int32).Value = r.RowCount
+                            cmd.Parameters.Add(":p_err_cnt", OracleDbType.Int32).Value = r.ErrorCount
+
+                            cmd.ExecuteNonQuery()
+                        Next
+
+                        tran.Commit()
+                    End Using
+                End Using
+            End Using
+        End Sub
+        '2026/03/26 酒井 ed
+
+    End Class
+
+    Public Class ImpRunRow
+
+        Public ImpRunId As Long?        'IMP_RUN_ID         NUMBER(10,0)        No
+        Public StartedAt As Date?       'STARTED_AT         DATE                No
+        Public EndedAt As Date?         'ENDED_AT           DATE                Yes
+        Public Status As String         'STATUS             VARCHAR2(20 BYTE)   No
+        Public StartedUserId As String  'STARTED_USER_ID    VARCHAR2(9 BYTE)    No
+        Public StartedPgId As String    'STARTED_PG_ID      VARCHAR2(150 BYTE)  Yes
+        Public FileCount As Int32? = 0  'FILE_COUNT         NUMBER              No
+        Public RowCount As Int32? = 0   'ROW_COUNT          NUMBER              No
+        Public ErrorCount As Long? = 0  'ERROR_COUNT        NUMBER(10,0)        No
+        Public Remarks As String        'REMARKS            VARCHAR2(1000 BYTE) Yes
+
+
+        Sub New()
+
+        End Sub
+
+        'STARTED_AT         実行開始日時        SYSDATE
+        'STATUS             ステータス          'RUNNNING'
+        'STARTED_USER_ID    実行開始ユーザーID  [ログインユーザーID]
+        'STARTED_PG_ID      実行プログラムID    'ProductionPlanningImport(Execute)'
+        Sub New(StartedAt As Date, Status As String, StartedUserId As String, StartedPgId As String)
+
+            'Me.ImpRunId = 0
+            Me.StartedAt = StartedAt
+            Me.Status = Status
+            Me.StartedUserId = StartedUserId
+            Me.StartedPgId = StartedPgId
+
+        End Sub
+    End Class
+
+End Namespace
