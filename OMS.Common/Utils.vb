@@ -184,10 +184,45 @@ Namespace OMS.Common
 
         ''' <summary>文字列を最大長までトリムして返す（NULLは DBNull.Value）</summary>
         Public Function SafeVarchar(s As String, maxLen As Integer) As Object
-            If s Is Nothing Then Return DBNull.Value
-            Dim t = s.Trim()
-            If t.Length <= maxLen Then Return t
-            Return t.Substring(0, maxLen)
+            'If s Is Nothing Then Return DBNull.Value
+            'Dim t = s.Trim()
+            'If t.Length <= maxLen Then Return t
+            'Return t.Substring(0, maxLen)
+
+            'UTF-8対応
+            If s Is Nothing Then
+                Return DBNull.Value
+            End If
+
+            Dim t As String = s.Trim()
+
+            ' UTF-8 のバイト数を取得
+            Dim utf8 As Encoding = Encoding.UTF8
+
+            ' そのままで収まる場合
+            If utf8.GetByteCount(t) <= maxLen Then
+                Return t
+            End If
+
+            ' UTF-8 のバイト長を超えない位置まで切り詰め
+            Dim result As New StringBuilder()
+            Dim currentBytes As Integer = 0
+
+            For Each ch As Char In t
+
+                Dim charBytes As Integer = utf8.GetByteCount(ch.ToString())
+
+                ' 追加すると上限超過する場合は終了
+                If currentBytes + charBytes > maxLen Then
+                    Exit For
+                End If
+
+                result.Append(ch)
+                currentBytes += charBytes
+
+            Next
+
+            Return result.ToString()
         End Function
 
         ''' <summary>空/空白なら Nothing、そうでなければ Trim 済み文字列</summary>
