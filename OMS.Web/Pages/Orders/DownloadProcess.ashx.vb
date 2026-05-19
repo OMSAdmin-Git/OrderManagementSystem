@@ -15,7 +15,7 @@ Public Class DownloadProcess
     ''' </summary>
     ''' <param name="context"></param>
     Sub ProcessRequest(ByVal context As HttpContext) Implements IHttpHandler.ProcessRequest
-        ' 2026/5/19
+        ' 2026/5/19 r.s
         ' 2. URLにファイル名をパラメータとして付与する（日本語などの場合は UrlEncode を推奨）
         'Dim url As String = $"DownloadProcess.ashx?file={HttpUtility.UrlEncode(fileName)}&list={HttpUtility.UrlEncode(listName)}"
         'Dim script As String = $"document.getElementById('downloadFrame').src = '{url}';"
