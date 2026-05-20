@@ -197,6 +197,7 @@ Namespace Pages.Orders
                             ' ③	ACTIVE_FLAG（有効フラグ）= 'Y'
                             Dim orders = repo.GetOrders(conn, tran, OrderRepository.OrdersTable.ProductPlan, status:="PLAN_SET", activeFlag:="Y", customerSettingId:=customerSettingId)
                             Dim orderRows = repo.ToClass(orders)
+                            count += orderRows.Count
                             '#If DEBUG Then
                             '                            ' #### DEBUG 評価
                             '                            If (orderRows.Count <> 0) Then
@@ -353,6 +354,7 @@ Namespace Pages.Orders
                             '        Continue For
                             '    End If
                             'End If
+                            valid += orderRows.Count
                         Else
                         End If
                     End If
@@ -371,6 +373,7 @@ Namespace Pages.Orders
 
             Catch ex As Exception
                 Dim err = ex.Message
+                errors.Add(err)
             Finally
                 If (errors.Count > 0) Then
                     'lblError.Text = errors(0)

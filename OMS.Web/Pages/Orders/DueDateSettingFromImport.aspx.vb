@@ -192,6 +192,7 @@ Namespace Pages.Orders
                             ' ③	ACTIVE_FLAG（有効フラグ）= 'Y'
                             Dim orders = repo.GetOrders(conn, tran, status:="PROCESSED", activeFlag:="Y", customerSettingId:=customerSettingId)
                             Dim orderRows = repo.ToClass(orders)
+                            count += orderRows.Count
                             '#If DEBUG Then
                             '                            ' #### DEBUG 評価
                             '                            If (orderRows.Count <> 0) Then
@@ -333,6 +334,7 @@ Namespace Pages.Orders
                                 ' Excel ファイル作成 Error
                                 errors.Add("Error: Excel 受注差異リスト出力エラー")
                             End If
+                            valid += orderRows.Count
                         Else
                         End If
                     End If
@@ -353,6 +355,15 @@ Namespace Pages.Orders
             Catch ex As Exception
                 errors.Add(ex.Message)
             Finally
+                If (errors.Count > 0) Then
+                    'lblError.Text = errors(0)
+                    lblError.Text = String.Join(vbCrLf, errors)
+                End If
+                If (count = 0 And valid = 0) Then
+                    lblResult.Text = $"有効なデータが無かったため納期設定は行われませんでした。"
+                Else
+                    lblResult.Text = $"{count}件中{valid}件の納期設定を行いました。"
+                End If
                 tran.Dispose()
                 conn.Close()
                 conn.Dispose()
