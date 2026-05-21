@@ -128,10 +128,10 @@ Namespace Pages.Orders
             Dim fileList As List(Of String) = New List(Of String)()
             Dim strPath = Server.MapPath("~/App_Data/Files/")
             Dim FileDate = DateTime.Now
-            Dim unofficial = 0
+            'Dim count = 0
+            'Dim valid = 0
+            Dim unofficialNotice = 0
             Dim confirmed = 0
-            Dim count = 0
-            Dim valid = 0
             Dim errors As New List(Of String)()
             Dim loginUserId As String = PageHelpers.GetUserId(Me)
 
@@ -289,6 +289,11 @@ Namespace Pages.Orders
                 'Utils.FileTransfer(Response, Server, trfilename)
                 fileList.Add(trfilename)
 
+                ' 処理数を 集計する
+                Dim cnt = repo.ProdPlanCount(conn, tran, OrderRepository.OrdersTable.ProductPlan)
+                unofficialNotice = cnt.unofficialNotice
+                confirmed = cnt.confirmed
+
                 'CSV出力(内示)
                 'CSVファイルへPROD_PLAN_STRA_VIEW（生産計画出力一覧）を書き出し、ブラウザで設定されているダウンロードフォルダへ出力する。
                 'Dim PlanRows = repos.GetOrderStras(conn, tran, demandStatus:="F", status:="POST_PLAN_DUE_SET", activeFlag:="Y")
@@ -369,7 +374,7 @@ Namespace Pages.Orders
                 'UPDATED_PG_ID(更新プログラムID)
                 Dim rows = reps.GetOrders(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, status:="EXPORTED", activeFlag:="Y")
                 Dim orderRows = reps.ToClass(rows)
-                count += orderRows.Count
+
                 For Each row In orderRows
                     errors.Add(repo.Update(conn, tran, OrderRepository.OrdersTable.ProductPlan, kOrderId:=row.OrderId, status:=row.Status, updatedAt:=row.UpdatedAt, updatedUserId:=row.UpdatedUserId, updatedPgId:=row.UpdatedPgId))
                 Next
@@ -377,7 +382,7 @@ Namespace Pages.Orders
                     ' エラー
                     DBError(tran)
                 End If
-                valid += orderRows.Count
+
                 '#If DEBUG Then
                 '                ' #### DEBUG
                 '                tran.Commit()
@@ -414,10 +419,10 @@ Namespace Pages.Orders
                     End If
                     tran.Rollback()
                 End If
-                If (count = 0 And valid = 0) Then
+                If (unofficialNotice = 0 And confirmed = 0) Then
                     lblResult.Text = $"有効なデータが無かったため受注データの出力は行われませんでした。"
                 Else
-                    lblResult.Text = $"{count}件中{valid}件の受注データの出力を行いました。"
+                    lblResult.Text = $"内示{unofficialNotice}件、確定{confirmed}件の受注データの出力を行いました。"
                 End If
                 tran.Dispose()
                 conn.Close()

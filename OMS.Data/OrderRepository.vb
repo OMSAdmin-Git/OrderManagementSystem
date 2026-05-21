@@ -1580,6 +1580,42 @@ Namespace OMS.Data
             filename = $"{fileBaseName}({processDate:yyyyMMddHHmmss}).zip"
             Return filename
         End Function
+        ''' <summary>
+        ''' 内示/確定 設定数を取得する
+        ''' </summary>
+        ''' <param name="conn"></param>
+        ''' <param name="tran"></param>
+        ''' <param name="type"></param>
+        ''' <returns></returns>
+        Public Function ProdPlanCount(conn As OracleConnection, tran As OracleTransaction, type As OrdersTable) As (unofficialNotice As Integer, confirmed As Integer)
+
+            Dim dt As New DataTable()
+            Dim uc = 0
+            Dim cc = 0
+            ' 受注ファイル出力時 Prd_Plan で 内示処理と 確定処理を 行ったレコード数を 返す SQL
+            Dim sql = "SELECT 
+                         COUNT(CASE WHEN active_flag = 'Y' AND status = 'POST_PLAN_DUE_SET' AND demand_status = 'F' THEN 1 ELSE NULL END) AS UnofficialNotice,
+                         COUNT(CASE WHEN active_flag = 'Y' AND status = 'POST_PLAN_DUE_SET' AND demand_status = 'O' THEN 1 ELSE NULL END) AS Confirmed
+                        FROM 
+                         prd_plan "
+            Try
+                Using cmd As New OracleCommand(sql, conn)
+                    cmd.BindByName = True
+                    cmd.CommandType = CommandType.Text
+                    Using reader As OracleDataReader = cmd.ExecuteReader()
+                        dt.Load(reader)
+                    End Using
+
+                    If (dt.Rows.Count = 1) Then
+                        uc = dt.Rows(0).Field(Of Decimal)("UnofficialNotice")
+                        cc = dt.Rows(0).Field(Of Decimal)("Confirmed")
+                    End If
+                End Using
+            Catch ex As Exception
+                Dim m = ex.Message
+            End Try
+            Return (uc, cc)
+        End Function
 
         Public Function ProdPlanStraViewCsvFile(
             ByVal sql As String,
