@@ -2123,20 +2123,8 @@ Namespace OMS.Data
 
 
 
-            '2026/05/22 st 酒井
+
             ' 一致するデータの STATUS を 'REPLACED' に更新
-            'Dim sql As String =
-            '            " UPDATE orders_stage SET" &
-            '            " status = 'REPLACED', " &
-            '            " active_flag = 'N', " &
-            '            " updated_at = :p_updated_at, " &
-            '            " updated_user_id = :p_user_id, " &
-            '            " updated_pg_id = :p_updated_pg_id " &
-            '            " WHERE 1=1 " &
-            '            " AND order_type = 1 " &
-            '            " AND active_flag = 'Y' " &
-            '            " AND customer_setting_id = :p_customer_setting_id " &
-            '            " AND imp_file_stage_id <> :p_imp_file_stage_id "
             Dim sql As String =
                         " UPDATE orders_stage SET" &
                         " status = 'REPLACED', " &
@@ -2148,8 +2136,8 @@ Namespace OMS.Data
                         " AND order_type = 1 " &
                         " AND active_flag = 'Y' " &
                         " AND customer_setting_id = :p_customer_setting_id " &
-                        " AND imp_file_stage_id IS NULL "
-            '2026/05/22 ed 酒井
+                        " AND imp_file_stage_id <> :p_imp_file_stage_id "
+
 
             If selfFcstFlag IsNot Nothing Then
                 sql &= " AND self_fcst_flag = :p_self_fcst_flag "
@@ -2449,10 +2437,6 @@ Namespace OMS.Data
                     curSelect = " TRUNC(due_date, 'MM') AS earliest_due_date,"
                     curWhere = ""
                     curGroupBy = " ,TRUNC(due_date, 'MM')"
-                Case Else
-                    curSelect = " MIN(due_date) AS earliest_due_date,"
-                    curWhere = ""
-                    curGroupBy = ""
             End Select
 
 
