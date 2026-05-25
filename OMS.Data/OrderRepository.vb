@@ -1597,7 +1597,7 @@ Namespace OMS.Data
                          COUNT(CASE WHEN active_flag = 'Y' AND status = 'POST_PLAN_DUE_SET' AND demand_status = 'F' THEN 1 ELSE NULL END) AS UnofficialNotice,
                          COUNT(CASE WHEN active_flag = 'Y' AND status = 'POST_PLAN_DUE_SET' AND demand_status = 'O' THEN 1 ELSE NULL END) AS Confirmed
                         FROM 
-                         prd_plan "
+                         prod_plan "
             Try
                 Using cmd As New OracleCommand(sql, conn)
                     cmd.BindByName = True

@@ -392,7 +392,14 @@ Namespace Pages.Orders
                 ' 作成したファイルの転送 (Zip)
                 '受注ファイル出力_出力日時(yyyyMMddhhmmss).zip
                 Dim orderFilename = repo.GeOrderZipFilename("受注ファイル出力_出力日時", FileDate)
-                Utils.FilesTransfer(Response, Server, fileList, orderFilename)
+                ' 裏画面 Download
+                'Utils.FilesTransfer(Response, Server, fileList, orderFilename)
+
+                Dim fileListName = IO.Path.Combine(Server.MapPath("~/App_Data/Files/"), Utils.GetTempFileName("FileList.txt"))
+                Utils.SaveFileList(fileListName, fileList)
+                Dim url As String = $"DownloadProcess.ashx?file={HttpUtility.UrlEncode(orderFilename)}&list={HttpUtility.UrlEncode(fileListName)}"
+                Dim script As String = $"document.getElementById('downloadFrame').src = '{url}';"
+                ClientScript.RegisterStartupScript(Me.GetType(), "downloadScript", script, True)
 
                 '完了メッセージ表示
                 'lblResult.Text = "ファイル出力完了しました。"
