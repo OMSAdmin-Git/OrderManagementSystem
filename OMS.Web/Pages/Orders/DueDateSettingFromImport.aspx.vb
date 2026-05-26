@@ -129,6 +129,7 @@ Namespace Pages.Orders
             ' 値取得
             Dim ProcessingStartDate As Date = DateTime.Now
             ' Oracle connection/Transaction
+            Dim cs = Utils.GetConnectionString()
             Dim conn As New OracleConnection(Utils.GetConnectionString())
             conn.Open()
             Dim tran As OracleTransaction = conn.BeginTransaction()

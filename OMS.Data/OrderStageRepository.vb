@@ -230,7 +230,8 @@ Namespace OMS.Data
                 "  order_type, prorated_type, customer_info_type, info_type, self_fcst_flag, self_fcst_delete_flag, " &
                 "  reconcile_type, imp_run_id, status, active_flag, " &
                 "  created_at, created_user_id, created_pg_id, " &
-                "  updated_at, updated_user_id, updated_pg_id " &
+                "  updated_at, updated_user_id, updated_pg_id, " &
+                "  stra_order_qty, stra_ship_qty, stra_order_backlog " &
                 ") VALUES (" &
                 "  :p_order_id, " &
                 "  :p_customer_setting_id, :p_customer_code, :p_billing_to, :p_customer_order_no, :p_demand_status, :p_ship_to, " &
@@ -244,7 +245,8 @@ Namespace OMS.Data
                 "  :p_order_type, :p_prorated_type, :p_customer_info_type, :p_info_type, :p_self_fcst_flag, :p_self_fcst_delete_flag," &
                 "  :p_reconcile_type, :p_imp_run_id, :p_status, :p_active_flag, " &
                 "  :p_created_at, :p_created_user_id, :p_created_pg_id, " &
-                "  :p_updated_at, :p_updated_user_id, :p_updated_pg_id " &
+                "  :p_updated_at, :p_updated_user_id, :p_updated_pg_id, " &
+                "  :p_stra_order_qty, :p_stra_ship_qty, :p_stra_order_backlog " &
                 ")"
                 Using cmd As New OracleCommand(sql, conn)
                     cmd.Transaction = tran
@@ -269,16 +271,16 @@ Namespace OMS.Data
                         cmd.Parameters.Add(":p_due_date", OracleDbType.Date).Value = r.DueDate
                         cmd.Parameters.Add(":p_ship_scheduled_date", OracleDbType.Date).Value = r.ShipScheduledDate
 
-                        cmd.Parameters.Add(":p_customer_item_no", OracleDbType.Varchar2, 20).Value = SafeVarchar(r.CustomerItemNo, 20)
-                        cmd.Parameters.Add(":p_item_no", OracleDbType.Varchar2, 20).Value = SafeVarchar(r.ItemNo, 20)
+                        cmd.Parameters.Add(":p_customer_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.CustomerItemNo, 45)
+                        cmd.Parameters.Add(":p_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.ItemNo, 45)
 
                         cmd.Parameters.Add(":p_demand_qty", OracleDbType.Int64).Value = r.DemandQty ' NUMBER(10,0)
-                        cmd.Parameters.Add(":p_demand_unit", OracleDbType.Varchar2, 4).Value = SafeVarchar(r.DemandUnit, 4)
-                        cmd.Parameters.Add(":p_currency_code", OracleDbType.Varchar2, 3).Value = SafeVarchar(r.CurrencyCode, 3)
+                        cmd.Parameters.Add(":p_demand_unit", OracleDbType.Char, 4).Value = SafeVarchar(r.DemandUnit, 4)
+                        cmd.Parameters.Add(":p_currency_code", OracleDbType.Char, 3).Value = SafeVarchar(r.CurrencyCode, 3)
                         cmd.Parameters.Add(":p_ship_stock_location", OracleDbType.Varchar2, 25).Value = SafeVarchar(r.ShipStockLocation, 25)
                         cmd.Parameters.Add(":p_company_id", OracleDbType.Varchar2, 25).Value = SafeVarchar(r.CompanyId, 25)
 
-                        cmd.Parameters.Add(":p_product_code", OracleDbType.Varchar2, 20).Value = SafeVarchar(r.ProductCode, 20)
+                        cmd.Parameters.Add(":p_product_code", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.ProductCode, 45)
                         cmd.Parameters.Add(":p_billing_standard", OracleDbType.Varchar2, 3).Value = SafeVarchar(r.BillingStandard, 3)
                         'cmd.Parameters.Add(":p_ship_process_type", OracleDbType.Char, 1).Value = NormalizeYN(r.ShipProcessType)
                         cmd.Parameters.Add(":p_ship_process_type", OracleDbType.Char, 1).Value = SafeVarchar(r.ShipProcessType, 1)
@@ -286,7 +288,7 @@ Namespace OMS.Data
 
                         cmd.Parameters.Add(":p_order_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.OrderNo, 45)
                         cmd.Parameters.Add(":p_remarks", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.Remarks, 45)
-                        cmd.Parameters.Add(":p_delivery_code", OracleDbType.Varchar2, 20).Value = SafeVarchar(r.DeliveryCode, 20)
+                        cmd.Parameters.Add(":p_delivery_code", OracleDbType.Varchar2, 25).Value = SafeVarchar(r.DeliveryCode, 25)
 
                         cmd.Parameters.Add(":p_ship_date", OracleDbType.Date).Value = r.ShipDate
                         cmd.Parameters.Add(":p_transport_method", OracleDbType.Varchar2, 3).Value = SafeVarchar(r.TransportMethod, 3)
@@ -316,6 +318,10 @@ Namespace OMS.Data
                         cmd.Parameters.Add(":p_updated_at", OracleDbType.Date).Value = r.UpdatedAt
                         cmd.Parameters.Add(":p_updated_user_id", OracleDbType.Varchar2, 9).Value = SafeVarchar(r.UpdatedUserId, 9)
                         cmd.Parameters.Add(":p_updated_pg_id", OracleDbType.Varchar2, 150).Value = SafeVarchar(r.UpdatedPgId, 150)
+                        ' Pharse2
+                        cmd.Parameters.Add(":p_stra_order_qty", OracleDbType.Decimal).Value = r.StraOrderQty
+                        cmd.Parameters.Add(":p_stra_ship_qty", OracleDbType.Decimal).Value = r.StraShipQty
+                        cmd.Parameters.Add(":p_stra_order_backlog", OracleDbType.Decimal).Value = r.StraOrderBacklog
                         cmd.ExecuteNonQuery()
                     Next
 
@@ -1340,6 +1346,11 @@ Namespace OMS.Data
             osr.OrderType = dt.Field(Of Int16?)("order_type")
             osr.ProratedType = dt.Field(Of Int16?)("prorated_type")
             osr.ReconcileType = dt.Field(Of Int16?)("reconcile_type")
+            ' Pharse2
+            osr.StraOrderQty = dt.Field(Of Decimal?)("stra_order_qty")
+            osr.StraShipQty = dt.Field(Of Decimal?)("stra_ship_qty")
+            osr.StraOrderBacklog = dt.Field(Of Decimal?)("stra_order_backlog")
+
             ' ====== 日付系 ======
             osr.OrderDate = dt.Field(Of Date?)("order_date")
             osr.DueDate = dt.Field(Of Date?)("due_date")
@@ -1770,7 +1781,8 @@ Namespace OMS.Data
                         "  order_type, prorated_type, customer_info_type, info_type, self_fcst_flag, self_fcst_delete_flag, " &
                         "  reconcile_type, imp_run_id, status, active_flag, " &
                         "  created_at, created_user_id, created_pg_id, " &
-                        "  updated_at, updated_user_id, updated_pg_id" &
+                        "  updated_at, updated_user_id, updated_pg_id, " &
+                        "  stra_order_qty, stra_ship_qty, stra_order_backlog " &
                         ") VALUES (" &
                         "  :p_customer_setting_id, :p_customer_code, :p_billing_to, :p_customer_order_no, :p_demand_status, :p_ship_to, " &
                         "  :p_order_date, :p_due_date, :p_ship_scheduled_date, :p_customer_item_no, :p_item_no, " &
@@ -1784,7 +1796,8 @@ Namespace OMS.Data
                         "  :p_order_type, :p_prorated_type, :p_customer_info_type, :p_info_type, :p_self_fcst_flag, :p_self_fcst_delete_flag, " &
                         "  :p_reconcile_type, :p_imp_run_id, :p_status, :p_active_flag, " &
                         "  :p_created_at, :p_created_user_id, :p_created_pg_id, " &
-                        "  :p_updated_at, :p_updated_user_id, :p_updated_pg_id" &
+                        "  :p_updated_at, :p_updated_user_id, :p_updated_pg_id, " &
+                        "  :p_stra_order_qty, :p_stra_ship_qty, :p_stra_order_backlog " &
                         ")"
 
             Using cmd As New OracleCommand(sql, tran.Connection)
@@ -1809,23 +1822,23 @@ Namespace OMS.Data
                     cmd.Parameters.Add(":p_due_date", OracleDbType.Date).Value = r.DueDate
                     cmd.Parameters.Add(":p_ship_scheduled_date", OracleDbType.Date).Value = r.ShipScheduledDate
 
-                    cmd.Parameters.Add(":p_customer_item_no", OracleDbType.Varchar2, 20).Value = SafeVarchar(r.CustomerItemNo, 20)
-                    cmd.Parameters.Add(":p_item_no", OracleDbType.Varchar2, 20).Value = SafeVarchar(r.ItemNo, 20)
+                    cmd.Parameters.Add(":p_customer_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.CustomerItemNo, 45)
+                    cmd.Parameters.Add(":p_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.ItemNo, 45)
 
                     cmd.Parameters.Add(":p_demand_qty", OracleDbType.Int64).Value = r.DemandQty ' NUMBER(10,0)
-                    cmd.Parameters.Add(":p_demand_unit", OracleDbType.Varchar2, 4).Value = SafeVarchar(r.DemandUnit, 4)
-                    cmd.Parameters.Add(":p_currency_code", OracleDbType.Varchar2, 3).Value = SafeVarchar(r.CurrencyCode, 3)
+                    cmd.Parameters.Add(":p_demand_unit", OracleDbType.Char, 4).Value = SafeVarchar(r.DemandUnit, 4)
+                    cmd.Parameters.Add(":p_currency_code", OracleDbType.Char, 3).Value = SafeVarchar(r.CurrencyCode, 3)
                     cmd.Parameters.Add(":p_ship_stock_location", OracleDbType.Varchar2, 25).Value = SafeVarchar(r.ShipStockLocation, 25)
                     cmd.Parameters.Add(":p_company_id", OracleDbType.Varchar2, 25).Value = SafeVarchar(r.CompanyId, 25)
 
-                    cmd.Parameters.Add(":p_product_code", OracleDbType.Varchar2, 20).Value = SafeVarchar(r.ProductCode, 20)
+                    cmd.Parameters.Add(":p_product_code", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.ProductCode, 45)
                     cmd.Parameters.Add(":p_billing_standard", OracleDbType.Varchar2, 3).Value = SafeVarchar(r.BillingStandard, 3)
                     cmd.Parameters.Add(":p_ship_process_type", OracleDbType.Char, 1).Value = SafeVarchar(r.ShipProcessType, 1)
                     cmd.Parameters.Add(":p_delivery_instr_flag", OracleDbType.Char, 1).Value = NormalizeYN(r.DeliveryInstrFlag)
 
                     cmd.Parameters.Add(":p_order_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.OrderNo, 45)
                     cmd.Parameters.Add(":p_remarks", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.Remarks, 45)
-                    cmd.Parameters.Add(":p_delivery_code", OracleDbType.Varchar2, 20).Value = SafeVarchar(r.DeliveryCode, 20)
+                    cmd.Parameters.Add(":p_delivery_code", OracleDbType.Varchar2, 25).Value = SafeVarchar(r.DeliveryCode, 25)
 
                     'cmd.Parameters.Add(":p_order_time", OracleDbType.Decimal).Value = r.OrderTime       ' NUMBER(18,6)
                     'cmd.Parameters.Add(":p_sales_unit_price", OracleDbType.Decimal).Value = r.SalesUnitPrice  ' NUMBER(18,6)
@@ -1880,6 +1893,10 @@ Namespace OMS.Data
                     cmd.Parameters.Add(":p_updated_at", OracleDbType.Date).Value = r.UpdatedAt
                     cmd.Parameters.Add(":p_updated_user_id", OracleDbType.Varchar2, 9).Value = SafeVarchar(r.UpdatedUserId, 9)
                     cmd.Parameters.Add(":p_updated_pg_id", OracleDbType.Varchar2, 150).Value = SafeVarchar(r.UpdatedPgId, 150)
+                    ' Pharse2
+                    cmd.Parameters.Add(":p_stra_order_qty", OracleDbType.Decimal).Value = r.StraOrderQty
+                    cmd.Parameters.Add(":p_stra_ship_qty", OracleDbType.Decimal).Value = r.StraShipQty
+                    cmd.Parameters.Add(":p_stra_order_backlog", OracleDbType.Decimal).Value = r.StraOrderBacklog
 
                     cmd.ExecuteNonQuery()
 
@@ -1946,7 +1963,8 @@ Namespace OMS.Data
                 "  order_type, prorated_type, customer_info_type, info_type, self_fcst_flag, self_fcst_delete_flag, " &
                 "  reconcile_type, imp_run_id, status, active_flag, " &
                 "  created_at, created_user_id, created_pg_id, " &
-                "  updated_at, updated_user_id, updated_pg_id" &
+                "  updated_at, updated_user_id, updated_pg_id, " &
+                "  stra_order_qty, stra_ship_qty, stra_order_backlog " &
                 ") SELECT " &
                 "  o.order_id, o.customer_setting_id, o.customer_code, o.billing_to, o.customer_order_no, o.demand_status, o.ship_to, " &
                 "  o.order_date, o.due_date, o.ship_scheduled_date, o.customer_item_no, o.item_no, " &
@@ -1958,7 +1976,8 @@ Namespace OMS.Data
                 "  o.order_type, o.prorated_type, o.customer_info_type, o.info_type, o.self_fcst_flag, o.self_fcst_delete_flag, " &
                 "  o.reconcile_type, o.imp_run_id, o.status, o.active_flag, " &
                 "  o.created_at, o.created_user_id, o.created_pg_id, " &
-                "  o.updated_at, o.updated_user_id, o.updated_pg_id " &
+                "  o.updated_at, o.updated_user_id, o.updated_pg_id, " &
+                "  o.stra_order_qty, o.stra_ship_qty, o.stra_order_backlog " &
                 "  FROM orders o " &
                 "  WHERE o.customer_setting_id = :p_customer_setting_id " &
                 "  AND o.order_type IN (1,2) " &
@@ -3146,7 +3165,8 @@ Namespace OMS.Data
                         "  order_type, prorated_type, customer_info_type, info_type, self_fcst_flag, self_fcst_delete_flag, " &
                         "  reconcile_type, imp_run_id, status, active_flag, " &
                         "  created_at, created_user_id, created_pg_id, " &
-                        "  updated_at, updated_user_id, updated_pg_id" &
+                        "  updated_at, updated_user_id, updated_pg_id, " &
+                        "  stra_order_qty, stra_ship_qty, stra_order_backlog " &
                         ") SELECT " &
                         "  customer_setting_id, customer_code, billing_to, customer_order_no, demand_status, ship_to, " &
                         "  order_date, due_date, customer_item_no, item_no, " &
@@ -3158,7 +3178,8 @@ Namespace OMS.Data
                         "  order_type, prorated_type, customer_info_type, info_type, self_fcst_flag, self_fcst_delete_flag, " &
                         "  reconcile_type, imp_run_id, status, active_flag, " &
                         "  :p_updated_at, :p_user_id, :p_updated_pg_id, " &
-                        "  :p_updated_at, :p_user_id, :p_updated_pg_id " &
+                        "  :p_updated_at, :p_user_id, :p_updated_pg_id, " &
+                        "  :p_stra_order_qty, :p_stra_ship_qty, :p_stra_order_backlog " &
                         "  FROM orders_stage " &
                         "  WHERE customer_setting_id = :p_customer_setting_id " &
                         "  AND status = 'PROCESSED' " &
@@ -3244,7 +3265,8 @@ Namespace OMS.Data
                         "  order_type, prorated_type, customer_info_type, info_type, self_fcst_flag, self_fcst_delete_flag, " &
                         "  reconcile_type, imp_run_id, status, active_flag, " &
                         "  created_at, created_user_id, created_pg_id, " &
-                        "  updated_at, updated_user_id, updated_pg_id" &
+                        "  updated_at, updated_user_id, updated_pg_id, " &
+                        "  stra_order_qty, stra_ship_qty, stra_order_backlog " &
                         ") SELECT " &
                         "  order_id, customer_setting_id, customer_code, billing_to, customer_order_no, demand_status, ship_to, " &
                         "  order_date, due_date, ship_scheduled_date, customer_item_no, item_no, " &
@@ -3256,7 +3278,8 @@ Namespace OMS.Data
                         "  order_type, prorated_type, customer_info_type, info_type, self_fcst_flag, self_fcst_delete_flag, " &
                         "  reconcile_type, imp_run_id, status, active_flag, " &
                         "  created_at, created_user_id, created_pg_id, " &
-                        "  updated_at, updated_user_id, updated_pg_id " &
+                        "  updated_at, updated_user_id, updated_pg_id, " &
+                        "  stra_order_qty, stra_ship_qty, stra_order_backlog " &
                         "  FROM orders " &
                         "  WHERE customer_setting_id = :p_customer_setting_id " &
                         "  AND status = 'PROCESSED' " &
@@ -3416,6 +3439,10 @@ Namespace OMS.Data
             sb.AppendLine("  updated_user_id            AS ""UpdatedUserId"", ")
             sb.AppendLine("  updated_pg_id              AS ""UpdatedPgId"",")
             sb.AppendLine("  prod_mgmt_user_id          AS ""ProdMgmtUserId"" ")
+            ' Pharse2
+            sb.AppendLine("  stra_order_qty             AS ""StraOrderQty"" ")
+            sb.AppendLine("  stra_ship_qty              AS ""StraShipQty"" ")
+            sb.AppendLine("  stra_order_backlog         AS ""StraOrderBacklog"" ")
             sb.AppendLine("FROM orders_stage_view ")
             sb.AppendLine("WHERE 1=1 ")
 
@@ -3504,22 +3531,22 @@ Namespace OMS.Data
         'Public Property CustomerSettingId As String             ' CUSTOMER_SETTING_ID VARCHAR2(25)
         Public Property CustomerCode As String                  ' CUSTOMER_CODE VARCHAR2(25) 
         Public Property BillingTo As String                     ' BILLING_TO VARCHAR2(25)
-        Public Property CustomerOrderNo As String               ' CUSTOMER_ORDER_NO VARCHAR2(40)
+        Public Property CustomerOrderNo As String               ' CUSTOMER_ORDER_NO CHAR(40)
         Public Property DemandStatus As String                  ' DEMAND_STATUS CHAR(1)
         Public Property ShipTo As String                        ' SHIP_TO VARCHAR2(25)
-        Public Property CustomerItemNo As String                ' CUSTOMER_ITEM_NO VARCHAR2(20)
-        Public Property ItemNo As String                        ' ITEM_NO VARCHAR2(20)
-        Public Property DemandUnit As String                    ' DEMAND_UNIT VARCHAR2(4)
-        Public Property CurrencyCode As String                  ' CURRENCY_CODE VARCHAR2(3)
+        Public Property CustomerItemNo As String                ' CUSTOMER_ITEM_NO VARCHAR2(45)
+        Public Property ItemNo As String                        ' ITEM_NO VARCHAR2(45)
+        Public Property DemandUnit As String                    ' DEMAND_UNIT CHAR(4)
+        Public Property CurrencyCode As String                  ' CURRENCY_CODE CHAR(3)
         Public Property ShipStockLocation As String             ' SHIP_STOCK_LOCATION VARCHAR2(25)
         Public Property CompanyId As String                     ' COMPANY_ID VARCHAR2(25)
-        Public Property ProductCode As String                   ' PRODUCT_CODE VARCHAR2(20)
+        Public Property ProductCode As String                   ' PRODUCT_CODE VARCHAR2(45)
         Public Property BillingStandard As String               ' BILLING_STANDARD VARCHAR2(3)
         Public Property ShipProcessType As String               ' SHIP_PROCESS_TYPE CHAR(1)
         Public Property DeliveryInstrFlag As String             ' DELIVERY_INSTR_FLAG CHAR(1)
         Public Property OrderNo As String                       ' ORDER_NO VARCHAR2(45)
         Public Property Remarks As String                       ' REMARKS VARCHAR2(45)
-        Public Property DeliveryCode As String                  ' DELIVERY_CODE VARCHAR2(20)
+        Public Property DeliveryCode As String                  ' DELIVERY_CODE VARCHAR2(25)
 
         Public Property TransportMethod As String               ' TRANSPORT_METHOD VARCHAR2(3)
         Public Property CustomerOrderLineNo As String           ' CUSTOMER_ORDER_LINE_NO VARCHAR2(2)
@@ -3540,6 +3567,10 @@ Namespace OMS.Data
         Public Property OrderType As Int16?                     ' ORDER_TYPE NUMBER(1,0)
         Public Property ProratedType As Int16?                  ' PRORATED_TYPE NUMBER(1,0)
         Public Property ReconcileType As Int16?                 ' RECONCILE_TYPE NUMBER(1,0)
+        ' Pharse2
+        Public Property StraOrderQty As Decimal?                ' STRA_ORDER_QTY NUMBER(18, 6)
+        Public Property StraShipQty As Decimal?                 ' STRA_SHIP_QTY NUMBER(18, 6)
+        Public Property StraOrderBacklog As Decimal?            ' STRA_ORDER_BACKLOG NUMBER(18, 6)
 
         ' ====== 日付系 ======
         Public Property OrderDate As Date?                      ' ORDER_DATE DATE
@@ -3608,6 +3639,11 @@ Namespace OMS.Data
             OrderType = org.OrderType
             ProratedType = org.ProratedType
             ReconcileType = org.ReconcileType
+            'Pharse2
+            StraOrderQty = org.StraOrderQty
+            StraShipQty = org.StraShipQty
+            StraOrderBacklog = org.StraOrderBacklog
+            'Pharse2
             OrderDate = org.OrderDate
             DueDate = org.DueDate
             ShipScheduledDate = org.ShipScheduledDate
@@ -3664,6 +3700,11 @@ Namespace OMS.Data
             OrderType = org.OrderType
             ProratedType = org.ProratedType
             ReconcileType = org.ReconcileType
+            'Pharse2
+            StraOrderQty = org.StraOrderQty
+            StraShipQty = org.StraShipQty
+            StraOrderBacklog = org.StraOrderBacklog
+            'Pharse2
             OrderDate = org.OrderDate
             DueDate = org.DueDate
             ShipScheduledDate = org.ShipScheduledDate
@@ -3755,6 +3796,11 @@ Namespace OMS.Data
             dst.OrderType = src.OrderType
             dst.ProratedType = src.ProratedType
             dst.ReconcileType = src.ReconcileType
+            'Pharse2
+            dst.StraOrderQty = src.StraOrderQty
+            dst.StraShipQty = src.StraShipQty
+            dst.StraOrderBacklog = src.StraOrderBacklog
+            'Pharse2
             dst.OrderDate = src.OrderDate
             dst.DueDate = src.DueDate
             dst.ShipScheduledDate = src.ShipScheduledDate
