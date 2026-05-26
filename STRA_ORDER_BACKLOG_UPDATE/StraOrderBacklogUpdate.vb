@@ -4,6 +4,7 @@ Imports OMS.Data
 Imports Oracle.ManagedDataAccess
 Imports Oracle.ManagedDataAccess.Client
 Imports System.Windows.Forms
+Imports System.Xml.Linq
 
 Module StraOrderBacklogUpdate
 
@@ -14,22 +15,20 @@ Module StraOrderBacklogUpdate
 
     Sub Main()
 
+        ' 設定
+        Dim xmlDoc As XDocument = XDocument.Load("Config.xml")
+        Dim userId = "User Id=OMSDB;Password=Amagata001;Data Source=//192.168.10.15:1521/OMSDB;"
+        Dim logPath = "C:\ASTI\StraOrderBacklogUpdate"
+        For Each StraOrderBacklogUpdate In xmlDoc.Descendants("StraOrderBacklogUpdate")
+            userId = StraOrderBacklogUpdate.Element("UserId")?.Value
+            logPath = StraOrderBacklogUpdate.Element("LogPath")?.Value
+        Next
+
         ' INITIAL
         Dim wkUpdatedAt = DateTime.Now              ' WK_UPDATED_AT(更新日時)
         Dim wkUpdatedUserId = "BkOfOdr"             ' WK_UPDATED_USER_ID(更新ユーザーID)
         Dim wkUpdatedPgId = "Backlog of Orders"     ' WK_UPDATED_PG_ID(更新プログラムID)
-
-        ' 天方環境
-        Dim UserId = "User Id=OMSDB;Password=Amagata001;Data Source=//192.168.10.15:1521/OMSDB;"
-        'アスカ環境
-        'Dim UserId = "User Id=OMSDB;Password=Amagata001;Data Source=//192.168.100.126:1521/orcl;"
-        '本番環境
-        'Dim UserId = "User Id=OMSDB;Password=Amagata001;Data Source=//192.168.70.225:1521/OMSDB;"
-        '検証環境
-        'Dim UserId = "User Id=OMSTS;Password=Amagata001;Data Source=//192.168.70.225:1521/OMSDB;"
-
         ' Log
-        Dim logPath = "C:\ASTI\StraOrderBacklogUpdate"
         Dim _logger As Logger = New Logger(logPath)
         EnsureDirectory(logPath)
         _logger.Write($"StraOrderBacklogUpdate.exe Start: {wkUpdatedAt.ToString()}")
