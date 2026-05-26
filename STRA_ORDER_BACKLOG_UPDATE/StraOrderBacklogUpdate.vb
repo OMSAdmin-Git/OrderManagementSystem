@@ -3,6 +3,7 @@ Imports OMS.Common
 Imports OMS.Data
 Imports Oracle.ManagedDataAccess
 Imports Oracle.ManagedDataAccess.Client
+Imports System.Windows.Forms
 
 Module StraOrderBacklogUpdate
 
@@ -17,51 +18,43 @@ Module StraOrderBacklogUpdate
         Dim wkUpdatedAt = DateTime.Now              ' WK_UPDATED_AT(更新日時)
         Dim wkUpdatedUserId = "BkOfOdr"             ' WK_UPDATED_USER_ID(更新ユーザーID)
         Dim wkUpdatedPgId = "Backlog of Orders"     ' WK_UPDATED_PG_ID(更新プログラムID)
-        Dim UserId = "User Id=OMSDB;Password=Amagata001;Data Source=//192.168.100.126:1521/orcl;"
+
+        ' 天方環境
+        Dim UserId = "User Id=OMSDB;Password=Amagata001;Data Source=//192.168.10.15:1521/OMSDB;"
+        'アスカ環境
+        'Dim UserId = "User Id=OMSDB;Password=Amagata001;Data Source=//192.168.100.126:1521/orcl;"
+        '本番環境
+        'Dim UserId = "User Id=OMSDB;Password=Amagata001;Data Source=//192.168.70.225:1521/OMSDB;"
+        '検証環境
+        'Dim UserId = "User Id=OMSTS;Password=Amagata001;Data Source=//192.168.70.225:1521/OMSDB;"
+
         ' Log
         Dim logPath = "C:\ASTI\StraOrderBacklogUpdate"
         Dim _logger As Logger = New Logger(logPath)
         EnsureDirectory(logPath)
         _logger.Write($"StraOrderBacklogUpdate.exe Start: {wkUpdatedAt.ToString()}")
 
-        ' UPDATE(受注残更新)
+        Dim errors As List(Of String) = New List(Of String)()
+        Dim repo = New StraOrderBackLog(UserId)
 
-
-
-
-
-
-#If False Then
-        Dim logPath = "C:\Temp"
-        Dim UserId = "User Id=OMSDB;Password=Amagata001;Data Source=//192.168.100.126:1521/orcl;"
-        Dim _logger As Logger = New Logger(logPath)
         Try
-            _logger.Write($"StraOrderBacklogUpdate.exe Get OrderBack: {DateTime.Now.ToString()}")
+            ' UPDATE(受注残更新)
+            errors.Add(repo.UpdateOrderBack(wkUpdatedAt, wkUpdatedUserId, wkUpdatedPgId))
 
-            Dim repo = New OrderRepository(UserId)
-            ' Oracle connection/Transaction
-            Dim conn As New OracleConnection(UserId)
-            conn.Open()
-            Dim tran As OracleTransaction = conn.BeginTransaction()
+            ' UPDATE(受注残ゼロ更新)
+            errors.Add(repo.UpdateOrderBackZero(wkUpdatedAt, wkUpdatedUserId, wkUpdatedPgId))
 
-
-            Dim dt = repo.GetOrders(conn, tran, OrderRepository.OrdersTable.Orders, status:="DUE_SET")
-
-            Dim cnt = dt.Rows.Count
-
-
-            Dim dr = repo.GetOrders(conn, tran, OrderRepository.OrdersTable.Orders, status:="DUE_SET")
-
-            Dim dc = repo.ToClass(dr)
-            Dim dct = dc.Count
+            If (0 = errors.FindAll(Function(x) x <> "").Count) Then
+                _logger.Write($"StraOrderBacklogUpdate.exe Complete: {DateTime.Now.ToString()}")
+            Else
+                Throw New Exception("Update Error")
+            End If
 
         Catch ex As Exception
-            _logger.Write($"StraOrderBacklogUpdate.exe error: {ex.Message}")
-
+            Dim ms As String = String.Join(vbCrLf, errors.Where(Function(x) x <> ""))
+            _logger.Write($"StraOrderBacklogUpdate.exe Error: {ms}")
+            MessageBox.Show(ms, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
         End Try
-
-#End If
-
 
     End Sub
 
