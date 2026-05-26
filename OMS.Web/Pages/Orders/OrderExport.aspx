@@ -99,6 +99,8 @@
                 <div class="action-buttons">
                     <asp:Button ID="btnOrderExport" runat="server" CssClass="btn-asti btn-asti-process" Text="CSV出力" OnClick="btnOrderExport_Click" />
                     <asp:Button ID="btnExportErrorList" runat="server" CssClass="btn-asti secondary-excel " Text="エラーリスト出力" OnClick="btnExportErrorList_Click" />
+                                <!-- ダウンロードを裏で実行するための隠し iframe -->
+                    <iframe id = "downloadFrame" style="display:none;"></iframe>
                 </div>
 
                 <!-- 結果表示 -->

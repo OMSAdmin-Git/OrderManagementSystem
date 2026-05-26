@@ -128,7 +128,10 @@ Namespace Pages.Orders
             Dim fileList As List(Of String) = New List(Of String)()
             Dim strPath = Server.MapPath("~/App_Data/Files/")
             Dim FileDate = DateTime.Now
-
+            'Dim count = 0
+            'Dim valid = 0
+            Dim unofficialNotice = 0
+            Dim confirmed = 0
             Dim errors As New List(Of String)()
             Dim loginUserId As String = PageHelpers.GetUserId(Me)
 
@@ -154,10 +157,6 @@ Namespace Pages.Orders
             Dim idList As New List(Of Long)
 
             Try
-                Dim count As Integer = 0
-                Dim correct As Integer = 0
-
-
                 '値取得
                 '[処理開始日時]を取得する。
 
@@ -290,6 +289,11 @@ Namespace Pages.Orders
                 'Utils.FileTransfer(Response, Server, trfilename)
                 fileList.Add(trfilename)
 
+                ' 処理数を 集計する
+                Dim cnt = repo.ProdPlanCount(conn, tran, OrderRepository.OrdersTable.ProductPlan)
+                unofficialNotice = cnt.unofficialNotice
+                confirmed = cnt.confirmed
+
                 'CSV出力(内示)
                 'CSVファイルへPROD_PLAN_STRA_VIEW（生産計画出力一覧）を書き出し、ブラウザで設定されているダウンロードフォルダへ出力する。
                 'Dim PlanRows = repos.GetOrderStras(conn, tran, demandStatus:="F", status:="POST_PLAN_DUE_SET", activeFlag:="Y")
@@ -370,6 +374,7 @@ Namespace Pages.Orders
                 'UPDATED_PG_ID(更新プログラムID)
                 Dim rows = reps.GetOrders(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, status:="EXPORTED", activeFlag:="Y")
                 Dim orderRows = reps.ToClass(rows)
+
                 For Each row In orderRows
                     errors.Add(repo.Update(conn, tran, OrderRepository.OrdersTable.ProductPlan, kOrderId:=row.OrderId, status:=row.Status, updatedAt:=row.UpdatedAt, updatedUserId:=row.UpdatedUserId, updatedPgId:=row.UpdatedPgId))
                 Next
@@ -377,6 +382,7 @@ Namespace Pages.Orders
                     ' エラー
                     DBError(tran)
                 End If
+
                 '#If DEBUG Then
                 '                ' #### DEBUG
                 '                tran.Commit()
@@ -386,10 +392,17 @@ Namespace Pages.Orders
                 ' 作成したファイルの転送 (Zip)
                 '受注ファイル出力_出力日時(yyyyMMddhhmmss).zip
                 Dim orderFilename = repo.GeOrderZipFilename("受注ファイル出力_出力日時", FileDate)
-                Utils.FilesTransfer(Response, Server, fileList, orderFilename)
+                ' 裏画面 Download
+                'Utils.FilesTransfer(Response, Server, fileList, orderFilename)
+
+                Dim fileListName = IO.Path.Combine(Server.MapPath("~/App_Data/Files/"), Utils.GetTempFileName("FileList.txt"))
+                Utils.SaveFileList(fileListName, fileList)
+                Dim url As String = $"DownloadProcess.ashx?file={HttpUtility.UrlEncode(orderFilename)}&list={HttpUtility.UrlEncode(fileListName)}"
+                Dim script As String = $"document.getElementById('downloadFrame').src = '{url}';"
+                ClientScript.RegisterStartupScript(Me.GetType(), "downloadScript", script, True)
 
                 '完了メッセージ表示
-                lblResult.Text = "ファイル出力完了しました。"
+                'lblResult.Text = "ファイル出力完了しました。"
                 '#If DEBUG Then
                 '                ' #### DEBUG
                 '                tran.Commit()
@@ -412,6 +425,11 @@ Namespace Pages.Orders
                         lblError.Text = String.Join(vbCrLf, errors)
                     End If
                     tran.Rollback()
+                End If
+                If (unofficialNotice = 0 And confirmed = 0) Then
+                    lblResult.Text = $"有効なデータが無かったため受注データの出力は行われませんでした。"
+                Else
+                    lblResult.Text = $"内示{unofficialNotice}件、確定{confirmed}件の受注データの出力を行いました。"
                 End If
                 tran.Dispose()
                 conn.Close()

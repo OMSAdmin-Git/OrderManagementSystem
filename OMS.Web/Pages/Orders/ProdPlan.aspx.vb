@@ -402,7 +402,7 @@ Namespace Pages.Orders
                             ' Orders -> OrdersStage に追加した OrderRow 
                             ' 作業用に 追加した OrderStege レコードを取得
                             Dim orderStageRowsOrg = reps.ToClass(reps.GetOrders(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, status:="DUE_SET", activeFlag:="Y", customerSettingId:=customerSettingId))
-
+                            count += orderStageRowsOrg.Count
                             ' 生産計画条件マスタ 振り分け リスト取得 
                             ' CUSTOMER_SETTING_ID で抽出した Order を 下記の条件でグループ分けを行う
                             ' CUSTOMER_SETTING_ID（取引先設定ID）
@@ -859,7 +859,7 @@ Namespace Pages.Orders
                                         Continue For
                                     End If
                                 Next
-
+                                valid += ordersStageRows.Count
                                 '#If DEBUG Then
                                 '                                ' #### DEBUG
                                 '                                tran.Commit()
@@ -969,6 +969,12 @@ Namespace Pages.Orders
                 Else
                     lblError.Text = String.Join(vbCrLf, errors)
                     tran.Rollback()
+                End If
+
+                If (count = 0 And valid = 0) Then
+                    lblResult.Text = $"有効なデータが無かったため生産計画設定は行われませんでした。"
+                Else
+                    lblResult.Text = $"{count}件中{valid}件の生産計画設定を行いました。"
                 End If
                 tran.Dispose()
                 conn.Close()
