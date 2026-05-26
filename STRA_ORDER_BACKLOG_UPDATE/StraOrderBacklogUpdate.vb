@@ -15,28 +15,33 @@ Module StraOrderBacklogUpdate
 
     Sub Main()
 
+        Dim errors As List(Of String) = New List(Of String)()
         ' 設定
         Dim xmlDoc As XDocument = XDocument.Load("Config.xml")
-        Dim userId = "User Id=OMSDB;Password=Amagata001;Data Source=//192.168.10.15:1521/OMSDB;"
-        Dim logPath = "C:\ASTI\StraOrderBacklogUpdate"
-        For Each StraOrderBacklogUpdate In xmlDoc.Descendants("StraOrderBacklogUpdate")
-            userId = StraOrderBacklogUpdate.Element("UserId")?.Value
-            logPath = StraOrderBacklogUpdate.Element("LogPath")?.Value
-        Next
-
-        ' INITIAL
-        Dim wkUpdatedAt = DateTime.Now              ' WK_UPDATED_AT(更新日時)
-        Dim wkUpdatedUserId = "BkOfOdr"             ' WK_UPDATED_USER_ID(更新ユーザーID)
-        Dim wkUpdatedPgId = "Backlog of Orders"     ' WK_UPDATED_PG_ID(更新プログラムID)
-        ' Log
-        Dim _logger As Logger = New Logger(logPath)
-        EnsureDirectory(logPath)
-        _logger.Write($"StraOrderBacklogUpdate.exe Start: {wkUpdatedAt.ToString()}")
-
-        Dim errors As List(Of String) = New List(Of String)()
-        Dim repo = New StraOrderBackLog(UserId)
-
+        Dim userId = ""
+        Dim logPath = ""
+        Dim _logger As Logger = Nothing
         Try
+            For Each StraOrderBacklogUpdate In xmlDoc.Descendants("StraOrderBacklogUpdate")
+                userId = StraOrderBacklogUpdate.Element("UserId")?.Value
+                logPath = StraOrderBacklogUpdate.Element("LogPath")?.Value
+            Next
+            If (userId = "" Or logPath = "") Then
+                Throw New Exception("Configration  Error")
+            End If
+
+            ' INITIAL
+            Dim wkUpdatedAt = DateTime.Now              ' WK_UPDATED_AT(更新日時)
+            Dim wkUpdatedUserId = "BkOfOdr"             ' WK_UPDATED_USER_ID(更新ユーザーID)
+            Dim wkUpdatedPgId = "Backlog of Orders"     ' WK_UPDATED_PG_ID(更新プログラムID)
+
+            ' Log
+            _logger = New Logger(logPath)
+            EnsureDirectory(logPath)
+            _logger.Write($"StraOrderBacklogUpdate.exe Start: {wkUpdatedAt.ToString()}")
+
+            Dim repo = New StraOrderBackLog(userId)
+
             ' UPDATE(受注残更新)
             errors.Add(repo.UpdateOrderBack(wkUpdatedAt, wkUpdatedUserId, wkUpdatedPgId))
 
@@ -50,8 +55,9 @@ Module StraOrderBacklogUpdate
             End If
 
         Catch ex As Exception
+            errors.Add(ex.Message)
             Dim ms As String = String.Join(vbCrLf, errors.Where(Function(x) x <> ""))
-            _logger.Write($"StraOrderBacklogUpdate.exe Error: {ms}")
+            _logger?.Write($"StraOrderBacklogUpdate.exe Error: {ms}")
             MessageBox.Show(ms, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
         End Try
 
