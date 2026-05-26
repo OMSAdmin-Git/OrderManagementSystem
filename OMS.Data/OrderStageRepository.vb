@@ -262,7 +262,7 @@ Namespace OMS.Data
                         'cmd.Parameters.Add(":p_customer_setting_id", OracleDbType.Varchar2, 25).Value = SafeVarchar(r.CustomerSettingId, 25)
                         cmd.Parameters.Add(":p_customer_code", OracleDbType.Varchar2, 25).Value = SafeVarchar(r.CustomerCode, 25)
                         cmd.Parameters.Add(":p_billing_to", OracleDbType.Varchar2, 25).Value = SafeVarchar(r.BillingTo, 25)
-                        cmd.Parameters.Add(":p_customer_order_no", OracleDbType.Varchar2, 40).Value = SafeVarchar(r.CustomerOrderNo, 40)
+                        cmd.Parameters.Add(":p_customer_order_no", OracleDbType.Char, 40).Value = SafeVarchar(r.CustomerOrderNo, 40)
                         'cmd.Parameters.Add(":p_demand_status", OracleDbType.Char, 1).Value = NormalizeYN(r.DemandStatus) ' 1桁記号想定
                         cmd.Parameters.Add(":p_demand_status", OracleDbType.Char, 1).Value = SafeVarchar(r.DemandStatus, 1)
                         cmd.Parameters.Add(":p_ship_to", OracleDbType.Varchar2, 25).Value = SafeVarchar(r.ShipTo, 25)
@@ -1813,7 +1813,7 @@ Namespace OMS.Data
                     cmd.Parameters.Add(":p_customer_setting_id", OracleDbType.Int64).Value = r.CustomerSettingId ' NUMBER(10,0)
                     cmd.Parameters.Add(":p_customer_code", OracleDbType.Varchar2, 25).Value = SafeVarchar(r.CustomerCode, 25)
                     cmd.Parameters.Add(":p_billing_to", OracleDbType.Varchar2, 25).Value = SafeVarchar(r.BillingTo, 25)
-                    cmd.Parameters.Add(":p_customer_order_no", OracleDbType.Varchar2, 40).Value = SafeVarchar(r.CustomerOrderNo, 40)
+                    cmd.Parameters.Add(":p_customer_order_no", OracleDbType.Char, 40).Value = SafeVarchar(r.CustomerOrderNo, 40)
                     'cmd.Parameters.Add(":p_demand_status", OracleDbType.Char, 1).Value = NormalizeYN(r.DemandStatus) ' 1桁記号想定
                     cmd.Parameters.Add(":p_demand_status", OracleDbType.Char, 1).Value = SafeVarchar(r.DemandStatus, 1)
                     cmd.Parameters.Add(":p_ship_to", OracleDbType.Varchar2, 25).Value = SafeVarchar(r.ShipTo, 25)

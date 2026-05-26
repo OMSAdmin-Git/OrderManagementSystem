@@ -13,6 +13,8 @@ Project("{F184B08F-C81C-45F6-A57F-5ABD9991F28F}") = "OMS.Business", "OMS.Busines
 EndProject
 Project("{F184B08F-C81C-45F6-A57F-5ABD9991F28F}") = "OMS.Tests", "OMS.Tests\OMS.Tests.vbproj", "{A4158E95-C7FC-4626-9B6A-AD8779CB1DF4}"
 EndProject
+Project("{F184B08F-C81C-45F6-A57F-5ABD9991F28F}") = "STRA_ORDER_BACKLOG_UPDATE", "STRA_ORDER_BACKLOG_UPDATE\STRA_ORDER_BACKLOG_UPDATE.vbproj", "{AA4FD43E-53DC-49AA-A0E9-7B4AD9C398CC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -39,6 +41,10 @@ Global
 		{A4158E95-C7FC-4626-9B6A-AD8779CB1DF4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A4158E95-C7FC-4626-9B6A-AD8779CB1DF4}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A4158E95-C7FC-4626-9B6A-AD8779CB1DF4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AA4FD43E-53DC-49AA-A0E9-7B4AD9C398CC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AA4FD43E-53DC-49AA-A0E9-7B4AD9C398CC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AA4FD43E-53DC-49AA-A0E9-7B4AD9C398CC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AA4FD43E-53DC-49AA-A0E9-7B4AD9C398CC}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

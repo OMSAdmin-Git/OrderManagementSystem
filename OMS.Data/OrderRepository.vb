@@ -366,7 +366,7 @@ Namespace OMS.Data
                         'cmd.Parameters.Add(":p_customer_setting_id", OracleDbType.Varchar2, 25).Value = SafeVarchar(r.CustomerSettingId, 25)
                         cmd.Parameters.Add(":p_customer_code", OracleDbType.Varchar2, 25).Value = SafeVarchar(r.CustomerCode, 25)
                         cmd.Parameters.Add(":p_billing_to", OracleDbType.Varchar2, 25).Value = SafeVarchar(r.BillingTo, 25)
-                        cmd.Parameters.Add(":p_customer_order_no", OracleDbType.Varchar2, 40).Value = SafeVarchar(r.CustomerOrderNo, 40)
+                        cmd.Parameters.Add(":p_customer_order_no", OracleDbType.Char, 40).Value = SafeVarchar(r.CustomerOrderNo, 40)
                         cmd.Parameters.Add(":p_demand_status", OracleDbType.Char, 1).Value = SafeVarchar(r.DemandStatus, 1) ' 1桁記号想定
                         cmd.Parameters.Add(":p_ship_to", OracleDbType.Varchar2, 25).Value = SafeVarchar(r.ShipTo, 25)
 
@@ -1841,7 +1841,7 @@ Namespace OMS.Data
         Public Property CustomerSettingId As Long               ' CUSTOMER_SETTING_ID NUMBER(10,0)
         Public Property CustomerCode As String                  ' CUSTOMER_CODE VARCHAR2(25)
         Public Property BillingTo As String                     ' BILLING_TO VARCHAR2(25)
-        Public Property CustomerOrderNo As String               ' CUSTOMER_ORDER_NO VARCHAR2(40)
+        Public Property CustomerOrderNo As String               ' CUSTOMER_ORDER_NO CHAR(40)
         Public Property DemandStatus As String                  ' DEMAND_STATUS CHAR(1)
         Public Property ShipTo As String                        ' SHIP_TO VARCHAR2(25)
         Public Property CustomerItemNo As String                ' CUSTOMER_ITEM_NO VARCHAR2(45)
