@@ -1780,6 +1780,117 @@ Namespace OMS.Data
 
         End Function
 
+        ''' <summary>
+        ''' 生産計画 update
+        ''' </summary>
+        ''' <returns></returns>
+        Public Function ProductionPlanUpdate(conn As OracleConnection, tran As OracleTransaction, updateDate As Date, userId As String) As String
+
+            ' PROD_PLAN update
+            ' PROD_PLAN_STAGE は PROD_PLAN のコピーですが、PROD_PLAN_ID フィールドを持ち PROD_PLANのレコードを特定できます。
+            ' 1) PROD_PLAN_STAGE のフィールドが 下記の状態の時
+            ' STATUS(ステータス)='EXPORTED'、ACTIVE_FLAG(有効フラグ)='Y'
+            ' 2)該当する PROD_PLAN のレコードを更新します。
+            ' STATUS(ステータス)='EXPORTED'
+            ' UPDATED_AT(更新日時)=[現在時刻]
+            ' UPDATED_USER_ID(更新ユーザーID)=外部から与える値
+            ' UPDATED_PG_ID(更新プログラムID)='OrderExport'
+
+            Dim sb As New StringBuilder()
+            Dim errors = ""
+
+            sb.AppendLine("MERGE INTO PROD_PLAN target ")
+            sb.AppendLine("USING ( ")
+            sb.AppendLine("    SELECT ")
+            sb.AppendLine("        PROD_PLAN_ID ")
+            sb.AppendLine("    FROM ")
+            sb.AppendLine("        PROD_PLAN_STAGE ")
+            sb.AppendLine("    WHERE ")
+            sb.AppendLine("        STATUS = 'EXPORTED' ")
+            sb.AppendLine("        AND ACTIVE_FLAG = 'Y' ")
+            sb.AppendLine(") source ")
+            sb.AppendLine("ON (target.PROD_PLAN_ID = source.PROD_PLAN_ID) ")
+            sb.AppendLine("WHEN MATCHED THEN ")
+            sb.AppendLine("UPDATE SET ")
+            sb.AppendLine("    target.STATUS = 'EXPORTED', ")
+            sb.AppendLine("    target.UPDATED_AT = :p_date, ")
+            sb.AppendLine("    target.UPDATED_USER_ID = :p_user_id, ")
+            sb.AppendLine("    target.UPDATED_PG_ID = 'OrderExport' ")
+
+            Try
+                'Using conn As New OracleConnection(_connectionString)
+                Using cmd As New OracleCommand(sb.ToString(), conn)
+                    cmd.Parameters.Add(":p_date", OracleDbType.Date).Value = updateDate
+                    cmd.Parameters.Add(":p_user_id", OracleDbType.Varchar2, 9).Value = userId
+                    'conn.Open()
+                    'Using tran As OracleTransaction = conn.BeginTransaction()
+                    Dim cnt = cmd.ExecuteNonQuery()
+                    'tran.Commit()
+                End Using
+                'conn.Close()
+                'End Using
+                'End Using
+
+            Catch ex As Exception
+                errors = ex.Message
+            End Try
+
+            Return errors
+
+        End Function
+
+        ''' <summary>
+        ''' 受注 Update Pharse-2
+        ''' </summary>
+        ''' <returns></returns>
+        Public Function OrderUpdate(conn As OracleConnection, tran As OracleTransaction, updateDate As Date, userId As String) As String
+
+
+
+            Dim sb As New StringBuilder()
+            Dim errors = ""
+
+            sb.AppendLine("MERGE INTO ORDERS target ")
+            sb.AppendLine("USING ( ")
+            sb.AppendLine("    SELECT ")
+            sb.AppendLine("        CUSTOMER_ORDER_NO ")
+            sb.AppendLine("    FROM ")
+            sb.AppendLine("        PROD_PLAN_STAGE ")
+            sb.AppendLine("    WHERE ")
+            sb.AppendLine("        STATUS = 'EXPORTED' ")
+            sb.AppendLine("        AND ACTIVE_FLAG = 'Y' ")
+            sb.AppendLine(") source ")
+            sb.AppendLine("ON (target.CUSTOMER_ORDER_NO = source.CUSTOMER_ORDER_NO) ")
+            sb.AppendLine("WHEN MATCHED THEN ")
+            sb.AppendLine("UPDATE SET ")
+            sb.AppendLine("    target.STATUS = 'EXPORTED', ")
+            sb.AppendLine("    target.UPDATED_AT = ;p_date, ")
+            sb.AppendLine("    target.UPDATED_USER_ID = :p_user_id, ")
+            sb.AppendLine("    target.UPDATED_PG_ID = 'OrderExport' ")
+
+            Try
+                'Using conn As New OracleConnection(_connectionString)
+                Using cmd As New OracleCommand(sb.ToString(), conn)
+                    cmd.Parameters.Add(":p_date", OracleDbType.Date).Value = updateDate
+                    cmd.Parameters.Add(":p_user_id", OracleDbType.Varchar2, 9).Value = userId
+                    'conn.Open()
+                    'Using tran As OracleTransaction = conn.BeginTransaction()
+                    Dim cnt = cmd.ExecuteNonQuery()
+                    'tran.Commit()
+                End Using
+                'conn.Close()
+                'End Using
+                'End Using
+
+            Catch ex As Exception
+                errors = ex.Message
+            End Try
+
+            Return errors
+
+
+        End Function
+
     End Class
     ''' <summary>
     ''' Customer data class

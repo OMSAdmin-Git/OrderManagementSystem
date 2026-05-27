@@ -5,6 +5,7 @@ Imports System.Runtime.Remoting.Metadata.W3cXsd2001
 Imports System.Text
 Imports DocumentFormat.OpenXml.Drawing.Charts
 Imports DocumentFormat.OpenXml.Spreadsheet
+Imports Microsoft.VisualBasic.ApplicationServices
 Imports OMS.Common
 Imports Oracle.ManagedDataAccess.Client
 Imports DataTable = System.Data.DataTable
@@ -3515,6 +3516,84 @@ Namespace OMS.Data
         End Function
 
         '2026/03/26 酒井 ed
+
+        ''' <summary>
+        '''  受注ファイル出力 出荷状況チェック PROD_PLAN_STAGE 更新(Pharse-2 )
+        ''' </summary>
+        ''' <returns></returns>
+        Public Function ShippingStatusCheck(conn As OracleConnection, tran As OracleTransaction, customerSettingId As Long, customerOrderNo As String, itemNo As String, updateDate As Date, userId As String) As String
+            ' PROD_PLAN_HISTORY（生産計画履歴）と
+            ' PROD_PLAN_STAGE（生産計画ワーク)テーブル
+            ' 1) 両テーブルにある下記の フィールド値 を外部から与えて抽出します。
+            '   CUSTOMER_SETTING_ID（取引先設定ID）
+            '   CUSTOMER_ORDER_NO(客先発注No)
+            '   ITEM_NO（品目No）
+            ' 2) 抽出した 対になる両レコードのうち  次のフィールドが下記の条件の時 
+            '   PROD_PLAN_HISTORY が STATUS = 'EXPORTED'、ACTIVE_FLAG = 'Y'
+            '   PROD_PLAN_STAGE が STATUS = 'POST_PLAN_DUE_SET'、ACTIVE_FLAG = 'Y'
+            ' 3)PROD_PLAN_STAGE の 下記フィールドを更新します。
+            '   ACTIVE_FLAG(有効フラグ) = 'N'
+            '   UPDATED_AT(更新日時) = [処理開始日時]
+            '   UPDATED_USER_ID(更新ユーザーID) = [ログインユーザーID]
+            '   UPDATED_PG_ID(更新プログラムID) = 'OrderExport'
+
+            Dim sb As New StringBuilder()
+            Dim errors = ""
+
+            sb.AppendLine("MERGE INTO PROD_PLAN_STAGE target ")
+            sb.AppendLine("USING ( ")
+            sb.AppendLine("    SELECT  ")
+            sb.AppendLine("        CUSTOMER_SETTING_ID, ")
+            sb.AppendLine("        CUSTOMER_ORDER_NO, ")
+            sb.AppendLine("        ITEM_NO ")
+            sb.AppendLine("    FROM  ")
+            sb.AppendLine("        PROD_PLAN_HISTORY ")
+            sb.AppendLine("    WHERE  ")
+            sb.AppendLine("        CUSTOMER_SETTING_ID = :p_customer_setting_id ")
+            sb.AppendLine("        AND CUSTOMER_ORDER_NO = :p_customer_order_no ")
+            sb.AppendLine("        AND ITEM_NO = :p_item_no ")
+            sb.AppendLine("        AND STATUS = 'EXPORTED' ")
+            sb.AppendLine("        AND ACTIVE_FLAG = 'Y' ")
+            sb.AppendLine(") source ")
+            sb.AppendLine("ON ( ")
+            sb.AppendLine("    target.CUSTOMER_SETTING_ID = source.CUSTOMER_SETTING_ID ")
+            sb.AppendLine("    AND target.CUSTOMER_ORDER_NO = source.CUSTOMER_ORDER_NO ")
+            sb.AppendLine("    AND target.ITEM_NO = source.ITEM_NO ")
+            sb.AppendLine("    AND target.STATUS = 'POST_PLAN_DUE_SET' ")
+            sb.AppendLine("    AND target.ACTIVE_FLAG = 'Y' ")
+            sb.AppendLine(") ")
+            sb.AppendLine("WHEN MATCHED THEN ")
+            sb.AppendLine("UPDATE SET ")
+            sb.AppendLine("    target.ACTIVE_FLAG = 'N', ")
+            sb.AppendLine("    target.UPDATED_AT = :p_date, ")
+            sb.AppendLine("    target.UPDATED_USER_ID = :p_user_id, ")
+            sb.AppendLine("    target.UPDATED_PG_ID = 'OrderExport' ")
+
+            Try
+                'Using conn As New OracleConnection(_connectionString)
+                Using cmd As New OracleCommand(sb.ToString(), conn)
+                    cmd.Parameters.Add(":p_customer_setting_id", OracleDbType.Int32).Value = customerSettingId
+                    cmd.Parameters.Add(":p_customer_order_no", OracleDbType.Varchar2, 40).Value = customerOrderNo
+                    cmd.Parameters.Add(":p_item_no", OracleDbType.Varchar2, 45).Value = itemNo
+                    cmd.Parameters.Add(":p_date", OracleDbType.Date).Value = updateDate
+                    cmd.Parameters.Add(":p_user_id", OracleDbType.Varchar2, 9).Value = userId
+                    'conn.Open()
+                    'Using tran As OracleTransaction = conn.BeginTransaction()
+                    Dim cnt = cmd.ExecuteNonQuery()
+                    'tran.Commit()
+                End Using
+                'conn.Close()
+                'End Using
+                'End Using
+
+            Catch ex As Exception
+                errors = ex.Message
+            End Try
+
+            Return errors
+
+        End Function
+
 
     End Class
 
