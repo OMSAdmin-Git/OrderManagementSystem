@@ -2459,19 +2459,31 @@ Namespace OMS.Data
             Select Case reconcileType
                 Case 1
                     curSelect = " MIN(due_date) AS earliest_due_date,"
-                    curWhere = ""
+                    'curWhere = ""
+                    If orderType = 2 Then
+                        curWhere = " AND (info_type IS NULL OR info_type = 'I')"
+                    End If
                     curGroupBy = ""
                 Case 2
                     curSelect = " MAX(due_date) AS earliest_due_date,"
-                    curWhere = " AND (info_type IS NULL OR info_type = 'I')"
+                    'curWhere = " AND (info_type IS NULL OR info_type = 'I')"
+                    If orderType = 2 Then
+                        curWhere = " AND (info_type IS NULL OR info_type = 'I')"
+                    End If
                     curGroupBy = ""
                 Case 3
                     curSelect = " TRUNC(due_date, 'MM') AS earliest_due_date,"
-                    curWhere = ""
+                    'curWhere = ""
+                    If orderType = 2 Then
+                        curWhere = " AND (info_type IS NULL OR info_type = 'I')"
+                    End If
                     curGroupBy = " ,TRUNC(due_date, 'MM')"
                 Case Else
                     curSelect = " MIN(due_date) AS earliest_due_date,"
-                    curWhere = ""
+                    'curWhere = ""
+                    If orderType = 2 Then
+                        curWhere = " AND (info_type IS NULL OR info_type = 'I')"
+                    End If
                     curGroupBy = ""
             End Select
 
@@ -3180,7 +3192,7 @@ Namespace OMS.Data
                         "  reconcile_type, imp_run_id, status, active_flag, " &
                         "  :p_updated_at, :p_user_id, :p_updated_pg_id, " &
                         "  :p_updated_at, :p_user_id, :p_updated_pg_id, " &
-                        "  :p_stra_order_qty, :p_stra_ship_qty, :p_stra_order_backlog " &
+                        "  stra_order_qty, stra_ship_qty, stra_order_backlog " &
                         "  FROM orders_stage " &
                         "  WHERE customer_setting_id = :p_customer_setting_id " &
                         "  AND status = 'PROCESSED' " &
@@ -3441,9 +3453,9 @@ Namespace OMS.Data
             sb.AppendLine("  updated_pg_id              AS ""UpdatedPgId"",")
             sb.AppendLine("  prod_mgmt_user_id          AS ""ProdMgmtUserId"" ")
             ' Pharse2
-            sb.AppendLine("  stra_order_qty             AS ""StraOrderQty"" ")
-            sb.AppendLine("  stra_ship_qty              AS ""StraShipQty"" ")
-            sb.AppendLine("  stra_order_backlog         AS ""StraOrderBacklog"" ")
+            'sb.AppendLine("  stra_order_qty             AS ""StraOrderQty"" ")
+            'sb.AppendLine("  stra_ship_qty              AS ""StraShipQty"" ")
+            'sb.AppendLine("  stra_order_backlog         AS ""StraOrderBacklog"" ")
             sb.AppendLine("FROM orders_stage_view ")
             sb.AppendLine("WHERE 1=1 ")
 
