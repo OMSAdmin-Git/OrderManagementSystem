@@ -229,6 +229,8 @@ Namespace Pages.Orders
                             ' 出荷状況チェック 
 #If False Then
                             ' SQL の場合
+                            'customerOrderNo
+                            'itemNo
                             errors.Add(reps.ShippingStatusCheck(conn, tran, customerSettingId, customerOrderNo, itemNo, ProcessingStartDate, loginUserId))
 #Else
                             '[PROD_PLAN_HISTORY]
@@ -240,7 +242,7 @@ Namespace Pages.Orders
                             '書式・条件（PROD_PLAN_STAGE）処理中のCUSTOMER_SETTING_ID
                             'STATUS(ステータス)                 'POST_PLAN_DUE_SET'
                             'CTIVE_FLAG(有効フラグ)             'Y'
-                            Dim orderss = reps.GetOrders(conn, tran, OrderHistoryRepository.OrdersTable.ProductPlan, customerSettingId:=customerSettingId, status:="POST_PLAN_DUE_SET", activeFlag:="Y")
+                            Dim orderss = reps.GetOrders(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, customerSettingId:=customerSettingId, status:="POST_PLAN_DUE_SET", activeFlag:="Y")
 
                             '一致比較
                             'CUSTOMER_SETTING_ID（取引先設定ID）
