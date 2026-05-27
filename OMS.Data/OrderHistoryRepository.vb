@@ -169,7 +169,7 @@ Namespace OMS.Data
                         cmd.Parameters.Add(":p_customer_setting_id", OracleDbType.Varchar2, 25).Value = SafeVarchar(r.CustomerSettingId, 25)
                         cmd.Parameters.Add(":p_customer_code", OracleDbType.Varchar2, 25).Value = SafeVarchar(r.CustomerCode, 25)
                         cmd.Parameters.Add(":p_billing_to", OracleDbType.Varchar2, 25).Value = SafeVarchar(r.BillingTo, 25)
-                        cmd.Parameters.Add(":p_customer_order_no", OracleDbType.Char, 40).Value = SafeVarchar(r.CustomerOrderNo, 40)
+                        cmd.Parameters.Add(":p_customer_order_no", OracleDbType.Varchar2, 40).Value = SafeVarchar(r.CustomerOrderNo, 40)
                         cmd.Parameters.Add(":p_demand_status", OracleDbType.Char, 1).Value = SafeVarchar(r.DemandStatus, 1) ' 1桁記号想定
                         cmd.Parameters.Add(":p_ship_to", OracleDbType.Varchar2, 25).Value = SafeVarchar(r.ShipTo, 25)
 
@@ -180,8 +180,8 @@ Namespace OMS.Data
                         cmd.Parameters.Add(":p_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.ItemNo, 45)
 
                         cmd.Parameters.Add(":p_demand_qty", OracleDbType.Int64).Value = r.DemandQty ' NUMBER(10,0)
-                        cmd.Parameters.Add(":p_demand_unit", OracleDbType.Char, 4).Value = SafeVarchar(r.DemandUnit, 4)
-                        cmd.Parameters.Add(":p_currency_code", OracleDbType.Char, 3).Value = SafeVarchar(r.CurrencyCode, 3)
+                        cmd.Parameters.Add(":p_demand_unit", OracleDbType.Varchar2, 4).Value = SafeVarchar(r.DemandUnit, 4)
+                        cmd.Parameters.Add(":p_currency_code", OracleDbType.Varchar2, 3).Value = SafeVarchar(r.CurrencyCode, 3)
                         cmd.Parameters.Add(":p_ship_stock_location", OracleDbType.Varchar2, 25).Value = SafeVarchar(r.ShipStockLocation, 25)
                         cmd.Parameters.Add(":p_company_id", OracleDbType.Varchar2, 25).Value = SafeVarchar(r.CompanyId, 25)
 
