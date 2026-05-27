@@ -229,7 +229,7 @@ Namespace Pages.Orders
                             ' 出荷状況チェック 
 #If False Then
                             ' SQL の場合
-                            errors.Add(reps.ShippingStatusCheck(conn, tran, customerSettingId, customerOrderNo, itemNo, updateDate, userId))
+                            errors.Add(reps.ShippingStatusCheck(conn, tran, customerSettingId, customerOrderNo, itemNo, ProcessingStartDate, loginUserId))
 #Else
                             '[PROD_PLAN_HISTORY]
                             'CUSTOMER_SETTING_ID(取引先設定ID)  処理中のCUSTOMER_SETTING_ID
@@ -353,10 +353,15 @@ Namespace Pages.Orders
                 '#End If
 
                 ' UPDATE (生産計画ワーク)
+#If True Then
+                ' SQL の場合
+                errors.Add(reps.ProductionPlanWorkUpdate(conn, tran, ProcessingStartDate, loginUserId))
+#Else
                 Dim rowsu = reps.ToClass(reps.GetOrders(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, status:="POST_PLAN_DUE_SET", activeFlag:="Y"))
                 For Each row In rowsu
                     errors.Add(reps.Update(conn, tran, OrderRepository.OrdersTable.ProductPlan, kOrderId:=row.OrderId, status:="EXPORTED", updatedAt:=FileDate, updatedUserId:=loginUserId, updatedPgId:="OrderExport"))
                 Next
+#End If
                 If (CheckError(errors)) Then
                     ' エラー
                     DBError(tran)
@@ -369,7 +374,7 @@ Namespace Pages.Orders
                 '#End If
 
                 ' UPDATE (生産計画)
-#If False Then
+#If True Then
                 ' SQL の場合
                 errors.Add(repo.ProductionPlanUpdate(conn, tran, ProcessingStartDate, loginUserId))
 #Else
@@ -387,10 +392,11 @@ Namespace Pages.Orders
 
                 ' Pharse-2
                 'UPDATE (受注)
-
-
-
-
+                errors.Add(repo.OrderUpdate(conn, tran, ProcessingStartDate, loginUserId))
+                If (CheckError(errors)) Then
+                    ' エラー
+                    DBError(tran)
+                End If
 
                 '#If DEBUG Then
                 '                ' #### DEBUG
