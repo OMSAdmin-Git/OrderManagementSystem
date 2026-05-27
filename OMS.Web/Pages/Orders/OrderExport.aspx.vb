@@ -226,7 +226,11 @@ Namespace Pages.Orders
                             '以下項目をキーとしてPROD_PLAN_HISTORY（生産計画履歴）とPROD_PLAN_STAGE（生産計画ワークテーブル）を比較し、
                             '該当するPROD_PLAN_STAGEのレコードを更新する。
 
-                            ' 出荷状況チェック
+                            ' 出荷状況チェック 
+#If False Then
+                            ' SQL の場合
+                            errors.Add(reps.ShippingStatusCheck(conn, tran, customerSettingId, customerOrderNo, itemNo, updateDate, userId))
+#Else
                             '[PROD_PLAN_HISTORY]
                             'CUSTOMER_SETTING_ID(取引先設定ID)  処理中のCUSTOMER_SETTING_ID
                             'STATUS(ステータス)                 'EXPORTED'
@@ -255,7 +259,7 @@ Namespace Pages.Orders
                             'UPDATED_USER_ID(更新ユーザーID)        [ログインユーザーID]
                             'UPDATED_PG_ID(更新プログラムID)      'OrderExport'
                             errors.Add(reps.UpdateByOrderId(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, updatedRows, activeFlag:="N", updatedPgId:="OrderExport", updatedUserId:=loginUserId, updatedAt:=updatedAt))
-
+#End If
                             If (CheckError(errors)) Then
                                 ' エラー DB更新無効
                                 DBError(tran)
@@ -348,9 +352,8 @@ Namespace Pages.Orders
                 '                ' #### DEBUG
                 '#End If
 
+                ' UPDATE (生産計画ワーク)
                 Dim rowsu = reps.ToClass(reps.GetOrders(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, status:="POST_PLAN_DUE_SET", activeFlag:="Y"))
-
-
                 For Each row In rowsu
                     errors.Add(reps.Update(conn, tran, OrderRepository.OrdersTable.ProductPlan, kOrderId:=row.OrderId, status:="EXPORTED", updatedAt:=FileDate, updatedUserId:=loginUserId, updatedPgId:="OrderExport"))
                 Next
@@ -364,24 +367,30 @@ Namespace Pages.Orders
                 '                tran = conn.BeginTransaction()
                 '                ' #### DEBUG
                 '#End If
-                'UPDATE
-                '生産計画
 
-                'PROD_PLAN_STAGE
-                'STATUS(ステータス)
-                'UPDATED_AT(更新日時)
-                'UPDATED_USER_ID(更新ユーザーID)
-                'UPDATED_PG_ID(更新プログラムID)
+                ' UPDATE (生産計画)
+#If False Then
+                ' SQL の場合
+                errors.Add(repo.ProductionPlanUpdate(conn, tran, ProcessingStartDate, loginUserId))
+#Else
+
                 Dim rows = reps.GetOrders(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, status:="EXPORTED", activeFlag:="Y")
                 Dim orderRows = reps.ToClass(rows)
-
                 For Each row In orderRows
                     errors.Add(repo.Update(conn, tran, OrderRepository.OrdersTable.ProductPlan, kOrderId:=row.OrderId, status:=row.Status, updatedAt:=row.UpdatedAt, updatedUserId:=row.UpdatedUserId, updatedPgId:=row.UpdatedPgId))
                 Next
+#End If
                 If (CheckError(errors)) Then
                     ' エラー
                     DBError(tran)
                 End If
+
+                ' Pharse-2
+                'UPDATE (受注)
+
+
+
+
 
                 '#If DEBUG Then
                 '                ' #### DEBUG
