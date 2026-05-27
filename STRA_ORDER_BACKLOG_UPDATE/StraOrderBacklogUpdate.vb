@@ -13,6 +13,8 @@ Module StraOrderBacklogUpdate
     ' STRAMMICの出荷が完了(受注残数０)と判断し、受注テーブルの受注残数を[0](ゼロ)に更新する。
     ' ※STRAMMIC側で出荷完了した場合、受注残情報VIEWにデータが表示されなくなる使用
 
+    Private Const LogFilename As String = "StraOrderBacklog.txt"
+
     Sub Main()
 
         Dim errors As List(Of String) = New List(Of String)()
@@ -36,7 +38,7 @@ Module StraOrderBacklogUpdate
             Dim wkUpdatedPgId = "Backlog of Orders"     ' WK_UPDATED_PG_ID(更新プログラムID)
 
             ' Log
-            _logger = New Logger(logPath)
+            _logger = New Logger(Path.Combine(logPath, LogFilename))
             EnsureDirectory(logPath)
             _logger.Write($"StraOrderBacklogUpdate.exe Start: {wkUpdatedAt.ToString()}")
 
