@@ -3771,6 +3771,46 @@ Namespace OMS.Data
 
         End Function
 
+        ''' <summary>
+        ''' 生産計画ワーク update
+        ''' </summary>
+        ''' <returns></returns>
+        Public Function ProductionPlanWorkUpdate(conn As OracleConnection, tran As OracleTransaction, updateDate As Date, userId As String) As String
+
+            Dim sb As New StringBuilder()
+            Dim errors = ""
+
+            sb.AppendLine("UPDATE PROD_PLAN_STAGE ")
+            sb.AppendLine("SET ")
+            sb.AppendLine("    STATUS = 'EXPORTED', ")
+            sb.AppendLine("    UPDATED_AT = :p_date, ")
+            sb.AppendLine("    UPDATED_USER_ID = :p_user_id, ")
+            sb.AppendLine("    UPDATED_PG_ID = 'OrderExport' ")
+            sb.AppendLine("WHERE ")
+            sb.AppendLine("    STATUS = 'POST_PLAN_DUE_SET' ")
+            sb.AppendLine("    AND ACTIVE_FLAG = 'Y' ")
+
+            Try
+                'Using conn As New OracleConnection(_connectionString)
+                Using cmd As New OracleCommand(sb.ToString(), conn)
+                    cmd.Parameters.Add(":p_date", OracleDbType.Date).Value = updateDate
+                    cmd.Parameters.Add(":p_user_id", OracleDbType.Varchar2, 9).Value = userId
+                    'conn.Open()
+                    'Using tran As OracleTransaction = conn.BeginTransaction()
+                    Dim cnt = cmd.ExecuteNonQuery()
+                    'tran.Commit()
+                End Using
+                'conn.Close()
+                'End Using
+                'End Using
+
+            Catch ex As Exception
+                errors = ex.Message
+            End Try
+
+            Return errors
+
+        End Function
 
     End Class
 

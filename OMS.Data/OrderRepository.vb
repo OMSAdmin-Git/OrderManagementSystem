@@ -1845,8 +1845,17 @@ Namespace OMS.Data
         ''' <returns></returns>
         Public Function OrderUpdate(conn As OracleConnection, tran As OracleTransaction, updateDate As Date, userId As String) As String
 
-
-
+            ' CUSTOMER_ORDER_NO（客先発注No）をキーとして、ORDERS（受注テーブル）をPROD_PLAN_STAGEの値に更新する。
+            ' 1) ORDERS テーブルがターゲットで PROD_PLAN_STAGE がソーステーブルです。
+            ' 2) PROD_PLAN_STAGE の フィールドが 次の時
+            '  STATUS(ステータス) = 'EXPORTED'、ACTIVE_FLAG(有効フラグ) = 'Y'
+            '  そのレコードのフィールド CUSTOMER_ORDER_NO（客先発注No）と
+            '   ORDERS テーブルの CUSTOMER_ORDER_NO が同じレコードを更新します。
+            ' 3) 更新内容は下記のとおりです。
+            ' STATUS(ステータス)='EXPORTED'
+            ' UPDATED_AT(更新日時)=[現在時刻]
+            ' UPDATED_USER_ID(更新ユーザーID)=外部から渡す値
+            ' UPDATED_PG_ID(更新プログラムID)='OrderExport'
             Dim sb As New StringBuilder()
             Dim errors = ""
 

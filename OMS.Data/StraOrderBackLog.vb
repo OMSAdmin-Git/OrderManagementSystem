@@ -62,9 +62,9 @@ Namespace OMS.Data
             sb.AppendLine("    ODR.STRA_ORDER_QTY = ASO.FCUSREQQTY, ")
             sb.AppendLine("    ODR.STRA_SHIP_QTY = ASO.FSHPQTY, ")
             sb.AppendLine("    ODR.STRA_ORDER_BACKLOG = ASO.FODRREMQTY, ")
-            sb.AppendLine($"    ODR.UPDATED_AT = {ud}, ")
-            sb.AppendLine($"    ODR.UPDATED_USER_ID = {uid}, ")
-            sb.AppendLine($"    ODR.UPDATED_PG_ID = {pid} ")
+            sb.AppendLine($"    ODR.UPDATED_AT = '{ud}', ")
+            sb.AppendLine($"    ODR.UPDATED_USER_ID = '{uid}', ")
+            sb.AppendLine($"    ODR.UPDATED_PG_ID = '{pid}' ")
 
             Try
                 Using conn As New OracleConnection(_connectionString)
@@ -97,10 +97,10 @@ Namespace OMS.Data
 
             sb.AppendLine("UPDATE ORDERS ODR ")
             sb.AppendLine("SET ODR.STRA_ORDER_BACKLOG = 0, ")
-            sb.AppendLine("    ODR.STATUS = 'SHIPPED' ")
-            sb.AppendLine($"    ODR.UPDATED_AT = {ud.ToString()}, ")
-            sb.AppendLine($"    ODR.UPDATED_USER_ID = {uid}, ")
-            sb.AppendLine($"    ODR.UPDATED_PG_ID = {pid} ")
+            sb.AppendLine("    ODR.STATUS = 'SHIPPED', ")
+            sb.AppendLine($"    ODR.UPDATED_AT = '{ud}' , ")
+            sb.AppendLine($"    ODR.UPDATED_USER_ID = '{uid}' , ")
+            sb.AppendLine($"    ODR.UPDATED_PG_ID = '{pid}' ")
             sb.AppendLine("WHERE ODR.ACTIVE_FLAG = 'Y' ")
             sb.AppendLine("AND  ODR.ORDER_TYPE = 3 ")
             sb.AppendLine("AND  ODR.STATUS = 'EXPORTED' ")
