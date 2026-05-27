@@ -906,11 +906,13 @@ Namespace Pages.Orders
                                                         productcode = If(csv.ColumnCount > nSeihinCode AndAlso nSeihinCode > -1, csv.GetField(nSeihinCode).Trim(), "")
                                                     Else
                                                         '取得できない場合はPRDSLSODRMより取得
-                                                        productcode = _oderStageRepo.GetProductCode(customeritemNo)
+                                                        'productcode = _oderStageRepo.GetProductCode(customeritemNo)
+                                                        productcode = _oderStageRepo.GetProductCode(customeritemNo, customerCode)
                                                     End If
 
                                                     '品目No
-                                                    itemNo = _oderStageRepo.GetProductCode(customeritemNo)
+                                                    'itemNo = _oderStageRepo.GetProductCode(customeritemNo)
+                                                    itemNo = _oderStageRepo.GetProductCode(customeritemNo, customerCode)
 
                                                     '需要単位
                                                     'ITEMMより取得
@@ -1207,11 +1209,14 @@ Namespace Pages.Orders
                                                         productcode = If(nSeihinCode > 0, xlRow.Cell(nSeihinCode).GetValue(Of String)().Trim(), "")
                                                     Else
                                                         '取得できない場合はPRDSLSODRMより取得
-                                                        productcode = _oderStageRepo.GetProductCode(customeritemNo)
+                                                        'productcode = _oderStageRepo.GetProductCode(customeritemNo)
+                                                        productcode = _oderStageRepo.GetProductCode(customeritemNo, customerCode)
                                                     End If
 
                                                     '品目No
-                                                    itemNo = _oderStageRepo.GetProductCode(customeritemNo)
+                                                    'itemNo = _oderStageRepo.GetProductCode(customeritemNo)
+                                                    itemNo = _oderStageRepo.GetProductCode(customeritemNo, customerCode)
+
 
                                                     '需要単位
                                                     'ITEMMより取得
@@ -1599,11 +1604,13 @@ Namespace Pages.Orders
 
                                                         Else
                                                             '取得できない場合はPRDSLSODRMより取得
-                                                            productcode = _oderStageRepo.GetProductCode(customeritemNo)
+                                                            'productcode = _oderStageRepo.GetProductCode(customeritemNo)
+                                                            productcode = _oderStageRepo.GetProductCode(customeritemNo, customerCode)
                                                         End If
 
                                                         '品目No
-                                                        itemNo = _oderStageRepo.GetProductCode(customeritemNo)
+                                                        'itemNo = _oderStageRepo.GetProductCode(customeritemNo)
+                                                        itemNo = _oderStageRepo.GetProductCode(customeritemNo, customerCode)
 
                                                         '需要単位
                                                         'ITEMMより取得
@@ -1792,6 +1799,24 @@ Namespace Pages.Orders
                                 '-----------------------------------------------
 
 
+                                ''2026/05/26 酒井 フェーズ2 受注残対応
+                                ''受注残加工
+                                ''消込フラグをチェック
+                                'If reconcileFlag = "Y" Then
+
+                                '    '--------------------------------
+                                '    '受注残消込
+                                '    '--------------------------------
+                                '    _oderStageRepo.BacklogForecast(tran,
+                                '                                        customerSettingId,
+                                '                                        impfilestageId,
+                                '                                        reconciletype,
+                                '                                        now,
+                                '                                        UserId,
+                                '                                        pgId)
+
+                                'End If
+                                ''--
 
 
 
