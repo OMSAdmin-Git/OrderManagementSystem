@@ -1517,13 +1517,19 @@ Namespace OMS.Data
 
         End Function
 
-        Public Function GetProductCode(ByVal CustomerItemNo As String) As String
+        'Public Function GetProductCode(ByVal CustomerItemNo As String) As String
+        Public Function GetProductCode(ByVal CustomerItemNo As String, ByVal CustomerCode As String) As String
 
             Dim pCustomerItemNo As String = If(String.IsNullOrWhiteSpace(CustomerItemNo), Nothing, CustomerItemNo.Trim())
+            Dim pCustomerCode As String = If(String.IsNullOrWhiteSpace(CustomerCode), Nothing, CustomerCode.Trim())
 
+            'Const sql As String =
+            '            " SELECT fprdcd FROM prdslsodrm " &
+            '            " WHERE fcustitemno = :p_customer_item_no "
             Const sql As String =
                         " SELECT fprdcd FROM prdslsodrm " &
-                        " WHERE fcustitemno = :p_customer_item_no "
+                        " WHERE fcustitemno = :p_customer_item_no " &
+                        " AND fcustcd = :p_customer_code "
 
             Using conn As New OracleConnection(_connectionString)
                 conn.Open()
@@ -1534,6 +1540,7 @@ Namespace OMS.Data
 
                     cmd.Parameters.Clear()
                     cmd.Parameters.Add(":p_customer_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(pCustomerItemNo, 45)
+                    cmd.Parameters.Add(":p_customer_code", OracleDbType.Varchar2, 25).Value = SafeVarchar(pCustomerCode, 25)
 
                     Dim obj = cmd.ExecuteScalar()
                     If obj Is Nothing OrElse obj Is DBNull.Value Then
@@ -2829,6 +2836,164 @@ Namespace OMS.Data
                 Console.WriteLine($"{count} 件の確定新規レコードを更新しました。")
             End Using
         End Sub
+
+        '2026/05/26 酒井 フェーズ2 受注残対応
+        ''' <summary>
+        ''' 受注残消込処理を実行する
+        ''' </summary>
+        ''' <param name="tran">トランザクション</param>
+        ''' <param name="customerSettingId">処理中の取引先設定ID</param>
+        ''' <param name="impFileStageId">処理中の取込ワークファイルID</param>
+        ''' <param name="reconcileType">消込条件（1:順次, 2:同月まで, 3:同月のみ）</param>
+        ''' <param name="updatedAt">更新日時</param>
+        ''' <param name="updateUserId">更新ユーザーID</param>
+        ''' <param name="updatepgId">更新プログラムID</param>
+        Public Sub BacklogForecast(ByVal tran As OracleTransaction,
+                                        ByVal customerSettingId As Long,
+                                        ByVal impFileStageId As Long,
+                                        ByVal reconcileType As Integer,
+                                        ByVal updatedAt As DateTime,
+                                        ByVal updateUserId As String,
+                                        ByVal updatepgId As String)
+
+
+            ' --- 1. 今回取込データの集計（品目ごとの需要数の合計を取得、納期は最も古いものを採用） ---
+            Dim curList As New Dictionary(Of String, OrderSummaryRow)
+
+            Dim curSelect As String = ""
+            Dim curWhere As String = ""
+            Dim curGroupBy As String = ""
+            Select Case reconcileType
+                Case 1
+                    curSelect = " MIN(pre_daily_delivery_date) AS earliest_pre_daily_delivery_date,"
+                    curWhere = ""
+                    curGroupBy = ""
+                Case 2
+                    curSelect = " MAX(pre_daily_delivery_date) AS earliest_pre_daily_delivery_date,"
+                    curWhere = ""
+                    curGroupBy = ""
+                Case 3
+                    curSelect = " TRUNC(pre_daily_delivery_date, 'MM') AS earliest_pre_daily_delivery_date,"
+                    curWhere = ""
+                    curGroupBy = " ,TRUNC(pre_daily_delivery_date, 'MM')"
+                Case Else
+                    curSelect = " MIN(pre_daily_delivery_date) AS earliest_pre_daily_delivery_date,"
+                    curWhere = ""
+                    curGroupBy = ""
+            End Select
+
+            Dim cursql As String = $"
+                SELECT
+                    item_no,
+                    {curSelect}
+                    SUM(stra_order_backlog) AS total_stra_order_backlog
+                FROM order_backlog_view
+                WHERE 1=1
+                    {curWhere}
+                GROUP BY item_no
+                    {curGroupBy}
+                ORDER BY item_no ASC"
+
+            Using cmdCur As New OracleCommand(cursql, tran.Connection)
+                cmdCur.Transaction = tran
+                cmdCur.BindByName = True
+                cmdCur.CommandType = CommandType.Text
+                cmdCur.Parameters.Clear()
+
+                Using dr As OracleDataReader = cmdCur.ExecuteReader()
+                    While dr.Read()
+
+                        Dim itemNo As String = dr("item_no").ToString()
+                        Dim dueDate As DateTime = Convert.ToDateTime(dr("earliest_pre_daily_delivery_date"))
+
+                        Dim row As New OrderSummaryRow With {
+                            .ItemNo = itemNo,
+                            .EarliestDueDate = dueDate,
+                            .TotalDemandQty = Convert.ToDecimal(dr("total_stra_order_backlog"))
+                        }
+                        Dim dictKey As String = itemNo
+                        If reconcileType = 3 Then
+                            ' 品目No_202310 のような形式で月ごとに枠を管理する
+                            dictKey = $"{itemNo}_{dueDate:yyyyMM}"
+                        End If
+
+                        curList.Add(dictKey, row)
+
+                    End While
+                End Using
+            End Using
+
+            ' --- 2. 今回取込データの内示データを古い順に取得
+            Dim pastSql As String = $"
+                    SELECT p.rowid, p.item_no, p.demand_qty, p.due_date
+                    FROM orders_stage p
+                    WHERE p.order_type = 1 
+                      AND p.active_flag = 'Y' 
+                      AND p.self_fcst_flag = 'N' 
+                    ORDER BY p.item_no, p.due_date, p.rowid"
+
+            Using cmdPast As New OracleCommand(pastSql, tran.Connection)
+                cmdPast.Transaction = tran
+                cmdPast.BindByName = True
+                cmdPast.CommandType = CommandType.Text
+                cmdPast.Parameters.Clear()
+
+                Using drPast As OracleDataReader = cmdPast.ExecuteReader()
+                    While drPast.Read()
+                        Dim itemNo As String = drPast("item_no").ToString()
+                        Dim forecastDate As DateTime = Convert.ToDateTime(drPast("due_date"))
+
+                        Dim dictKey As String = itemNo
+                        If reconcileType = 3 Then
+                            dictKey = $"{itemNo}_{forecastDate:yyyyMM}"
+                        End If
+
+                        ' Dictionaryに該当品目（かつ該当月）の消込枠があるか確認
+                        If curList.ContainsKey(dictKey) Then
+                            Dim summary = curList(dictKey)
+
+                            ' --- 消込対象かどうかの判定 (reconcileTypeによる比較) ---
+                            Dim isTarget As Boolean = False
+                            ' 年月のみで比較するための変数作成
+                            Dim fcstMonth As DateTime = New DateTime(forecastDate.Year, forecastDate.Month, 1)
+                            Dim curMonth As DateTime = New DateTime(summary.EarliestDueDate.Year, summary.EarliestDueDate.Month, 1)
+
+                            Select Case reconcileType
+                                Case 1 : isTarget = True ' 1:順次（全対象）
+                                Case 2 : isTarget = (fcstMonth <= curMonth) ' 2:同月まで
+                                Case 3 : isTarget = (fcstMonth = curMonth)  ' 3:同月のみ
+                            End Select
+
+                            ' 対象であり、かつまだ消込枠(注文合計)が残っている場合のみ処理
+                            If isTarget AndAlso summary.TotalDemandQty > 0 Then
+                                Dim rid As String = drPast("rowid").ToString()
+                                Dim pastQty As Decimal = Convert.ToDecimal(drPast("demand_qty"))
+                                Dim remainLimit As Decimal = summary.TotalDemandQty ' 現在の消込可能残数
+
+                                Dim newDemandQty As Decimal = 0
+
+                                ' --- 消込計算ロジック ---
+                                If pastQty > remainLimit Then
+                                    ' 内示残数の方が大きい場合：内示を一部減らし、消込枠を使い切る
+                                    newDemandQty = pastQty - remainLimit
+                                    summary.TotalDemandQty = 0
+                                Else
+                                    ' 消込枠の方が多い場合：この内示レコードを0にし、残った枠を次の納期分へ
+                                    newDemandQty = 0
+                                    summary.TotalDemandQty -= pastQty
+                                End If
+
+                                ' --- データベース更新 (rowid指定でピンポイント更新) ---
+                                UpdateOrderRow(tran, rid, newDemandQty, updatedAt, updateUserId, updatepgId)
+                            End If
+                        End If
+                    End While
+                End Using
+
+            End Using
+
+        End Sub
+        '--
 
         ''' <summary>
         ''' ログインユーザーが担当する加工済みデータの取込先設定ID(customer_setting_id)の一覧とデータ件数を取得する
