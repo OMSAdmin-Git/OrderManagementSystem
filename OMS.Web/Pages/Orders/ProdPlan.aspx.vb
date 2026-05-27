@@ -331,9 +331,9 @@ Namespace Pages.Orders
             ' aspx 内で OK Click のevent 内に非表示処理を入れ java で実行する
 
             ' 値取得(処理開始日 時間 00:00:00 に丸める )
-            'Dim ProcessingStartDate As Date = DateSerial(Year(DateTime.Now), Month(DateTime.Now), Day(DateTime.Now))
+            Dim ProcessingStartDate As Date = DateSerial(Year(DateTime.Now), Month(DateTime.Now), Day(DateTime.Now))
 #If DEBUG Then  '#DEBUG
-            Dim ProcessingStartDate As Date = DateSerial(2026, 3, 1)
+            'Dim ProcessingStartDate As Date = DateSerial(2026, 3, 1)
 #End If
             ' Oracle connection/Transaction
             Dim conn As New OracleConnection(Utils.GetConnectionString())
