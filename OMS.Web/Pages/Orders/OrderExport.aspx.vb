@@ -412,7 +412,7 @@ Namespace Pages.Orders
                 ' 裏画面 Download
                 'Utils.FilesTransfer(Response, Server, fileList, orderFilename)
 
-                Dim fileListName = IO.Path.Combine(Server.MapPath("~/App_Data/Files/"), Utils.GetTempFileName("FileList.txt"))
+                Dim fileListName = Path.Combine(Server.MapPath("~/App_Data/Files/"), Utils.GetTempFileName("FileList.txt"))
                 Utils.SaveFileList(fileListName, fileList)
                 Dim url As String = $"DownloadProcess.ashx?file={HttpUtility.UrlEncode(orderFilename)}&list={HttpUtility.UrlEncode(fileListName)}"
                 Dim script As String = $"document.getElementById('downloadFrame').src = '{url}';"

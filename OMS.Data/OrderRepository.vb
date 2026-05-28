@@ -319,6 +319,45 @@ Namespace OMS.Data
             Dim errorMessage As String = ""
             If records Is Nothing Then Return "OrdersRow InsertRange no record data."
             Try
+                Dim sb As New StringBuilder()
+                sb.AppendLine($"INSERT INTO {GetTableName(type)} (")
+                sb.AppendLine("  customer_setting_id, customer_code, billing_to, customer_order_no, demand_status, ship_to, ")
+                sb.AppendLine("  order_date, due_date, ship_scheduled_date, customer_item_no, item_no, ")
+                sb.AppendLine("  demand_qty, demand_unit, currency_code, ship_stock_location, company_id, ")
+                sb.AppendLine("  product_code, billing_standard, ship_process_type, delivery_instr_flag, ")
+                sb.AppendLine("  order_no, remarks, delivery_code, order_time, sales_unit_price, delivery_time, ")
+                sb.AppendLine("  usage_location, total_ship_qty, production_category, char_2, container_no, ")
+                sb.AppendLine("  char_3, char_4, char_4_2, char_5, char_5_2, char_6, ")
+                sb.AppendLine("  order_reason, container_capacity, customer_lot_no, initial_flag, ship_date, ")
+                sb.AppendLine("  char_50, transport_method, ship_plan_date, customer_order_line_no, ")
+                sb.AppendLine("  pre_daily_order_qty, pre_daily_delivery_date, imp_file_id, ")
+                sb.AppendLine("  order_type, prorated_type, customer_info_type, info_type, self_fcst_flag, self_fcst_delete_flag, ")
+                sb.AppendLine("  reconcile_type, imp_run_id, status, active_flag, ")
+                sb.AppendLine("  created_at, created_user_id, created_pg_id, ")
+                sb.AppendLine("  updated_at, updated_user_id, updated_pg_id ")
+                If (type = OrdersTable.Orders) Then
+                    sb.AppendLine(",  stra_order_qty, stra_ship_qty, stra_order_backlog ")
+                End If
+                sb.AppendLine(") VALUES (")
+                sb.AppendLine("  :p_customer_setting_id, :p_customer_code, :p_billing_to, :p_customer_order_no, :p_demand_status, :p_ship_to, ")
+                sb.AppendLine("  :p_order_date, :p_due_date, :p_ship_scheduled_date, :p_customer_item_no, :p_item_no, ")
+                sb.AppendLine("  :p_demand_qty, :p_demand_unit, :p_currency_code, :p_ship_stock_location, :p_company_id, ")
+                sb.AppendLine("  :p_product_code, :p_billing_standard, :p_ship_process_type, :p_delivery_instr_flag, ")
+                sb.AppendLine("  :p_order_no, :p_remarks, :p_delivery_code, :p_order_time, :p_sales_unit_price, :p_delivery_time, ")
+                sb.AppendLine("  :p_usage_location, :p_total_ship_qty, :p_production_category, :p_char_2, :p_container_no, ")
+                sb.AppendLine("  :p_char_3, :p_char_4, :p_char_4_2, :p_char_5, :p_char_5_2, :p_char_6, ")
+                sb.AppendLine("  :p_order_reason, :p_container_capacity, :p_customer_lot_no, :p_initial_flag, :p_ship_date, ")
+                sb.AppendLine("  :p_char_50, :p_transport_method, :p_ship_plan_date, :p_customer_order_line_no, ")
+                sb.AppendLine("  :p_pre_daily_order_qty, :p_pre_daily_delivery_date, :p_imp_file_id, ")
+                sb.AppendLine("  :p_order_type, :p_prorated_type, :p_customer_info_type, :p_info_type, :p_self_fcst_flag, :p_self_fcst_delete_flag,")
+                sb.AppendLine("  :p_reconcile_type, :p_imp_run_id, :p_status, :p_active_flag, ")
+                sb.AppendLine("  :p_created_at, :p_created_user_id, :p_created_pg_id, ")
+                sb.AppendLine("  :p_updated_at, :p_updated_user_id, :p_updated_pg_id ")
+                If (type = OrdersTable.Orders) Then
+                    sb.AppendLine(",  :p_stra_order_qty, :p_stra_ship_qty, :p_stra_order_backlog ")
+                End If
+                sb.AppendLine(")")
+#If False Then
                 Dim sql As String =
                 $"INSERT INTO {GetTableName(type)} (" &
                 "  customer_setting_id, customer_code, billing_to, customer_order_no, demand_status, ship_to, " &
@@ -354,6 +393,8 @@ Namespace OMS.Data
                 "  :p_stra_order_qty, :p_stra_ship_qty, :p_stra_order_backlog " &
                 ")"
                 Using cmd As New OracleCommand(sql, conn)
+#End If
+                Using cmd As New OracleCommand(sb.ToString(), conn)
                     cmd.Transaction = tran
                     cmd.BindByName = True
                     cmd.CommandType = CommandType.Text
@@ -444,9 +485,11 @@ Namespace OMS.Data
                         cmd.Parameters.Add(":p_updated_user_id", OracleDbType.Varchar2, 9).Value = SafeVarchar(r.UpdatedUserId, 9)
                         cmd.Parameters.Add(":p_updated_pg_id", OracleDbType.Varchar2, 150).Value = SafeVarchar(r.UpdatedPgId, 150)
                         ' Pharse2
-                        cmd.Parameters.Add(":p_stra_order_qty", OracleDbType.Decimal).Value = r.StraOrderQty
-                        cmd.Parameters.Add(":p_stra_ship_qty", OracleDbType.Decimal).Value = r.StraShipQty
-                        cmd.Parameters.Add(":p_stra_order_backlog", OracleDbType.Decimal).Value = r.StraOrderBacklog
+                        If (type = OrdersTable.Orders) Then
+                            cmd.Parameters.Add(":p_stra_order_qty", OracleDbType.Decimal).Value = r.StraOrderQty
+                            cmd.Parameters.Add(":p_stra_ship_qty", OracleDbType.Decimal).Value = r.StraShipQty
+                            cmd.Parameters.Add(":p_stra_order_backlog", OracleDbType.Decimal).Value = r.StraOrderBacklog
+                        End If
                         cmd.ExecuteNonQuery()
                     Next
 
@@ -1485,10 +1528,11 @@ Namespace OMS.Data
             osr.ReconcileType = dt.Field(Of Int16?)("reconcile_type")
             osr.ContainerCapacity = dt.Field(Of Decimal?)("container_capacity")
             ' Pharse2
-            osr.StraOrderQty = dt.Field(Of Decimal?)("stra_order_qty")
-            osr.StraShipQty = dt.Field(Of Decimal?)("stra_ship_qty")
-            osr.StraOrderBacklog = dt.Field(Of Decimal?)("stra_order_backlog")
-
+            If (dt.Table.Columns.Contains("order_id")) Then
+                osr.StraOrderQty = dt.Field(Of Decimal?)("stra_order_qty")
+                osr.StraShipQty = dt.Field(Of Decimal?)("stra_ship_qty")
+                osr.StraOrderBacklog = dt.Field(Of Decimal?)("stra_order_backlog")
+            End If
             ' ====== 日付系 ======
             osr.OrderDate = dt.Field(Of Date?)("order_date")
             osr.DueDate = dt.Field(Of Date?)("due_date")
