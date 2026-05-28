@@ -1905,7 +1905,7 @@ Namespace OMS.Data
 
             sb.AppendLine("MERGE INTO ORDERS target ")
             sb.AppendLine("USING ( ")
-            sb.AppendLine("    SELECT ")
+            sb.AppendLine("    SELECT DISTINCT ")
             sb.AppendLine("        CUSTOMER_ORDER_NO ")
             sb.AppendLine("    FROM ")
             sb.AppendLine("        PROD_PLAN_STAGE ")
@@ -1917,9 +1917,9 @@ Namespace OMS.Data
             sb.AppendLine("WHEN MATCHED THEN ")
             sb.AppendLine("UPDATE SET ")
             sb.AppendLine("    target.STATUS = 'EXPORTED', ")
-            sb.AppendLine("    target.UPDATED_AT = ;p_date, ")
+            sb.AppendLine("    target.UPDATED_AT = :p_date, ")
             sb.AppendLine("    target.UPDATED_USER_ID = :p_user_id, ")
-            sb.AppendLine("    target.UPDATED_PG_ID = 'OrderExport' ")
+            sb.AppendLine("    target.UPDATED_PG_ID = 'OrderExport'")
 
             Try
                 'Using conn As New OracleConnection(_connectionString)
