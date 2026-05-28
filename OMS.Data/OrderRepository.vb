@@ -1905,7 +1905,7 @@ Namespace OMS.Data
 
             sb.AppendLine("MERGE INTO ORDERS target ")
             sb.AppendLine("USING ( ")
-            sb.AppendLine("    SELECT DISTINCT ")
+            sb.AppendLine("    SELECT DISTINCT ")           ' prod_plan_stage の CUSTOMER_ORDER_NO を単項目に
             sb.AppendLine("        CUSTOMER_ORDER_NO ")
             sb.AppendLine("    FROM ")
             sb.AppendLine("        PROD_PLAN_STAGE ")
