@@ -15,8 +15,8 @@ Module StraOrderBacklogUpdate
 
     Private Const LogFilename As String = "StraOrderBacklog.txt"
 
-    Sub Main()
-
+    Function Main() As Integer
+        Dim rt As Integer = 0
         Dim errors As List(Of String) = New List(Of String)()
         ' 設定
         Dim xmlDoc As XDocument = XDocument.Load("Config.xml")
@@ -61,8 +61,10 @@ Module StraOrderBacklogUpdate
             Dim ms As String = String.Join(vbCrLf, errors.Where(Function(x) x <> ""))
             _logger?.Write($"StraOrderBacklogUpdate.exe Error: {ms}")
             MessageBox.Show(ms, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            rt = -1
         End Try
+        Return rt
 
-    End Sub
+    End Function
 
 End Module
