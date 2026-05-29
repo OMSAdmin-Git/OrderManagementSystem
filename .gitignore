@@ -364,3 +364,16 @@ FodyWeavers.xsd
 
 # web onfig
 OMS.Web/Web.config
+/OMS.Web/App_Data/Files/A-R-COEDI-F_20260516104616.xlsx
+/OMS.Web/App_Data/Files/A-R-COEDI-F__20260528_104616.csv
+/OMS.Web/App_Data/Files/A-R-COEDI-O__20260528_104616.csv
+/OMS.Web/App_Data/Files/生産計画_admin_20260528095035.xlsx
+/OMS.Web/App_Data/Files/生産計画_admin_20260528095354.xlsx
+/OMS.Web/App_Data/Files/生産計画_admin_20260528104018.xlsx
+/STRA_ORDER_BACKLOG_UPDATE/日次バッチ処理 資料.xlsx
+/OMS.Web/App_Data/Files/A-R-COEDI-O__20260528_160602.csv
+/OMS.Web/App_Data/Files/20260529_81_受注差異リスト.xlsx
+/.gitignore
+/STRA_ORDER_BACKLOG_UPDATE/日次バッチ処理 資料.xlsx
+/.gitignore
+/STRA_ORDER_BACKLOG_UPDATE/日次バッチ処理 資料.xlsx
