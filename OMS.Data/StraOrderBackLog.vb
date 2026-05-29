@@ -42,6 +42,13 @@ Namespace OMS.Data
             sb.AppendLine("    FCUSREQQTY, ")
             sb.AppendLine("    FSHPQTY, ")
             sb.AppendLine("    FODRREMQTY ")
+
+            sb.AppendLine(",    FCUSTCD, ")
+            sb.AppendLine("    FCUSTODRNO, ")
+            sb.AppendLine("    FCUSTLINE, ")
+            sb.AppendLine("    FUSRDTE3, ")
+            sb.AppendLine("    FITEMNO, ")
+
             sb.AppendLine(" FROM ")
             sb.AppendLine("    A_S_ODRREMQTY ")
             sb.AppendLine(" WHERE  ")
