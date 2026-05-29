@@ -18,8 +18,6 @@ Imports DocumentFormat.OpenXml.Spreadsheet
 Imports DocumentFormat.OpenXml.Office2010.Excel
 Imports Microsoft.VisualBasic.ApplicationServices
 Imports Microsoft.Ajax.Utilities
-Imports DocumentFormat.OpenXml.Office2016.Excel
-Imports ClosedXML.Excel
 
 Namespace Pages.Orders
     Public Class OrderImport
