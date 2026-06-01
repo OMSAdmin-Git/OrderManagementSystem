@@ -255,11 +255,14 @@ Namespace Pages.Orders
                                 Dim shipScaduleDate As Date = dueDate.Value.AddDays(-(transferLeadTime + assortLeadTime))
                                 ' (受注ワークテーブル.希望納期 - 出荷ルートマスター.輸送L/T)
                                 Dim shipdate = dueDate.Value.AddDays(-transferLeadTime)
+                                ' 2026/06/01 
+                                'ORDERS_STAGE.DUE_DATE - shproutm.FTRANLT - USRDEFFLDF.FUSRDEC1
+                                Dim shipPlanDate = dueDate.Value.AddDays(-transferLeadTime + assortLeadTime)
                                 Dim status = "DUE_SET"
                                 Dim updateAt = ProcessingStartDate
                                 Dim updateUserId = PageHelpers.GetUserId(Me)
                                 Dim updatePgId = "DueDateSetting(Order)"
-                                errors.Add(reps.UpdateDeadline(conn, tran, orderId:=orderid, shipScheduledDate:=shipScaduleDate, shipDate:=shipdate, status:=status, updatedAt:=updateAt, updatedUserId:=updateUserId, updatedPgId:=updatePgId))
+                                errors.Add(reps.UpdateDeadline(conn, tran, orderId:=orderid, shipScheduledDate:=shipScaduleDate, shipDate:=shipdate, shipPlanDate:=shipPlanDate, status:=status, updatedAt:=updateAt, updatedUserId:=updateUserId, updatedPgId:=updatePgId))
                                 '#If DEBUG Then
                                 '                                ' #### DEBUG
                                 '                                tran.Commit()

@@ -1198,6 +1198,7 @@ Namespace OMS.Data
         ''' <param name="orderId"></param>
         ''' <param name="shipScheduledDate"></param>
         ''' <param name="shipDate"></param>
+        ''' <param name="shipPlanDate"></param>
         ''' <param name="dueDate"></param>
         ''' <param name="status"></param>
         ''' <param name="updatedAt"></param>
@@ -1208,6 +1209,7 @@ Namespace OMS.Data
                                         Optional orderId As Integer? = Nothing,
                                         Optional shipScheduledDate As Date? = Nothing,
                                         Optional shipDate As Date? = Nothing,
+                                        Optional shipPlanDate As Date? = Nothing,
                                         Optional dueDate As Date? = Nothing,
                                         Optional status As String = Nothing,
                                         Optional updatedAt As Date? = Nothing,
@@ -1215,7 +1217,7 @@ Namespace OMS.Data
                                         Optional updatedPgId As String = Nothing
                                         ) As String
 
-            Return UpdateDeadline(conn, tran, OrdersTable.Orders, orderId, shipScheduledDate, shipDate, dueDate, status, updatedAt, updatedUserId, updatedPgId)
+            Return UpdateDeadline(conn, tran, OrdersTable.Orders, orderId, shipScheduledDate, shipDate, shipPlanDate, dueDate, status, updatedAt, updatedUserId, updatedPgId)
 
         End Function
 
@@ -1228,6 +1230,7 @@ Namespace OMS.Data
         ''' <param name="orderId"></param>
         ''' <param name="shipScheduledDate"></param>
         ''' <param name="shipDate"></param>
+        ''' <param name="shipPlanDate"></param>
         ''' <param name="dueDate"></param>
         ''' <param name="status"></param>
         ''' <param name="updatedAt"></param>
@@ -1238,6 +1241,7 @@ Namespace OMS.Data
                                         Optional orderId As Integer? = Nothing,
                                         Optional shipScheduledDate As Date? = Nothing,
                                         Optional shipDate As Date? = Nothing,
+                                        Optional shipPlanDate As Date? = Nothing,
                                         Optional dueDate As Date? = Nothing,
                                         Optional status As String = Nothing,
                                         Optional updatedAt As Date? = Nothing,
@@ -1293,6 +1297,10 @@ Namespace OMS.Data
                 If shipDate IsNot Nothing Then
                     sb.AppendLine("ship_date = :p_ship_date, ")
                     prm.Add(New OracleParameter(":p_ship_date", OracleDbType.Date) With {.Value = shipDate})
+                End If
+                If shipDate IsNot Nothing Then
+                    sb.AppendLine("ship_plan_date = :p_ship_plan_date, ")
+                    prm.Add(New OracleParameter(":p_ship_plan_date", OracleDbType.Date) With {.Value = shipPlanDate})
                 End If
                 If status IsNot Nothing Then
                     sb.AppendLine("status = :p_status, ")
