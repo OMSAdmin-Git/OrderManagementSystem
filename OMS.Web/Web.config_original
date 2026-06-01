@@ -87,11 +87,11 @@
 		<!--天方環境-->
 		<!--<add name="OMSConnection" connectionString="User Id=OMSDB;Password=Amagata001;Data Source=//192.168.10.15:1521/OMSDB;" providerName="Oracle.ManagedDataAccess.Client" />-->
 		<!--アスカ環境-->
-		<!--<add name="OMSConnection" connectionString="User Id=OMSDB;Password=Amagata001;Data Source=//192.168.100.126:1521/orcl;" providerName="Oracle.ManagedDataAccess.Client" />-->
+		<add name="OMSConnection" connectionString="User Id=OMSDB;Password=Amagata001;Data Source=//192.168.100.126:1521/orcl;" providerName="Oracle.ManagedDataAccess.Client" />
 		<!--本番環境-->
 		<!--<add name="OMSConnection" connectionString="User Id=OMSDB;Password=Amagata001;Data Source=//192.168.70.225:1521/OMSDB;" providerName="Oracle.ManagedDataAccess.Client" />-->
 		<!--検証環境-->
-		<add name="OMSConnection" connectionString="User Id=OMSTS;Password=Amagata001;Data Source=//192.168.70.225:1521/OMSDB;" providerName="Oracle.ManagedDataAccess.Client" />
+		<!--<add name="OMSConnection" connectionString="User Id=OMSTS;Password=Amagata001;Data Source=//192.168.70.225:1521/OMSDB;" providerName="Oracle.ManagedDataAccess.Client" />-->
 	</connectionStrings>
 	<appSettings>
 		<!-- 相対パスなら ~/ を推奨。UNCや絶対パスでもOK -->
@@ -100,17 +100,17 @@
 		<add key="CompletedFolderRoot" value="\\LSD211V\ASTI\DATA\COMPLETED" />-->
 
 		<!--<add key="WorkFolderRoot" value="\\localhost:44323\ASTI\DATA\WORK" />-->
-		<!--<add key="WorkFolderRoot" value="C:\ASTI\DATA\WORK" />-->
+		<add key="WorkFolderRoot" value="C:\ASTI\DATA\WORK" />
 		<!-- 20260309 st 酒井 -->
-		<!--<add key="CompletedFolderRoot" value="C:\ASTI\DATA\COMPLETED" />-->
+		<add key="CompletedFolderRoot" value="C:\ASTI\DATA\COMPLETED" />
 		<!-- 20260309 ed -->
 		<!--本番環境-->
 		<!--<add key="WorkFolderRoot" value="\\192.168.70.205\ASTI\DATA\WORK" />-->
 		<!--<add key="CompletedFolderRoot" value="\\192.168.70.205\ASTI\DATA\COMPLETED" />-->
 		<!--検証環境-->
-		<add key="WorkFolderRoot" value="\\192.168.70.205\ASTI\DATA\WORK_TS" />
-		<add key="CompletedFolderRoot" value="\\192.168.70.205\ASTI\DATA\COMPLETED_TS" />
-  </appSettings>
+		<!--<add key="WorkFolderRoot" value="\\192.168.70.205\ASTI\DATA\WORK_TS" />-->
+		<!--<add key="CompletedFolderRoot" value="\\192.168.70.205\ASTI\DATA\COMPLETED_TS" />-->
+	</appSettings>
   <system.codedom>
     <compilers>
       <compiler language="c#;cs;csharp" extension=".cs" type="Microsoft.CodeDom.Providers.DotNetCompilerPlatform.CSharpCodeProvider, Microsoft.CodeDom.Providers.DotNetCompilerPlatform, Version=2.0.1.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35" warningLevel="4" compilerOptions="/langversion:default /nowarn:1659;1699;1701" />

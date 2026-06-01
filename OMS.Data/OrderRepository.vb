@@ -1629,9 +1629,13 @@ Namespace OMS.Data
 
             customerCode = If(customerCode Is Nothing, "", "_" & customerCode)
             profitCenter = If(profitCenter Is Nothing, "", "_" & profitCenter)
-            customerUnitName = If(customerUnitName Is Nothing, "", "_" & customerUnitName)
+            customerUnitName = If(customerUnitName Is Nothing, "", "_" & customerUnitName & "_")
+            ' 2026/06/01 更新
+            customerCode = ""
+            profitCenter = ""
+            customerUnitName = ""
             Dim filename As String = ""
-            filename = $"{fileBaseName}_{customerCode}{profitCenter}{customerUnitName}_{processDate:yyyyMMdd_HHmmss}.csv"
+            filename = $"{fileBaseName}_{customerCode}{profitCenter}{customerUnitName}{processDate:yyyyMMdd_HHmmss}.csv"
             Return filename
         End Function
         ''' <summary>
