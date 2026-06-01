@@ -312,7 +312,7 @@ Namespace Pages.Orders
                                                                                         ("PRE_DAILY_DELIVERY_DATE", "yyyyMMdd")
                                                                                       }
 
-                Dim spaceEx As New List(Of Integer) From {29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 42}
+                'Dim spaceEx As New List(Of Integer) From {29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 42}
                 Dim sql = " SELECT * 
                             FROM prod_plan_stra_view 
                             WHERE demand_status = 'F' "
@@ -329,7 +329,7 @@ Namespace Pages.Orders
                 Dim fProfitCenter = ""
                 Dim customerUnitName = ""
                 trfilename = repo.GetProdPlanStraViewCsvFilename(strPath, fileBaseName, FileDate, fCustomerCode, fProfitCenter, customerUnitName)
-                errors.Add(repo.ProdPlanStraViewCsvFile(sql, delimiter, enclosure, headerYN, lineEnding, charset, processDate, filename:=trfilename, formatEx:=formatEx, maxCol:=47, spaceEx:=spaceEx))
+                errors.Add(repo.ProdPlanStraViewCsvFile(sql, delimiter, enclosure, headerYN, lineEnding, charset, processDate, filename:=trfilename, formatEx:=formatEx))
                 fileList.Add(trfilename)
 
                 'CSV出力(確定/納入指示)
@@ -340,7 +340,7 @@ Namespace Pages.Orders
                 'ExportQueryToCsvResponse2(sql, delimiter, enclosure, headerYN, lineEnding, charset, processDate, fileBaseName:=fileBaseName, formatEx:=formatEx)
 
                 trfilename = repo.GetProdPlanStraViewCsvFilename(strPath, fileBaseName, FileDate, fCustomerCode, fProfitCenter, customerUnitName)
-                errors.Add(repo.ProdPlanStraViewCsvFile(sql, delimiter, enclosure, headerYN, lineEnding, charset, processDate, filename:=trfilename, formatEx:=formatEx, maxCol:=47, spaceEx:=spaceEx))
+                errors.Add(repo.ProdPlanStraViewCsvFile(sql, delimiter, enclosure, headerYN, lineEnding, charset, processDate, filename:=trfilename, formatEx:=formatEx))
                 fileList.Add(trfilename)
 
                 'UPDATE
