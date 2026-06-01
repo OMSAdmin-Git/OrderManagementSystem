@@ -303,7 +303,16 @@ Namespace Pages.Orders
                 'CSV出力(内示)
                 'CSVファイルへPROD_PLAN_STRA_VIEW（生産計画出力一覧）を書き出し、ブラウザで設定されているダウンロードフォルダへ出力する。
                 'Dim PlanRows = repos.GetOrderStras(conn, tran, demandStatus:="F", status:="POST_PLAN_DUE_SET", activeFlag:="Y")
-                Dim formatEx As New List(Of (name As String, format As String)) From {("SHIP_PLAN_DATE", "yyyyMMdd")}
+                Dim formatEx As New List(Of (name As String, format As String)) From {
+                                                                                        ("ORDER_DATE", "yyyyMMdd"),
+                                                                                        ("DUE_DATE", "yyyyMMdd"),
+                                                                                        ("SHIP_SCHEDULED_DATE", "yyyyMMdd"),
+                                                                                        ("SHIP_DATE", "yyyyMMdd"),
+                                                                                        ("SHIP_PLAN_DATE", "yyyyMMdd"),
+                                                                                        ("PRE_DAILY_DELIVERY_DATE", "yyyyMMdd")
+                                                                                      }
+
+                Dim spaceEx As New List(Of Integer) From {29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 42}
                 Dim sql = " SELECT * 
                             FROM prod_plan_stra_view 
                             WHERE demand_status = 'F' "
@@ -316,8 +325,11 @@ Namespace Pages.Orders
                 Dim fileBaseName = "A-R-COEDI-F_"
                 'ExportQueryToCsvResponse2(sql, delimiter, enclosure, headerYN, lineEnding, charset, processDate, fileBaseName:=fileBaseName, formatEx:=formatEx)
 
-                trfilename = repo.GetProdPlanStraViewCsvFilename(strPath, fileBaseName, FileDate)
-                errors.Add(repo.ProdPlanStraViewCsvFile(sql, delimiter, enclosure, headerYN, lineEnding, charset, processDate, filename:=trfilename, formatEx:=formatEx))
+                Dim fCustomerCode = ""
+                Dim fProfitCenter = ""
+                Dim customerUnitName = ""
+                trfilename = repo.GetProdPlanStraViewCsvFilename(strPath, fileBaseName, FileDate, fCustomerCode, fProfitCenter, customerUnitName)
+                errors.Add(repo.ProdPlanStraViewCsvFile(sql, delimiter, enclosure, headerYN, lineEnding, charset, processDate, filename:=trfilename, formatEx:=formatEx, maxCol:=47, spaceEx:=spaceEx))
                 fileList.Add(trfilename)
 
                 'CSV出力(確定/納入指示)
@@ -327,8 +339,8 @@ Namespace Pages.Orders
                 fileBaseName = "A-R-COEDI-O_"
                 'ExportQueryToCsvResponse2(sql, delimiter, enclosure, headerYN, lineEnding, charset, processDate, fileBaseName:=fileBaseName, formatEx:=formatEx)
 
-                trfilename = repo.GetProdPlanStraViewCsvFilename(strPath, fileBaseName, FileDate)
-                errors.Add(repo.ProdPlanStraViewCsvFile(sql, delimiter, enclosure, headerYN, lineEnding, charset, processDate, filename:=trfilename, formatEx:=formatEx))
+                trfilename = repo.GetProdPlanStraViewCsvFilename(strPath, fileBaseName, FileDate, fCustomerCode, fProfitCenter, customerUnitName)
+                errors.Add(repo.ProdPlanStraViewCsvFile(sql, delimiter, enclosure, headerYN, lineEnding, charset, processDate, filename:=trfilename, formatEx:=formatEx, maxCol:=47, spaceEx:=spaceEx))
                 fileList.Add(trfilename)
 
                 'UPDATE

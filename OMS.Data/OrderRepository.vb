@@ -11,6 +11,7 @@ Imports System.Threading
 Imports DocumentFormat.OpenXml.Drawing.Diagrams
 Imports DocumentFormat.OpenXml.Spreadsheet
 Imports OMS.Common
+Imports OMS.Data.OrderDiferenceExcelFile
 Imports Oracle.ManagedDataAccess.Client
 
 Namespace OMS.Data
@@ -1614,8 +1615,9 @@ Namespace OMS.Data
         ''' <param name="fileBaseName"></param>
         ''' <param name="processDate"></param>
         ''' <returns></returns>
-        Public Function GetProdPlanStraViewCsvFilename(path As String, fileBaseName As String, processDate As DateTime)
-            Return IO.Path.Combine(path, GetProdPlanStraViewCsvFilename(fileBaseName, processDate))
+        Public Function GetProdPlanStraViewCsvFilename(path As String, fileBaseName As String, processDate As DateTime, customerCode As String, profitCenter As String, customerUnitName As String)
+
+            Return IO.Path.Combine(path, GetProdPlanStraViewCsvFilename(fileBaseName, processDate, customerCode, profitCenter, customerUnitName))
         End Function
         ''' <summary>
         ''' 受注ファイル出力 ProdPlanStraView csv ファイル名取得
@@ -1623,9 +1625,13 @@ Namespace OMS.Data
         ''' <param name="fileBaseName"></param>
         ''' <param name="processDate"></param>
         ''' <returns></returns>
-        Public Function GetProdPlanStraViewCsvFilename(fileBaseName As String, processDate As DateTime)
+        Public Function GetProdPlanStraViewCsvFilename(fileBaseName As String, processDate As DateTime, customerCode As String, profitCenter As String, customerUnitName As String)
+
+            customerCode = If(customerCode Is Nothing, "", "_" & customerCode)
+            profitCenter = If(profitCenter Is Nothing, "", "_" & profitCenter)
+            customerUnitName = If(customerUnitName Is Nothing, "", "_" & customerUnitName)
             Dim filename As String = ""
-            filename = $"{fileBaseName}_{processDate:yyyyMMdd_HHmmss}.csv"
+            filename = $"{fileBaseName}_{customerCode}{profitCenter}{customerUnitName}_{processDate:yyyyMMdd_HHmmss}.csv"
             Return filename
         End Function
         ''' <summary>
@@ -1688,7 +1694,9 @@ Namespace OMS.Data
             Optional ByVal connectionStringName As String = "OMSConnection",
             Optional ByVal parameters As IEnumerable(Of OdbcParameter) = Nothing,
             Optional ByVal endResponse As Boolean = True,
-            Optional ByVal formatEx As List(Of (name As String, format As String)) = Nothing
+            Optional ByVal formatEx As List(Of (name As String, format As String)) = Nothing,
+            Optional ByVal maxCol As Integer = Nothing,
+            Optional ByVal spaceEx As List(Of Integer) = Nothing
         )
             ' コード → 実値へ解決
             Dim delimiter As String = Utils.MapDelimiter(delimiterCode)
@@ -1696,7 +1704,7 @@ Namespace OMS.Data
             Dim newline As String = Utils.MapNewline(lineEndingCode)
             Dim enc As Encoding = Utils.MapEncoding(charsetCode)
 
-            Return ProdPlanStraViewCsvFile(sql, delimiter, enclosure, includeHeader:=String.Equals(headerYN, "Y", StringComparison.OrdinalIgnoreCase), newline, enc, processDate, filename, connectionStringName, parameters, formatEx)
+            Return ProdPlanStraViewCsvFile(sql, delimiter, enclosure, includeHeader:=String.Equals(headerYN, "Y", StringComparison.OrdinalIgnoreCase), newline, enc, processDate, filename, connectionStringName, parameters, formatEx, maxCol, spaceEx)
 
         End Function
         ''' <summary>
@@ -1715,6 +1723,8 @@ Namespace OMS.Data
         ''' <param name="connectionStringName"></param>
         ''' <param name="parameters"></param>
         ''' <param name="formatEx"></param>
+        ''' <param name="maxCol"></param>
+        ''' <param name="spaceEx"></param>
         ''' <returns></returns>
         Public Function ProdPlanStraViewCsvFile(ByVal sql As String,
             ByVal delimiter As String,
@@ -1726,7 +1736,9 @@ Namespace OMS.Data
             ByVal filename As String,
             ByVal connectionStringName As String,
             ByVal parameters As IEnumerable(Of OracleParameter),
-            Optional ByVal formatEx As List(Of (name As String, format As String)) = Nothing
+            Optional ByVal formatEx As List(Of (name As String, format As String)) = Nothing,
+            Optional ByVal maxCol As Integer = Nothing,
+            Optional ByVal spaceEx As List(Of Integer) = Nothing
         ) As String
             Dim rt = ""
             ' --- 検証（SELECTのみ許可）
@@ -1764,6 +1776,12 @@ Namespace OMS.Data
                                     For i As Integer = 0 To rdr.FieldCount - 1
                                         headerCols.Add(CsvFormat(rdr.GetName(i), delimiter, enclosure))
                                     Next
+                                    ' 空データ項目追加
+                                    If (spaceEx IsNot Nothing) Then
+                                        For Each s In spaceEx
+                                            headerCols.Insert(s, "")
+                                        Next
+                                    End If
 
                                     Dim str = String.Join(delimiter, headerCols) & vbCrLf
                                     fs.Write(enc.GetBytes(str), 0, enc.GetByteCount(str))
@@ -1796,6 +1814,12 @@ Namespace OMS.Data
                                                 s = Convert.ToString(v, CultureInfo.InvariantCulture)
                                             End If
                                             cols.Add(CsvFormat(s, delimiter, enclosure))
+                                        End If
+                                        ' 空データ項目追加
+                                        If (spaceEx IsNot Nothing) Then
+                                            For Each s In spaceEx
+                                                cols.Insert(s, "")
+                                            Next
                                         End If
                                     Next
                                     Dim str = String.Join(delimiter, cols) & vbCrLf
