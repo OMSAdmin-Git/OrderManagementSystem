@@ -1815,13 +1815,20 @@ Namespace OMS.Data
                                             End If
                                             cols.Add(CsvFormat(s, delimiter, enclosure))
                                         End If
-                                        ' 空データ項目追加
-                                        If (spaceEx IsNot Nothing) Then
-                                            For Each s In spaceEx
-                                                cols.Insert(s, "")
-                                            Next
-                                        End If
+                                        '' 空データ項目追加
+                                        'If (spaceEx IsNot Nothing) Then
+                                        '    For Each s In spaceEx
+                                        '        cols.Insert(s, "")
+                                        '    Next
+                                        'End If
                                     Next
+                                    ' 空データ項目追加
+                                    If (spaceEx IsNot Nothing) Then
+                                        For Each s In spaceEx
+                                            cols.Insert(s, "")
+                                        Next
+                                    End If
+
                                     Dim str = String.Join(delimiter, cols) & vbCrLf
 
                                     fs.Write(enc.GetBytes(str), 0, enc.GetByteCount(str))
