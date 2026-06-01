@@ -1055,8 +1055,10 @@ Namespace Pages.Orders
 
                                                     '請求先
                                                     '※SECTMより取得
-                                                    billingto = _oderStageRepo.GetBillingTo()
-
+                                                    '2026/06/01 酒井 st
+                                                    'billingto = _oderStageRepo.GetBillingTo()
+                                                    billingto = _oderStageRepo.GetBillingTo(customerCode)
+                                                    '2026/06/01 酒井 ed
 
 
 
@@ -1453,7 +1455,11 @@ Namespace Pages.Orders
 
                                                     '請求先
                                                     '※SECTMより取得
-                                                    billingto = _oderStageRepo.GetBillingTo()
+                                                    '2026/06/01 酒井 st
+                                                    'billingto = _oderStageRepo.GetBillingTo()
+                                                    billingto = _oderStageRepo.GetBillingTo(customerCode)
+                                                    '2026/06/01 酒井 ed
+
 
 
 
@@ -1941,7 +1947,11 @@ Namespace Pages.Orders
 
                                                         '請求先
                                                         '※SECTMより取得
-                                                        billingto = _oderStageRepo.GetBillingTo()
+                                                        '2026/06/01 酒井 st
+                                                        'billingto = _oderStageRepo.GetBillingTo()
+                                                        billingto = _oderStageRepo.GetBillingTo(customerCode)
+                                                        '2026/06/01 酒井 ed
+
 
                                                         '受注ワーク登録用リストへ格納
                                                         rowsForTemp2.Add(New OrdersStageRow With {

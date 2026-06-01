@@ -1762,15 +1762,28 @@ Namespace OMS.Data
 
         End Function
 
+        ''' <summary>
+        ''' 出荷先を取得する
+        ''' </summary>
+        ''' <param name="CustomerCode">処理中の取引先コード</param>
+        ''' <param name="DeliveryCode">処理中の納入先コード</param>
         Public Function GetShipTo(ByVal CustomerCode As String, ByVal DeliveryCode As String) As String
 
             Dim pCustomerCode As String = If(String.IsNullOrWhiteSpace(CustomerCode), Nothing, CustomerCode.Trim())
             Dim pDeliveryCode As String = If(String.IsNullOrWhiteSpace(DeliveryCode), Nothing, DeliveryCode.Trim())
 
+            '2026/06/01 酒井 st
+            'Const sql As String =
+            '            " SELECT fsectcd FROM sectd " &
+            '            " WHERE fsecttyp = 'ST' " &
+            '            " AND fsectcd = :p_customer_code "
             Const sql As String =
-                        " SELECT fsectcd FROM sectd " &
-                        " WHERE fsecttyp = 'ST' " &
-                        " AND fsectcd = :p_customer_code "
+                        " SELECT sectm.fsectcd FROM sectm " &
+                        " INNER JOIN sectd ON sectm.fsectcd = sectd.fsectcd " &
+                        " AND sectd.fsecttyp = 'ST' " &
+                        " WHERE 1=1 " &
+                        " AND sectm.fsectcd = :p_customer_code "
+            '2026/06/01 酒井 ed
 
             Using conn As New OracleConnection(_connectionString)
                 conn.Open()
@@ -1792,6 +1805,44 @@ Namespace OMS.Data
             End Using
 
         End Function
+
+        '2026/06/01 酒井 st
+        ''' <summary>
+        ''' 請求先を取得する
+        ''' </summary>
+        ''' <param name="CustomerCode">処理中の取引先コード</param>
+        Public Function GetBillingTo(ByVal CustomerCode As String) As String
+
+            Dim pCustomerCode As String = If(String.IsNullOrWhiteSpace(CustomerCode), Nothing, CustomerCode.Trim())
+
+            Const sql As String =
+                        " SELECT sectm.fbilltocd FROM sectm " &
+                        " INNER JOIN sectd ON sectm.fsectcd = sectd.fsectcd " &
+                        " AND sectd.fsecttyp = 'CU' " &
+                        " WHERE 1=1 " &
+                        " AND sectm.fsectcd = :p_customer_code "
+
+            Using conn As New OracleConnection(_connectionString)
+                conn.Open()
+                Using cmd As New OracleCommand(sql, conn)
+
+                    cmd.BindByName = True
+                    cmd.CommandType = CommandType.Text
+
+                    cmd.Parameters.Clear()
+                    cmd.Parameters.Add(":p_customer_code", OracleDbType.Varchar2, 25).Value = SafeVarchar(pCustomerCode, 25)
+
+                    Dim obj = cmd.ExecuteScalar()
+                    If obj Is Nothing OrElse obj Is DBNull.Value Then
+                        Return Nothing
+                    End If
+                    Return Convert.ToString(obj)
+
+                End Using
+            End Using
+
+        End Function
+        '2026/06/01 酒井 ed
 
         Public Function GetBillingTo() As String
 
