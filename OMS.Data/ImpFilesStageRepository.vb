@@ -718,9 +718,9 @@ Namespace OMS.Data
             '本番環境
             'Const sqlGetId As String = "SELECT ""OMSDB"".""ISEQ$$_66841"".NEXTVAL FROM DUAL"
             'ASKA 環境
-            Const sqlGetId As String = "SELECT ""OMSDB"".""ISEQ$$_75059"".NEXTVAL FROM DUAL"
+            'Const sqlGetId As String = "SELECT ""OMSDB"".""ISEQ$$_75059"".NEXTVAL FROM DUAL"
             '検証環境
-            'Const sqlGetId As String = "SELECT ""OMSTS"".""ISEQ$$_66717"".NEXTVAL FROM DUAL"
+            Const sqlGetId As String = "SELECT ""OMSTS"".""ISEQ$$_66717"".NEXTVAL FROM DUAL"
             Using cmdId As New OracleCommand(sqlGetId, conn)
                 cmdId.Transaction = tran
                 newImpFileId = Convert.ToInt64(cmdId.ExecuteScalar())
