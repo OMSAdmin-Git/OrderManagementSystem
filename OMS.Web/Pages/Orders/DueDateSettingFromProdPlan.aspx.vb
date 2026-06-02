@@ -302,7 +302,7 @@ Namespace Pages.Orders
                                 End If
                                 Dim orderStageRow = orderStageRows(0)
                                 ' 受注データの 出荷日を更新する (0) 代表
-                                errors.Add(repo.UpdateDeadline(conn, tran, OrderRepository.OrdersTable.ProductPlan, orderStageRow.OrderId, orderStageRow.ShipScheduledDate, orderStageRow.ShipDate, orderStageRow.Status, orderStageRow.UpdatedAt, orderStageRow.UpdatedUserId, orderStageRow.UpdatedPgId))
+                                errors.Add(repo.UpdateDeadline(conn, tran, OrderRepository.OrdersTable.ProductPlan, orderId:=orderStageRow.OrderId, orderStageRow.ShipScheduledDate, shipDate:=orderStageRow.ShipDate, status:=orderStageRow.Status, updatedAt:=orderStageRow.UpdatedAt, updatedUserId:=orderStageRow.UpdatedUserId, updatedPgId:=orderStageRow.UpdatedPgId))
                                 '#If DEBUG Then
                                 '                                ' #### DEBUG
                                 '                                tran.Commit()
@@ -375,6 +375,7 @@ Namespace Pages.Orders
                 Dim err = ex.Message
                 errors.Add(err)
             Finally
+                lblError.Text = ""
                 If (errors.Count > 0) Then
                     'lblError.Text = errors(0)
                     lblError.Text = String.Join(vbCrLf, errors)

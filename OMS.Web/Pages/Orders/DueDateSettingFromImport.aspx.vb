@@ -217,11 +217,12 @@ Namespace Pages.Orders
                             ' STRA 納期設定 受注ワーク
                             ' 1. SHIP_SCHEDULED_DATE(出荷予定日) ORDERS_STAGE.DUE_DATE - SHPROUTM.FTRANLT- USRDEFFLDF.FUSRDEC1
                             ' 2. SHIP_DATE(出荷日) ORDERS_STAGE.DUE_DATE - SHPROUTM.FTRANLT
-                            ' 3. STATUS(ステータス) 'DUE_SET'
-                            ' 4. UPDATED_AT(更新日時)
-                            ' 5. UPDATED_USER_ID(更新ユーザーID)
-                            ' 6. UPDATED_PG_ID(更新プログラムID)
-                            ' 7. CUSTOMER_SETTING_ID(取引先設定ID)
+                            ' 3. SHIP_PLAN_DATE  ORDERS_STAGE.DUE_DATE - SHPROUTM.FTRANLT - USRDEFFLDF.FUSRDEC1
+                            ' 4. STATUS(ステータス) 'DUE_SET'
+                            ' 5. UPDATED_AT(更新日時)
+                            ' 6. UPDATED_USER_ID(更新ユーザーID)
+                            ' 7. UPDATED_PG_ID(更新プログラムID)
+                            ' 8. CUSTOMER_SETTING_ID(取引先設定ID)
                             ' 対象の受注データテーブルorders の受注ID(ORDER_ID)を 受注ワークから探して
                             ' 納期設定値を上書きする
                             Dim repu = New UsrDeffIdfRepository(Utils.GetConnectionString())
@@ -279,6 +280,7 @@ Namespace Pages.Orders
                             ' 正規データ更新 受注データ
                             ' SHIP_SCHEDULED_DATE(出荷予定日)
                             ' SHIP_DATE(出荷日)
+                            ' SHIP_DATE(出荷日)
                             ' STATUS(ステータス)
                             ' UPDATED_AT(更新日時)
                             ' UPDATED_USER_ID(更新ユーザーID)
@@ -293,7 +295,8 @@ Namespace Pages.Orders
                                 End If
                                 Dim orderStageRow = orderStageRows(0)
                                 ' 受注データの 出荷日を更新する (0) 代表
-                                errors.Add(repo.UpdateDeadline(conn, tran, orderStageRow.OrderId, orderStageRow.ShipScheduledDate, orderStageRow.ShipDate, orderStageRow.Status, orderStageRow.UpdatedAt, orderStageRow.UpdatedUserId, orderStageRow.UpdatedPgId))
+                                ' 2026/6/2 ShipPlanDate 追加ミス 不具合修正
+                                errors.Add(repo.UpdateDeadline(conn, tran, OrderRepository.OrdersTable.Orders, orderId:=orderStageRow.OrderId, shipScheduledDate:=orderStageRow.ShipScheduledDate, shipDate:=orderStageRow.ShipDate, shipPlanDate:=orderStageRow.ShipPlanDate, status:=orderStageRow.Status, updatedAt:=orderStageRow.UpdatedAt, updatedUserId:=orderStageRow.UpdatedUserId, updatedPgId:=orderStageRow.UpdatedPgId))
                                 '#If DEBUG Then
                                 '                                ' #### DEBUG
                                 '                                tran.Commit()

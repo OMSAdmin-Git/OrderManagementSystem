@@ -1298,7 +1298,7 @@ Namespace OMS.Data
                     sb.AppendLine("ship_date = :p_ship_date, ")
                     prm.Add(New OracleParameter(":p_ship_date", OracleDbType.Date) With {.Value = shipDate})
                 End If
-                If shipDate IsNot Nothing Then
+                If shipPlanDate IsNot Nothing Then
                     sb.AppendLine("ship_plan_date = :p_ship_plan_date, ")
                     prm.Add(New OracleParameter(":p_ship_plan_date", OracleDbType.Date) With {.Value = shipPlanDate})
                 End If

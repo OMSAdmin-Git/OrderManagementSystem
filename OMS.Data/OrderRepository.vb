@@ -1072,14 +1072,14 @@ Namespace OMS.Data
         ''' <param name="updatedPgId"></param>
         ''' <returns></returns>
         Public Function UpdateDeadline(conn As OracleConnection, tran As OracleTransaction, type As OrdersTable,
-                                        orderId As Integer,
-                                        shipScheduledDate As Date,
-                                        shipDate As Date,
-                                        status As String,
-                                        updatedAt As Date,
-                                        updatedUserId As String,
-                                        updatedPgId As String
-                                        ) As String
+                                        Optional orderId As Integer? = Nothing,
+                                        Optional shipScheduledDate As Date? = Nothing,
+                                        Optional shipDate As Date? = Nothing,
+                                        Optional shipPlanDate As Date? = Nothing,
+                                        Optional status As String = Nothing,
+                                        Optional updatedAt As Date? = Nothing,
+                                        Optional updatedUserId As String = Nothing,
+                                        Optional updatedPgId As String = Nothing) As String
 
             ' SHIP_SCHEDULED_DATE(出荷予定日)
             ' SHIP_DATE(出荷日)
@@ -1090,8 +1090,48 @@ Namespace OMS.Data
             ' CUSTOMER_SETTING_ID(取引先設定ID)
             Dim errorMessage = ""
             Try
-                Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
+                Dim sb As New StringBuilder()
+                Dim prm As New List(Of OracleParameter)()
 
+                sb.AppendLine($"UPDATE {GetTableName(type)} ")
+                sb.AppendLine("SET ")
+
+                If shipScheduledDate IsNot Nothing Then
+                    sb.AppendLine("ship_scheduled_date = :p_ship_scheduled_date, ")
+                    prm.Add(New OracleParameter(":p_ship_scheduled_date", OracleDbType.Date) With {.Value = shipScheduledDate})
+                End If
+                If shipDate IsNot Nothing Then
+                    sb.AppendLine("ship_date = :p_ship_date, ")
+                    prm.Add(New OracleParameter(":p_ship_date", OracleDbType.Date) With {.Value = shipDate})
+                End If
+                If shipPlanDate IsNot Nothing Then
+                    sb.AppendLine("ship_plan_date = :p_ship_plan_date, ")
+                    prm.Add(New OracleParameter(":p_ship_plan_date", OracleDbType.Date) With {.Value = shipPlanDate})
+                End If
+                If status IsNot Nothing Then
+                    sb.AppendLine("status = :p_status, ")
+                    prm.Add(New OracleParameter(":p_status", OracleDbType.Varchar2) With {.Value = status})
+                End If
+                If updatedAt IsNot Nothing Then
+                    sb.AppendLine("updated_at = :p_updated_at, ")
+                    prm.Add(New OracleParameter(":p_updated_at", OracleDbType.Date) With {.Value = updatedAt})
+                End If
+                If updatedUserId IsNot Nothing Then
+                    sb.AppendLine("updated_user_id = :p_updated_user_id, ")
+                    prm.Add(New OracleParameter(":p_updated_user_id", OracleDbType.Varchar2) With {.Value = updatedUserId})
+                End If
+                If updatedPgId IsNot Nothing Then
+                    sb.AppendLine("updated_pg_id = :p_updated_pg_id ")
+                    prm.Add(New OracleParameter(":p_updated_pg_id", OracleDbType.Varchar2) With {.Value = updatedPgId})
+                End If
+
+                If orderId IsNot Nothing Then
+                    sb.AppendLine($"WHERE {GetIdName(type)} = :p_orderid ")
+                    prm.Add(New OracleParameter(":p_orderid", OracleDbType.Int64) With {.Value = orderId})
+                End If
+
+#If False Then
+                Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
                     cmd.CommandText = $"
                         UPDATE {GetTableName(type)} 
                          SET 
@@ -1110,7 +1150,12 @@ Namespace OMS.Data
                     AddVarchar(cmd, ":p_updated_user_id", updatedUserId)
                     AddVarchar(cmd, ":p_updated_pg_id", updatedPgId)
                     AddIntOrNull(cmd, ":p_orderid", orderId)
-
+                    cmd.ExecuteNonQuery()
+#End If
+                Using cmd As New OracleCommand(sb.ToString(), conn)
+                    cmd.BindByName = True
+                    cmd.CommandType = CommandType.Text
+                    If prm.Count > 0 Then cmd.Parameters.AddRange(prm.ToArray())
                     cmd.ExecuteNonQuery()
                 End Using
             Catch e As OracleException
@@ -1630,12 +1675,13 @@ Namespace OMS.Data
             customerCode = If(customerCode Is Nothing, "", "_" & customerCode)
             profitCenter = If(profitCenter Is Nothing, "", "_" & profitCenter)
             customerUnitName = If(customerUnitName Is Nothing, "", "_" & customerUnitName & "_")
-            ' 2026/06/01 更新
+            ' 2026/06/01 更新 (保留事項)
             customerCode = ""
             profitCenter = ""
             customerUnitName = ""
             Dim filename As String = ""
-            filename = $"{fileBaseName}_{customerCode}{profitCenter}{customerUnitName}{processDate:yyyyMMdd_HHmmss}.csv"
+            ' 2026/6/2 ファイル名 '_' 付加不具合修正
+            filename = $"{fileBaseName}{customerCode}{profitCenter}{customerUnitName}{processDate:yyyyMMddHHmmss}.csv"
             Return filename
         End Function
         ''' <summary>
@@ -1880,7 +1926,7 @@ Namespace OMS.Data
 
             sb.AppendLine("MERGE INTO PROD_PLAN target ")
             sb.AppendLine("USING ( ")
-            sb.AppendLine("    SELECT ")
+            sb.AppendLine("    SELECT DISTINCT  ")
             sb.AppendLine("        PROD_PLAN_ID ")
             sb.AppendLine("    FROM ")
             sb.AppendLine("        PROD_PLAN_STAGE ")
