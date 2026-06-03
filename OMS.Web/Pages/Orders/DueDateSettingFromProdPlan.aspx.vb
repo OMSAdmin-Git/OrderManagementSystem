@@ -271,6 +271,14 @@ Namespace Pages.Orders
                                 Dim updateAt = ProcessingStartDate
                                 Dim updateUserId = PageHelpers.GetUserId(Me)
                                 Dim updatePgId = "DueDateSetting(PostPlan)"
+
+                                ' SHIP_DATE(出荷日)
+                                ' DUE_DATE(希望納期)
+                                ' STATUS(ステータス)
+                                ' UPDATED_AT(更新日時)
+                                ' UPDATED_USER_ID(更新ユーザーID)
+                                ' UPDATED_PG_ID(更新プログラムID)
+                                ' CUSTOMER_SETTING_ID(取引先設定ID)
                                 errors.Add(reps.UpdateDeadline(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, orderId:=orderid, shipDate:=shipDate, dueDate:=dueDate, status:=status, updatedAt:=updateAt, updatedUserId:=updateUserId, updatedPgId:=updatePgId))
                                 '#If DEBUG Then
                                 '                                ' #### DEBUG
@@ -285,36 +293,45 @@ Namespace Pages.Orders
                                 End If
                             Next
 
+                            ' Update
                             ' 正規データ更新 生産計画
+                            ' CUSTOMER_SETTING_ID と STATUS='POST_PLAN_DUE_SET'を抽出し
+                            ' PROD_PLAN_ID が共通するレコードの フィールドを更新
                             ' SHIP_SCHEDULED_DATE(出荷予定日)
                             ' SHIP_DATE(出荷日)
                             ' STATUS(ステータス)
                             ' UPDATED_AT(更新日時)
                             ' UPDATED_USER_ID(更新ユーザーID)
                             ' UPDATED_PG_ID(更新プログラムID)
-                            ' 対象の生産計画テーブルprd_plan の受注ID(ORDER_ID)を 生産計画ワークから探して
-                            ' orders の納期設定値を更新する
-                            For Each orderRow In orderRows
-                                Dim dt = reps.GetOrders(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, orderId:=orderRow.OrderId)
-                                Dim orderStageRows = reps.ToClass(dt)
-                                If orderStageRows Is Nothing Then
-                                    Exit Try
-                                End If
-                                Dim orderStageRow = orderStageRows(0)
-                                ' 受注データの 出荷日を更新する (0) 代表
-                                errors.Add(repo.UpdateDeadline(conn, tran, OrderRepository.OrdersTable.ProductPlan, orderId:=orderStageRow.OrderId, orderStageRow.ShipScheduledDate, shipDate:=orderStageRow.ShipDate, status:=orderStageRow.Status, updatedAt:=orderStageRow.UpdatedAt, updatedUserId:=orderStageRow.UpdatedUserId, updatedPgId:=orderStageRow.UpdatedPgId))
-                                '#If DEBUG Then
-                                '                                ' #### DEBUG
-                                '                                tran.Commit()
-                                '                                tran = conn.BeginTransaction()
-                                '                                ' #### DEBUG
-                                '#End If
-                                If (CheckError(errors)) Then
-                                    ' エラー DB更新無効
-                                    DBError(tran)
-                                    Continue For
-                                End If
-                            Next
+                            ' 2026/06/03 SQL 更新に変更
+                            errors.Add(repo.ProductionPlanUpdate(conn, tran, customerSettingId))
+                            If (CheckError(errors)) Then
+                                ' エラー DB更新無効
+                                DBError(tran)
+                                Continue For
+                            End If
+
+                            'For Each orderRow In orderRows
+                            '    Dim dt = reps.GetOrders(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, orderId:=orderRow.OrderId)
+                            '    Dim orderStageRows = reps.ToClass(dt)
+                            '    If orderStageRows Is Nothing Then
+                            '        Exit Try
+                            '    End If
+                            '    Dim orderStageRow = orderStageRows(0)
+
+                            '    errors.Add(repo.UpdateDeadline(conn, tran, OrderRepository.OrdersTable.ProductPlan, orderId:=orderStageRow.OrderId, orderStageRow.ShipScheduledDate, shipDate:=orderStageRow.ShipDate, status:=orderStageRow.Status, updatedAt:=orderStageRow.UpdatedAt, updatedUserId:=orderStageRow.UpdatedUserId, updatedPgId:=orderStageRow.UpdatedPgId))
+                            '    '#If DEBUG Then
+                            '    '                                ' #### DEBUG
+                            '    '                                tran.Commit()
+                            '    '                                tran = conn.BeginTransaction()
+                            '    '                                ' #### DEBUG
+                            '    '#End If
+                            '    If (CheckError(errors)) Then
+                            '        ' エラー DB更新無効
+                            '        DBError(tran)
+                            '        Continue For
+                            '    End If
+                            'Next
 
                             ' 生産計画履追加
                             ' 生産計画データ取得
@@ -341,7 +358,7 @@ Namespace Pages.Orders
                             Dim difd = reph.InstructionDifferenceToClass(reph.AfterProductionPlanningDeliveryInstructionDifference(conn, tran, customerSettingId))
                             ' 生産計画差異リスト出力
                             Dim strPath = Server.MapPath("~/App_Data/Files/")
-                            Dim filename = CreateOorderDiferenceExcelFile(strPath, DiffFileTiminge.AfterReceivingAnOrder, ProcessingStartDate, difu, difd, customerSettingId)
+                            Dim filename = CreateOorderDiferenceExcelFile(strPath, DiffFileTiminge.AfterProductionPlanning, ProcessingStartDate, difu, difd, customerSettingId)
                             fileList.Add(filename)
                             'If (filename <> "") Then
                             '    Utils.FileTransfer2(Response, Server, filename)
@@ -463,7 +480,7 @@ Namespace Pages.Orders
                             Dim difd = reph.InstructionDifferenceToClass(reph.AfterProductionPlanningDeliveryInstructionDifference(conn, tran, customerSettingId))
                             ' 受注差異リスト出力
                             Dim strPath = Server.MapPath("~/App_Data/Files/")
-                            Dim filename = CreateOorderDiferenceExcelFile(strPath, DiffFileTiminge.AfterReceivingAnOrder, ProcessingStartDate, difu, difd, customerSettingId)
+                            Dim filename = CreateOorderDiferenceExcelFile(strPath, DiffFileTiminge.AfterProductionPlanning, ProcessingStartDate, difu, difd, customerSettingId)
                             fileList.Add(filename)
                             'If (filename <> "") Then
                             '    Utils.FileTransfer2(Response, Server, filename)

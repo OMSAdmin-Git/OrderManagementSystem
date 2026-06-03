@@ -3874,7 +3874,7 @@ Namespace OMS.Data
         End Function
 
         ''' <summary>
-        ''' 生産計画ワーク update
+        ''' 受注ファイル出力ページ - 生産計画ワーク update
         ''' </summary>
         ''' <returns></returns>
         Public Function ProductionPlanWorkUpdate(conn As OracleConnection, tran As OracleTransaction, updateDate As Date, userId As String) As String

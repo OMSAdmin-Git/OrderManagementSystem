@@ -258,7 +258,7 @@ Namespace Pages.Orders
                                 Dim shipdate = dueDate.Value.AddDays(-transferLeadTime)
                                 ' 2026/06/01 
                                 'ORDERS_STAGE.DUE_DATE - shproutm.FTRANLT - USRDEFFLDF.FUSRDEC1
-                                Dim shipPlanDate = dueDate.Value.AddDays(-transferLeadTime + assortLeadTime)
+                                Dim shipPlanDate = dueDate.Value.AddDays(-(transferLeadTime + assortLeadTime))
                                 Dim status = "DUE_SET"
                                 Dim updateAt = ProcessingStartDate
                                 Dim updateUserId = PageHelpers.GetUserId(Me)
@@ -278,6 +278,7 @@ Namespace Pages.Orders
                             Next
 
                             ' 正規データ更新 受注データ
+                            ' ORDER_ID（受注ID）をキーとして、ORDERS（受注テーブル）をORDERS_STAGEの値に更新する。
                             ' SHIP_SCHEDULED_DATE(出荷予定日)
                             ' SHIP_DATE(出荷日)
                             ' SHIP_DATE(出荷日)
@@ -285,30 +286,37 @@ Namespace Pages.Orders
                             ' UPDATED_AT(更新日時)
                             ' UPDATED_USER_ID(更新ユーザーID)
                             ' UPDATED_PG_ID(更新プログラムID)
-                            ' 対象の受注データテーブルorders の受注ID(ORDER_ID)を 受注ワークから探して
-                            ' orders の納期設定値を更新する
-                            For Each orderRow In orderRows
-                                Dim dt = reps.GetOrders(conn, tran, orderId:=orderRow.OrderId)
-                                Dim orderStageRows = reps.ToClass(dt)
-                                If orderStageRows Is Nothing Then
-                                    Exit Try
-                                End If
-                                Dim orderStageRow = orderStageRows(0)
-                                ' 受注データの 出荷日を更新する (0) 代表
-                                ' 2026/6/2 ShipPlanDate 追加ミス 不具合修正
-                                errors.Add(repo.UpdateDeadline(conn, tran, OrderRepository.OrdersTable.Orders, orderId:=orderStageRow.OrderId, shipScheduledDate:=orderStageRow.ShipScheduledDate, shipDate:=orderStageRow.ShipDate, shipPlanDate:=orderStageRow.ShipPlanDate, status:=orderStageRow.Status, updatedAt:=orderStageRow.UpdatedAt, updatedUserId:=orderStageRow.UpdatedUserId, updatedPgId:=orderStageRow.UpdatedPgId))
-                                '#If DEBUG Then
-                                '                                ' #### DEBUG
-                                '                                tran.Commit()
-                                '                                tran = conn.BeginTransaction()
-                                '                                ' #### DEBUG
-                                '#End If
-                                If (CheckError(errors)) Then
-                                    ' エラー DB更新無効
-                                    DBError(tran)
-                                    Continue For
-                                End If
-                            Next
+
+                            ' 2026/06/03 SQL 更新に変更
+                            errors.Add(repo.OrderUpdate(conn, tran, customerSettingId))
+                            If (CheckError(errors)) Then
+                                ' エラー DB更新無効
+                                DBError(tran)
+                                Continue For
+                            End If
+
+                            'For Each orderRow In orderRows
+                            '    Dim dt = reps.GetOrders(conn, tran, orderId:=orderRow.OrderId)
+                            '    Dim orderStageRows = reps.ToClass(dt)
+                            '    If orderStageRows Is Nothing Then
+                            '        Exit Try
+                            '    End If
+                            '    Dim orderStageRow = orderStageRows(0)
+                            '    ' 受注データの 出荷日を更新する (0) 代表
+                            '    ' 2026/6/2 ShipPlanDate 追加ミス 不具合修正
+                            '    errors.Add(repo.UpdateDeadline(conn, tran, OrderRepository.OrdersTable.Orders, orderId:=orderStageRow.OrderId, shipScheduledDate:=orderStageRow.ShipScheduledDate, shipDate:=orderStageRow.ShipDate, shipPlanDate:=orderStageRow.ShipPlanDate, status:=orderStageRow.Status, updatedAt:=orderStageRow.UpdatedAt, updatedUserId:=orderStageRow.UpdatedUserId, updatedPgId:=orderStageRow.UpdatedPgId))
+                            '    '#If DEBUG Then
+                            '    '                                ' #### DEBUG
+                            '    '                                tran.Commit()
+                            '    '                                tran = conn.BeginTransaction()
+                            '    '                                ' #### DEBUG
+                            '    '#End If
+                            '    If (CheckError(errors)) Then
+                            '        ' エラー DB更新無効
+                            '        DBError(tran)
+                            '        Continue For
+                            '    End If
+                            'Next
 
                             ' 受注履歴追加
                             ' 受注データ取得

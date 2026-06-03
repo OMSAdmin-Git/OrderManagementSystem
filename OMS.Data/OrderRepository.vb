@@ -10,6 +10,7 @@ Imports System.Text
 Imports System.Threading
 Imports DocumentFormat.OpenXml.Drawing.Diagrams
 Imports DocumentFormat.OpenXml.Spreadsheet
+Imports Microsoft.VisualBasic.ApplicationServices
 Imports OMS.Common
 Imports OMS.Data.OrderDiferenceExcelFile
 Imports Oracle.ManagedDataAccess.Client
@@ -1906,7 +1907,7 @@ Namespace OMS.Data
         End Function
 
         ''' <summary>
-        ''' 生産計画 update
+        ''' 受注ファイル出力ページ 生産計画 update
         ''' </summary>
         ''' <returns></returns>
         Public Function ProductionPlanUpdate(conn As OracleConnection, tran As OracleTransaction, updateDate As Date, userId As String) As String
@@ -1965,7 +1966,7 @@ Namespace OMS.Data
         End Function
 
         ''' <summary>
-        ''' 受注 Update Pharse-2
+        ''' 受注ファイル出力ページ 受注 Update (Pharse-2)
         ''' </summary>
         ''' <returns></returns>
         Public Function OrderUpdate(conn As OracleConnection, tran As OracleTransaction, updateDate As Date, userId As String) As String
@@ -2023,6 +2024,112 @@ Namespace OMS.Data
             Return errors
 
 
+        End Function
+
+        ''' <summary>
+        ''' STRA納期設定ページ_受注取込後 正規データ更新
+        ''' </summary>
+        ''' <param name="conn"></param>
+        ''' <param name="tran"></param>
+        ''' <param name="customer_setting_id"></param>
+        ''' <returns></returns>
+        Public Function OrderUpdate(conn As OracleConnection, tran As OracleTransaction, customer_setting_id As Long) As String
+
+            Dim sb As New StringBuilder()
+            Dim errors = ""
+
+            sb.AppendLine("MERGE INTO Orders o ")
+            sb.AppendLine("USING ( ")
+            ' -- 条件で絞り込んだステージテーブルのレコードのみを抽出 
+            sb.AppendLine("  SELECT  ")
+            sb.AppendLine("    ORDER_ID,  ")
+            sb.AppendLine("    SHIP_SCHEDULED_DATE,  ")
+            sb.AppendLine("    SHIP_DATE,  ")
+            sb.AppendLine("    SHIP_PLAN_DATE,  ")
+            sb.AppendLine("    STATUS,  ")
+            sb.AppendLine("    UPDATED_AT,  ")
+            sb.AppendLine("    UPDATED_USER_ID,  ")
+            sb.AppendLine("    UPDATED_PG_ID ")
+            sb.AppendLine("  FROM Orders_stage ")
+            sb.AppendLine("  WHERE CUSTOMER_SETTING_ID = :p_customer_setting_id  ")
+            sb.AppendLine("    AND STATUS = 'DUE_SET' ")
+            sb.AppendLine(") s ")
+            sb.AppendLine("ON (o.ORDER_ID = s.ORDER_ID) ")
+            sb.AppendLine("WHEN MATCHED THEN ")
+            sb.AppendLine("  UPDATE SET ")
+            sb.AppendLine("    o.SHIP_SCHEDULED_DATE = s.SHIP_SCHEDULED_DATE, ")
+            sb.AppendLine("    o.SHIP_DATE           = s.SHIP_DATE, ")
+            sb.AppendLine("    o.SHIP_PLAN_DATE      = s.SHIP_PLAN_DATE, ")
+            sb.AppendLine("    o.STATUS              = s.STATUS, ")
+            sb.AppendLine("    o.UPDATED_AT          = s.UPDATED_AT, ")
+            sb.AppendLine("    o.UPDATED_USER_ID     = s.UPDATED_USER_ID, ")
+            sb.AppendLine("    o.UPDATED_PG_ID       = s.UPDATED_PG_ID ")
+            Try
+                'Using conn As New OracleConnection(_connectionString)
+                Using cmd As New OracleCommand(sb.ToString(), conn)
+                    cmd.Parameters.Add(":p_customer_setting_id", OracleDbType.Int64).Value = customer_setting_id
+                    'conn.Open()
+                    'Using tran As OracleTransaction = conn.BeginTransaction()
+                    Dim cnt = cmd.ExecuteNonQuery()
+                    'tran.Commit()
+                End Using
+                'conn.Close()
+                'End Using
+                'End Using
+
+            Catch ex As Exception
+                errors = ex.Message
+            End Try
+
+            Return errors
+
+        End Function
+
+        ''' <summary>
+        ''' STRA納期設定ページ_生産計画後 正規データ更新
+        ''' </summary>
+        ''' <param name="conn"></param>
+        ''' <param name="tran"></param>
+        ''' <param name="customer_setting_id"></param>
+        ''' <returns></returns>
+        Public Function ProductionPlanUpdate(conn As OracleConnection, tran As OracleTransaction, customer_setting_id As Long) As String
+
+            Dim sb As New StringBuilder()
+            Dim errors = ""
+
+            sb.AppendLine("MERGE INTO Prod_plan p ")
+            sb.AppendLine("USING ( ")
+            '  -- 条件で絞り込んだステージテーブルのレコードのみを抽出
+            sb.AppendLine("  SELECT PROD_PLAN_ID, SHIP_DATE, DUE_DATE, STATUS ")
+            sb.AppendLine("  FROM Prod_plan_stage ")
+            sb.AppendLine("  WHERE CUSTOMER_SETTING_ID = :p_customer_setting_id  ")
+            sb.AppendLine("    AND STATUS = 'POST_PLAN_DUE_SET' ")
+            sb.AppendLine(") s ")
+            sb.AppendLine("ON (p.PROD_PLAN_ID = s.PROD_PLAN_ID) ")
+            sb.AppendLine("WHEN MATCHED THEN ")
+            sb.AppendLine("  UPDATE SET ")
+            sb.AppendLine("    p.SHIP_DATE = s.SHIP_DATE, ")
+            sb.AppendLine("    p.DUE_DATE  = s.DUE_DATE, ")
+            sb.AppendLine("    p.STATUS    = s.STATUS ")
+
+            Try
+                'Using conn As New OracleConnection(_connectionString)
+                Using cmd As New OracleCommand(sb.ToString(), conn)
+                    cmd.Parameters.Add(":p_customer_setting_id", OracleDbType.Int64).Value = customer_setting_id
+                    'conn.Open()
+                    'Using tran As OracleTransaction = conn.BeginTransaction()
+                    Dim cnt = cmd.ExecuteNonQuery()
+                    'tran.Commit()
+                End Using
+                'conn.Close()
+                'End Using
+                'End Using
+
+            Catch ex As Exception
+                errors = ex.Message
+            End Try
+
+            Return errors
         End Function
 
     End Class
