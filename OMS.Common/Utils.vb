@@ -896,7 +896,7 @@ Namespace OMS.Common
                 ' ファイル名にスペースが含まれる場合を考慮し、ダブルクォーテーションで囲む
                 Response.AddHeader("Content-Disposition", $"attachment; filename=""{filename}""")
 
-                Using zip As New Ionic.Zip.ZipFile()
+                Using zip As New Ionic.Zip.ZipFile(Encoding.GetEncoding("shift_jis"))
                     For Each file As String In fileList
                         ' ファイルを追加
                         zip.AddFile(file, "")

@@ -1693,7 +1693,7 @@ Namespace OMS.Data
         ''' <returns></returns>
         Public Function GeOrderZipFilename(fileBaseName As String, processDate As DateTime)
             Dim filename As String = ""
-            filename = $"{fileBaseName}({processDate:yyyyMMddHHmmss}).zip"
+            filename = $"{processDate:yyyyMMdd}_{fileBaseName}.zip"
             Return filename
         End Function
         ''' <summary>

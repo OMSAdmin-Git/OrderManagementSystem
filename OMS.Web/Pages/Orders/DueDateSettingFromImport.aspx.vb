@@ -358,7 +358,7 @@ Namespace Pages.Orders
                     tran = conn.BeginTransaction()
                 Next
 
-                Dim orderFilename = repo.GeOrderZipFilename("納期設定_受注取込後_出力日時", ProcessingStartDate)
+                Dim orderFilename = repo.GeOrderZipFilename("受注取込差異リスト", ProcessingStartDate)
                 'Utils.FilesTransfer(Response, Server, fileList, orderFilename)
                 ' 別ページでDownload 処理を行う (FileList file はDownload 処理内で削除する)
                 Dim fileListName = IO.Path.Combine(Server.MapPath("~/App_Data/Files/"), Utils.GetTempFileName("FileList.txt"))
@@ -473,7 +473,7 @@ Namespace Pages.Orders
                     End If
                 Next
                 Dim repo = New OrderRepository(Utils.GetConnectionString())
-                Dim orderFilename = repo.GeOrderZipFilename("差異リスト_受注取込後_出力日時", ProcessingStartDate)
+                Dim orderFilename = repo.GeOrderZipFilename("受注取込差異リスト", ProcessingStartDate)
                 'Utils.FilesTransfer(Response, Server, fileList, orderFilename)
                 ' 別ページでDownload 処理を行う
                 Dim fileListName = IO.Path.Combine(Server.MapPath("~/App_Data/Files/"), Utils.GetTempFileName("FileList.txt"))

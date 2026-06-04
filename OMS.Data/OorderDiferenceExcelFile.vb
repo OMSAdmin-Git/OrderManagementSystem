@@ -66,10 +66,10 @@ Namespace OMS.Data
             Dim customerCode = If(unNoticeDifferenceRows.Count > 0, unNoticeDifferenceRows(0).CustomerCode, customerSettingId.ToString())
             Dim profitCenter = If(unNoticeDifferenceRows.Count > 0, unNoticeDifferenceRows(0).ProfitCenter, Nothing)
             Dim customerUnitName = If(unNoticeDifferenceRows.Count > 0, unNoticeDifferenceRows(0).CustomerUnitName, Nothing)
-            Dim filename = GetOorderDiferenceExcelFilename(strPath, situation, updateDate, customerCode, profitCenter, customerUnitName)
+            Dim filename = GetOorderDiferenceExcelFilename(strPath, situation, updateDate, customerCode, profitCenter, customerUnitName, customerSettingId)
             Dim index = 1
             Using excelfile As New OrderDiferenceExcelFile()
-                If (excelfile.OrderDiferenceExcelFile(filename, unNoticeDifferenceRows, instructionDifferenceRows)) Then
+                If (excelfile.OrderDiferenceExcelFile(filename, situation, unNoticeDifferenceRows, instructionDifferenceRows)) Then
                 Else
                     filename = ""
                 End If
@@ -85,15 +85,24 @@ Namespace OMS.Data
         ''' <param name="situation"></param>
         ''' <param name="updateDate"></param>
         ''' <returns></returns>
-        Public Shared Function GetOorderDiferenceExcelFilename(strPath As String, situation As DiffFileTiminge, updateDate As Date, customerCode As String, profitCenter As String, customerUnitName As String) As String
+        Public Shared Function GetOorderDiferenceExcelFilename(strPath As String, situation As DiffFileTiminge, updateDate As Date, customerCode As String, profitCenter As String, customerUnitName As String, Optional customerSettingId As Long = 0) As String
 
-            ' [STRA納期設定ページ_受注取込後] yyyyMMdd_[取引先コード]_[PC]_[注文工場／担当者名]_受注差異リスト.xlsx
-            ' [STRA納期設定ページ_生産計画後] yyyyMMdd_[取引先コード]_[PC]_[注文工場／担当者名]_生産計画差異リスト.xlsx
+            '' [STRA納期設定ページ_受注取込後] yyyyMMdd_[取引先コード]_[PC]_[注文工場／担当者名]_受注差異リスト.xlsx
+            '' [STRA納期設定ページ_生産計画後] yyyyMMdd_[取引先コード]_[PC]_[注文工場／担当者名]_生産計画差異リスト.xlsx
 
+            ' 2026/6/4
+            ' [STRA納期設定ページ_受注取込後]YYYMMDD_[取引先設定ID]_受注取込差異リスト.xlsx
+            ' [STRA納期設定ページ_生産計画後]YYYMMDD_[取引先設定ID]_生産計画差異リスト.xlsx
             customerCode = If(customerCode Is Nothing, "", "_" & customerCode)
             profitCenter = If(profitCenter Is Nothing, "", "_" & profitCenter)
             customerUnitName = If(customerUnitName Is Nothing, "", "_" & customerUnitName)
-            Dim strFile = $"{updateDate.ToString("yyyyMMdd")}{customerCode}{profitCenter}{customerUnitName}{If(situation = DiffFileTiminge.AfterReceivingAnOrder, "_受注差異リスト.xlsx", "_生産計画差異リスト.xlsx")}"
+            Dim tCustomerSettingId = If(customerSettingId = 0, "", customerSettingId.ToString())
+            ' 2026/06/4
+            customerCode = ""
+            profitCenter = ""
+            customerUnitName = ""
+
+            Dim strFile = $"{updateDate.ToString("yyyyMMdd_")}{customerCode}{profitCenter}{customerUnitName}{tCustomerSettingId}{If(situation = DiffFileTiminge.AfterReceivingAnOrder, "_受注差異リスト.xlsx", "_生産計画差異リスト.xlsx")}"
             ' Server 側の File 保存Folder
             'Dim strPath = GetWorkPath()
             If (Not IO.File.Exists(strPath)) Then
@@ -260,7 +269,7 @@ Namespace OMS.Data
         ''' <param name="unNoticeDifferenceRows"></param>
         ''' <param name="instructionDifferenceRows"></param>
         ''' <returns></returns>
-        Public Function OrderDiferenceExcelFile(filename As String, unNoticeDifferenceRows As IEnumerable(Of UnNoticeDifferenceRow), instructionDifferenceRows As IEnumerable(Of InstructionDifferenceRow)) As Boolean
+        Public Function OrderDiferenceExcelFile(filename As String, situation As DiffFileTiminge, unNoticeDifferenceRows As IEnumerable(Of UnNoticeDifferenceRow), instructionDifferenceRows As IEnumerable(Of InstructionDifferenceRow)) As Boolean
             Dim rt = False
 
             If (IO.File.Exists(filename)) Then
@@ -268,11 +277,20 @@ Namespace OMS.Data
             End If
 
             Try
+                ' 2026/06/04
+                ' 受注取り込み後
+                'シート名（内示）受注取込差異リスト-内示
+                'シート名（確定/納入指示）：受注取込差異リスト-確定納入指示
+                ' 生産計画後
+                'シート名（内示）生産計画差異リスト-内示
+                'シート名（確定/納入指示）生産計画差異リスト-確定納入指示
+                Dim sheetName1 = If(situation = DiffFileTiminge.AfterReceivingAnOrder, "受注取込差異リスト-内示", "生産計画差異リスト-内示")
+                Dim sheetName2 = If(situation = DiffFileTiminge.AfterReceivingAnOrder, "受注取込差異リスト-確定納入指示", "生産計画差異リスト-確定納入指示")
+
                 'ワークブックを作成
                 Using objWBook As New XLWorkbook
                     ' (差異リスト:内示) 
-                    Dim objSheet1 As IXLWorksheet = objWBook.Worksheets.Add("差異リスト-内示")
-                    'Dim objSheet1 As IXLWorksheet = objWBook.Worksheets.Add()
+                    Dim objSheet1 As IXLWorksheet = objWBook.Worksheets.Add(sheetName1)
 
                     For Each itemp In UnofficialNoticeTitle
                         objSheet1.Column(itemp.index).Width = itemp.width
@@ -290,7 +308,7 @@ Namespace OMS.Data
                         objSheet1.Cell(row.index, 9).Value = row.item.DiffFromPrev
                     Next
                     ' (差異リスト:確定納入指示) 
-                    Dim objSheet2 As IXLWorksheet = objWBook.Worksheets.Add("差異リスト-確定納入指示")
+                    Dim objSheet2 As IXLWorksheet = objWBook.Worksheets.Add(sheetName2)
 
                     For Each itemp In DeliveryInstructionTitle
                         objSheet2.Column(itemp.index).Width = itemp.width

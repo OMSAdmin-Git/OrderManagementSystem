@@ -420,7 +420,7 @@ Namespace Pages.Orders
                 '#End If
                 ' 作成したファイルの転送 (Zip)
                 '受注ファイル出力_出力日時(yyyyMMddhhmmss).zip
-                Dim orderFilename = repo.GeOrderZipFilename("受注ファイル出力_出力日時", FileDate)
+                Dim orderFilename = repo.GeOrderZipFilename("受注ファイル出力", FileDate)
                 ' 裏画面 Download
                 'Utils.FilesTransfer(Response, Server, fileList, orderFilename)
 
