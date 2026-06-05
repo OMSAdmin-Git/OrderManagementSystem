@@ -1090,18 +1090,18 @@ Namespace Pages.Orders
         '    Return ProductPlanExcelOut(conn, tran, OrderRepository.OrdersTable.ProductPlan, filename)
 
         'End Function
-        ''' <summary>
-        ''' Orders stage の excel 出力
-        ''' </summary>
-        ''' <param name="filename"></param>
-        ''' <param name="registerdOrders"></param>
-        ''' <returns></returns>
-        Private Function ProductPlanExcelOut(filename As String, registerdOrders As List(Of OrdersStageRow)) As String
+        '''' <summary>
+        '''' Orders stage の excel 出力
+        '''' </summary>
+        '''' <param name="filename"></param>
+        '''' <param name="registerdOrders"></param>
+        '''' <returns></returns>
+        'Private Function ProductPlanExcelOut(filename As String, registerdOrders As List(Of OrdersStageRow)) As String
 
-            Dim excel = New OrderProductionPlanExcelFile()
-            Return excel.OrdersStageExcelFile(filename, registerdOrders)
+        '    Dim excel = New OrderProductionPlanExcelFile()
+        '    Return excel.OrdersStageExcelFile(filename, registerdOrders)
 
-        End Function
+        'End Function
         'End Function
         ''' <summary>
         ''' Orders stage の excel 出力

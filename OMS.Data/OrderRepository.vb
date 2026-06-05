@@ -1517,11 +1517,13 @@ Namespace OMS.Data
 
             Dim osr = New OrdersRow
             If (dt.Table.Columns.Contains("order_id")) Then
-                osr.OrderId = dt.Field(Of Long)("order_id")
+                osr.OrderId = If(dt.Field(Of Long?)("order_id"), 0)
+                'osr.OrderId = dt.Field(Of Long)("order_id")
             ElseIf (dt.Table.Columns.Contains("prod_plan_id")) Then
-                osr.OrderId = dt.Field(Of Long)("prod_plan_id")
+                osr.OrderId = If(dt.Field(Of Long?)("prod_plan_id"), 0)
+                'osr.OrderId = dt.Field(Of Long)("prod_plan_id")
             End If
-            'osr.OrderId = dt.Field(Of Long)("order_id")
+
             osr.CustomerSettingId = dt.Field(Of Long)("customer_setting_id")
             osr.CustomerCode = dt.Field(Of String)("customer_code")
             osr.BillingTo = dt.Field(Of String)("billing_to")
@@ -1551,6 +1553,16 @@ Namespace OMS.Data
             osr.Status = dt.Field(Of String)("status")
             osr.ActiveFlag = dt.Field(Of String)("active_flag")
             ' Order のみ
+            If (dt.Table.Columns.Contains("order_time")) Then
+                osr.OrderTime = If(dt.Field(Of Decimal?)("order_time"), 0)
+            End If
+            If (dt.Table.Columns.Contains("sales_unit_price")) Then
+                osr.SalesUnitPrice = If(dt.Field(Of Decimal?)("sales_unit_price"), 0)
+            End If
+            If (dt.Table.Columns.Contains("delivery_time")) Then
+                osr.DeliveryTime = If(dt.Field(Of Decimal?)("delivery_time"), 0)
+            End If
+
             osr.UsageLocation = dt.Field(Of String)("usage_location")
             osr.ProductionCategory = dt.Field(Of String)("production_category")
             osr.Char2 = dt.Field(Of String)("char_2")
@@ -1566,19 +1578,28 @@ Namespace OMS.Data
             osr.InitialFlag = dt.Field(Of String)("initial_flag")
             osr.Char50 = dt.Field(Of String)("char_50")
             ' ====== 数値系 ======
-            osr.DemandQty = dt.Field(Of Long?)("demand_qty")
-            osr.TotalShipQty = dt.Field(Of Decimal?)("total_ship_qty")
-            osr.PreDailyOrderQty = dt.Field(Of Decimal?)("pre_daily_order_qty")
-            osr.ImpFileId = dt.Field(Of Long?)("imp_file_id")
+            osr.DemandQty = If(dt.Field(Of Long?)("demand_qty"), 0)
+            'osr.DemandQty = dt.Field(Of Long?)("demand_qty")
+            osr.TotalShipQty = If(dt.Field(Of Decimal?)("total_ship_qty"), 0)
+            'osr.TotalShipQty = dt.Field(Of Decimal?)("total_ship_qty")
+            osr.PreDailyOrderQty = If(dt.Field(Of Decimal?)("pre_daily_order_qty"), 0)
+            'osr.PreDailyOrderQty = dt.Field(Of Decimal?)("pre_daily_order_qty")
+            osr.ImpFileId = If(dt.Field(Of Long?)("imp_file_id"), 0)
+            'osr.ImpFileId = dt.Field(Of Long?)("imp_file_id")
             osr.OrderType = dt.Field(Of Int16?)("order_type")
             osr.ProratedType = dt.Field(Of Int16?)("prorated_type")
-            osr.ReconcileType = dt.Field(Of Int16?)("reconcile_type")
-            osr.ContainerCapacity = dt.Field(Of Decimal?)("container_capacity")
+            osr.ReconcileType = If(dt.Field(Of Int16?)("reconcile_type"), 0)
+            'osr.ReconcileType = dt.Field(Of Int16?)("reconcile_type")
+            osr.ContainerCapacity = If(dt.Field(Of Decimal?)("container_capacity"), 0)
+            'osr.ContainerCapacity = dt.Field(Of Decimal?)("container_capacity")
             ' Pharse2
             If (dt.Table.Columns.Contains("order_id")) Then
-                osr.StraOrderQty = dt.Field(Of Decimal?)("stra_order_qty")
-                osr.StraShipQty = dt.Field(Of Decimal?)("stra_ship_qty")
-                osr.StraOrderBacklog = dt.Field(Of Decimal?)("stra_order_backlog")
+                osr.StraOrderQty = If(dt.Field(Of Decimal?)("stra_order_qty"), 0)
+                'osr.StraOrderQty = dt.Field(Of Decimal?)("stra_order_qty")
+                osr.StraShipQty = If(dt.Field(Of Decimal?)("stra_ship_qty"), 0)
+                'osr.StraShipQty = dt.Field(Of Decimal?)("stra_ship_qty")
+                osr.StraOrderBacklog = If(dt.Field(Of Decimal?)("stra_order_backlog"), 0)
+                'osr.StraOrderBacklog = dt.Field(Of Decimal?)("stra_order_backlog")
             End If
             ' ====== 日付系 ======
             osr.OrderDate = dt.Field(Of Date?)("order_date")
@@ -2188,7 +2209,6 @@ Namespace OMS.Data
         ' OrderId に取り込んでいる
         Public Property OrderId As Long?                        ' ORDER_ID NUMBER(10,0)
         'Public Property ProdPlanId As Long?                     ' ORDER_ID NUMBER(10,0)
-
         ' ====== 取引先・品目等 ======
         Public Property CustomerSettingId As Long               ' CUSTOMER_SETTING_ID NUMBER(10,0)
         Public Property CustomerCode As String                  ' CUSTOMER_CODE VARCHAR2(25)

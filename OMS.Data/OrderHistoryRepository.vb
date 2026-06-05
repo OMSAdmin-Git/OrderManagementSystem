@@ -1317,9 +1317,11 @@ Namespace OMS.Data
 
             Dim osr = New OrdersRowHistolyRow
             If (dt.Table.Columns.Contains("order_id")) Then
-                osr.OrderId = dt.Field(Of Long)("order_id")
+                osr.OrderId = If(dt.Field(Of Long?)("order_id"), 0)
+                'osr.OrderId = dt.Field(Of Long)("order_id")
             ElseIf (dt.Table.Columns.Contains("prod_plan_id")) Then
-                osr.OrderId = dt.Field(Of Long)("prod_plan_id")
+                osr.OrderId = If(dt.Field(Of Long?)("prod_plan_id"), 0)
+                'osr.OrderId = dt.Field(Of Long)("prod_plan_id")
             End If
             'osr.OrderId = dt.Field(Of Long)("order_id")
             osr.CustomerSettingId = dt.Field(Of String)("customer_setting_id")
@@ -1352,17 +1354,24 @@ Namespace OMS.Data
             osr.ActiveFlag = dt.Field(Of String)("active_flag")
             ' ====== 数値系 ======
             osr.DemandQty = dt.Field(Of Long?)("demand_qty")
-            osr.TotalShipQty = dt.Field(Of Decimal?)("total_ship_qty")
-            osr.PreDailyOrderQty = dt.Field(Of Decimal?)("pre_daily_order_qty")
-            osr.ImpFileId = dt.Field(Of Long?)("imp_file_id")
+            osr.TotalShipQty = If(dt.Field(Of Decimal?)("total_ship_qty"), 0)
+            'osr.TotalShipQty = dt.Field(Of Decimal?)("total_ship_qty")
+            osr.PreDailyOrderQty = If(dt.Field(Of Decimal?)("pre_daily_order_qty"), 0)
+            'osr.PreDailyOrderQty = dt.Field(Of Decimal?)("pre_daily_order_qty")
+            osr.ImpFileId = If(dt.Field(Of Long?)("imp_file_id"), 0)
+            'osr.ImpFileId = dt.Field(Of Long?)("imp_file_id")
             osr.OrderType = dt.Field(Of Int16?)("order_type")
             osr.ProratedType = dt.Field(Of Int16?)("prorated_type")
-            osr.ReconcileType = dt.Field(Of Int16?)("reconcile_type")
+            osr.ReconcileType = If(dt.Field(Of Int16?)("reconcile_type"), 0)
+            'osr.ReconcileType = dt.Field(Of Int16?)("reconcile_type")
             ' Pharse2
             If (dt.Table.Columns.Contains("order_id")) Then
-                osr.StraOrderQty = dt.Field(Of Decimal?)("stra_order_qty")
-                osr.StraShipQty = dt.Field(Of Decimal?)("stra_ship_qty")
-                osr.StraOrderBacklog = dt.Field(Of Decimal?)("stra_order_backlog")
+                osr.StraOrderQty = If(dt.Field(Of Decimal?)("stra_order_qty"), 0)
+                'osr.StraOrderQty = dt.Field(Of Decimal?)("stra_order_qty")
+                osr.StraShipQty = If(dt.Field(Of Decimal?)("stra_ship_qty"), 0)
+                'osr.StraShipQty = dt.Field(Of Decimal?)("stra_ship_qty")
+                osr.StraOrderBacklog = If(dt.Field(Of Decimal?)("stra_order_backlog"),0)
+                'osr.StraOrderBacklog = dt.Field(Of Decimal?)("stra_order_backlog")
             End If
             ' ====== 日付系 ======
             osr.OrderDate = dt.Field(Of Date?)("order_date")
@@ -1379,7 +1388,8 @@ Namespace OMS.Data
             osr.UpdatedUserId = dt.Field(Of String)("updated_user_id")
             osr.UpdatedPgId = dt.Field(Of String)("updated_pg_id")
             ' Stage 固有
-            osr.HistoryId = dt.Field(Of Long?)("stage_id")
+            osr.HistoryId = If(dt.Field(Of Long?)("stage_id"), 0)
+            'osr.HistoryId = dt.Field(Of Long?)("stage_id")
 
             Return osr
 
@@ -1486,7 +1496,7 @@ Namespace OMS.Data
             For Each dtRow In dt.Rows
                 osrs.Add(UnNoticeDifferenceToClass(dtRow))
             Next
-
+            'osrs.Add(New UnNoticeDifferenceRow())
             Return osrs
 
         End Function
@@ -1521,10 +1531,10 @@ Namespace OMS.Data
             osr.CustomerUnitName = dt.Field(Of String)("注文工場／担当者名")
             osr.ItemNo = dt.Field(Of String)("品目No")
             osr.DueDate = dt.Field(Of String)("希望納期")
-            osr.DemandQty = dt.Field(Of Long?)("数量")
-            osr.PreviousData = dt.Field(Of Long?)("前回_件数")
-            osr.CurrentData = dt.Field(Of Long?)("今回_件数")
-            osr.DiffFromPrev = dt.Field(Of Long?)("前回比")
+            osr.DemandQty = If(dt.Field(Of Long?)("数量"), 0)
+            osr.PreviousData = If(dt.Field(Of Long?)("前回_件数"), 0)
+            osr.CurrentData = If(dt.Field(Of Long?)("今回_件数"), 0)
+            osr.DiffFromPrev = If(dt.Field(Of Long?)("前回比"), 0)
             Return osr
 
         End Function
@@ -1543,10 +1553,10 @@ Namespace OMS.Data
             osr.ItemNo = dt.Field(Of String)("品目No")
             osr.CustomerOrderNo = dt.Field(Of String)("客先発注No")
             osr.DueDate = dt.Field(Of String)("希望納期")
-            osr.DemandQty = dt.Field(Of Long?)("数量")
-            osr.PreviousData = dt.Field(Of Long?)("前回_件数")
-            osr.CurrentData = dt.Field(Of Long?)("今回_件数")
-            osr.DiffFromPrev = dt.Field(Of Long?)("前回比")
+            osr.DemandQty = If(dt.Field(Of Long?)("数量"), 0)
+            osr.PreviousData = If(dt.Field(Of Long?)("前回_件数"), 0)
+            osr.CurrentData = If(dt.Field(Of Long?)("今回_件数"), 0)
+            osr.DiffFromPrev = If(dt.Field(Of Long?)("前回比"), 0)
             Return osr
 
         End Function

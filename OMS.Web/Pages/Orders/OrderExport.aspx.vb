@@ -522,8 +522,6 @@ Namespace Pages.Orders
             Dim strPath = Server.MapPath("~/App_Data/Files/")
 
             Try
-
-
                 errors.Add(OrderProductionPlanExcelFile.ShippingStatusErrorExcelOut(strPath, FileDate, repos.ToClass(ErrorRows)))
                 If (CheckError(errors)) Then
                     ' エラー

@@ -1354,13 +1354,16 @@ Namespace OMS.Data
                 Return Nothing
             End If
             Dim osr = New OrdersStageRow
+
             If (dt.Table.Columns.Contains("order_id")) Then
-                osr.OrderId = dt.Field(Of Long)("order_id")
+                osr.OrderId = If(dt.Field(Of Long?)("order_id"), 0)
+                'osr.OrderId = dt.Field(Of Long)("order_id")
             ElseIf (dt.Table.Columns.Contains("prod_plan_id")) Then
-                osr.OrderId = dt.Field(Of Long)("prod_plan_id")
+                osr.OrderId = If(dt.Field(Of Long?)("prod_plan_id"), 0)
+                'osr.OrderId = dt.Field(Of Long)("prod_plan_id")
             End If
-            'osr.OrderId = dt.Field(Of Long?)("order_id")
-            osr.CustomerSettingId = dt.Field(Of Long?)("customer_setting_id")
+            osr.CustomerSettingId = If(dt.Field(Of Long?)("customer_setting_id"), 0)
+            'osr.CustomerSettingId = dt.Field(Of Long?)("customer_setting_id")
             osr.CustomerCode = dt.Field(Of String)("customer_code")
             osr.BillingTo = dt.Field(Of String)("billing_to")
             osr.CustomerOrderNo = dt.Field(Of String)("customer_order_no")
@@ -1385,22 +1388,33 @@ Namespace OMS.Data
             osr.InfoType = dt.Field(Of String)("info_type")
             osr.SelfFcstFlag = dt.Field(Of String)("self_fcst_flag")
             osr.SelfFcstDeleteFlag = dt.Field(Of String)("self_fcst_delete_flag")
-            osr.ImpRunId = dt.Field(Of Long)("imp_run_id")
+            osr.ImpRunId = If(dt.Field(Of Long?)("imp_run_id"), 0)
+            'osr.ImpRunId = dt.Field(Of Long)("imp_run_id")
             osr.Status = dt.Field(Of String)("status")
             osr.ActiveFlag = dt.Field(Of String)("active_flag")
             ' ====== 数値系 ======
-            osr.DemandQty = dt.Field(Of Long?)("demand_qty")
-            osr.TotalShipQty = dt.Field(Of Decimal?)("total_ship_qty")
-            osr.PreDailyOrderQty = dt.Field(Of Decimal?)("pre_daily_order_qty")
-            osr.ImpFileId = dt.Field(Of Long?)("imp_file_id")
-            osr.OrderType = dt.Field(Of Int16?)("order_type")
-            osr.ProratedType = dt.Field(Of Int16?)("prorated_type")
-            osr.ReconcileType = dt.Field(Of Int16?)("reconcile_type")
+            osr.DemandQty = If(dt.Field(Of Long?)("demand_qty"), 0)
+            'osr.DemandQty = dt.Field(Of Long?)("demand_qty")
+            osr.TotalShipQty = If(dt.Field(Of Decimal?)("total_ship_qty"), 0)
+            'osr.TotalShipQty = dt.Field(Of Decimal?)("total_ship_qty")
+            osr.PreDailyOrderQty = If(dt.Field(Of Decimal?)("pre_daily_order_qty"), 0)
+            'osr.PreDailyOrderQty = dt.Field(Of Decimal?)("pre_daily_order_qty")
+            osr.ImpFileId = If(dt.Field(Of Long?)("imp_file_id"), 0)
+            'osr.ImpFileId = dt.Field(Of Long?)("imp_file_id")
+            osr.OrderType = If(dt.Field(Of Int16?)("order_type"), 0)
+            'osr.OrderType = dt.Field(Of Int16?)("order_type")
+            osr.ProratedType = If(dt.Field(Of Int16?)("prorated_type"), 0)
+            'osr.ProratedType = dt.Field(Of Int16?)("prorated_type")
+            osr.ReconcileType = If(dt.Field(Of Int16?)("reconcile_type"), 0)
+            'osr.ReconcileType = dt.Field(Of Int16?)("reconcile_type")
             ' Pharse2
             If (dt.Table.Columns.Contains("order_id")) Then
-                osr.StraOrderQty = dt.Field(Of Decimal?)("stra_order_qty")
-                osr.StraShipQty = dt.Field(Of Decimal?)("stra_ship_qty")
-                osr.StraOrderBacklog = dt.Field(Of Decimal?)("stra_order_backlog")
+                osr.StraOrderQty = If(dt.Field(Of Decimal?)("stra_order_qty"), 0)
+                'osr.StraOrderQty = dt.Field(Of Decimal?)("stra_order_qty")
+                osr.StraShipQty = If(dt.Field(Of Decimal?)("stra_ship_qty"), 0)
+                'osr.StraShipQty = dt.Field(Of Decimal?)("stra_ship_qty")
+                osr.StraOrderBacklog = If(dt.Field(Of Decimal?)("stra_order_backlog"), 0)
+                'osr.StraOrderBacklog = dt.Field(Of Decimal?)("stra_order_backlog")
             End If
 
             ' ====== 日付系 ======
@@ -1418,8 +1432,10 @@ Namespace OMS.Data
             osr.UpdatedUserId = dt.Field(Of String)("updated_user_id")
             osr.UpdatedPgId = dt.Field(Of String)("updated_pg_id")
             ' Stage 固有
-            osr.StageId = dt.Field(Of Long?)("stage_id")
-            osr.ImpFilesStageId = dt.Field(Of Long?)("imp_file_stage_id")
+            osr.StageId = If(dt.Field(Of Long?)("stage_id"), 0)
+            'osr.StageId = dt.Field(Of Long?)("stage_id")
+            osr.ImpFilesStageId = If(dt.Field(Of Long?)("imp_file_stage_id"), 0)
+            'osr.ImpFilesStageId = dt.Field(Of Long?)("imp_file_stage_id")
 
             Return osr
 
