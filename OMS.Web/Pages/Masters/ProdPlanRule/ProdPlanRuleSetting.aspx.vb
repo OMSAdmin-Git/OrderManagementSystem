@@ -107,7 +107,7 @@ Namespace Pages.Masters.ProdPlanRule
                 If item IsNot Nothing Then item.Selected = True
             End If
 
-            txtSplitRoudingUnit.Text = If(GetStr(r, "RoudhingUnit"), "")
+            txtSplitRoudingUnit.Text = If(GetStr(r, "SplitRoudingUnit"), "")
 
             'ddlCarryToType.SelectedValue = Lookup(CarryToTypeMap, GetStr(r, "CarryToType"))
             Dim strCarryToType As String = GetStr(r, "CarryToType")
