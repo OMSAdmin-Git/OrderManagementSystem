@@ -350,6 +350,10 @@ Namespace Pages.Masters.Mapping
 
 #Region "保存（DBへ一括反映）"
         Protected Sub btnSaveMappingSetting_Click(sender As Object, e As EventArgs)
+
+            lblResult.Text = ""
+            lblError.Text = ""
+
             ' セッション確認
             Dim userId As String = PageHelpers.GetUserId(Me.Page)
             If String.IsNullOrEmpty(userId) Then Exit Sub
@@ -457,10 +461,8 @@ Namespace Pages.Masters.Mapping
                 BindFieldMappingGrid()
 
                 lblResult.Text = "編集内容を保存しました。"
-                lblError.Text = ""
             Catch ex As Exception
                 lblError.Text = "保存時にエラーが発生しました: " & Server.HtmlEncode(ex.Message)
-                lblResult.Text = ""
             End Try
         End Sub
 #End Region

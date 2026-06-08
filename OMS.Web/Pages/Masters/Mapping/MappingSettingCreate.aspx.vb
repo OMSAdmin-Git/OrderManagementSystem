@@ -280,6 +280,10 @@ Namespace Pages.Masters.Mapping
 
         ' 登録ボタン（実装方針：ヘッダー→明細の順でINSERT）
         Protected Sub btnCreateMappingSetting_Click(sender As Object, e As EventArgs)
+
+            lblResult.Text = ""
+            lblError.Text = ""
+
             Try
                 ' 入力取得
                 Dim customerCode As String = (If(txtCustomerCode.Value, "")).Trim()
@@ -298,7 +302,6 @@ Namespace Pages.Masters.Mapping
                 Dim userId As String = PageHelpers.GetUserId(Me.Page)
                 If String.IsNullOrEmpty(userId) Then
                     lblError.Text = "ログイン情報が見つかりません。"
-                    lblResult.Text = ""
                     Exit Sub
                 End If
                 If userId.Length > 9 Then userId = userId.Substring(0, 9)

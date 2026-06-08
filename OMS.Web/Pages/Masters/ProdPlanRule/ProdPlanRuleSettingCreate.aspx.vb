@@ -268,6 +268,9 @@ Namespace Pages.Masters.ProdPlanRule
         ' 登録ボタン
         Protected Sub btnCreateProdPlanRuleSetting_Click(sender As Object, e As EventArgs)
 
+            lblResult.Text = ""
+            lblError.Text = ""
+
             Try
                 ' 入力取得
                 Dim customerCode As String = (If(txtCustomerCode.Value, "")).Trim()
@@ -287,7 +290,6 @@ Namespace Pages.Masters.ProdPlanRule
                 Dim userId As String = PageHelpers.GetUserId(Me.Page)
                 If String.IsNullOrEmpty(userId) Then
                     lblError.Text = "ログイン情報が見つかりません。"
-                    lblResult.Text = ""
                     Exit Sub
                 End If
                 If userId.Length > 9 Then userId = userId.Substring(0, 9)
