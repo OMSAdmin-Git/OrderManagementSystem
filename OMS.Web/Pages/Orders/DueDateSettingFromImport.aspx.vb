@@ -257,6 +257,7 @@ Namespace Pages.Orders
                                 ' (受注ワークテーブル.希望納期 - 出荷ルートマスター.輸送L/T)
                                 Dim shipdate = dueDate.Value.AddDays(-transferLeadTime)
                                 ' 2026/06/01 
+                                ' (受注ワークテーブル.希望納期 - 出荷ルートマスター.輸送L/T - ユーザー定義マスタ.(A)品揃リードタイム)
                                 'ORDERS_STAGE.DUE_DATE - shproutm.FTRANLT - USRDEFFLDF.FUSRDEC1
                                 Dim shipPlanDate = dueDate.Value.AddDays(-(transferLeadTime + assortLeadTime))
                                 Dim status = "DUE_SET"

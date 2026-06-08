@@ -150,6 +150,7 @@
       <SubType>Designer</SubType>
     </None>
     <None Include="packages.config" />
+    <None Include="日次バッチ処理 資料.xlsx" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\OMS.Common\OMS.Common.vbproj">

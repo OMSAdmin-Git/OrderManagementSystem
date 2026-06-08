@@ -897,13 +897,27 @@ Namespace OMS.Common
                 Response.AddHeader("Content-Disposition", $"attachment; filename=""{filename}""")
 
                 Using zip As New Ionic.Zip.ZipFile(Encoding.GetEncoding("shift_jis"))
+
+                    '' 必要に応じて自動でUnicode（UTF-8）を切り替える設定
+                    'zip.AlternateEncoding = System.Text.Encoding.UTF-8
+                    'zip.AlternateEncodingUsage = Ionic.Zip.ZipOption.AsNecessary
+
+                    ' 文字コード指定
+                    'zip.AlternateEncoding = Encoding.GetEncoding("shift_jis")
+                    'zip.AlternateEncoding = System.Text.Encoding.GetEncoding("UTF-8")
+                    'zip.AlternateEncodingUsage = Ionic.Zip.ZipOption.Always/AsNecessary/Never
+                    ' 4G未満、4G 以上
+                    'zip.UseZip64WhenSaving =  = Ionic.Zip.Zip64Option.AsNecessary/Always/Never
+
                     For Each file As String In fileList
                         ' ファイルを追加
                         zip.AddFile(file, "")
                     Next
 
                     ' 3. MemoryStreamを経由してシーク可能な状態でZIPを構築（重要）
-                    Using ms As New System.IO.MemoryStream()
+                    ' ### for DEBUG
+                    'Using ms As New FileStream("C:\Temp\TempFile.bin", FileMode.Create)
+                    Using ms As New MemoryStream()
                         zip.Save(ms)    ' メモリ上に正しい構造でZIPを保存
                         ms.Position = 0 ' ストリームの位置を先頭に戻す
 
