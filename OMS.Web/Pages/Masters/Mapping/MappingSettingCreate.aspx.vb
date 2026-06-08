@@ -345,6 +345,12 @@ Namespace Pages.Masters.Mapping
                     CustomerSettingId:=customerSettingId,
                     FolderType:=folderType
                     )
+
+                If fileIdNullable Is Nothing Then
+                    lblError.Text = "ファイルマスタに指定された取引先コード、PC、注文工場／担当者名、フォルダ区分の登録が見つかりません。"
+                    Return
+                End If
+
                 Dim FileId As Long = fileIdNullable.Value
 
 
