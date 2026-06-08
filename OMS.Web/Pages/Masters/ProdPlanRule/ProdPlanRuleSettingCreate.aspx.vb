@@ -184,7 +184,7 @@ Namespace Pages.Masters.ProdPlanRule
             Dim dr As DataRow = dt.AsEnumerable().
                 First(Function(r) r.RowState <> DataRowState.Deleted AndAlso r.Field(Of String)("TempId") = tempId)
 
-            dr("Qty") = SafeGet(e.NewValues, "Qty")
+            dr("Qty") = ToIntOrDBNull(SafeGet(e.NewValues, "Qty"))
             dr("QtyConditionType") = GetDDL(row, "ddlQtyConditionType")
             dr("SplitMethodType") = GetDDL(row, "ddlSplitMethodType")
             dr("ActiveFlag") = GetDDL(row, "ddlActiveFlag")
@@ -208,7 +208,26 @@ Namespace Pages.Masters.ProdPlanRule
             r("SplitCaseId") = DBNull.Value
             r("ProdPlanRuleId") = DBNull.Value
 
-            r("Qty") = TryCast(f.FindControl("txtQty_F"), TextBox)?.Text
+            Dim txtQtyF = TryCast(f.FindControl("txtQty_F"), TextBox)
+            Dim qtyText As String = If(txtQtyF?.Text, String.Empty).Trim()
+            Dim qty As Integer
+            Dim hasQty As Boolean = Integer.TryParse(qtyText, qty)
+            Dim errors As New List(Of String)
+
+            If Not hasQty Then
+                errors.Add("数量（Qty）は数値で入力してください。")
+            End If
+
+            If errors.Count > 0 Then
+                lblDetailError.Text = Server.HtmlEncode(String.Join(" / ", errors))
+                lblResult.Text = String.Empty
+                If Not hasQty Then
+                    txtQtyF?.Focus()
+                End If
+                Return
+            End If
+
+            r("Qty") = ToIntOrDBNull(TryCast(f.FindControl("txtQty_F"), TextBox)?.Text)
             r("QtyConditionType") = TryCast(f.FindControl("ddlQtyConditionType_F"), DropDownList)?.SelectedValue
             r("SplitMethodType") = TryCast(f.FindControl("ddlSplitMethodType_F"), DropDownList)?.SelectedValue
             r("ActiveFlag") = TryCast(f.FindControl("ddlActiveFlag_F"), DropDownList)?.SelectedValue
@@ -217,6 +236,9 @@ Namespace Pages.Masters.ProdPlanRule
 
             dt.Rows.Add(r)
             BindSplitCaseGrid()
+
+            lblDetailError.Text = ""
+            lblDetailResult.Text = ""
         End Sub
 
         ' 削除（新規：Remove のみ）

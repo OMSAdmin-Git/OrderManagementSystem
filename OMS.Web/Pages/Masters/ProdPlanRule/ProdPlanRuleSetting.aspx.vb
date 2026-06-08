@@ -390,7 +390,7 @@ Namespace Pages.Masters.ProdPlanRule
             BindSplitCaseGrid()
 
             lblDetailError.Text = ""
-            lblResult.Text = "1件追加しました。"
+            lblDetailResult.Text = ""
         End Sub
 
         ' 削除（画面内：既存行は Delete マーク、新規行は Remove）

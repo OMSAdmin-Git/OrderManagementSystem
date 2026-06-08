@@ -172,6 +172,11 @@
                     </asp:GridView>
                 </div>
             </div>
+            <div>
+                <asp:Label ID="lblDetailResult" runat="server" ForeColor="Green" />
+                <asp:Label ID="lblDetailError" runat="server" ForeColor="Red" CssClass="validation-summary" />
+            </div>
+
 
             <!-- アクションボタン -->
             <div class="action-buttons">
