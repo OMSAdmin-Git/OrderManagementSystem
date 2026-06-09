@@ -168,10 +168,10 @@ Namespace Pages.Masters.Mapping
 
             ElseIf e.Row.RowType = DataControlRowType.Footer Then
                 ' フッター行（新規追加用）
-                OMS.Common.Constants.BindDropDown(TryCast(e.Row.FindControl("ddlFormatType_F"), DropDownList), OMS.Common.Constants.FormatTypeMap)
-                OMS.Common.Constants.BindDropDown(TryCast(e.Row.FindControl("ddlTargetField_F"), DropDownList), OMS.Common.Constants.TargetFieldMap)
-                OMS.Common.Constants.BindDropDown(TryCast(e.Row.FindControl("ddlRowSelectorType_F"), DropDownList), OMS.Common.Constants.RowSelectorTypeMap)
-                OMS.Common.Constants.BindDropDown(TryCast(e.Row.FindControl("ddlDataType_F"), DropDownList), OMS.Common.Constants.DataTypeMap)
+                OMS.Common.Constants.BindDropDown(TryCast(e.Row.FindControl("ddlFormatType_F"), DropDownList), OMS.Common.Constants.FormatTypeMap, sortByLabel:=False)
+                OMS.Common.Constants.BindDropDown(TryCast(e.Row.FindControl("ddlTargetField_F"), DropDownList), OMS.Common.Constants.TargetFieldMap, sortByLabel:=False)
+                OMS.Common.Constants.BindDropDown(TryCast(e.Row.FindControl("ddlRowSelectorType_F"), DropDownList), OMS.Common.Constants.RowSelectorTypeMap, sortByLabel:=False)
+                OMS.Common.Constants.BindDropDown(TryCast(e.Row.FindControl("ddlDataType_F"), DropDownList), OMS.Common.Constants.DataTypeMap, sortByLabel:=False)
                 'OMS.Common.Constants.BindDropDown(TryCast(e.Row.FindControl("ddlTrimFlag_F"), DropDownList), OMS.Common.Constants.TrimFlagMap)
                 OMS.Common.Constants.BindDropDown(TryCast(e.Row.FindControl("ddlActiveFlag_F"), DropDownList), OMS.Common.Constants.ActiveFlagMap, sortByLabel:=False)
             End If
