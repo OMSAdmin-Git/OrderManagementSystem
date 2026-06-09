@@ -309,7 +309,7 @@ Namespace Pages.Masters.Mapping
 
             r("FormatType") = TryCast(f.FindControl("ddlFormatType_F"), DropDownList)?.SelectedValue
             r("TargetField") = TryCast(f.FindControl("ddlTargetField_F"), DropDownList)?.SelectedValue
-            r("SourceColumnIndex") = ToIntOrDBNull(TryCast(f.FindControl("txtSourceColumnIndex_F"), TextBox)?.Text)
+            r("SourceColumnIndex") = ToIntOrDBNull(SafeVarchar(TryCast(f.FindControl("txtSourceColumnIndex_F"), TextBox)?.Text, 5))
             r("SourceHeaderName") = TryCast(f.FindControl("txtSourceHeaderName_F"), TextBox)?.Text
             r("SourceSheetName") = TryCast(f.FindControl("txtSourceSheetName_F"), TextBox)?.Text
             r("SourceCellAddress") = TryCast(f.FindControl("txtSourceCellAddress_F"), TextBox)?.Text

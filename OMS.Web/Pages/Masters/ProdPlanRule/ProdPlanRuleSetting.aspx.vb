@@ -330,8 +330,19 @@ Namespace Pages.Masters.ProdPlanRule
             dr("SplitMethodType") = GetDDL(row, "ddlSplitMethodType")
             dr("ActiveFlag") = GetDDL(row, "ddlActiveFlag")
 
+            '数量にマイナスや文字が入力されていたら入力を0にする
+            Dim qtyText As String = SafeGet(e.NewValues, "Qty")
+            Dim qty As Integer
+            Dim hasQty As Boolean = Integer.TryParse(qtyText, qty)
+            If Not hasQty Then
+                qtyText = "0"
+            ElseIf qtyText < 0 Then
+                qtyText = "0"
+            End If
+
             ' テキスト：e.NewValues
-            dr("Qty") = ToIntOrDBNull(SafeGet(e.NewValues, "Qty"))
+            'dr("Qty") = ToIntOrDBNull(SafeGet(e.NewValues, "Qty"))
+            dr("Qty") = ToIntOrDBNull(qtyText)
 
             gvSplitCaseList.EditIndex = -1
             BindSplitCaseGrid()
@@ -364,6 +375,8 @@ Namespace Pages.Masters.ProdPlanRule
 
             If Not hasQty Then
                 errors.Add("数量（Qty）は数値で入力してください。")
+            ElseIf qtyText < 0 Then
+                errors.Add("数量（Qty）が不正です。")
             End If
 
             If errors.Count > 0 Then
@@ -447,6 +460,12 @@ Namespace Pages.Masters.ProdPlanRule
             Dim splitStartType As String = (If(ddlSplitStartType.SelectedValue, "")).Trim()
             Dim activeFlag As String = (If(ddlActiveFlag.SelectedValue, "")).Trim()
 
+            ' まるめ数　入力チェック
+            If splitRoudingUnit < 0 Then
+                lblError.Text = "まるめ数が不正です。"
+                Return
+            End If
+
             Try
                 '============================================================================================
                 ' 生産計画条件マスタ
@@ -477,6 +496,11 @@ Namespace Pages.Masters.ProdPlanRule
                         Continue For
                     End If
 
+                    ' 数量が空欄の場合はスキップ
+                    If IsDBNull(r("Qty")) Then
+                        Continue For
+                    End If
+
                     repo.InsertSplitCase(
                         prodPlanRuleId:=r("ProdPlanRuleId").ToString(),
                         qty:=r("Qty").ToString(),
@@ -489,6 +513,12 @@ Namespace Pages.Masters.ProdPlanRule
 
                 pgIdDetail = "Update"
                 For Each r As DataRow In dt.Select(Nothing, Nothing, DataViewRowState.ModifiedCurrent)
+
+                    ' 数量が空欄の場合はスキップ
+                    If IsDBNull(r("Qty")) Then
+                        Continue For
+                    End If
+
                     Dim tempId As String = r("TempId").ToString()
                     If tempId.StartsWith("DB:", StringComparison.OrdinalIgnoreCase) Then
                         Dim splitCaseId As String = r("SplitCaseId").ToString() ' ← PKはこれを使う想定

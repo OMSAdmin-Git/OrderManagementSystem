@@ -184,7 +184,18 @@ Namespace Pages.Masters.ProdPlanRule
             Dim dr As DataRow = dt.AsEnumerable().
                 First(Function(r) r.RowState <> DataRowState.Deleted AndAlso r.Field(Of String)("TempId") = tempId)
 
-            dr("Qty") = ToIntOrDBNull(SafeGet(e.NewValues, "Qty"))
+            '数量にマイナスや文字が入力されていたら入力を0にする
+            Dim qtyText As String = SafeGet(e.NewValues, "Qty")
+            Dim qty As Integer
+            Dim hasQty As Boolean = Integer.TryParse(qtyText, qty)
+            If Not hasQty Then
+                qtyText = "0"
+            ElseIf qtyText < 0 Then
+                qtyText = "0"
+            End If
+
+            'dr("Qty") = ToIntOrDBNull(SafeGet(e.NewValues, "Qty"))
+            dr("Qty") = ToIntOrDBNull(qtyText)
             dr("QtyConditionType") = GetDDL(row, "ddlQtyConditionType")
             dr("SplitMethodType") = GetDDL(row, "ddlSplitMethodType")
             dr("ActiveFlag") = GetDDL(row, "ddlActiveFlag")
@@ -216,6 +227,8 @@ Namespace Pages.Masters.ProdPlanRule
 
             If Not hasQty Then
                 errors.Add("数量（Qty）は数値で入力してください。")
+            ElseIf qtyText < 0 Then
+                errors.Add("数量（Qty）が不正です。")
             End If
 
             If errors.Count > 0 Then
@@ -330,6 +343,11 @@ Namespace Pages.Masters.ProdPlanRule
                     Return
                 End If
 
+                ' まるめ数　入力チェック
+                If splitRoudingUnit < 0 Then
+                    lblError.Text = "まるめ数が不正です。"
+                    Return
+                End If
 
                 ' ▼ 1) ヘッダーをINSERTして新しい ProfileId を採番（ヘッダー入力欄のID確定後に実装）
                 Dim repo As New ProdPlanRuleRepository(Utils.GetConnectionString())
@@ -352,6 +370,11 @@ Namespace Pages.Masters.ProdPlanRule
                 For Each r As DataRow In dt.Select(Nothing, Nothing, DataViewRowState.Added)
                     ' ダミーデータ判定（TempId = "DUMMY" の場合はスキップ）
                     If Not IsDBNull(r("TempId")) AndAlso r("TempId").ToString().Trim().ToUpper() = "DUMMY" Then
+                        Continue For
+                    End If
+
+                    ' 数量が空欄の場合はスキップ
+                    If IsDBNull(r("Qty")) Then
                         Continue For
                     End If
 

@@ -130,7 +130,7 @@
                             </asp:TemplateField>
 
                             <asp:TemplateField HeaderText="数量条件区分">
-                                <ItemTemplate><%# OMS.Common.Constants.Lookup(OMS.Common.Constants.RowSelectorTypeMap, Eval("QtyConditionType")) %></ItemTemplate>
+                                <ItemTemplate><%# OMS.Common.Constants.Lookup(OMS.Common.Constants.QtyConditionTypeMap, Eval("QtyConditionType")) %></ItemTemplate>
                                 <EditItemTemplate>
                                     <asp:DropDownList ID="ddlQtyConditionType" runat="server"></asp:DropDownList>
                                 </EditItemTemplate>
@@ -140,7 +140,7 @@
                             </asp:TemplateField>
 
                             <asp:TemplateField HeaderText="分割方法">
-                                <ItemTemplate><%# OMS.Common.Constants.Lookup(OMS.Common.Constants.RowSelectorTypeMap, Eval("SplitMethodType")) %></ItemTemplate>
+                                <ItemTemplate><%# OMS.Common.Constants.Lookup(OMS.Common.Constants.SplitMethodTypeMap, Eval("SplitMethodType")) %></ItemTemplate>
                                 <EditItemTemplate>
                                     <asp:DropDownList ID="ddlSplitMethodType" runat="server"></asp:DropDownList>
                                 </EditItemTemplate>
