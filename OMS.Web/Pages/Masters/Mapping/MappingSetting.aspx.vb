@@ -309,7 +309,7 @@ Namespace Pages.Masters.Mapping
 
             r("FormatType") = TryCast(f.FindControl("ddlFormatType_F"), DropDownList)?.SelectedValue
             r("TargetField") = TryCast(f.FindControl("ddlTargetField_F"), DropDownList)?.SelectedValue
-            r("SourceColumnIndex") = ToIntOrDBNull(TryCast(f.FindControl("txtSourceColumnIndex_F"), TextBox)?.Text)
+            r("SourceColumnIndex") = ToIntOrDBNull(SafeVarchar(TryCast(f.FindControl("txtSourceColumnIndex_F"), TextBox)?.Text, 5))
             r("SourceHeaderName") = TryCast(f.FindControl("txtSourceHeaderName_F"), TextBox)?.Text
             r("SourceSheetName") = TryCast(f.FindControl("txtSourceSheetName_F"), TextBox)?.Text
             r("SourceCellAddress") = TryCast(f.FindControl("txtSourceCellAddress_F"), TextBox)?.Text
@@ -350,6 +350,10 @@ Namespace Pages.Masters.Mapping
 
 #Region "保存（DBへ一括反映）"
         Protected Sub btnSaveMappingSetting_Click(sender As Object, e As EventArgs)
+
+            lblResult.Text = ""
+            lblError.Text = ""
+
             ' セッション確認
             Dim userId As String = PageHelpers.GetUserId(Me.Page)
             If String.IsNullOrEmpty(userId) Then Exit Sub
@@ -457,10 +461,8 @@ Namespace Pages.Masters.Mapping
                 BindFieldMappingGrid()
 
                 lblResult.Text = "編集内容を保存しました。"
-                lblError.Text = ""
             Catch ex As Exception
                 lblError.Text = "保存時にエラーが発生しました: " & Server.HtmlEncode(ex.Message)
-                lblResult.Text = ""
             End Try
         End Sub
 #End Region

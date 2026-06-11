@@ -107,7 +107,7 @@ Namespace Pages.Masters.ProdPlanRule
                 If item IsNot Nothing Then item.Selected = True
             End If
 
-            txtSplitRoudingUnit.Text = If(GetStr(r, "RoudhingUnit"), "")
+            txtSplitRoudingUnit.Text = If(GetStr(r, "SplitRoudingUnit"), "")
 
             'ddlCarryToType.SelectedValue = Lookup(CarryToTypeMap, GetStr(r, "CarryToType"))
             Dim strCarryToType As String = GetStr(r, "CarryToType")
@@ -330,8 +330,19 @@ Namespace Pages.Masters.ProdPlanRule
             dr("SplitMethodType") = GetDDL(row, "ddlSplitMethodType")
             dr("ActiveFlag") = GetDDL(row, "ddlActiveFlag")
 
+            '数量にマイナスや文字が入力されていたら入力を0にする
+            Dim qtyText As String = SafeGet(e.NewValues, "Qty")
+            Dim qty As Integer
+            Dim hasQty As Boolean = Integer.TryParse(qtyText, qty)
+            If Not hasQty Then
+                qtyText = "0"
+            ElseIf qtyText < 0 Then
+                qtyText = "0"
+            End If
+
             ' テキスト：e.NewValues
-            dr("Qty") = ToIntOrDBNull(SafeGet(e.NewValues, "Qty"))
+            'dr("Qty") = ToIntOrDBNull(SafeGet(e.NewValues, "Qty"))
+            dr("Qty") = ToIntOrDBNull(qtyText)
 
             gvSplitCaseList.EditIndex = -1
             BindSplitCaseGrid()
@@ -364,6 +375,8 @@ Namespace Pages.Masters.ProdPlanRule
 
             If Not hasQty Then
                 errors.Add("数量（Qty）は数値で入力してください。")
+            ElseIf qtyText < 0 Then
+                errors.Add("数量（Qty）が不正です。")
             End If
 
             If errors.Count > 0 Then
@@ -390,7 +403,7 @@ Namespace Pages.Masters.ProdPlanRule
             BindSplitCaseGrid()
 
             lblDetailError.Text = ""
-            lblResult.Text = "1件追加しました。"
+            lblDetailResult.Text = ""
         End Sub
 
         ' 削除（画面内：既存行は Delete マーク、新規行は Remove）
@@ -418,6 +431,9 @@ Namespace Pages.Masters.ProdPlanRule
 #Region "保存（DBへ一括反映）"
         Protected Sub btnSaveProdPlanRuleSetting_Click(sender As Object, e As EventArgs)
 
+            lblResult.Text = ""
+            lblError.Text = ""
+
             ' セッション確認
             Dim userId As String = PageHelpers.GetUserId(Me.Page)
             If String.IsNullOrEmpty(userId) Then
@@ -443,6 +459,12 @@ Namespace Pages.Masters.ProdPlanRule
             Dim carryToType As String = (If(ddlCarryToType.SelectedValue, "")).Trim()
             Dim splitStartType As String = (If(ddlSplitStartType.SelectedValue, "")).Trim()
             Dim activeFlag As String = (If(ddlActiveFlag.SelectedValue, "")).Trim()
+
+            ' まるめ数　入力チェック
+            If splitRoudingUnit < 0 Then
+                lblError.Text = "まるめ数が不正です。"
+                Return
+            End If
 
             Try
                 '============================================================================================
@@ -474,6 +496,11 @@ Namespace Pages.Masters.ProdPlanRule
                         Continue For
                     End If
 
+                    ' 数量が空欄の場合はスキップ
+                    If IsDBNull(r("Qty")) Then
+                        Continue For
+                    End If
+
                     repo.InsertSplitCase(
                         prodPlanRuleId:=r("ProdPlanRuleId").ToString(),
                         qty:=r("Qty").ToString(),
@@ -486,6 +513,12 @@ Namespace Pages.Masters.ProdPlanRule
 
                 pgIdDetail = "Update"
                 For Each r As DataRow In dt.Select(Nothing, Nothing, DataViewRowState.ModifiedCurrent)
+
+                    ' 数量が空欄の場合はスキップ
+                    If IsDBNull(r("Qty")) Then
+                        Continue For
+                    End If
+
                     Dim tempId As String = r("TempId").ToString()
                     If tempId.StartsWith("DB:", StringComparison.OrdinalIgnoreCase) Then
                         Dim splitCaseId As String = r("SplitCaseId").ToString() ' ← PKはこれを使う想定
@@ -518,10 +551,8 @@ Namespace Pages.Masters.ProdPlanRule
                 BindSplitCaseGrid()
 
                 lblResult.Text = "編集内容を保存しました。"
-                lblError.Text = ""
             Catch ex As Exception
                 lblError.Text = "保存時にエラーが発生しました: " & Server.HtmlEncode(ex.Message)
-                lblResult.Text = ""
             End Try
         End Sub
 #End Region

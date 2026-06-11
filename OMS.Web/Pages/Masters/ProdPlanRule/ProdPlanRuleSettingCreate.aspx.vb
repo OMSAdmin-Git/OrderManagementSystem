@@ -184,7 +184,18 @@ Namespace Pages.Masters.ProdPlanRule
             Dim dr As DataRow = dt.AsEnumerable().
                 First(Function(r) r.RowState <> DataRowState.Deleted AndAlso r.Field(Of String)("TempId") = tempId)
 
-            dr("Qty") = SafeGet(e.NewValues, "Qty")
+            '数量にマイナスや文字が入力されていたら入力を0にする
+            Dim qtyText As String = SafeGet(e.NewValues, "Qty")
+            Dim qty As Integer
+            Dim hasQty As Boolean = Integer.TryParse(qtyText, qty)
+            If Not hasQty Then
+                qtyText = "0"
+            ElseIf qtyText < 0 Then
+                qtyText = "0"
+            End If
+
+            'dr("Qty") = ToIntOrDBNull(SafeGet(e.NewValues, "Qty"))
+            dr("Qty") = ToIntOrDBNull(qtyText)
             dr("QtyConditionType") = GetDDL(row, "ddlQtyConditionType")
             dr("SplitMethodType") = GetDDL(row, "ddlSplitMethodType")
             dr("ActiveFlag") = GetDDL(row, "ddlActiveFlag")
@@ -208,7 +219,28 @@ Namespace Pages.Masters.ProdPlanRule
             r("SplitCaseId") = DBNull.Value
             r("ProdPlanRuleId") = DBNull.Value
 
-            r("Qty") = TryCast(f.FindControl("txtQty_F"), TextBox)?.Text
+            Dim txtQtyF = TryCast(f.FindControl("txtQty_F"), TextBox)
+            Dim qtyText As String = If(txtQtyF?.Text, String.Empty).Trim()
+            Dim qty As Integer
+            Dim hasQty As Boolean = Integer.TryParse(qtyText, qty)
+            Dim errors As New List(Of String)
+
+            If Not hasQty Then
+                errors.Add("数量（Qty）は数値で入力してください。")
+            ElseIf qtyText < 0 Then
+                errors.Add("数量（Qty）が不正です。")
+            End If
+
+            If errors.Count > 0 Then
+                lblDetailError.Text = Server.HtmlEncode(String.Join(" / ", errors))
+                lblResult.Text = String.Empty
+                If Not hasQty Then
+                    txtQtyF?.Focus()
+                End If
+                Return
+            End If
+
+            r("Qty") = ToIntOrDBNull(TryCast(f.FindControl("txtQty_F"), TextBox)?.Text)
             r("QtyConditionType") = TryCast(f.FindControl("ddlQtyConditionType_F"), DropDownList)?.SelectedValue
             r("SplitMethodType") = TryCast(f.FindControl("ddlSplitMethodType_F"), DropDownList)?.SelectedValue
             r("ActiveFlag") = TryCast(f.FindControl("ddlActiveFlag_F"), DropDownList)?.SelectedValue
@@ -217,6 +249,9 @@ Namespace Pages.Masters.ProdPlanRule
 
             dt.Rows.Add(r)
             BindSplitCaseGrid()
+
+            lblDetailError.Text = ""
+            lblDetailResult.Text = ""
         End Sub
 
         ' 削除（新規：Remove のみ）
@@ -246,6 +281,9 @@ Namespace Pages.Masters.ProdPlanRule
         ' 登録ボタン
         Protected Sub btnCreateProdPlanRuleSetting_Click(sender As Object, e As EventArgs)
 
+            lblResult.Text = ""
+            lblError.Text = ""
+
             Try
                 ' 入力取得
                 Dim customerCode As String = (If(txtCustomerCode.Value, "")).Trim()
@@ -265,7 +303,6 @@ Namespace Pages.Masters.ProdPlanRule
                 Dim userId As String = PageHelpers.GetUserId(Me.Page)
                 If String.IsNullOrEmpty(userId) Then
                     lblError.Text = "ログイン情報が見つかりません。"
-                    lblResult.Text = ""
                     Exit Sub
                 End If
                 If userId.Length > 9 Then userId = userId.Substring(0, 9)
@@ -306,6 +343,11 @@ Namespace Pages.Masters.ProdPlanRule
                     Return
                 End If
 
+                ' まるめ数　入力チェック
+                If splitRoudingUnit < 0 Then
+                    lblError.Text = "まるめ数が不正です。"
+                    Return
+                End If
 
                 ' ▼ 1) ヘッダーをINSERTして新しい ProfileId を採番（ヘッダー入力欄のID確定後に実装）
                 Dim repo As New ProdPlanRuleRepository(Utils.GetConnectionString())
@@ -328,6 +370,11 @@ Namespace Pages.Masters.ProdPlanRule
                 For Each r As DataRow In dt.Select(Nothing, Nothing, DataViewRowState.Added)
                     ' ダミーデータ判定（TempId = "DUMMY" の場合はスキップ）
                     If Not IsDBNull(r("TempId")) AndAlso r("TempId").ToString().Trim().ToUpper() = "DUMMY" Then
+                        Continue For
+                    End If
+
+                    ' 数量が空欄の場合はスキップ
+                    If IsDBNull(r("Qty")) Then
                         Continue For
                     End If
 

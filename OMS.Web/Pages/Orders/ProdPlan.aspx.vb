@@ -491,7 +491,7 @@ Namespace Pages.Orders
                                             splitRationType = If(splitRationType <> 1 And splitRationType <> 2, 1, splitRationType)
 
                                             ' 丸め 1以下の場合 強制的に 1
-                                            If (unit < 1) Then
+                                            If (unit < 1 Or unit Is Nothing) Then
                                                 unit = 1
                                             End If
                                             ' 分割条件 読み込み
@@ -539,6 +539,7 @@ Namespace Pages.Orders
                                                 endDate = DateSerial(Year(shipScheduledDate), Month(shipScheduledDate), DateTime.DaysInMonth(Year(shipScheduledDate), Month(shipScheduledDate)))
                                             End If
 
+                                            ' <<<<<<<<<<<<<<<<<<< 0/6 の時もクリアしている
                                             ' 対象 ProdPlanStage のDemandQtyをクリアして 削除対象とする
                                             ' 2026/3/31 追加 DemandQty クリア
                                             For Each tg In ordersStageRows
@@ -601,8 +602,12 @@ Namespace Pages.Orders
                                             ' 分割方法確認 (SPLIT_METHOD_TYPE)
                                             Select Case (splitMethodType)
                                                 ' 何もしない
-                                                Case 0
-                                                Case 6
+                                                Case 0, 6
+                                                    ' 元の DemandQty を戻す
+                                                    For Each osr In ordersStageRows
+                                                        Dim tg = ordersStage.Find(Function(x) x.ShipScheduledDate = osr.ShipScheduledDate)
+                                                        tg.DemandQty = osr.DemandQty
+                                                    Next
                                                 '日割り
                                                 Case 1
                                                     Dim ans = GetRoundCalc(qty, businessDay, unit, splitRationType)
@@ -643,11 +648,11 @@ Namespace Pages.Orders
                                                         Dim setDay = GetDesignationDay(calender, "W", cnt * (businessDay / 4))
                                                         Dim dqty = roundup
                                                         ' 先頭端数の時
-                                                        If (cnt = 0) And (carryToType = 1) Then
+                                                        If (cnt = 0) And (carryToType = 1) And (fraction <> 0) Then
                                                             dqty = fraction
                                                         End If
                                                         ' 先後尾端数の時
-                                                        If (cnt = days - 1) And (carryToType = 2) Then
+                                                        If (cnt = days - 1) And (carryToType = 2) And (fraction <> 0) Then
                                                             dqty = fraction
                                                         End If
                                                         Dim tg = ordersStage.Find(Function(x) x.ShipScheduledDate = setDay)
@@ -673,11 +678,11 @@ Namespace Pages.Orders
                                                         Dim setDay = GetDesignationDay(calender, "W", cnt * (businessDay / 4))
                                                         Dim dqty = roundup
                                                         ' 先頭端数の時
-                                                        If (cnt = 0) And (carryToType = 1) Then
+                                                        If (cnt = 0) And (carryToType = 1) And (fraction <> 0) Then
                                                             dqty = fraction
                                                         End If
                                                         ' 先後尾端数の時
-                                                        If (cnt = days) And (carryToType = 2) Then
+                                                        If (cnt = days) And (carryToType = 2) And (fraction <> 0) Then
                                                             dqty = fraction
                                                         End If
 
@@ -702,11 +707,11 @@ Namespace Pages.Orders
                                                         Dim setDay = GetDesignationDay(calender, "W", cnt * (businessDay / 2))
                                                         Dim dqty = roundup
                                                         ' 先頭端数の時
-                                                        If (cnt = 0) And (carryToType = 1) Then
+                                                        If (cnt = 0) And (carryToType = 1) And (fraction <> 0) Then
                                                             dqty = fraction
                                                         End If
                                                         ' 先後尾端数の時
-                                                        If (cnt = days - 1) And (carryToType = 2) Then
+                                                        If (cnt = days - 1) And (carryToType = 2) And (fraction <> 0) Then
                                                             dqty = fraction
                                                         End If
                                                         Dim tg = ordersStage.Find(Function(x) x.ShipScheduledDate = setDay)

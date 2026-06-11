@@ -168,6 +168,24 @@ Namespace Pages.Masters.ProdPlanRule
         Protected WithEvents gvSplitCaseList As Global.System.Web.UI.WebControls.GridView
 
         '''<summary>
+        '''lblDetailResult コントロール。
+        '''</summary>
+        '''<remarks>
+        '''自動生成されたフィールド。
+        '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
+        '''</remarks>
+        Protected WithEvents lblDetailResult As Global.System.Web.UI.WebControls.Label
+
+        '''<summary>
+        '''lblDetailError コントロール。
+        '''</summary>
+        '''<remarks>
+        '''自動生成されたフィールド。
+        '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
+        '''</remarks>
+        Protected WithEvents lblDetailError As Global.System.Web.UI.WebControls.Label
+
+        '''<summary>
         '''btnCreateProdPlanRuleSetting コントロール。
         '''</summary>
         '''<remarks>

@@ -168,10 +168,10 @@ Namespace Pages.Masters.Mapping
 
             ElseIf e.Row.RowType = DataControlRowType.Footer Then
                 ' フッター行（新規追加用）
-                OMS.Common.Constants.BindDropDown(TryCast(e.Row.FindControl("ddlFormatType_F"), DropDownList), OMS.Common.Constants.FormatTypeMap)
-                OMS.Common.Constants.BindDropDown(TryCast(e.Row.FindControl("ddlTargetField_F"), DropDownList), OMS.Common.Constants.TargetFieldMap)
-                OMS.Common.Constants.BindDropDown(TryCast(e.Row.FindControl("ddlRowSelectorType_F"), DropDownList), OMS.Common.Constants.RowSelectorTypeMap)
-                OMS.Common.Constants.BindDropDown(TryCast(e.Row.FindControl("ddlDataType_F"), DropDownList), OMS.Common.Constants.DataTypeMap)
+                OMS.Common.Constants.BindDropDown(TryCast(e.Row.FindControl("ddlFormatType_F"), DropDownList), OMS.Common.Constants.FormatTypeMap, sortByLabel:=False)
+                OMS.Common.Constants.BindDropDown(TryCast(e.Row.FindControl("ddlTargetField_F"), DropDownList), OMS.Common.Constants.TargetFieldMap, sortByLabel:=False)
+                OMS.Common.Constants.BindDropDown(TryCast(e.Row.FindControl("ddlRowSelectorType_F"), DropDownList), OMS.Common.Constants.RowSelectorTypeMap, sortByLabel:=False)
+                OMS.Common.Constants.BindDropDown(TryCast(e.Row.FindControl("ddlDataType_F"), DropDownList), OMS.Common.Constants.DataTypeMap, sortByLabel:=False)
                 'OMS.Common.Constants.BindDropDown(TryCast(e.Row.FindControl("ddlTrimFlag_F"), DropDownList), OMS.Common.Constants.TrimFlagMap)
                 OMS.Common.Constants.BindDropDown(TryCast(e.Row.FindControl("ddlActiveFlag_F"), DropDownList), OMS.Common.Constants.ActiveFlagMap, sortByLabel:=False)
             End If
@@ -238,7 +238,7 @@ Namespace Pages.Masters.Mapping
 
             r("FormatType") = TryCast(f.FindControl("ddlFormatType_F"), DropDownList)?.SelectedValue
             r("TargetField") = TryCast(f.FindControl("ddlTargetField_F"), DropDownList)?.SelectedValue
-            r("SourceColumnIndex") = ToIntOrDBNull(TryCast(f.FindControl("txtSourceColumnIndex_F"), TextBox)?.Text)
+            r("SourceColumnIndex") = ToIntOrDBNull(SafeVarchar(TryCast(f.FindControl("txtSourceColumnIndex_F"), TextBox)?.Text, 5))
             r("SourceHeaderName") = TryCast(f.FindControl("txtSourceHeaderName_F"), TextBox)?.Text
             r("SourceSheetName") = TryCast(f.FindControl("txtSourceSheetName_F"), TextBox)?.Text
             r("SourceCellAddress") = TryCast(f.FindControl("txtSourceCellAddress_F"), TextBox)?.Text
@@ -280,6 +280,10 @@ Namespace Pages.Masters.Mapping
 
         ' 登録ボタン（実装方針：ヘッダー→明細の順でINSERT）
         Protected Sub btnCreateMappingSetting_Click(sender As Object, e As EventArgs)
+
+            lblResult.Text = ""
+            lblError.Text = ""
+
             Try
                 ' 入力取得
                 Dim customerCode As String = (If(txtCustomerCode.Value, "")).Trim()
@@ -298,7 +302,6 @@ Namespace Pages.Masters.Mapping
                 Dim userId As String = PageHelpers.GetUserId(Me.Page)
                 If String.IsNullOrEmpty(userId) Then
                     lblError.Text = "ログイン情報が見つかりません。"
-                    lblResult.Text = ""
                     Exit Sub
                 End If
                 If userId.Length > 9 Then userId = userId.Substring(0, 9)
@@ -345,6 +348,12 @@ Namespace Pages.Masters.Mapping
                     CustomerSettingId:=customerSettingId,
                     FolderType:=folderType
                     )
+
+                If fileIdNullable Is Nothing Then
+                    lblError.Text = "ファイルマスタに指定された取引先コード、PC、注文工場／担当者名、フォルダ区分の登録が見つかりません。"
+                    Return
+                End If
+
                 Dim FileId As Long = fileIdNullable.Value
 
 

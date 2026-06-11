@@ -743,69 +743,36 @@ Namespace OMS.Common
         '============================================
         ' ファイル転送
         '============================================
-        Public Sub FileTransfer(Response As HttpResponse, Server As HttpServerUtility, filename As String)
-            Try
-                'クライアント側に応答
-                Response.Clear()
-                Response.Buffer = True
-                ' 2. コンテンツタイプの設定
-                Response.ContentType = "application/octet-stream"
-                ' ファイル名のエンコード（RFC 2231形式がより確実です）
-                Dim fileNameOnly As String = IO.Path.GetFileName(filename)
-                Dim encodedFileName As String = HttpUtility.UrlPathEncode(fileNameOnly)
-                ' 3.HTTPヘッダー
-                'Response.AddHeader("Content-Disposition", "attachment; filename*=UTF-8''" & encodedFileName)
-                Response.AddHeader("Content-Disposition", "attachment; filename=" & encodedFileName)
+        'Public Sub FileTransfer(Response As HttpResponse, Server As HttpServerUtility, filename As String)
+        '    Try
+        '        'クライアント側に応答
+        '        Response.Clear()
+        '        Response.Buffer = True
+        '        ' 2. コンテンツタイプの設定
+        '        Response.ContentType = "application/octet-stream"
+        '        ' ファイル名のエンコード（RFC 2231形式がより確実です）
+        '        Dim fileNameOnly As String = IO.Path.GetFileName(filename)
+        '        Dim encodedFileName As String = HttpUtility.UrlPathEncode(fileNameOnly)
+        '        ' 3.HTTPヘッダー
+        '        'Response.AddHeader("Content-Disposition", "attachment; filename*=UTF-8''" & encodedFileName)
+        '        Response.AddHeader("Content-Disposition", "attachment; filename=" & encodedFileName)
 
-                ' 4. ファイルサイズの設定 (オプションだが推奨)
-                Dim fileInfo = New FileInfo(filename)
-                Response.AddHeader("Content-Length", fileInfo.Length.ToString())
+        '        ' 4. ファイルサイズの設定 (オプションだが推奨)
+        '        Dim fileInfo = New FileInfo(filename)
+        '        Response.AddHeader("Content-Length", fileInfo.Length.ToString())
 
-                Response.TransmitFile(filename)
-                Response.Flush() ' 送信を確定させる
-                Response.SuppressContent = True
-                HttpContext.Current.ApplicationInstance.CompleteRequest() ' Response.Endの代わり（推奨）
-                'Response.End()
+        '        Response.TransmitFile(filename)
+        '        Response.Flush() ' 送信を確定させる
+        '        Response.SuppressContent = True
+        '        HttpContext.Current.ApplicationInstance.CompleteRequest() ' Response.Endの代わり（推奨）
+        '        'Response.End()
 
-                ''クライアント側に応答
-                'Response.Clear()
-                'Response.Buffer = True
-                '' 2. コンテンツタイプの設定
-                'Response.ContentType = "application/octet-stream"
-                '' 3.HTTPヘッダー
-                ''Response.AddHeader("Content-Disposition", "attachment; filename=" & Server.UrlEncode(IO.Path.GetFileName(filename)))
-                'Dim encodedFileName As String = HttpUtility.UrlEncode(IO.Path.GetFileName(filename))
-                'Response.AddHeader("Content-Disposition", "attachment; filename=" & encodedFileName)
-                '' 4. ファイルサイズの設定 (オプションだが推奨)
-                'Dim fileInfo = New FileInfo(filename)
-                'Response.AddHeader("Content-Length", fileInfo.Length.ToString())
-                ''Response.Flush()
-                ''Response.Clear()
-                'Response.TransmitFile(filename)
-                ''Dim f = Server.MapPath(filename)
-                ''Dim stTime = DateTime.Now
-                ''Dim lpnext = 0
-                ''While ((DateTime.Now - stTime).TotalSeconds < 30)
-                ''    If (Not IsLocked(filename)) Then
-                ''        ' 5. ファイル送信
-                ''Response.TransmitFile(filename)
-                ''        Exit While
-                ''    End If
-                ''    lpnext += 1
-                ''End While
+        '    Catch ex As Exception
+        '        ' ThreadAbortException は 無視する
 
-                ''出力するファイルを終了する → Exception error (スレッドを中止しようとしました)になる
-                ''Response.End()
-
-                '' 代わりにこれを使用
-                'HttpContext.Current.ApplicationInstance.CompleteRequest()
-
-            Catch ex As Exception
-                ' ThreadAbortException は 無視する
-
-                Dim m = ex.Message
-            End Try
-        End Sub
+        '        Dim m = ex.Message
+        '    End Try
+        'End Sub
         '============================================
         ' ファイル転送
         '============================================
@@ -844,43 +811,7 @@ Namespace OMS.Common
         '============================================
         ' 複数ファイルをZip圧縮ファイルで転送
         '============================================
-#If False Then
-        ' 標準 Lib でZip圧縮 転送 (動作しなかった)
-        Public Sub FilesTransfer(Response As HttpResponse, Server As HttpServerUtility, fileList As List(Of String), filename As String)
-            Try
-                Response.Clear()
-                ' 日本語ファイル名の文字化けを防ぐため、Content-Disposition を修正
-                Dim encodedFilename = HttpUtility.UrlEncode(filename)
-                Response.ContentType = "application/zip"
-                'Response.AddHeader("content-disposition", $"attachment; filename*=UTF-8''{encodedFilename}")
-                Response.AddHeader("content-disposition", $"attachment; filename= {filename}")
 
-                ' Response.OutputStream を ZipArchive に渡す
-                ' LeaveOpen を True にしておくと、Using 終了時に Response 自体が閉じられるのを防げます
-                Using archive As New ZipArchive(Response.OutputStream, ZipArchiveMode.Create, True)
-                    For Each filePath As String In fileList
-                        If File.Exists(filePath) Then
-                            ' ZipArchiveEntry を作成（第2引数はZIP内でのファイル名）
-                            Dim entryName = Path.GetFileName(filePath)
-                            Dim entry = archive.CreateEntry(entryName)
-
-                            ' ファイルの内容をコピー
-                            Using entryStream = entry.Open()
-                                Using fileStream = File.OpenRead(filePath)
-                                    fileStream.CopyTo(entryStream)
-                                End Using
-                            End Using
-                        End If
-                    Next
-                End Using
-
-                HttpContext.Current.ApplicationInstance.CompleteRequest()
-            Catch ex As Exception
-                ' 必要に応じてログ出力など
-                Debug.WriteLine(ex.Message)
-            End Try
-        End Sub
-#Else
         ' DotNetZip ライブラリ (Ionic.Zip)
         Public Sub FilesTransfer(Response As HttpResponse, Server As HttpServerUtility, fileList As List(Of String), filename As String)
             Dim rt = ""
@@ -889,30 +820,7 @@ Namespace OMS.Common
                 FileTransfer2(Response, Server, fileList(0))
                 Return
             End If
-            'Try
-            '    Response.Clear()
-            '    Response.ContentType = "application/zip"
-            '    Response.AddHeader("content-disposition", $"attachment; filename= {filename}")
 
-            '    Using zip As New Ionic.Zip.ZipFile(Encoding.GetEncoding("shift_jis"))
-            '        For Each file As String In fileList
-            '            'Dim fn = Net.WebUtility.UrlEncode(file)
-            '            ' ファイルを追加
-            '            zip.AddFile(file, "")
-            '        Next
-            '        ' メモリ上でZIP化して出力
-            '        zip.Save(Response.OutputStream)
-            '        ' 残っているバッファをすべて強制出力する
-            '        Response.Flush()
-            '    End Using
-
-            '    'Response.End()
-            '    HttpContext.Current.ApplicationInstance.CompleteRequest()
-            'Catch ex As Exception
-            '    rt = ex.Message
-            'End Try
-
-            ' 改善対策版
             Try
                 ' 1. レスポンスバッファとヘッダーの初期化
                 Response.Clear()
@@ -925,13 +833,29 @@ Namespace OMS.Common
                 Response.AddHeader("Content-Disposition", $"attachment; filename=""{filename}""")
 
                 Using zip As New Ionic.Zip.ZipFile(Encoding.GetEncoding("shift_jis"))
+                    zip.AlternateEncoding = Encoding.GetEncoding("shift_jis")
+                    zip.AlternateEncodingUsage = Ionic.Zip.ZipOption.AsNecessary
+
+                    '' 必要に応じて自動でUnicode（UTF-8）を切り替える設定(推奨)
+                    'zip.AlternateEncoding = System.Text.Encoding.UTF-8
+                    'zip.AlternateEncodingUsage = Ionic.Zip.ZipOption.AsNecessary
+
+                    ' 文字コード指定
+                    'zip.AlternateEncoding = Encoding.GetEncoding("shift_jis")
+                    'zip.AlternateEncoding = System.Text.Encoding.GetEncoding("UTF-8")
+                    'zip.AlternateEncodingUsage = Ionic.Zip.ZipOption.Always/AsNecessary/Never
+                    ' 4G未満、4G 以上
+                    'zip.UseZip64WhenSaving =  = Ionic.Zip.Zip64Option.AsNecessary/Always/Never
+
                     For Each file As String In fileList
                         ' ファイルを追加
                         zip.AddFile(file, "")
                     Next
 
                     ' 3. MemoryStreamを経由してシーク可能な状態でZIPを構築（重要）
-                    Using ms As New System.IO.MemoryStream()
+                    ' ### for DEBUG
+                    'Using ms As New FileStream("C:\Temp\TempFile.bin", FileMode.Create)
+                    Using ms As New MemoryStream()
                         zip.Save(ms)    ' メモリ上に正しい構造でZIPを保存
                         ms.Position = 0 ' ストリームの位置を先頭に戻す
 
@@ -952,7 +876,6 @@ Namespace OMS.Common
             'Return rt
         End Sub
 
-#End If
         ''' <summary>
         ''' ファイル転送用 ファイル一覧をファイル化する
         ''' </summary>
@@ -1001,54 +924,27 @@ Namespace OMS.Common
         '============================================
         ' リスト内の ファイル圧縮
         '============================================
-#If False Then
-        ' 標準 Lib でZip圧縮 
-        Public Function CompressFiles(fileList As List(Of String), cprfilename As String) As String
-            Dim rt = ""
 
-            Try
-                ' 指定したパスにZIPファイルを作成
-                Using fs As New FileStream(cprfilename, FileMode.Create)
-                    Using archive As New ZipArchive(fs, ZipArchiveMode.Create)
-                        For Each filePath As String In fileList
-                            If File.Exists(filePath) Then
-                                ' ZIP内のファイル名を取得してエントリを作成
-                                Dim entryName = Path.GetFileName(filePath)
-                                ' CreateEntryFromFile を使うと、1行でファイルを追加できます
-                                archive.CreateEntryFromFile(filePath, entryName)
-                            End If
-                        Next
-                    End Using
-                End Using
-
-            Catch ex As Exception
-                rt = ex.Message
-            End Try
-
-            Return rt
-        End Function
-#Else
         ' DotNetZip ライブラリ(Ionic.Zip)
-        Public Function CompressFiles(fileList As List(Of String), cprfilename As String) As String
-            Dim rt = ""
+        'Public Function CompressFiles(fileList As List(Of String), cprfilename As String) As String
+        '    Dim rt = ""
 
-            Try
-                Using zip As New Ionic.Zip.ZipFile()
-                    For Each file As String In fileList
-                        ' ファイルを追加
-                        zip.AddFile(file, "")
-                    Next
-                    ' 保存
-                    zip.Save(cprfilename)
-                End Using
+        '    Try
+        '        Using zip As New Ionic.Zip.ZipFile()
+        '            For Each file As String In fileList
+        '                ' ファイルを追加
+        '                zip.AddFile(file, "")
+        '            Next
+        '            ' 保存
+        '            zip.Save(cprfilename)
+        '        End Using
 
-            Catch ex As Exception
-                rt = ex.Message
-            End Try
-            Return rt
+        '    Catch ex As Exception
+        '        rt = ex.Message
+        '    End Try
+        '    Return rt
 
-        End Function
-#End If
+        'End Function
 
         Public Function IsLocked(file As String) As Boolean
             If file Is Nothing Then Return False
