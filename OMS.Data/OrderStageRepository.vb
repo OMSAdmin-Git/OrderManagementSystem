@@ -1647,42 +1647,81 @@ Namespace OMS.Data
         ''' <summary>
         ''' 製品コード(品目No)を取得する
         ''' </summary>
-        ''' <param name="CustomerItemNo">処理中の客先品目No</param>
         ''' <param name="CustomerCode">処理中の取引先コード</param>
+        ''' <param name="CustomerItemNo">処理中の客先品目No</param>
+        ''' <param name="ProductCode">処理中の製品コード</param>
         ''' <param name="Code">取得内容</param>
         ''' <param name="errorMessage">エラーメッセージ</param>
-        Public Function GetProductCode(ByVal CustomerItemNo As String, ByVal CustomerCode As String, ByRef Code As String, ByRef errorMessage As String) As Boolean
+        Public Function GetProductCode(ByVal CustomerCode As String, ByVal CustomerItemNo As String, ByVal ProductCode As String, ByRef Code As String, ByRef errorMessage As String) As Boolean
 
-            Dim pCustomerItemNo As String = If(String.IsNullOrWhiteSpace(CustomerItemNo), Nothing, CustomerItemNo.Trim())
             Dim pCustomerCode As String = If(String.IsNullOrWhiteSpace(CustomerCode), Nothing, CustomerCode.Trim())
+            Dim pCustomerItemNo As String = If(String.IsNullOrWhiteSpace(CustomerItemNo), Nothing, CustomerItemNo.Trim())
+            Dim pProductCode As String = If(String.IsNullOrWhiteSpace(ProductCode), Nothing, ProductCode.Trim())
+
             'Code = Nothing
             Code = ""
             errorMessage = String.Empty
 
-            Const sql As String =
-                        " SELECT fprdcd FROM prdslsodrm " &
-                        " WHERE fcustitemno = :p_customer_item_no " &
-                        " AND fcustcd = :p_customer_code "
+            Dim curSelect As String = ""
+            Dim curWhere As String = ""
+
+            If pCustomerItemNo <> "" AndAlso pProductCode <> "" Then
+                '1.客先品目No有り、製品コード有りの場合
+                curWhere = " AND fcustcd = :p_customer_code " &
+                           " AND fcustitemno = :p_customer_item_no" &
+                           " AND fprdcd = :pProductCode"
+
+            ElseIf pCustomerItemNo <> "" AndAlso pProductCode = "" Then
+                '2.客先品目No有り、製品コード無しの場合
+                curWhere = " AND fcustcd = :p_customer_code " &
+                           " AND fcustitemno = :p_customer_item_no"
+
+            ElseIf pCustomerItemNo = "" AndAlso pProductCode <> "" Then
+                '3.客先品目No無し、製品コード有りの場合
+                curWhere = " AND fcustcd = :p_customer_code " &
+                           " AND fprdcd = :pProductCode"
+
+            Else
+                '4.客先品目Noも製品コードも無しの場合
+
+            End If
+
+            Dim cursql As String = $"
+                         SELECT
+                              fprdcd,fcustitemno
+                         FROM prdslsodrm
+                        WHERE 1=1
+                            {curWhere}
+                            "
+
+            'Const sql As String =
+            '            " SELECT fprdcd FROM prdslsodrm " &
+            '            " WHERE fcustitemno = :p_customer_item_no " &
+            '            " AND fcustcd = :p_customer_code "
 
             Using conn As New OracleConnection(_connectionString)
                 conn.Open()
-                Using cmd As New OracleCommand(sql, conn)
+                Using cmd As New OracleCommand(cursql, conn)
 
                     cmd.BindByName = True
                     cmd.CommandType = CommandType.Text
 
                     cmd.Parameters.Clear()
-                    cmd.Parameters.Add(":p_customer_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(pCustomerItemNo, 45)
                     cmd.Parameters.Add(":p_customer_code", OracleDbType.Varchar2, 25).Value = SafeVarchar(pCustomerCode, 25)
+                    cmd.Parameters.Add(":p_customer_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(pCustomerItemNo, 45)
+                    cmd.Parameters.Add(":pProductCode", OracleDbType.Varchar2, 25).Value = SafeVarchar(pProductCode, 45)
+
 
                     Dim hitCount As Integer = 0
                     Dim tempCode As String = Nothing
+                    Dim tempNo As String = Nothing
 
                     Using reader As OracleDataReader = cmd.ExecuteReader()
                         While reader.Read()
                             hitCount += 1
                             If hitCount = 1 Then
                                 tempCode = Convert.ToString(reader("fprdcd"))
+                                tempNo = Convert.ToString(reader("fcustitemno"))
                             End If
                             If hitCount > 1 Then Exit While
                         End While
@@ -1690,17 +1729,55 @@ Namespace OMS.Data
 
                     ' 件数判定
                     If hitCount = 0 Then
+                        '結果が0件
                         errorMessage = "品目No及び製品コードが取得できません。"
                         Return False
+                    ElseIf hitCount = 1 Then
+                        '結果が1件
+                        If pCustomerItemNo = "" AndAlso pProductCode <> "" Then
+                            '3.客先品目No無し、製品コード有りの場合
+                            If tempNo <> "" Then
+                                ' 客先品目Noが取得できれば正常終了
+                                Code = tempCode
+                                Return True
+                            Else
+                                errorMessage = "品目No及び製品コードが取得できません。"
+                                Return False
+                            End If
+                        Else
+                            ' 正常終了
+                            Code = tempCode
+                            Return True
+                        End If
                     ElseIf hitCount > 1 Then
-                        errorMessage = "品目No及び製品コードが複数件取得されました。"
-                        Return False
+                        '結果が複数件
+                        If pCustomerItemNo <> "" AndAlso pProductCode <> "" Then
+                            '1.客先品目No有り、製品コード有りの場合
+                            ' 正常終了
+                            Code = pProductCode
+                            Return True
+
+                        ElseIf pCustomerItemNo <> "" AndAlso pProductCode = "" Then
+                            '2.客先品目No有り、製品コード無しの場合
+                            errorMessage = "品目No及び製品コードが複数件取得されました。"
+                            Return False
+
+                        ElseIf pCustomerItemNo = "" AndAlso pProductCode <> "" Then
+                            '3.客先品目No無し、製品コード有りの場合
+                            errorMessage = "品目No及び製品コードが複数件取得されました。"
+                            Return False
+
+                        Else
+                            '4.客先品目Noも製品コードも無しの場合
+                            errorMessage = "品目No及び製品コードが取得できません。"
+                            Return False
+                        End If
                     End If
 
 
-                    ' 正常終了
-                    Code = tempCode
-                    Return True
+                    '' 正常終了
+                    'Code = tempCode
+                    'Return True
 
                 End Using
             End Using

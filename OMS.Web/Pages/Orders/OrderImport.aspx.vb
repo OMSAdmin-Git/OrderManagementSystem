@@ -669,6 +669,9 @@ Namespace Pages.Orders
                                 ErrFlg = False
                                 resultCnt = 0
 
+                                ErrCustomerCode = customerCode
+                                ErrTorikomiFile = TorikomiFile
+
                                 'デバック用
                                 '-----------------
                                 '受注ワーク削除 ※customerSettingId単位で削除
@@ -992,13 +995,16 @@ Namespace Pages.Orders
                                                     '日割前納期 ※希望納期をセット
                                                     predailydeliveryDate = dueDate
 
-                                                    '客先品目No   (必須)
+                                                    ''客先品目No   (必須)
+                                                    'customeritemNo = If(csv.ColumnCount > nKyakusakiHinmokuNo AndAlso nKyakusakiHinmokuNo > -1, csv.GetField(nKyakusakiHinmokuNo).Trim(), "")
+                                                    'If String.IsNullOrEmpty(customeritemNo) Then
+                                                    '    '必須チェック
+                                                    '    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：客先品目Noが空です。")
+                                                    '    ErrFlg = True
+                                                    'End If
+                                                    '客先品目No   (任意)
                                                     customeritemNo = If(csv.ColumnCount > nKyakusakiHinmokuNo AndAlso nKyakusakiHinmokuNo > -1, csv.GetField(nKyakusakiHinmokuNo).Trim(), "")
-                                                    If String.IsNullOrEmpty(customeritemNo) Then
-                                                        '必須チェック
-                                                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：客先品目Noが空です。")
-                                                        ErrFlg = True
-                                                    End If
+
 
                                                     '需要数   (必須)
                                                     strQtyValue = If(csv.ColumnCount > njuyouSuu AndAlso njuyouSuu > -1, csv.GetField(njuyouSuu).Trim(), "")
@@ -1063,23 +1069,25 @@ Namespace Pages.Orders
                                                         End If
                                                     End If
 
+                                                    '製品コード  （任意）
+                                                    If nSeihinCode > -1 Then
+                                                        productcode = If(csv.ColumnCount > nSeihinCode AndAlso nSeihinCode > -1, csv.GetField(nSeihinCode).Trim(), "")
+                                                        'Else
+                                                        '    '取得できない場合はSTRAMMIC.PRDSLSODRMより取得
+                                                        '    'productcode = _oderStageRepo.GetProductCode(customeritemNo, customerCode)
+                                                        '    productcode = itemNo
+                                                    End If
+
                                                     '品目No   （必須）
                                                     'STRAMMIC.PRDSLSODRMより取得
                                                     itemNo = ""
                                                     errMsg = ""
-                                                    If _oderStageRepo.GetProductCode(customeritemNo, customerCode, itemNo, errMsg) = False Then
+                                                    If _oderStageRepo.GetProductCode(customerCode, customeritemNo, productcode, itemNo, errMsg) = False Then
                                                         errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
                                                         ErrFlg = True
                                                     End If
 
-                                                    '製品コード  （取込ファイルにある場合は任意？）
-                                                    If nSeihinCode > -1 Then
-                                                        productcode = If(csv.ColumnCount > nSeihinCode AndAlso nSeihinCode > -1, csv.GetField(nSeihinCode).Trim(), "")
-                                                    Else
-                                                        '取得できない場合はSTRAMMIC.PRDSLSODRMより取得
-                                                        'productcode = _oderStageRepo.GetProductCode(customeritemNo, customerCode)
-                                                        productcode = itemNo
-                                                    End If
+
 
 
                                                     '需要単位   （任意）
@@ -1238,8 +1246,8 @@ Namespace Pages.Orders
                                                     'ここまででエラーフラグがあれば登録しない
                                                     If ErrFlg = True Then
 
-                                                        ErrCustomerCode = customerCode
-                                                        ErrTorikomiFile = TorikomiFile
+                                                        'ErrCustomerCode = customerCode
+                                                        'ErrTorikomiFile = TorikomiFile
 
                                                         fileidx += 1
                                                         errcnt += 1
@@ -1488,13 +1496,15 @@ Namespace Pages.Orders
                                                     '日割前納期 ※希望納期をセット （希望納期が必須）
                                                     predailydeliveryDate = dueDate
 
-                                                    '客先品目No   (必須)
+                                                    ''客先品目No   (必須)
+                                                    'customeritemNo = If(nKyakusakiHinmokuNo > 0, xlRow.Cell(nKyakusakiHinmokuNo).GetValue(Of String)().Trim(), "")
+                                                    'If String.IsNullOrEmpty(customeritemNo) Then
+                                                    '    '必須チェック
+                                                    '    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：客先品目Noが空です。")
+                                                    '    ErrFlg = True
+                                                    'End If
+                                                    '客先品目No   (任意)
                                                     customeritemNo = If(nKyakusakiHinmokuNo > 0, xlRow.Cell(nKyakusakiHinmokuNo).GetValue(Of String)().Trim(), "")
-                                                    If String.IsNullOrEmpty(customeritemNo) Then
-                                                        '必須チェック
-                                                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：客先品目Noが空です。")
-                                                        ErrFlg = True
-                                                    End If
 
                                                     '需要数   (必須)
                                                     strQtyValue = If(njuyouSuu > 0, xlRow.Cell(njuyouSuu).GetValue(Of String)().Trim(), "")
@@ -1560,24 +1570,25 @@ Namespace Pages.Orders
                                                         End If
                                                     End If
 
+                                                    '製品コード  （任意）
+                                                    'If nSeihinCode > -1 Then
+                                                    If nSeihinCode > 0 Then
+                                                        productcode = If(nSeihinCode > 0, xlRow.Cell(nSeihinCode).GetValue(Of String)().Trim(), "")
+                                                        'Else
+                                                        '    '取得できない場合はSTRAMMIC.PRDSLSODRMより取得
+                                                        '    productcode = itemNo
+                                                    End If
+
                                                     '品目No   （必須）
                                                     'STRAMMIC.PRDSLSODRMより取得
                                                     itemNo = ""
                                                     errMsg = ""
-                                                    If _oderStageRepo.GetProductCode(customeritemNo, customerCode, itemNo, errMsg) = False Then
+                                                    If _oderStageRepo.GetProductCode(customerCode, customeritemNo, productcode, itemNo, errMsg) = False Then
                                                         errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
                                                         ErrFlg = True
                                                     End If
 
-                                                    '製品コード  （取込ファイルにある場合は任意？）
-                                                    'If nSeihinCode > -1 Then
-                                                    If nSeihinCode > 0 Then
-                                                        productcode = If(nSeihinCode > 0, xlRow.Cell(nSeihinCode).GetValue(Of String)().Trim(), "")
-                                                    Else
-                                                        '取得できない場合はSTRAMMIC.PRDSLSODRMより取得
-                                                        'productcode = _oderStageRepo.GetProductCode(customeritemNo, customerCode)
-                                                        productcode = itemNo
-                                                    End If
+
 
                                                     '需要単位   （任意）
                                                     'STRAMMIC.ITEMMより取得
@@ -1736,8 +1747,8 @@ Namespace Pages.Orders
                                                     'ここまででエラーフラグがあれば登録しない
                                                     If ErrFlg = True Then
 
-                                                        ErrCustomerCode = customerCode
-                                                        ErrTorikomiFile = TorikomiFile
+                                                        'ErrCustomerCode = customerCode
+                                                        'ErrTorikomiFile = TorikomiFile
 
                                                         fileidx += 1
                                                         errcnt += 1
@@ -1802,7 +1813,7 @@ Namespace Pages.Orders
 
                                             '希望納期がマッピングマスタにない場合は、この後の処理が成立しないため処理を中断する。
                                             If mKibouNouki = "" Then
-                                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　マッピングマスタに不備があります。(希望納期の設定が存在しない)")
+                                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　マッピングマスタに不備があります。(マッピングマスタに希望納期の設定が存在しません)")
                                                 Continue For
                                             End If
 
@@ -1899,7 +1910,7 @@ Namespace Pages.Orders
                                                     reconciletype = 0
 
 
-                                                    '客先品目No   (必須)
+                                                    '客先品目No   (必須 ※MATRIXは製品コードがマトリックス共通表サンプルに無いので客先品目Noがないと品目Noが取得できない)
                                                     Dim cell1 As Integer = 0
                                                     'Dim cellname As String = ""
                                                     If Not String.IsNullOrEmpty(mKyakusakiHinmokuNo) Then
@@ -1916,11 +1927,14 @@ Namespace Pages.Orders
                                                     End If
 
 
+                                                    '製品コード  （マトリックス共通表サンプルに存在しない）
+                                                    productcode = ""
+
                                                     '品目No   （必須）
                                                     'STRAMMIC.PRDSLSODRMより取得
                                                     itemNo = ""
                                                     errMsg = ""
-                                                    If _oderStageRepo.GetProductCode(customeritemNo, customerCode, itemNo, errMsg) = False Then
+                                                    If _oderStageRepo.GetProductCode(customerCode, customeritemNo, productcode, itemNo, errMsg) = False Then
                                                         errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {objSheet.Cell(mKyakusakiHinmokuNo).Address.ColumnLetter & xlRow.RowNumber} ：{errMsg}")
                                                         ErrFlg = True
                                                     End If
@@ -2108,22 +2122,6 @@ Namespace Pages.Orders
                                                             End If
                                                         End If
 
-                                                        '製品コード  （取込ファイルにある場合は任意？）
-                                                        If nSeihinCode > -1 Then
-                                                            If Not String.IsNullOrEmpty(mSeihinCode) Then
-                                                                xlRow = objSheet.Row(objSheet.Cell(mSeihinCode).Address.RowNumber + (stepRow * ridx))
-                                                                productcode = If(mSeihinCode <> "", xlRow.Cell(intColIdx).GetValue(Of String)().Trim(), "")
-                                                            Else
-                                                                productcode = ""
-                                                            End If
-
-                                                        Else
-                                                            '取得できない場合はSTRAMMIC.PRDSLSODRMより取得
-                                                            'productcode = _oderStageRepo.GetProductCode(customeritemNo, customerCode)
-                                                            productcode = itemNo
-                                                        End If
-
-
                                                         '需要単位   （任意）
                                                         'STRAMMIC.ITEMMより取得
                                                         demandunit = ""
@@ -2209,8 +2207,8 @@ Namespace Pages.Orders
                                                         'ここまででエラーフラグがあれば登録しない
                                                         If ErrFlg = True Then
 
-                                                            ErrCustomerCode = customerCode
-                                                            ErrTorikomiFile = TorikomiFile
+                                                            'ErrCustomerCode = customerCode
+                                                            'ErrTorikomiFile = TorikomiFile
 
 
                                                             fileidx += 1
