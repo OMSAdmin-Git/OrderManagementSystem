@@ -1524,8 +1524,17 @@ Namespace OMS.Data
 
         End Sub
 
+        ''' <summary>
+        ''' 分割区分を取得する
+        ''' </summary>
         ''' <param name="customerSettingId">処理中の取引先設定ID</param>
-        Public Function GetProratedType(ByVal CustomerSettingId As Long, ByVal FolderType As Long) As Integer
+        ''' <param name="FolderType">処理中のフォルダタイプ</param>
+        ''' <param name="Code">取得内容</param>
+        ''' <param name="errorMessage">エラーメッセージ</param>
+        Public Function GetProratedType(ByVal CustomerSettingId As Long, ByVal FolderType As Long, ByRef Code As Integer, ByRef errorMessage As String) As Boolean
+
+            Code = 0
+            errorMessage = String.Empty
 
             Const sql As String =
                             " SELECT prorated_type FROM imp_rule_mst " &
@@ -1544,20 +1553,50 @@ Namespace OMS.Data
                     cmd.Parameters.Add(":p_customer_setting_id", OracleDbType.Int64).Value = CustomerSettingId
                     cmd.Parameters.Add(":p_folder_type", OracleDbType.Int64).Value = FolderType
 
-                    Dim obj = cmd.ExecuteScalar()
-                    If obj Is Nothing OrElse obj Is DBNull.Value Then
-                        Return Nothing
+                    Dim hitCount As Integer = 0
+                    Dim tempCode As Integer = 0
+
+                    Using reader As OracleDataReader = cmd.ExecuteReader()
+                        While reader.Read()
+                            hitCount += 1
+                            If hitCount = 1 Then
+                                tempCode = Convert.ToInt16(reader("prorated_type"))
+                            End If
+                            If hitCount > 1 Then Exit While
+                        End While
+                    End Using
+
+                    ' 件数判定
+                    If hitCount = 0 Then
+                        errorMessage = "分割区分が取得できません。"
+                        Return False
+                    ElseIf hitCount > 1 Then
+                        errorMessage = "分割区分が複数件取得されました。"
+                        Return False
                     End If
-                    Return Convert.ToString(obj)
+
+
+                    ' 正常終了
+                    Code = tempCode
+                    Return True
 
                 End Using
             End Using
 
         End Function
 
-        Public Function GetCurrencyCode(ByVal CustomerCode As String) As String
+        ''' <summary>
+        ''' 通貨コードを取得する
+        ''' </summary>
+        ''' <param name="CustomerCode">処理中の取引先コード</param>
+        ''' <param name="Code">取得内容</param>
+        ''' <param name="errorMessage">エラーメッセージ</param>
+        Public Function GetCurrencyCode(ByVal CustomerCode As String, ByRef Code As String, ByRef errorMessage As String) As Boolean
 
             Dim pCustomerCode As String = If(String.IsNullOrWhiteSpace(CustomerCode), Nothing, CustomerCode.Trim())
+            'Code = Nothing
+            Code = ""
+            errorMessage = String.Empty
 
             Const sql As String =
                         " SELECT fcurr FROM sectm " &
@@ -1573,26 +1612,53 @@ Namespace OMS.Data
                     cmd.Parameters.Clear()
                     cmd.Parameters.Add(":p_customer_code", OracleDbType.Varchar2, 25).Value = SafeVarchar(pCustomerCode, 25)
 
-                    Dim obj = cmd.ExecuteScalar()
-                    If obj Is Nothing OrElse obj Is DBNull.Value Then
-                        Return Nothing
+                    Dim hitCount As Integer = 0
+                    Dim tempCode As String = Nothing
+
+                    Using reader As OracleDataReader = cmd.ExecuteReader()
+                        While reader.Read()
+                            hitCount += 1
+                            If hitCount = 1 Then
+                                tempCode = Convert.ToString(reader("fcurr"))
+                            End If
+                            If hitCount > 1 Then Exit While
+                        End While
+                    End Using
+
+                    ' 件数判定
+                    If hitCount = 0 Then
+                        errorMessage = "通貨コードが取得できません。"
+                        Return False
+                    ElseIf hitCount > 1 Then
+                        errorMessage = "通貨コードが複数件取得されました。"
+                        Return False
                     End If
-                    Return Convert.ToString(obj)
+
+
+                    ' 正常終了
+                    Code = tempCode
+                    Return True
 
                 End Using
             End Using
 
         End Function
 
-        'Public Function GetProductCode(ByVal CustomerItemNo As String) As String
-        Public Function GetProductCode(ByVal CustomerItemNo As String, ByVal CustomerCode As String) As String
+        ''' <summary>
+        ''' 製品コード(品目No)を取得する
+        ''' </summary>
+        ''' <param name="CustomerItemNo">処理中の客先品目No</param>
+        ''' <param name="CustomerCode">処理中の取引先コード</param>
+        ''' <param name="Code">取得内容</param>
+        ''' <param name="errorMessage">エラーメッセージ</param>
+        Public Function GetProductCode(ByVal CustomerItemNo As String, ByVal CustomerCode As String, ByRef Code As String, ByRef errorMessage As String) As Boolean
 
             Dim pCustomerItemNo As String = If(String.IsNullOrWhiteSpace(CustomerItemNo), Nothing, CustomerItemNo.Trim())
             Dim pCustomerCode As String = If(String.IsNullOrWhiteSpace(CustomerCode), Nothing, CustomerCode.Trim())
+            'Code = Nothing
+            Code = ""
+            errorMessage = String.Empty
 
-            'Const sql As String =
-            '            " SELECT fprdcd FROM prdslsodrm " &
-            '            " WHERE fcustitemno = :p_customer_item_no "
             Const sql As String =
                         " SELECT fprdcd FROM prdslsodrm " &
                         " WHERE fcustitemno = :p_customer_item_no " &
@@ -1609,20 +1675,50 @@ Namespace OMS.Data
                     cmd.Parameters.Add(":p_customer_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(pCustomerItemNo, 45)
                     cmd.Parameters.Add(":p_customer_code", OracleDbType.Varchar2, 25).Value = SafeVarchar(pCustomerCode, 25)
 
-                    Dim obj = cmd.ExecuteScalar()
-                    If obj Is Nothing OrElse obj Is DBNull.Value Then
-                        Return Nothing
+                    Dim hitCount As Integer = 0
+                    Dim tempCode As String = Nothing
+
+                    Using reader As OracleDataReader = cmd.ExecuteReader()
+                        While reader.Read()
+                            hitCount += 1
+                            If hitCount = 1 Then
+                                tempCode = Convert.ToString(reader("fprdcd"))
+                            End If
+                            If hitCount > 1 Then Exit While
+                        End While
+                    End Using
+
+                    ' 件数判定
+                    If hitCount = 0 Then
+                        errorMessage = "品目No及び製品コードが取得できません。"
+                        Return False
+                    ElseIf hitCount > 1 Then
+                        errorMessage = "品目No及び製品コードが複数件取得されました。"
+                        Return False
                     End If
-                    Return Convert.ToString(obj)
+
+
+                    ' 正常終了
+                    Code = tempCode
+                    Return True
 
                 End Using
             End Using
 
         End Function
 
-        Public Function GetDemandUnit(ByVal ProductCode As String) As String
+        ''' <summary>
+        ''' 需要単位を取得する
+        ''' </summary>
+        ''' <param name="ProductCode">処理中の製品コード</param>
+        ''' <param name="Code">取得内容</param>
+        ''' <param name="errorMessage">エラーメッセージ</param>
+        Public Function GetDemandUnit(ByVal ProductCode As String, ByRef Code As String, ByRef errorMessage As String) As Boolean
 
             Dim pProductCode As String = If(String.IsNullOrWhiteSpace(ProductCode), Nothing, ProductCode.Trim())
+            'Code = Nothing
+            Code = ""
+            errorMessage = String.Empty
 
             Const sql As String =
                         " SELECT funit FROM itemm " &
@@ -1638,22 +1734,53 @@ Namespace OMS.Data
                     cmd.Parameters.Clear()
                     cmd.Parameters.Add(":p_product_code", OracleDbType.Varchar2, 45).Value = SafeVarchar(pProductCode, 45)
 
-                    Dim obj = cmd.ExecuteScalar()
-                    If obj Is Nothing OrElse obj Is DBNull.Value Then
-                        Return Nothing
+                    Dim hitCount As Integer = 0
+                    Dim tempCode As String = Nothing
+
+                    Using reader As OracleDataReader = cmd.ExecuteReader()
+                        While reader.Read()
+                            hitCount += 1
+                            If hitCount = 1 Then
+                                tempCode = Convert.ToString(reader("funit"))
+                            End If
+                            If hitCount > 1 Then Exit While
+                        End While
+                    End Using
+
+                    ' 件数判定
+                    If hitCount = 0 Then
+                        errorMessage = "需要単位が取得できません。"
+                        Return False
+                    ElseIf hitCount > 1 Then
+                        errorMessage = "需要単位が複数件取得されました。"
+                        Return False
                     End If
-                    Return Convert.ToString(obj)
+
+
+                    ' 正常終了
+                    Code = tempCode
+                    Return True
 
                 End Using
             End Using
 
         End Function
 
-        Public Function GetShipStockLocation(ByVal CustomerCode As String, ByVal DeliveryCode As String) As String
+        ''' <summary>
+        ''' 出荷在庫場所を取得する
+        ''' </summary>
+        ''' <param name="CustomerCode">処理中の取引先コード</param>
+        ''' <param name="DeliveryCode">処理中の納入先コード</param>
+        ''' <param name="Code">取得内容</param>
+        ''' <param name="errorMessage">エラーメッセージ</param>
+        Public Function GetShipStockLocation(ByVal CustomerCode As String, ByVal DeliveryCode As String, ByRef Code As String, ByRef errorMessage As String) As Boolean
 
             Dim pCustomerCode As String = If(String.IsNullOrWhiteSpace(CustomerCode), Nothing, CustomerCode.Trim())
             Dim pDeliveryCode As String = If(String.IsNullOrWhiteSpace(DeliveryCode), Nothing, DeliveryCode.Trim())
             Dim currentfuppsect As String = Nothing   '上位部署
+            'Code = Nothing
+            Code = ""
+            errorMessage = String.Empty
 
             Const sql As String =
                         " SELECT fuppsect FROM sectm " &
@@ -1671,7 +1798,9 @@ Namespace OMS.Data
 
                     Dim obj = cmd.ExecuteScalar()
                     If obj Is Nothing OrElse obj Is DBNull.Value Then
-                        Return Nothing
+                        'Return Nothing
+                        errorMessage = "出荷在庫場所が取得できません。"
+                        Return False
                     End If
                     currentfuppsect = Convert.ToString(obj)
 
@@ -1691,17 +1820,41 @@ Namespace OMS.Data
 
                         cmd.Parameters.Clear()
                         cmd.Parameters.Add(":p_customer_code", OracleDbType.Varchar2, 25).Value = SafeVarchar(pCustomerCode & pDeliveryCode, 25)
+
                         If currentfuppsect <> "F" Then
+                            '電子機器の場合は優先順位1
                             cmd.Parameters.Add(":p_fuppsect", OracleDbType.Int64).Value = 1
                         Else
+                            'ハーネスの場合は優先順位2
                             cmd.Parameters.Add(":p_fuppsect", OracleDbType.Int64).Value = 2
                         End If
 
-                        Dim obj = cmd.ExecuteScalar()
-                        If obj Is Nothing OrElse obj Is DBNull.Value Then
-                            Return Nothing
+                        Dim hitCount As Integer = 0
+                        Dim tempCode As String = Nothing
+
+                        Using reader As OracleDataReader = cmd.ExecuteReader()
+                            While reader.Read()
+                                hitCount += 1
+                                If hitCount = 1 Then
+                                    tempCode = Convert.ToString(reader("fshpwhcd"))
+                                End If
+                                If hitCount > 1 Then Exit While
+                            End While
+                        End Using
+
+                        ' 件数判定
+                        If hitCount = 0 Then
+                            errorMessage = "出荷在庫場所が取得できません。"
+                            Return False
+                        ElseIf hitCount > 1 Then
+                            errorMessage = "出荷在庫場所が複数件取得されました。"
+                            Return False
                         End If
-                        Return Convert.ToString(obj)
+
+
+                        ' 正常終了
+                        Code = tempCode
+                        Return True
 
 
                     End Using
@@ -1714,10 +1867,20 @@ Namespace OMS.Data
 
         End Function
 
+        ''' ''' <summary>
+        ''' 情報区分を取得する
+        ''' </summary>
         ''' <param name="customerSettingId">処理中の取引先設定ID</param>
-        Public Function GetInfoType(ByVal CustomerSettingId As Long, ByVal CustomerInfoType As String) As String
+        ''' <param name="CustomerInfoType">処理中の取引先情報区分</param>
+        ''' <param name="Code">取得内容</param>
+        ''' <param name="errorMessage">エラーメッセージ</param>
+        Public Function GetInfoType(ByVal CustomerSettingId As Long, ByVal CustomerInfoType As String, ByRef Code As String, ByRef errorMessage As String) As Boolean
 
             Dim pCustomerInfoType As String = If(String.IsNullOrWhiteSpace(CustomerInfoType), Nothing, CustomerInfoType.Trim())
+            ''Code = Nothing
+            Code = ""
+            Code = ""
+            errorMessage = String.Empty
 
             Const sql As String =
                             " SELECT info_type FROM info_type_mst " &
@@ -1736,19 +1899,49 @@ Namespace OMS.Data
                     cmd.Parameters.Add(":p_customer_setting_id", OracleDbType.Int64).Value = CustomerSettingId
                     cmd.Parameters.Add(":p_customer_info_type", OracleDbType.Varchar2, 50).Value = SafeVarchar(pCustomerInfoType, 50)
 
-                    Dim obj = cmd.ExecuteScalar()
-                    If obj Is Nothing OrElse obj Is DBNull.Value Then
-                        Return Nothing
+                    Dim hitCount As Integer = 0
+                    Dim tempCode As String = Nothing
+
+                    Using reader As OracleDataReader = cmd.ExecuteReader()
+                        While reader.Read()
+                            hitCount += 1
+                            If hitCount = 1 Then
+                                tempCode = Convert.ToString(reader("info_type"))
+                            End If
+                            If hitCount > 1 Then Exit While
+                        End While
+                    End Using
+
+                    ' 件数判定
+                    If hitCount = 0 Then
+                        errorMessage = "情報区分が取得できません。"
+                        Return False
+                    ElseIf hitCount > 1 Then
+                        errorMessage = "情報区分が複数件取得されました。"
+                        Return False
                     End If
-                    Return Convert.ToString(obj)
+
+
+                    ' 正常終了
+                    Code = tempCode
+                    Return True
 
                 End Using
             End Using
 
         End Function
 
+        ''' ''' <summary>
+        ''' 消込条件区分を取得する
+        ''' </summary>
         ''' <param name="customerSettingId">処理中の取引先設定ID</param>
-        Public Function GetReconcileType(ByVal CustomerSettingId As Long, ByVal FolderType As Long) As Integer
+        ''' <param name="FolderType">処理中のフォルダタイプ</param>
+        ''' <param name="Code">取得内容</param>
+        ''' <param name="errorMessage">エラーメッセージ</param>
+        Public Function GetReconcileType(ByVal CustomerSettingId As Long, ByVal FolderType As Long, ByRef Code As Integer, ByRef errorMessage As String) As Boolean
+
+            Code = 0
+            errorMessage = String.Empty
 
             Const sql As String =
                             " SELECT reconcile_type FROM imp_rule_mst " &
@@ -1767,11 +1960,32 @@ Namespace OMS.Data
                     cmd.Parameters.Add(":p_customer_setting_id", OracleDbType.Int64).Value = CustomerSettingId
                     cmd.Parameters.Add(":p_folder_type", OracleDbType.Int64).Value = FolderType
 
-                    Dim obj = cmd.ExecuteScalar()
-                    If obj Is Nothing OrElse obj Is DBNull.Value Then
-                        Return Nothing
+                    Dim hitCount As Integer = 0
+                    Dim tempCode As Integer = 0
+
+                    Using reader As OracleDataReader = cmd.ExecuteReader()
+                        While reader.Read()
+                            hitCount += 1
+                            If hitCount = 1 Then
+                                tempCode = Convert.ToInt16(reader("reconcile_type"))
+                            End If
+                            If hitCount > 1 Then Exit While
+                        End While
+                    End Using
+
+                    ' 件数判定
+                    If hitCount = 0 Then
+                        errorMessage = "消込条件区分が取得できません。"
+                        Return False
+                    ElseIf hitCount > 1 Then
+                        errorMessage = "消込条件区分が複数件取得されました。"
+                        Return False
                     End If
-                    Return Convert.ToString(obj)
+
+
+                    ' 正常終了
+                    Code = tempCode
+                    Return True
 
                 End Using
             End Using
@@ -1783,23 +1997,22 @@ Namespace OMS.Data
         ''' </summary>
         ''' <param name="CustomerCode">処理中の取引先コード</param>
         ''' <param name="DeliveryCode">処理中の納入先コード</param>
-        Public Function GetShipTo(ByVal CustomerCode As String, ByVal DeliveryCode As String) As String
+        ''' <param name="Code">取得内容</param>
+        ''' <param name="errorMessage">エラーメッセージ</param>
+        Public Function GetShipTo(ByVal CustomerCode As String, ByVal DeliveryCode As String, ByRef Code As String, ByRef errorMessage As String) As Boolean
 
             Dim pCustomerCode As String = If(String.IsNullOrWhiteSpace(CustomerCode), Nothing, CustomerCode.Trim())
             Dim pDeliveryCode As String = If(String.IsNullOrWhiteSpace(DeliveryCode), Nothing, DeliveryCode.Trim())
+            'Code = Nothing
+            Code = ""
+            errorMessage = String.Empty
 
-            '2026/06/01 酒井 st
-            'Const sql As String =
-            '            " SELECT fsectcd FROM sectd " &
-            '            " WHERE fsecttyp = 'ST' " &
-            '            " AND fsectcd = :p_customer_code "
             Const sql As String =
                         " SELECT sectm.fsectcd FROM sectm " &
                         " INNER JOIN sectd ON sectm.fsectcd = sectd.fsectcd " &
                         " AND sectd.fsecttyp = 'ST' " &
                         " WHERE 1=1 " &
                         " AND sectm.fsectcd = :p_customer_code "
-            '2026/06/01 酒井 ed
 
             Using conn As New OracleConnection(_connectionString)
                 conn.Open()
@@ -1811,11 +2024,32 @@ Namespace OMS.Data
                     cmd.Parameters.Clear()
                     cmd.Parameters.Add(":p_customer_code", OracleDbType.Varchar2, 25).Value = SafeVarchar(pCustomerCode & pDeliveryCode, 25)
 
-                    Dim obj = cmd.ExecuteScalar()
-                    If obj Is Nothing OrElse obj Is DBNull.Value Then
-                        Return Nothing
+                    Dim hitCount As Integer = 0
+                    Dim tempCode As String = Nothing
+
+                    Using reader As OracleDataReader = cmd.ExecuteReader()
+                        While reader.Read()
+                            hitCount += 1
+                            If hitCount = 1 Then
+                                tempCode = Convert.ToString(reader("fsectcd"))
+                            End If
+                            If hitCount > 1 Then Exit While
+                        End While
+                    End Using
+
+                    ' 件数判定
+                    If hitCount = 0 Then
+                        errorMessage = "出荷先が存在しません。"
+                        Return False
+                    ElseIf hitCount > 1 Then
+                        errorMessage = "出荷先が複数件取得されました。"
+                        Return False
                     End If
-                    Return Convert.ToString(obj)
+
+
+                    ' 正常終了
+                    Code = tempCode
+                    Return True
 
                 End Using
             End Using
@@ -1827,9 +2061,14 @@ Namespace OMS.Data
         ''' 請求先を取得する
         ''' </summary>
         ''' <param name="CustomerCode">処理中の取引先コード</param>
-        Public Function GetBillingTo(ByVal CustomerCode As String) As String
+        ''' <param name="Code">取得内容</param>
+        ''' <param name="errorMessage">エラーメッセージ</param>
+        Public Function GetBillingTo(ByVal CustomerCode As String, ByRef Code As String, ByRef errorMessage As String) As Boolean
 
             Dim pCustomerCode As String = If(String.IsNullOrWhiteSpace(CustomerCode), Nothing, CustomerCode.Trim())
+            'Code = Nothing
+            Code = ""
+            errorMessage = String.Empty
 
             Const sql As String =
                         " SELECT sectm.fbilltocd FROM sectm " &
@@ -1848,44 +2087,39 @@ Namespace OMS.Data
                     cmd.Parameters.Clear()
                     cmd.Parameters.Add(":p_customer_code", OracleDbType.Varchar2, 25).Value = SafeVarchar(pCustomerCode, 25)
 
-                    Dim obj = cmd.ExecuteScalar()
-                    If obj Is Nothing OrElse obj Is DBNull.Value Then
-                        Return Nothing
+                    Dim hitCount As Integer = 0
+                    Dim tempCode As String = Nothing
+
+                    Using reader As OracleDataReader = cmd.ExecuteReader()
+                        While reader.Read()
+                            hitCount += 1
+                            If hitCount = 1 Then
+                                tempCode = Convert.ToString(reader("fbilltocd"))
+                            End If
+                            If hitCount > 1 Then Exit While
+                        End While
+                    End Using
+
+                    ' 件数判定
+                    If hitCount = 0 Then
+                        errorMessage = "請求先が存在しません。"
+                        Return False
+                    ElseIf hitCount > 1 Then
+                        errorMessage = "請求先が複数件取得されました。"
+                        Return False
                     End If
-                    Return Convert.ToString(obj)
+
+
+                    ' 正常終了
+                    Code = tempCode
+                    Return True
+
 
                 End Using
             End Using
 
         End Function
         '2026/06/01 酒井 ed
-
-        Public Function GetBillingTo() As String
-
-            Const sql As String =
-                        " SELECT sectm.fbilltocd FROM sectm " &
-                        " INNER JOIN sectd ON sectm.fsectcd = sectd.fsectcd " &
-                        " WHERE sectd.fsecttyp = 'CU' "
-
-            Using conn As New OracleConnection(_connectionString)
-                conn.Open()
-                Using cmd As New OracleCommand(sql, conn)
-
-                    cmd.BindByName = True
-                    cmd.CommandType = CommandType.Text
-
-                    cmd.Parameters.Clear()
-
-                    Dim obj = cmd.ExecuteScalar()
-                    If obj Is Nothing OrElse obj Is DBNull.Value Then
-                        Return Nothing
-                    End If
-                    Return Convert.ToString(obj)
-
-                End Using
-            End Using
-
-        End Function
 
         Public Function InsertRange(ByVal tran As OracleTransaction, records As IEnumerable(Of OrdersStageRow)) As Integer
             'If records Is Nothing Then Return
@@ -1935,83 +2169,66 @@ Namespace OMS.Data
                     cmd.Parameters.Clear()
 
                     ' 例：文字列は SafeVarchar で桁超を丸め（定義長に合わせる）
-                    'cmd.Parameters.Add(":p_customer_setting_id", OracleDbType.Varchar2, 25).Value = SafeVarchar(r.CustomerSettingId, 25)
                     cmd.Parameters.Add(":p_customer_setting_id", OracleDbType.Int64).Value = r.CustomerSettingId ' NUMBER(10,0)
-                    cmd.Parameters.Add(":p_customer_code", OracleDbType.Varchar2, 25).Value = SafeVarchar(r.CustomerCode, 25)
-                    cmd.Parameters.Add(":p_billing_to", OracleDbType.Varchar2, 25).Value = SafeVarchar(r.BillingTo, 25)
-                    cmd.Parameters.Add(":p_customer_order_no", OracleDbType.Varchar2, 40).Value = SafeVarchar(r.CustomerOrderNo, 40)
-                    'cmd.Parameters.Add(":p_demand_status", OracleDbType.Char, 1).Value = NormalizeYN(r.DemandStatus) ' 1桁記号想定
+                    cmd.Parameters.Add(":p_customer_code", OracleDbType.Varchar2, 25).Value = SafeVarcharLength(r.CustomerCode, 25)
+                    cmd.Parameters.Add(":p_billing_to", OracleDbType.Varchar2, 25).Value = SafeVarcharLength(r.BillingTo, 25)
+                    cmd.Parameters.Add(":p_customer_order_no", OracleDbType.Varchar2, 40).Value = SafeVarcharLength(r.CustomerOrderNo, 40)
                     cmd.Parameters.Add(":p_demand_status", OracleDbType.Char, 1).Value = SafeVarchar(r.DemandStatus, 1)
-                    cmd.Parameters.Add(":p_ship_to", OracleDbType.Varchar2, 25).Value = SafeVarchar(r.ShipTo, 25)
-
+                    cmd.Parameters.Add(":p_ship_to", OracleDbType.Varchar2, 25).Value = SafeVarcharLength(r.ShipTo, 25)
                     cmd.Parameters.Add(":p_order_date", OracleDbType.Date).Value = r.OrderDate
                     cmd.Parameters.Add(":p_due_date", OracleDbType.Date).Value = r.DueDate
                     cmd.Parameters.Add(":p_ship_scheduled_date", OracleDbType.Date).Value = r.ShipScheduledDate
-
-                    cmd.Parameters.Add(":p_customer_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.CustomerItemNo, 45)
-                    cmd.Parameters.Add(":p_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.ItemNo, 45)
-
+                    cmd.Parameters.Add(":p_customer_item_no", OracleDbType.Varchar2, 45).Value = SafeVarcharLength(r.CustomerItemNo, 45)
+                    cmd.Parameters.Add(":p_item_no", OracleDbType.Varchar2, 45).Value = SafeVarcharLength(r.ItemNo, 45)
                     cmd.Parameters.Add(":p_demand_qty", OracleDbType.Int64).Value = r.DemandQty ' NUMBER(10,0)
-                    cmd.Parameters.Add(":p_demand_unit", OracleDbType.Varchar2, 4).Value = SafeVarchar(r.DemandUnit, 4)
-                    cmd.Parameters.Add(":p_currency_code", OracleDbType.Varchar2, 3).Value = SafeVarchar(r.CurrencyCode, 3)
-                    cmd.Parameters.Add(":p_ship_stock_location", OracleDbType.Varchar2, 25).Value = SafeVarchar(r.ShipStockLocation, 25)
-                    cmd.Parameters.Add(":p_company_id", OracleDbType.Varchar2, 25).Value = SafeVarchar(r.CompanyId, 25)
-
-                    cmd.Parameters.Add(":p_product_code", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.ProductCode, 45)
+                    cmd.Parameters.Add(":p_demand_unit", OracleDbType.Varchar2, 4).Value = SafeVarcharLength(r.DemandUnit, 4)
+                    cmd.Parameters.Add(":p_currency_code", OracleDbType.Varchar2, 3).Value = SafeVarcharLength(r.CurrencyCode, 3)
+                    cmd.Parameters.Add(":p_ship_stock_location", OracleDbType.Varchar2, 25).Value = SafeVarcharLength(r.ShipStockLocation, 25)
+                    cmd.Parameters.Add(":p_company_id", OracleDbType.Varchar2, 25).Value = SafeVarcharLength(r.CompanyId, 25)
+                    cmd.Parameters.Add(":p_product_code", OracleDbType.Varchar2, 45).Value = SafeVarcharLength(r.ProductCode, 45)
                     cmd.Parameters.Add(":p_billing_standard", OracleDbType.Varchar2, 3).Value = SafeVarchar(r.BillingStandard, 3)
                     cmd.Parameters.Add(":p_ship_process_type", OracleDbType.Char, 1).Value = SafeVarchar(r.ShipProcessType, 1)
                     cmd.Parameters.Add(":p_delivery_instr_flag", OracleDbType.Char, 1).Value = NormalizeYN(r.DeliveryInstrFlag)
-
                     cmd.Parameters.Add(":p_order_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.OrderNo, 45)
                     cmd.Parameters.Add(":p_remarks", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.Remarks, 45)
-                    cmd.Parameters.Add(":p_delivery_code", OracleDbType.Varchar2, 25).Value = SafeVarchar(r.DeliveryCode, 25)
-
+                    cmd.Parameters.Add(":p_delivery_code", OracleDbType.Varchar2, 25).Value = SafeVarcharLength(r.DeliveryCode, 25)
                     'cmd.Parameters.Add(":p_order_time", OracleDbType.Decimal).Value = r.OrderTime       ' NUMBER(18,6)
                     'cmd.Parameters.Add(":p_sales_unit_price", OracleDbType.Decimal).Value = r.SalesUnitPrice  ' NUMBER(18,6)
                     'cmd.Parameters.Add(":p_delivery_time", OracleDbType.Decimal).Value = r.DeliveryTime    ' NUMBER(18,6)
                     'cmd.Parameters.Add(":p_usage_location", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.UsageLocation, 45)
-
                     cmd.Parameters.Add(":p_total_ship_qty", OracleDbType.Decimal).Value = r.TotalShipQty
                     'cmd.Parameters.Add(":p_production_category", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.ProductionCategory, 45)
                     'cmd.Parameters.Add(":p_char_2", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.Char2, 45)
                     'cmd.Parameters.Add(":p_container_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.ContainerNo, 45)
-
                     'cmd.Parameters.Add(":p_char_3", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.Char3, 45)
                     'cmd.Parameters.Add(":p_char_4", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.Char4, 45)
                     'cmd.Parameters.Add(":p_char_4_2", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.Char4_2, 45)
                     'cmd.Parameters.Add(":p_char_5", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.Char5, 45)
                     'cmd.Parameters.Add(":p_char_5_2", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.Char5_2, 45)
                     'cmd.Parameters.Add(":p_char_6", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.Char6, 45)
-
                     'cmd.Parameters.Add(":p_order_reason", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.OrderReason, 45)
                     'cmd.Parameters.Add(":p_container_capacity", OracleDbType.Decimal).Value = r.ContainerCapacity
                     'cmd.Parameters.Add(":p_customer_lot_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.CustomerLotNo, 45)
                     'cmd.Parameters.Add(":p_initial_flag", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.InitialFlag, 45)
-
                     cmd.Parameters.Add(":p_ship_date", OracleDbType.Date).Value = r.ShipDate
                     'cmd.Parameters.Add(":p_char_50", OracleDbType.Varchar2, 60).Value = SafeVarchar(r.Char50, 60)
                     cmd.Parameters.Add(":p_transport_method", OracleDbType.Varchar2, 3).Value = SafeVarchar(r.TransportMethod, 3)
                     cmd.Parameters.Add(":p_ship_plan_date", OracleDbType.Date).Value = r.ShipPlanDate
                     cmd.Parameters.Add(":p_customer_order_line_no", OracleDbType.Varchar2, 2).Value = SafeVarchar(r.CustomerOrderLineNo, 2)
-
                     cmd.Parameters.Add(":p_pre_daily_order_qty", OracleDbType.Decimal).Value = r.PreDailyOrderQty
                     cmd.Parameters.Add(":p_pre_daily_delivery_date", OracleDbType.Date).Value = r.PreDailyDeliveryDate
-
                     cmd.Parameters.Add(":p_imp_file_stage_id", OracleDbType.Int64).Value = r.ImpFileStageId ' NUMBER(10,0)
                     cmd.Parameters.Add(":p_imp_file_id", OracleDbType.Int64).Value = r.ImpFileId ' NUMBER(10,0)
-
                     cmd.Parameters.Add(":p_order_type", OracleDbType.Int16).Value = r.OrderType       ' NUMBER(1,0)
                     cmd.Parameters.Add(":p_prorated_type", OracleDbType.Int16).Value = r.ProratedType    ' NUMBER(1,0)
                     cmd.Parameters.Add(":p_customer_info_type", OracleDbType.Varchar2, 50).Value = SafeVarchar(r.CustomerInfoType, 50)
                     cmd.Parameters.Add(":p_info_type", OracleDbType.Char, 1).Value = SafeVarchar(r.InfoType, 1)
                     cmd.Parameters.Add(":p_self_fcst_flag", OracleDbType.Char, 1).Value = NormalizeYN(r.SelfFcstFlag)
                     cmd.Parameters.Add(":p_self_fcst_delete_flag", OracleDbType.Char, 1).Value = NormalizeYN(r.SelfFcstDeleteFlag)
-
                     cmd.Parameters.Add(":p_reconcile_type", OracleDbType.Int16).Value = r.ReconcileType   ' NUMBER(1,0)
                     cmd.Parameters.Add(":p_imp_run_id", OracleDbType.Long).Value = r.ImpRunId
                     cmd.Parameters.Add(":p_status", OracleDbType.Varchar2, 20).Value = SafeVarchar(r.Status, 20)
                     cmd.Parameters.Add(":p_active_flag", OracleDbType.Char, 1).Value = NormalizeYN(r.ActiveFlag)
-
                     ' 監査
                     cmd.Parameters.Add(":p_created_at", OracleDbType.Date).Value = r.CreatedAt
                     cmd.Parameters.Add(":p_created_user_id", OracleDbType.Varchar2, 9).Value = SafeVarchar(r.CreatedUserId, 9)
@@ -3281,6 +3498,66 @@ Namespace OMS.Data
             End Using
 
         End Sub
+
+        ''' <summary>
+        ''' ログインユーザーが担当する加工済みの受注ワークデータを取込ファイルID単位で削除する
+        ''' </summary>
+        ''' <param name="tran">トランザクション</param>
+        ''' <param name="LoginUserId">ログインユーザーID</param>
+        ''' <param name="impFileStageId">処理中の一時取込ファイルID</param>
+        Public Function DeleteProcessedOrdersByFileId(ByVal tran As OracleTransaction, ByVal LoginUserId As String, ByVal impFileStageId As Long) As Integer
+
+            Dim DeleteCount As Integer = 0
+
+            Dim pLoginUserId As String = If(String.IsNullOrWhiteSpace(LoginUserId), Nothing, LoginUserId.Trim())
+
+            Dim sql As String = " DELETE FROM orders_stage os " &
+                                " WHERE os.status = 'PROCESSED' "
+
+            Dim isAdmin As Boolean = String.Equals(LoginUserId, AdminUserID, StringComparison.OrdinalIgnoreCase)
+
+            If Not isAdmin Then
+                '通常ユーザー
+                sql &= " AND EXISTS ( " &
+                       "     SELECT 1 " &
+                       "     FROM customer_setting_mst csm " &
+                       "     WHERE csm.customer_setting_id = os.customer_setting_id " &
+                       "     AND UPPER(csm.prod_mgmt_user_id) = UPPER(:p_login_user_id) " &
+                       "     AND os.imp_file_stage_id = :p_imp_file_stage_id " &
+                       " ) "
+            Else
+                '管理者
+                sql &= " AND EXISTS ( " &
+                       "     SELECT 1 " &
+                       "     FROM customer_setting_mst csm " &
+                       "     WHERE csm.customer_setting_id = os.customer_setting_id " &
+                       "     AND os.imp_file_stage_id = :p_imp_file_stage_id " &
+                       " ) "
+            End If
+
+            Using cmd As New OracleCommand(sql, tran.Connection)
+                cmd.Transaction = tran
+                cmd.BindByName = True
+                cmd.CommandType = CommandType.Text
+
+                cmd.Parameters.Clear()
+
+                If Not isAdmin Then
+                    ' パラメータ設定
+                    cmd.Parameters.Add(":p_login_user_id", OracleDbType.Varchar2, 9).Value = SafeVarchar(pLoginUserId, 9)
+                End If
+
+                ' パラメータ設定
+                cmd.Parameters.Add(":p_imp_file_stage_id", OracleDbType.Int64).Value = impFileStageId
+
+                ' 実行（一致するレコードを一括で更新）
+                DeleteCount = cmd.ExecuteNonQuery()
+
+            End Using
+
+            Return DeleteCount
+
+        End Function
 
         ''' <summary>
         ''' ログインユーザーが担当する加工済みの受注ワークデータを削除する
