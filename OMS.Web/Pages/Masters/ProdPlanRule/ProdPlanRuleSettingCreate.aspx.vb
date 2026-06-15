@@ -344,9 +344,18 @@ Namespace Pages.Masters.ProdPlanRule
                 End If
 
                 ' まるめ数　入力チェック
-                If splitRoudingUnit < 0 Then
-                    lblError.Text = "まるめ数が不正です。"
-                    Return
+                ' まるめ数入力欄が文字だったら入力をマイナスにする
+                ' 入力なしの場合はチェックしない
+                If splitRoudingUnit <> "" Then
+                    Dim qty As Integer
+                    Dim hasQty As Boolean = Integer.TryParse(splitRoudingUnit, qty)
+                    If Not hasQty Then
+                        splitRoudingUnit = "-1"
+                    End If
+                    If splitRoudingUnit < 0 Then
+                        lblError.Text = "まるめ数が不正です。"
+                        Return
+                    End If
                 End If
 
                 ' ▼ 1) ヘッダーをINSERTして新しい ProfileId を採番（ヘッダー入力欄のID確定後に実装）
