@@ -289,6 +289,8 @@ Namespace Pages.Orders
             Dim resultRowCnt As Integer = 0
             Dim resultAllCnt As Integer = 0
 
+            Dim ReDrawFlg As Boolean = False
+
             '---------------------------------------------------------------
             'グリッド内のチェック状態チェック
             '---------------------------------------------------------------
@@ -399,6 +401,8 @@ Namespace Pages.Orders
                 Dim preImpFileStageId As Long = -1  '前回の取込ファイルID保持用
 
                 Dim isTruncated As Boolean = False
+
+
 
                 Dim ErrFlg As Boolean = False
                 Dim tran As OracleTransaction = Nothing
@@ -557,6 +561,8 @@ Namespace Pages.Orders
                                         'tran.Rollback()
 
                                         errors.Add($" 取引先コード：{ErrCustomerCode}　取込ファイル：[{ErrTorikomiFile} ]　はデータ不備のため取込実行から除外されました。")
+
+                                        ReDrawFlg = True
 
                                         '取込不可の際はimp_files_stageテーブルのステータスをFAILEDに更新
                                         '_impFileStageRepo.UpdateImpFileStageStatus(impfilestageId)
@@ -923,6 +929,7 @@ Namespace Pages.Orders
                                                         ordertype = folderType
 
                                                         '分割区分   (任意)
+                                                        'INFO_TYPE_MSTより取得
                                                         proratedtype = 0
                                                         errMsg = ""
                                                         If _oderStageRepo.GetProratedType(customerSettingId, folderType, proratedtype, errMsg) = False Then
@@ -980,17 +987,6 @@ Namespace Pages.Orders
 
                                                     '日割前納期 ※希望納期をセット
                                                     predailydeliveryDate = dueDate
-
-                                                    ''客先品目No   (必須)
-                                                    'customeritemNo = If(csv.ColumnCount > nKyakusakiHinmokuNo AndAlso nKyakusakiHinmokuNo > -1, csv.GetField(nKyakusakiHinmokuNo).Trim(), "")
-                                                    'If String.IsNullOrEmpty(customeritemNo) Then
-                                                    '    '必須チェック
-                                                    '    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：客先品目Noが空です。")
-                                                    '    ErrFlg = True
-                                                    'End If
-                                                    '客先品目No   (任意)
-                                                    customeritemNo = If(csv.ColumnCount > nKyakusakiHinmokuNo AndAlso nKyakusakiHinmokuNo > -1, csv.GetField(nKyakusakiHinmokuNo).Trim(), "")
-
 
                                                     '需要数   (必須)
                                                     strQtyValue = If(csv.ColumnCount > njuyouSuu AndAlso njuyouSuu > -1, csv.GetField(njuyouSuu).Trim(), "")
@@ -1055,13 +1051,17 @@ Namespace Pages.Orders
                                                         End If
                                                     End If
 
+
+
+                                                    '客先品目No   (任意)
+                                                    customeritemNo = If(csv.ColumnCount > nKyakusakiHinmokuNo AndAlso nKyakusakiHinmokuNo > -1, csv.GetField(nKyakusakiHinmokuNo).Trim(), "")
+                                                    If nKyakusakiHinmokuNo > -1 Then
+                                                        customeritemNo = If(csv.ColumnCount > nKyakusakiHinmokuNo AndAlso nKyakusakiHinmokuNo > -1, csv.GetField(nKyakusakiHinmokuNo).Trim(), "")
+                                                    End If
+
                                                     '製品コード  （任意）
                                                     If nSeihinCode > -1 Then
                                                         productcode = If(csv.ColumnCount > nSeihinCode AndAlso nSeihinCode > -1, csv.GetField(nSeihinCode).Trim(), "")
-                                                        'Else
-                                                        '    '取得できない場合はSTRAMMIC.PRDSLSODRMより取得
-                                                        '    'productcode = _oderStageRepo.GetProductCode(customeritemNo, customerCode)
-                                                        '    productcode = itemNo
                                                     End If
 
                                                     '品目No   （必須）
@@ -1072,7 +1072,6 @@ Namespace Pages.Orders
                                                         errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
                                                         ErrFlg = True
                                                     End If
-
 
 
 
@@ -1424,6 +1423,7 @@ Namespace Pages.Orders
                                                         ordertype = folderType
 
                                                         '分割区分   (任意)
+                                                        'INFO_TYPE_MSTより取得
                                                         proratedtype = 0
                                                         errMsg = ""
                                                         If _oderStageRepo.GetProratedType(customerSettingId, folderType, proratedtype, errMsg) = False Then
@@ -1481,16 +1481,6 @@ Namespace Pages.Orders
 
                                                     '日割前納期 ※希望納期をセット （希望納期が必須）
                                                     predailydeliveryDate = dueDate
-
-                                                    ''客先品目No   (必須)
-                                                    'customeritemNo = If(nKyakusakiHinmokuNo > 0, xlRow.Cell(nKyakusakiHinmokuNo).GetValue(Of String)().Trim(), "")
-                                                    'If String.IsNullOrEmpty(customeritemNo) Then
-                                                    '    '必須チェック
-                                                    '    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：客先品目Noが空です。")
-                                                    '    ErrFlg = True
-                                                    'End If
-                                                    '客先品目No   (任意)
-                                                    customeritemNo = If(nKyakusakiHinmokuNo > 0, xlRow.Cell(nKyakusakiHinmokuNo).GetValue(Of String)().Trim(), "")
 
                                                     '需要数   (必須)
                                                     strQtyValue = If(njuyouSuu > 0, xlRow.Cell(njuyouSuu).GetValue(Of String)().Trim(), "")
@@ -1556,13 +1546,16 @@ Namespace Pages.Orders
                                                         End If
                                                     End If
 
+                                                    '客先品目No   (任意)
+                                                    customeritemNo = If(nKyakusakiHinmokuNo > 0, xlRow.Cell(nKyakusakiHinmokuNo).GetValue(Of String)().Trim(), "")
+                                                    If nKyakusakiHinmokuNo > 0 Then
+                                                        customeritemNo = If(nKyakusakiHinmokuNo > 0, xlRow.Cell(nKyakusakiHinmokuNo).GetValue(Of String)().Trim(), "")
+                                                    End If
+
                                                     '製品コード  （任意）
                                                     'If nSeihinCode > -1 Then
                                                     If nSeihinCode > 0 Then
                                                         productcode = If(nSeihinCode > 0, xlRow.Cell(nSeihinCode).GetValue(Of String)().Trim(), "")
-                                                        'Else
-                                                        '    '取得できない場合はSTRAMMIC.PRDSLSODRMより取得
-                                                        '    productcode = itemNo
                                                     End If
 
                                                     '品目No   （必須）
@@ -1799,7 +1792,7 @@ Namespace Pages.Orders
 
                                             '希望納期がマッピングマスタにない場合は、この後の処理が成立しないため処理を中断する。
                                             If mKibouNouki = "" Then
-                                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　マッピングマスタに不備があります。(マッピングマスタに希望納期の設定が存在しません)")
+                                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　マッピングマスタに不備があります。(マッピングマスタに希望納期の設定が存在しません。)")
                                                 Continue For
                                             End If
 
@@ -1827,17 +1820,18 @@ Namespace Pages.Orders
                                                 strTempDate = If(mJutyuuBi <> "", objSheet.Cell(mJutyuuBi).GetValue(Of String)().Trim(), "")
                                                 If String.IsNullOrEmpty(strTempDate) Then
                                                     orderDate = CDate("1900/01/01")
-                                                End If
-                                                ' 日付変換を試みる（yyyy/MM/dd形式）
-                                                If Not DateTime.TryParseExact(strTempDate, formats,
-                                                        System.Globalization.CultureInfo.InvariantCulture,
-                                                        System.Globalization.DateTimeStyles.None,
-                                                        orderDate) Then
-                                                    ' 変換に失敗した場合（空文字や不正な値など）のデフォルト値
-                                                    orderDate = CDate("1900/01/01") ' または特定の既定値
-                                                    'errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {objSheet.Cell(mKibouNouki).Address.ColumnLetter & (objSheet.Cell(mKibouNouki).Address.RowNumber - 1)} ：受注日が不正な値です。")
-                                                    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {objSheet.Cell(mJutyuuBi).Address.ColumnLetter & (objSheet.Cell(mJutyuuBi).Address.RowNumber)} ：受注日が不正な値です。")
-                                                    ErrFlg = True
+                                                Else
+                                                    ' 日付変換を試みる（yyyy/MM/dd形式）
+                                                    If Not DateTime.TryParseExact(strTempDate, formats,
+                                                            System.Globalization.CultureInfo.InvariantCulture,
+                                                            System.Globalization.DateTimeStyles.None,
+                                                            orderDate) Then
+                                                        ' 変換に失敗した場合（空文字や不正な値など）のデフォルト値
+                                                        orderDate = CDate("1900/01/01") ' または特定の既定値
+                                                        'errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {objSheet.Cell(mKibouNouki).Address.ColumnLetter & (objSheet.Cell(mKibouNouki).Address.RowNumber - 1)} ：受注日が不正な値です。")
+                                                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {objSheet.Cell(mJutyuuBi).Address.ColumnLetter & (objSheet.Cell(mJutyuuBi).Address.RowNumber)} ：受注日が不正な値です。")
+                                                        ErrFlg = True
+                                                    End If
                                                 End If
 
                                                 'データの最終行を取得
@@ -1896,7 +1890,7 @@ Namespace Pages.Orders
                                                     reconciletype = 0
 
 
-                                                    '客先品目No   (必須 ※MATRIXは製品コードがマトリックス共通表サンプルに無いので客先品目Noがないと品目Noが取得できない)
+                                                    '客先品目No   (任意だが、MATRIX形式は製品コードの項目がマトリックス共通表サンプルに存在しないので客先品目Noがないと品目Noが取得できない)
                                                     Dim cell1 As Integer = 0
                                                     'Dim cellname As String = ""
                                                     If Not String.IsNullOrEmpty(mKyakusakiHinmokuNo) Then
@@ -1907,11 +1901,10 @@ Namespace Pages.Orders
                                                     Else
                                                         customeritemNo = ""
                                                     End If
-                                                    If String.IsNullOrEmpty(customeritemNo) Then
-                                                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {objSheet.Cell(mKyakusakiHinmokuNo).Address.ColumnLetter & xlRow.RowNumber} ：客先品目Noが空です。")
-                                                        ErrFlg = True
-                                                    End If
-
+                                                    'If String.IsNullOrEmpty(customeritemNo) Then
+                                                    '    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {objSheet.Cell(mKyakusakiHinmokuNo).Address.ColumnLetter & xlRow.RowNumber} ：客先品目Noが空です。")
+                                                    '    ErrFlg = True
+                                                    'End If
 
                                                     '製品コード  （マトリックス共通表サンプルに存在しない）
                                                     productcode = ""
@@ -1921,7 +1914,11 @@ Namespace Pages.Orders
                                                     itemNo = ""
                                                     errMsg = ""
                                                     If _oderStageRepo.GetProductCode(customerCode, customeritemNo, productcode, itemNo, errMsg) = False Then
-                                                        errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {objSheet.Cell(mKyakusakiHinmokuNo).Address.ColumnLetter & xlRow.RowNumber} ：{errMsg}")
+                                                        If mKyakusakiHinmokuNo = "" Then
+                                                            errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　{errMsg}")
+                                                        Else
+                                                            errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {objSheet.Cell(mKyakusakiHinmokuNo).Address.ColumnLetter & xlRow.RowNumber} ：{errMsg}")
+                                                        End If
                                                         ErrFlg = True
                                                     End If
 
@@ -1945,7 +1942,11 @@ Namespace Pages.Orders
                                                             Continue For
                                                         End If
                                                         If Not Decimal.TryParse(strQtyValue, demandqty) Then
-                                                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：需要数が不正な値です。")
+                                                            If mjuyouSuu = "" Then
+                                                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　需要数が取得できません。")
+                                                            Else
+                                                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：需要数が不正な値です。")
+                                                            End If
                                                             ErrFlg = True
                                                         End If
 
@@ -1964,7 +1965,11 @@ Namespace Pages.Orders
                                                             End If
                                                             If String.IsNullOrEmpty(strQtyValue) Then
                                                                 '必須チェック
-                                                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：受注区分が空です。")
+                                                                If mJutyuKubun = "" Then
+                                                                    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　受注区分が取得できません。")
+                                                                Else
+                                                                    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：受注区分が空です。")
+                                                                End If
                                                                 ErrFlg = True
                                                             ElseIf Not Decimal.TryParse(strQtyValue, ordertype) Then
                                                                 '数値チェック
@@ -1981,7 +1986,11 @@ Namespace Pages.Orders
                                                             End If
                                                             If String.IsNullOrEmpty(strQtyValue) Then
                                                                 '必須チェック
-                                                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：分割区分が空です。")
+                                                                If mBunkatuKubun = "" Then
+                                                                    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　分割区分が取得できません。")
+                                                                Else
+                                                                    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：分割区分が空です。")
+                                                                End If
                                                                 ErrFlg = True
                                                             ElseIf Not Decimal.TryParse(strQtyValue, proratedtype) Then
                                                                 '数値チェック
@@ -1995,6 +2004,7 @@ Namespace Pages.Orders
                                                             ordertype = folderType
 
                                                             '分割区分   (任意)
+                                                            'INFO_TYPE_MSTより取得
                                                             proratedtype = 0
                                                             errMsg = ""
                                                             If _oderStageRepo.GetProratedType(customerSettingId, folderType, proratedtype, errMsg) = False Then
@@ -2014,7 +2024,11 @@ Namespace Pages.Orders
                                                         If ordertype = 2 OrElse ordertype = 3 Then
                                                             'ordertype = 1:内示は任意、2:確定と3：納入指示は必須
                                                             If String.IsNullOrEmpty(customerorderNo) Then
-                                                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：客先発注番号が空です。")
+                                                                If mKyakusakiHattyuNo = "" Then
+                                                                    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　客先発注番号が取得できません。")
+                                                                Else
+                                                                    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：客先発注番号が空です。")
+                                                                End If
                                                                 ErrFlg = True
                                                             End If
                                                         End If
@@ -2029,17 +2043,22 @@ Namespace Pages.Orders
                                                         End If
                                                         If String.IsNullOrEmpty(strTempDate) Then
                                                             dueDate = CDate("1900/01/01")
-                                                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：希望納期が空です。")
+                                                            If mKibouNouki = "" Then
+                                                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　希望納期が取得できません。")
+                                                            Else
+                                                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：希望納期が空です。")
+                                                            End If
                                                             ErrFlg = True
-                                                        End If
-                                                        If Not DateTime.TryParseExact(strTempDate, formats,
+                                                        Else
+                                                            If Not DateTime.TryParseExact(strTempDate, formats,
                                                             System.Globalization.CultureInfo.InvariantCulture,
                                                             System.Globalization.DateTimeStyles.None,
                                                             dueDate) Then
-                                                            ' 変換に失敗した場合（空文字や不正な値など）のデフォルト値
-                                                            dueDate = CDate("1900/01/01")
-                                                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：希望納期が不正な値です。")
-                                                            ErrFlg = True
+                                                                ' 変換に失敗した場合（空文字や不正な値など）のデフォルト値
+                                                                dueDate = CDate("1900/01/01")
+                                                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：希望納期が不正な値です。")
+                                                                ErrFlg = True
+                                                            End If
                                                         End If
 
                                                         '日割前納期 ※希望納期をセット
@@ -2061,7 +2080,11 @@ Namespace Pages.Orders
                                                             selffcstdeleteflag = ""
                                                         End If
                                                         If selffcstflag = "Y" AndAlso String.IsNullOrEmpty(selffcstdeleteflag) Then
-                                                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：自社予測削除フラグが空です。")
+                                                            If mJishaYosokuDelFlag = "" Then
+                                                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　自社予測削除フラグが取得できません。")
+                                                            Else
+                                                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：自社予測削除フラグが空です。")
+                                                            End If
                                                             ErrFlg = True
                                                         End If
 
@@ -2144,6 +2167,17 @@ Namespace Pages.Orders
                                                             'ErrFlg = True
                                                         End If
 
+                                                        '出荷先　　   （必須）
+                                                        'STRAMMIC.SECTMより取得
+                                                        shipto = ""
+                                                        errMsg = ""
+                                                        If _oderStageRepo.GetShipTo(customerCode, deliverycode, shipto, errMsg) = False Then
+                                                            'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：{errMsg}")
+                                                            'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　{errMsg}")
+                                                            errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & intRowidx} ：{errMsg}")
+                                                            ErrFlg = True
+                                                        End If
+
                                                         '取引先情報区分 （任意）
                                                         If Not String.IsNullOrEmpty(mTorihikisakiJohoKubun) Then
                                                             xlRow = objSheet.Row(objSheet.Cell(mTorihikisakiJohoKubun).Address.RowNumber + (stepRow * ridx))
@@ -2171,14 +2205,7 @@ Namespace Pages.Orders
                                                             'ErrFlg = True
                                                         End If
 
-                                                        '出荷先　　   （必須）
-                                                        'STRAMMIC.SECTMより取得
-                                                        shipto = ""
-                                                        errMsg = ""
-                                                        If _oderStageRepo.GetShipTo(customerCode, deliverycode, shipto, errMsg) = False Then
-                                                            errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：{errMsg}")
-                                                            ErrFlg = True
-                                                        End If
+
 
                                                         '請求先    (任意）
                                                         'STRAMMIC.SECTMより取得
@@ -2529,6 +2556,8 @@ Namespace Pages.Orders
 
                                 errors.Add($"取引先コード：{ErrCustomerCode}　取込ファイル：[{ErrTorikomiFile} ]　はデータ不備のため取込実行から除外されました。")
 
+                                ReDrawFlg = True
+
                                 '取込不可の際はimp_files_stageテーブルのステータスをFAILEDに更新
                                 '_impFileStageRepo.UpdateImpFileStageStatus(impfilestageId)
 
@@ -2684,8 +2713,10 @@ Namespace Pages.Orders
                 End If
             End If
 
-            '取込ファイル一覧　再描画
-            gvImpFilesStage_Init()
+            If ReDrawFlg = True Then
+                '取込ファイル一覧　再描画
+                gvImpFilesStage_Init()
+            End If
             '取込済み受注一覧　再描画
             gvImportOrder_Init()
 

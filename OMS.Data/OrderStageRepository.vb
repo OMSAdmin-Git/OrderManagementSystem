@@ -1650,40 +1650,48 @@ Namespace OMS.Data
         ''' <param name="CustomerCode">処理中の取引先コード</param>
         ''' <param name="CustomerItemNo">処理中の客先品目No</param>
         ''' <param name="ProductCode">処理中の製品コード</param>
-        ''' <param name="Code">取得内容</param>
+        ''' <param name="itemNo">取得内容</param>
         ''' <param name="errorMessage">エラーメッセージ</param>
-        Public Function GetProductCode(ByVal CustomerCode As String, ByVal CustomerItemNo As String, ByVal ProductCode As String, ByRef Code As String, ByRef errorMessage As String) As Boolean
+        Public Function GetProductCode(ByVal CustomerCode As String, ByRef CustomerItemNo As String, ByRef ProductCode As String, ByRef itemNo As String, ByRef errorMessage As String) As Boolean
 
             Dim pCustomerCode As String = If(String.IsNullOrWhiteSpace(CustomerCode), Nothing, CustomerCode.Trim())
             Dim pCustomerItemNo As String = If(String.IsNullOrWhiteSpace(CustomerItemNo), Nothing, CustomerItemNo.Trim())
             Dim pProductCode As String = If(String.IsNullOrWhiteSpace(ProductCode), Nothing, ProductCode.Trim())
 
             'Code = Nothing
-            Code = ""
+            itemNo = ""
             errorMessage = String.Empty
 
             Dim curSelect As String = ""
             Dim curWhere As String = ""
+            Dim type As Integer = 0
 
             If pCustomerItemNo <> "" AndAlso pProductCode <> "" Then
                 '1.客先品目No有り、製品コード有りの場合
+                type = 1
+
                 curWhere = " AND fcustcd = :p_customer_code " &
                            " AND fcustitemno = :p_customer_item_no" &
                            " AND fprdcd = :pProductCode"
 
             ElseIf pCustomerItemNo <> "" AndAlso pProductCode = "" Then
                 '2.客先品目No有り、製品コード無しの場合
+                type = 2
+
                 curWhere = " AND fcustcd = :p_customer_code " &
                            " AND fcustitemno = :p_customer_item_no"
 
             ElseIf pCustomerItemNo = "" AndAlso pProductCode <> "" Then
                 '3.客先品目No無し、製品コード有りの場合
+                type = 3
+
                 curWhere = " AND fcustcd = :p_customer_code " &
                            " AND fprdcd = :pProductCode"
 
             Else
                 '4.客先品目Noも製品コードも無しの場合
-
+                errorMessage = "品目No及び製品コードが取得できません。"
+                Return False
             End If
 
             Dim cursql As String = $"
@@ -1693,11 +1701,6 @@ Namespace OMS.Data
                         WHERE 1=1
                             {curWhere}
                             "
-
-            'Const sql As String =
-            '            " SELECT fprdcd FROM prdslsodrm " &
-            '            " WHERE fcustitemno = :p_customer_item_no " &
-            '            " AND fcustcd = :p_customer_code "
 
             Using conn As New OracleConnection(_connectionString)
                 conn.Open()
@@ -1711,17 +1714,16 @@ Namespace OMS.Data
                     cmd.Parameters.Add(":p_customer_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(pCustomerItemNo, 45)
                     cmd.Parameters.Add(":pProductCode", OracleDbType.Varchar2, 25).Value = SafeVarchar(pProductCode, 45)
 
-
                     Dim hitCount As Integer = 0
-                    Dim tempCode As String = Nothing
-                    Dim tempNo As String = Nothing
+                    Dim fprdcd As String = Nothing
+                    Dim fcustitemno As String = Nothing
 
                     Using reader As OracleDataReader = cmd.ExecuteReader()
                         While reader.Read()
                             hitCount += 1
                             If hitCount = 1 Then
-                                tempCode = Convert.ToString(reader("fprdcd"))
-                                tempNo = Convert.ToString(reader("fcustitemno"))
+                                fprdcd = Convert.ToString(reader("fprdcd"))
+                                fcustitemno = Convert.ToString(reader("fcustitemno"))
                             End If
                             If hitCount > 1 Then Exit While
                         End While
@@ -1730,54 +1732,53 @@ Namespace OMS.Data
                     ' 件数判定
                     If hitCount = 0 Then
                         '結果が0件
-                        errorMessage = "品目No及び製品コードが取得できません。"
-                        Return False
+                        If type <> 3 Then
+                            errorMessage = "品目No及び製品コードが取得できません。"
+                            Return False
+                        Else
+                            errorMessage = "客先品目No及び品目Noが取得できません。"
+                            Return False
+                        End If
                     ElseIf hitCount = 1 Then
                         '結果が1件
-                        If pCustomerItemNo = "" AndAlso pProductCode <> "" Then
+                        If type = 1 Then
+                            '1.客先品目No有り、製品コード有りの場合
+                            itemNo = fprdcd
+                            Return True
+                        ElseIf type = 2 Then
+                            '2.客先品目No有り、製品コード無しの場合
+                            itemNo = fprdcd
+                            ProductCode = fprdcd
+                            Return True
+                        ElseIf type = 3 Then
                             '3.客先品目No無し、製品コード有りの場合
-                            If tempNo <> "" Then
+                            If fcustitemno <> "" Then
                                 ' 客先品目Noが取得できれば正常終了
-                                Code = tempCode
+                                itemNo = fprdcd
+                                CustomerItemNo = fcustitemno
                                 Return True
                             Else
-                                errorMessage = "品目No及び製品コードが取得できません。"
+                                errorMessage = "客先品目No及び品目Noが取得できません。"
                                 Return False
                             End If
-                        Else
-                            ' 正常終了
-                            Code = tempCode
-                            Return True
                         End If
                     ElseIf hitCount > 1 Then
                         '結果が複数件
-                        If pCustomerItemNo <> "" AndAlso pProductCode <> "" Then
+                        If type = 1 Then
                             '1.客先品目No有り、製品コード有りの場合
                             ' 正常終了
-                            Code = pProductCode
+                            itemNo = ProductCode    '製品コードを品目コードへセット
                             Return True
-
-                        ElseIf pCustomerItemNo <> "" AndAlso pProductCode = "" Then
+                        ElseIf type = 2 Then
                             '2.客先品目No有り、製品コード無しの場合
-                            errorMessage = "品目No及び製品コードが複数件取得されました。"
+                            errorMessage = "製品受注基準マスタが複数件取得されました。"
                             Return False
-
-                        ElseIf pCustomerItemNo = "" AndAlso pProductCode <> "" Then
+                        ElseIf type = 3 Then
                             '3.客先品目No無し、製品コード有りの場合
-                            errorMessage = "品目No及び製品コードが複数件取得されました。"
-                            Return False
-
-                        Else
-                            '4.客先品目Noも製品コードも無しの場合
-                            errorMessage = "品目No及び製品コードが取得できません。"
+                            errorMessage = "製品受注基準マスタが複数件取得されました。"
                             Return False
                         End If
                     End If
-
-
-                    '' 正常終了
-                    'Code = tempCode
-                    'Return True
 
                 End Using
             End Using
