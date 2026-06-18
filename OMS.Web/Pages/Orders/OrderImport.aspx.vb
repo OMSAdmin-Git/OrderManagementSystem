@@ -880,7 +880,7 @@ Namespace Pages.Orders
                                                     predailyorderqty = 0
                                                     predailydeliveryDate = Nothing
                                                     ordertype = 0
-                                                    proratedtype = 0
+                                                    proratedtype = 1
                                                     customerinfotype = ""
                                                     selffcstflag = ""
                                                     selffcstdeleteflag = ""
@@ -893,7 +893,7 @@ Namespace Pages.Orders
                                                     totalshipqty = 0
                                                     shipstocklocation = ""
                                                     infotype = ""
-                                                    reconciletype = 0
+                                                    reconciletype = 1
                                                     errMsg = ""
 
                                                     'フォルダタイプで処理分岐
@@ -930,7 +930,7 @@ Namespace Pages.Orders
 
                                                         '分割区分   (任意)
                                                         'INFO_TYPE_MSTより取得
-                                                        proratedtype = 0
+                                                        proratedtype = 1
                                                         errMsg = ""
                                                         If _oderStageRepo.GetProratedType(customerSettingId, folderType, proratedtype, errMsg) = False Then
                                                             'errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：客先発注番号が空です。")
@@ -985,7 +985,7 @@ Namespace Pages.Orders
                                                         End If
                                                     End If
 
-                                                    '日割前納期 ※希望納期をセット
+                                                    '日割前納期 ※希望納期をセット （希望納期が必須）
                                                     predailydeliveryDate = dueDate
 
                                                     '需要数   (必須)
@@ -1051,10 +1051,7 @@ Namespace Pages.Orders
                                                         End If
                                                     End If
 
-
-
                                                     '客先品目No   (任意)
-                                                    customeritemNo = If(csv.ColumnCount > nKyakusakiHinmokuNo AndAlso nKyakusakiHinmokuNo > -1, csv.GetField(nKyakusakiHinmokuNo).Trim(), "")
                                                     If nKyakusakiHinmokuNo > -1 Then
                                                         customeritemNo = If(csv.ColumnCount > nKyakusakiHinmokuNo AndAlso nKyakusakiHinmokuNo > -1, csv.GetField(nKyakusakiHinmokuNo).Trim(), "")
                                                     End If
@@ -1094,7 +1091,8 @@ Namespace Pages.Orders
                                                     'STRAMMIC.SECTMより取得
                                                     shipstocklocation = ""
                                                     errMsg = ""
-                                                    If _oderStageRepo.GetShipStockLocation(customerCode, deliverycode, shipstocklocation, errMsg) = False Then
+                                                    'If _oderStageRepo.GetShipStockLocation(customerCode, deliverycode, shipstocklocation, errMsg) = False Then
+                                                    If _oderStageRepo.GetShipStockLocation(productcode, shipstocklocation, errMsg) = False Then
                                                         'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
                                                         'ErrFlg = True
                                                     End If
@@ -1113,7 +1111,7 @@ Namespace Pages.Orders
 
                                                     '消込条件区分   （任意）
                                                     'IMP_RULE_MSTより取得
-                                                    reconciletype = 0
+                                                    reconciletype = 1
                                                     errMsg = ""
                                                     If _oderStageRepo.GetReconcileType(customerSettingId, folderType, reconciletype, errMsg) = False Then
                                                         'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
@@ -1373,7 +1371,7 @@ Namespace Pages.Orders
                                                     predailyorderqty = 0
                                                     predailydeliveryDate = Nothing
                                                     ordertype = 0
-                                                    proratedtype = 0
+                                                    proratedtype = 1
                                                     customerinfotype = ""
                                                     selffcstflag = ""
                                                     selffcstdeleteflag = ""
@@ -1386,7 +1384,7 @@ Namespace Pages.Orders
                                                     totalshipqty = 0
                                                     shipstocklocation = ""
                                                     infotype = ""
-                                                    reconciletype = 0
+                                                    reconciletype = 1
 
                                                     'フォルダタイプで処理分岐
                                                     If folderType = 4 Then
@@ -1424,7 +1422,7 @@ Namespace Pages.Orders
 
                                                         '分割区分   (任意)
                                                         'INFO_TYPE_MSTより取得
-                                                        proratedtype = 0
+                                                        proratedtype = 1
                                                         errMsg = ""
                                                         If _oderStageRepo.GetProratedType(customerSettingId, folderType, proratedtype, errMsg) = False Then
                                                             'errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：客先発注番号が空です。")
@@ -1532,7 +1530,6 @@ Namespace Pages.Orders
                                                     deliveryinstrflag = If(ordertype = 3, "Y", "N")
 
                                                     '通貨コード  （任意）
-                                                    'If nTukaCode > -1 Then
                                                     If nTukaCode > 0 Then
                                                         '取得ファイルに存在
                                                         currencycode = If(nTukaCode > 0, xlRow.Cell(nTukaCode).GetValue(Of String)().Trim(), "")
@@ -1547,13 +1544,11 @@ Namespace Pages.Orders
                                                     End If
 
                                                     '客先品目No   (任意)
-                                                    customeritemNo = If(nKyakusakiHinmokuNo > 0, xlRow.Cell(nKyakusakiHinmokuNo).GetValue(Of String)().Trim(), "")
                                                     If nKyakusakiHinmokuNo > 0 Then
                                                         customeritemNo = If(nKyakusakiHinmokuNo > 0, xlRow.Cell(nKyakusakiHinmokuNo).GetValue(Of String)().Trim(), "")
                                                     End If
 
                                                     '製品コード  （任意）
-                                                    'If nSeihinCode > -1 Then
                                                     If nSeihinCode > 0 Then
                                                         productcode = If(nSeihinCode > 0, xlRow.Cell(nSeihinCode).GetValue(Of String)().Trim(), "")
                                                     End If
@@ -1588,7 +1583,8 @@ Namespace Pages.Orders
                                                     'STRAMMIC.SECTMより取得
                                                     shipstocklocation = ""
                                                     errMsg = ""
-                                                    If _oderStageRepo.GetShipStockLocation(customerCode, deliverycode, shipstocklocation, errMsg) = False Then
+                                                    'If _oderStageRepo.GetShipStockLocation(customerCode, deliverycode, shipstocklocation, errMsg) = False Then
+                                                    If _oderStageRepo.GetShipStockLocation(productcode, shipstocklocation, errMsg) = False Then
                                                         'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
                                                         'ErrFlg = True
                                                     End If
@@ -1607,7 +1603,7 @@ Namespace Pages.Orders
 
                                                     '消込条件区分     （任意）
                                                     'IMP_RULE_MSTより取得
-                                                    reconciletype = 0
+                                                    reconciletype = 1
                                                     errMsg = ""
                                                     If _oderStageRepo.GetReconcileType(customerSettingId, folderType, reconciletype, errMsg) = False Then
                                                         'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
@@ -1874,7 +1870,7 @@ Namespace Pages.Orders
                                                     predailyorderqty = 0
                                                     predailydeliveryDate = Nothing
                                                     ordertype = 0
-                                                    proratedtype = 0
+                                                    proratedtype = 1
                                                     customerinfotype = ""
                                                     selffcstflag = ""
                                                     selffcstdeleteflag = ""
@@ -1887,7 +1883,7 @@ Namespace Pages.Orders
                                                     totalshipqty = 0
                                                     shipstocklocation = ""
                                                     infotype = ""
-                                                    reconciletype = 0
+                                                    reconciletype = 1
 
 
                                                     '客先品目No   (任意だが、MATRIX形式は製品コードの項目がマトリックス共通表サンプルに存在しないので客先品目Noがないと品目Noが取得できない)
@@ -2005,7 +2001,7 @@ Namespace Pages.Orders
 
                                                             '分割区分   (任意)
                                                             'INFO_TYPE_MSTより取得
-                                                            proratedtype = 0
+                                                            proratedtype = 1
                                                             errMsg = ""
                                                             If _oderStageRepo.GetProratedType(customerSettingId, folderType, proratedtype, errMsg) = False Then
                                                                 'errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：分割区分が数値ではない、または空です。")
@@ -2162,7 +2158,8 @@ Namespace Pages.Orders
                                                         'STRAMMIC.SECTMより取得
                                                         shipstocklocation = ""
                                                         errMsg = ""
-                                                        If _oderStageRepo.GetShipStockLocation(customerCode, deliverycode, shipstocklocation, errMsg) = False Then
+                                                        'If _oderStageRepo.GetShipStockLocation(customerCode, deliverycode, shipstocklocation, errMsg) = False Then
+                                                        If _oderStageRepo.GetShipStockLocation(productcode, shipstocklocation, errMsg) = False Then
                                                             'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：{errMsg}")
                                                             'ErrFlg = True
                                                         End If
@@ -2198,7 +2195,7 @@ Namespace Pages.Orders
 
                                                         '消込条件区分 （任意）
                                                         'IMP_RULE_MSTより取得
-                                                        reconciletype = 0
+                                                        reconciletype = 1
                                                         errMsg = ""
                                                         If _oderStageRepo.GetReconcileType(customerSettingId, folderType, reconciletype, errMsg) = False Then
                                                             'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：{errMsg}")

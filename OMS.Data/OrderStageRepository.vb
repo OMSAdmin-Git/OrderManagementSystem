@@ -1533,7 +1533,7 @@ Namespace OMS.Data
         ''' <param name="errorMessage">エラーメッセージ</param>
         Public Function GetProratedType(ByVal CustomerSettingId As Long, ByVal FolderType As Long, ByRef Code As Integer, ByRef errorMessage As String) As Boolean
 
-            Code = 0
+            Code = 1
             errorMessage = String.Empty
 
             Const sql As String =
@@ -1844,25 +1844,124 @@ Namespace OMS.Data
 
         End Function
 
+        '''' <summary>
+        '''' 出荷在庫場所を取得する
+        '''' </summary>
+        '''' <param name="CustomerCode">処理中の取引先コード</param>
+        '''' <param name="DeliveryCode">処理中の納入先コード</param>
+        '''' <param name="Code">取得内容</param>
+        '''' <param name="errorMessage">エラーメッセージ</param>
+        'Public Function GetShipStockLocation(ByVal CustomerCode As String, ByVal DeliveryCode As String, ByRef Code As String, ByRef errorMessage As String) As Boolean
+
+        '    Dim pCustomerCode As String = If(String.IsNullOrWhiteSpace(CustomerCode), Nothing, CustomerCode.Trim())
+        '    Dim pDeliveryCode As String = If(String.IsNullOrWhiteSpace(DeliveryCode), Nothing, DeliveryCode.Trim())
+        '    Dim currentfuppsect As String = Nothing   '上位部署
+        '    'Code = Nothing
+        '    Code = ""
+        '    errorMessage = String.Empty
+
+        '    Const sql As String =
+        '                " SELECT fuppsect FROM sectm " &
+        '                " WHERE fsectcd = :p_customer_code "
+
+        '    Using conn As New OracleConnection(_connectionString)
+        '        conn.Open()
+        '        Using cmd As New OracleCommand(sql, conn)
+
+        '            cmd.BindByName = True
+        '            cmd.CommandType = CommandType.Text
+
+        '            cmd.Parameters.Clear()
+        '            cmd.Parameters.Add(":p_customer_code", OracleDbType.Varchar2, 25).Value = SafeVarchar(pCustomerCode, 25)
+
+        '            Dim obj = cmd.ExecuteScalar()
+        '            If obj Is Nothing OrElse obj Is DBNull.Value Then
+        '                'Return Nothing
+        '                errorMessage = "出荷在庫場所が取得できません。"
+        '                Return False
+        '            End If
+        '            currentfuppsect = Convert.ToString(obj)
+
+        '        End Using
+
+        '        If currentfuppsect IsNot Nothing Then
+
+        '            Const sql2 As String =
+        '                " SELECT fshpwhcd FROM shproutm " &
+        '                " WHERE fshptocd = :p_customer_code " &
+        '                " AND fpriority = :p_fuppsect "
+
+        '            Using cmd As New OracleCommand(sql2, conn)
+
+        '                cmd.BindByName = True
+        '                cmd.CommandType = CommandType.Text
+
+        '                cmd.Parameters.Clear()
+        '                cmd.Parameters.Add(":p_customer_code", OracleDbType.Varchar2, 25).Value = SafeVarchar(pCustomerCode & pDeliveryCode, 25)
+
+        '                If currentfuppsect <> "F" Then
+        '                    '電子機器の場合は優先順位1
+        '                    cmd.Parameters.Add(":p_fuppsect", OracleDbType.Int64).Value = 1
+        '                Else
+        '                    'ハーネスの場合は優先順位2
+        '                    cmd.Parameters.Add(":p_fuppsect", OracleDbType.Int64).Value = 2
+        '                End If
+
+        '                Dim hitCount As Integer = 0
+        '                Dim tempCode As String = Nothing
+
+        '                Using reader As OracleDataReader = cmd.ExecuteReader()
+        '                    While reader.Read()
+        '                        hitCount += 1
+        '                        If hitCount = 1 Then
+        '                            tempCode = Convert.ToString(reader("fshpwhcd"))
+        '                        End If
+        '                        If hitCount > 1 Then Exit While
+        '                    End While
+        '                End Using
+
+        '                ' 件数判定
+        '                If hitCount = 0 Then
+        '                    errorMessage = "出荷在庫場所が取得できません。"
+        '                    Return False
+        '                ElseIf hitCount > 1 Then
+        '                    errorMessage = "出荷在庫場所が複数件取得されました。"
+        '                    Return False
+        '                End If
+
+
+        '                ' 正常終了
+        '                Code = tempCode
+        '                Return True
+
+
+        '            End Using
+
+        '        End If
+
+        '        Return Nothing
+
+        '    End Using
+
+        'End Function
+
         ''' <summary>
         ''' 出荷在庫場所を取得する
         ''' </summary>
-        ''' <param name="CustomerCode">処理中の取引先コード</param>
-        ''' <param name="DeliveryCode">処理中の納入先コード</param>
+        ''' <param name="ProductCode">処理中の製品コード</param>
         ''' <param name="Code">取得内容</param>
         ''' <param name="errorMessage">エラーメッセージ</param>
-        Public Function GetShipStockLocation(ByVal CustomerCode As String, ByVal DeliveryCode As String, ByRef Code As String, ByRef errorMessage As String) As Boolean
+        Public Function GetShipStockLocation(ByVal ProductCode As String, ByRef Code As String, ByRef errorMessage As String) As Boolean
 
-            Dim pCustomerCode As String = If(String.IsNullOrWhiteSpace(CustomerCode), Nothing, CustomerCode.Trim())
-            Dim pDeliveryCode As String = If(String.IsNullOrWhiteSpace(DeliveryCode), Nothing, DeliveryCode.Trim())
-            Dim currentfuppsect As String = Nothing   '上位部署
+            Dim pProductCode As String = If(String.IsNullOrWhiteSpace(ProductCode), Nothing, ProductCode.Trim())
+
             'Code = Nothing
             Code = ""
             errorMessage = String.Empty
 
             Const sql As String =
-                        " SELECT fuppsect FROM sectm " &
-                        " WHERE fsectcd = :p_customer_code "
+                        " SELECT fprmwhcd FROM itemm " &
+                        " WHERE fitemno = :p_product_code "
 
             Using conn As New OracleConnection(_connectionString)
                 conn.Open()
@@ -1872,75 +1971,36 @@ Namespace OMS.Data
                     cmd.CommandType = CommandType.Text
 
                     cmd.Parameters.Clear()
-                    cmd.Parameters.Add(":p_customer_code", OracleDbType.Varchar2, 25).Value = SafeVarchar(pCustomerCode, 25)
+                    cmd.Parameters.Add(":p_product_code", OracleDbType.Varchar2, 45).Value = SafeVarchar(pProductCode, 45)
 
-                    Dim obj = cmd.ExecuteScalar()
-                    If obj Is Nothing OrElse obj Is DBNull.Value Then
-                        'Return Nothing
-                        errorMessage = "出荷在庫場所が取得できません。"
-                        Return False
-                    End If
-                    currentfuppsect = Convert.ToString(obj)
+                    Dim hitCount As Integer = 0
+                    Dim tempCode As String = Nothing
 
-                End Using
-
-                If currentfuppsect IsNot Nothing Then
-
-                    Const sql2 As String =
-                        " SELECT fshpwhcd FROM shproutm " &
-                        " WHERE fshptocd = :p_customer_code " &
-                        " AND fpriority = :p_fuppsect "
-
-                    Using cmd As New OracleCommand(sql2, conn)
-
-                        cmd.BindByName = True
-                        cmd.CommandType = CommandType.Text
-
-                        cmd.Parameters.Clear()
-                        cmd.Parameters.Add(":p_customer_code", OracleDbType.Varchar2, 25).Value = SafeVarchar(pCustomerCode & pDeliveryCode, 25)
-
-                        If currentfuppsect <> "F" Then
-                            '電子機器の場合は優先順位1
-                            cmd.Parameters.Add(":p_fuppsect", OracleDbType.Int64).Value = 1
-                        Else
-                            'ハーネスの場合は優先順位2
-                            cmd.Parameters.Add(":p_fuppsect", OracleDbType.Int64).Value = 2
-                        End If
-
-                        Dim hitCount As Integer = 0
-                        Dim tempCode As String = Nothing
-
-                        Using reader As OracleDataReader = cmd.ExecuteReader()
-                            While reader.Read()
-                                hitCount += 1
-                                If hitCount = 1 Then
-                                    tempCode = Convert.ToString(reader("fshpwhcd"))
-                                End If
-                                If hitCount > 1 Then Exit While
-                            End While
-                        End Using
-
-                        ' 件数判定
-                        If hitCount = 0 Then
-                            errorMessage = "出荷在庫場所が取得できません。"
-                            Return False
-                        ElseIf hitCount > 1 Then
-                            errorMessage = "出荷在庫場所が複数件取得されました。"
-                            Return False
-                        End If
-
-
-                        ' 正常終了
-                        Code = tempCode
-                        Return True
-
-
+                    Using reader As OracleDataReader = cmd.ExecuteReader()
+                        While reader.Read()
+                            hitCount += 1
+                            If hitCount = 1 Then
+                                tempCode = Convert.ToString(reader("fprmwhcd"))
+                            End If
+                            If hitCount > 1 Then Exit While
+                        End While
                     End Using
 
-                End If
+                    ' 件数判定
+                    If hitCount = 0 Then
+                        errorMessage = "出荷在庫場所が取得できません。"
+                        Return False
+                    ElseIf hitCount > 1 Then
+                        errorMessage = "出荷在庫場所が複数件取得されました。"
+                        Return False
+                    End If
 
-                Return Nothing
 
+                    ' 正常終了
+                    Code = tempCode
+                    Return True
+
+                End Using
             End Using
 
         End Function
@@ -2018,7 +2078,7 @@ Namespace OMS.Data
         ''' <param name="errorMessage">エラーメッセージ</param>
         Public Function GetReconcileType(ByVal CustomerSettingId As Long, ByVal FolderType As Long, ByRef Code As Integer, ByRef errorMessage As String) As Boolean
 
-            Code = 0
+            Code = 1
             errorMessage = String.Empty
 
             Const sql As String =
