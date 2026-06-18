@@ -2108,7 +2108,7 @@ Namespace Pages.Orders
                                                         deliveryinstrflag = If(ordertype = 3, "Y", "N")
 
                                                         '通貨コード  （任意）
-                                                        If nTukaCode > -1 Then
+                                                        If mTukaCode <> "" Then
                                                             '取得ファイルに存在
                                                             If Not String.IsNullOrEmpty(mTukaCode) Then
                                                                 xlRow = objSheet.Row(objSheet.Cell(mTukaCode).Address.RowNumber + (stepRow * ridx))
