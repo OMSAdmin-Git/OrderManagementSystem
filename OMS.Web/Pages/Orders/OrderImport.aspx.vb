@@ -1154,10 +1154,15 @@ Namespace Pages.Orders
                                                     If isTruncated = True Then
                                                         errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：客先発注番号が桁数超過のためトリミングされました。")
                                                     End If
-                                                    '客先品目No
-                                                    customeritemNo = SafeVarcharLength(customeritemNo, 45, isTruncated)
+                                                    '需要数
+                                                    demandqty = Convert.ToDecimal(SafeVarcharLength(demandqty.ToString(), 10, isTruncated))
                                                     If isTruncated = True Then
-                                                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：客先品目Noが桁数超過のためトリミングされました。")
+                                                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：需要数が桁数超過のためトリミングされました。")
+                                                    End If
+                                                    '日割前受注数
+                                                    predailyorderqty = Convert.ToDecimal(SafeVarcharLength(predailyorderqty.ToString(), 10, isTruncated))
+                                                    If isTruncated = True Then
+                                                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：日割前受注数が桁数超過のためトリミングされました。")
                                                     End If
                                                     '自社予測フラグ
                                                     selffcstflag = SafeVarcharLength(selffcstflag, 1, isTruncated)
@@ -1173,6 +1178,16 @@ Namespace Pages.Orders
                                                     currencycode = SafeVarcharLength(currencycode, 3, isTruncated)
                                                     If isTruncated = True Then
                                                         errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：通貨コードが桁数超過のためトリミングされました。")
+                                                    End If
+                                                    '客先品目No
+                                                    customeritemNo = SafeVarcharLength(customeritemNo, 45, isTruncated)
+                                                    If isTruncated = True Then
+                                                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：客先品目Noが桁数超過のためトリミングされました。")
+                                                    End If
+                                                    '製品コード
+                                                    productcode = SafeVarcharLength(productcode, 45, isTruncated)
+                                                    If isTruncated = True Then
+                                                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：製品コードが桁数超過のためトリミングされました。")
                                                     End If
                                                     '品目No
                                                     itemNo = SafeVarcharLength(itemNo, 45, isTruncated)
@@ -1646,10 +1661,15 @@ Namespace Pages.Orders
                                                     If isTruncated = True Then
                                                         errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：客先発注番号が桁数超過のためトリミングされました。")
                                                     End If
-                                                    '客先品目No
-                                                    customeritemNo = SafeVarcharLength(customeritemNo, 45, isTruncated)
+                                                    '需要数
+                                                    demandqty = Convert.ToDecimal(SafeVarcharLength(demandqty.ToString(), 10, isTruncated))
                                                     If isTruncated = True Then
-                                                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：客先品目Noが桁数超過のためトリミングされました。")
+                                                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：需要数が桁数超過のためトリミングされました。")
+                                                    End If
+                                                    '日割前受注数
+                                                    predailyorderqty = Convert.ToDecimal(SafeVarcharLength(predailyorderqty.ToString(), 10, isTruncated))
+                                                    If isTruncated = True Then
+                                                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：日割前受注数が桁数超過のためトリミングされました。")
                                                     End If
                                                     '自社予測フラグ
                                                     selffcstflag = SafeVarcharLength(selffcstflag, 1, isTruncated)
@@ -1665,6 +1685,16 @@ Namespace Pages.Orders
                                                     currencycode = SafeVarcharLength(currencycode, 3, isTruncated)
                                                     If isTruncated = True Then
                                                         errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：通貨コードが桁数超過のためトリミングされました。")
+                                                    End If
+                                                    '客先品目No
+                                                    customeritemNo = SafeVarcharLength(customeritemNo, 45, isTruncated)
+                                                    If isTruncated = True Then
+                                                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：客先品目Noが桁数超過のためトリミングされました。")
+                                                    End If
+                                                    '製品コード
+                                                    productcode = SafeVarcharLength(productcode, 45, isTruncated)
+                                                    If isTruncated = True Then
+                                                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：製品コードが桁数超過のためトリミングされました。")
                                                     End If
                                                     '品目No
                                                     itemNo = SafeVarcharLength(itemNo, 45, isTruncated)
@@ -1897,10 +1927,6 @@ Namespace Pages.Orders
                                                     Else
                                                         customeritemNo = ""
                                                     End If
-                                                    'If String.IsNullOrEmpty(customeritemNo) Then
-                                                    '    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {objSheet.Cell(mKyakusakiHinmokuNo).Address.ColumnLetter & xlRow.RowNumber} ：客先品目Noが空です。")
-                                                    '    ErrFlg = True
-                                                    'End If
 
                                                     '製品コード  （マトリックス共通表サンプルに存在しない）
                                                     productcode = ""
@@ -1918,7 +1944,55 @@ Namespace Pages.Orders
                                                         ErrFlg = True
                                                     End If
 
+                                                    '需要単位   （任意）
+                                                    'STRAMMIC.ITEMMより取得
+                                                    demandunit = ""
+                                                    errMsg = ""
+                                                    If _oderStageRepo.GetDemandUnit(productcode, demandunit, errMsg) = False Then
+                                                        'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：{errMsg}")
+                                                        'ErrFlg = True
+                                                    End If
 
+                                                    '出荷在庫場所 （任意）
+                                                    'STRAMMIC.SECTMより取得
+                                                    shipstocklocation = ""
+                                                    errMsg = ""
+                                                    'If _oderStageRepo.GetShipStockLocation(customerCode, deliverycode, shipstocklocation, errMsg) = False Then
+                                                    If _oderStageRepo.GetShipStockLocation(productcode, shipstocklocation, errMsg) = False Then
+                                                        'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：{errMsg}")
+                                                        'ErrFlg = True
+                                                    End If
+
+                                                    '-----------------
+                                                    '桁チェック
+                                                    '-----------------
+                                                    '客先品目No
+                                                    customeritemNo = SafeVarcharLength(customeritemNo, 45, isTruncated)
+                                                    If isTruncated = True Then
+                                                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {objSheet.Cell(mKyakusakiHinmokuNo).Address.ColumnLetter & xlRow.RowNumber} ：客先品目Noが桁数超過のためトリミングされました。")
+                                                    End If
+                                                    '製品コード
+                                                    productcode = SafeVarcharLength(productcode, 45, isTruncated)
+                                                    If isTruncated = True Then
+                                                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {objSheet.Cell(mKyakusakiHinmokuNo).Address.ColumnLetter & xlRow.RowNumber} ：製品コードが桁数超過のためトリミングされました。")
+                                                    End If
+                                                    '品目No
+                                                    itemNo = SafeVarcharLength(itemNo, 45, isTruncated)
+                                                    If isTruncated = True Then
+                                                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {objSheet.Cell(mKyakusakiHinmokuNo).Address.ColumnLetter & xlRow.RowNumber} ：品目Noが桁数超過のためトリミングされました。")
+                                                    End If
+                                                    '需要単位
+                                                    demandunit = SafeVarcharLength(demandunit, 4, isTruncated)
+                                                    If isTruncated = True Then
+                                                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {objSheet.Cell(mKyakusakiHinmokuNo).Address.ColumnLetter & xlRow.RowNumber} ：需要単位が桁数超過のためトリミングされました。")
+                                                    End If
+                                                    '出荷在庫場所
+                                                    shipstocklocation = SafeVarcharLength(shipstocklocation, 25, isTruncated)
+                                                    If isTruncated = True Then
+                                                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {objSheet.Cell(mKyakusakiHinmokuNo).Address.ColumnLetter & xlRow.RowNumber} ：出荷在庫場所が桁数超過のためトリミングされました。")
+                                                    End If
+
+                                                    '-----------------
 
                                                     '納期の列番号を始点として最終列までループ
                                                     For intColIdx As Integer = StColNum To EdColNum
@@ -1949,6 +2023,21 @@ Namespace Pages.Orders
                                                         '日割前受注数 ※需要数をセット
                                                         predailyorderqty = demandqty
 
+                                                        '-----------------
+                                                        '桁チェック
+                                                        '-----------------
+                                                        '需要数
+                                                        demandqty = Convert.ToDecimal(SafeVarcharLength(demandqty.ToString(), 10, isTruncated))
+                                                        If isTruncated = True Then
+                                                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：需要数が桁数超過のためトリミングされました。")
+                                                        End If
+                                                        '日割前受注数
+                                                        predailyorderqty = Convert.ToDecimal(SafeVarcharLength(predailyorderqty.ToString(), 10, isTruncated))
+                                                        If isTruncated = True Then
+                                                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：日割前受注数が桁数超過のためトリミングされました。")
+                                                        End If
+                                                        '-----------------
+
                                                         'フォルダタイプで処理分岐
                                                         If folderType = 4 Then
 
@@ -1973,6 +2062,16 @@ Namespace Pages.Orders
                                                                 ErrFlg = True
                                                             End If
 
+                                                            '-----------------
+                                                            '桁チェック
+                                                            '-----------------
+                                                            '受注区分
+                                                            ordertype = SafeVarcharLength(ordertype, 1, isTruncated)
+                                                            If isTruncated = True Then
+                                                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：受注区分が桁数超過のためトリミングされました。")
+                                                            End If
+                                                            '-----------------
+
                                                             '分割区分   (混在フォルダの場合は必須)
                                                             If Not String.IsNullOrEmpty(mBunkatuKubun) Then
                                                                 xlRow = objSheet.Row(objSheet.Cell(mBunkatuKubun).Address.RowNumber + (stepRow * ridx))
@@ -1994,6 +2093,16 @@ Namespace Pages.Orders
                                                                 ErrFlg = True
                                                             End If
 
+                                                            '-----------------
+                                                            '桁チェック
+                                                            '-----------------
+                                                            '分割区分
+                                                            proratedtype = SafeVarcharLength(proratedtype, 1, isTruncated)
+                                                            If isTruncated = True Then
+                                                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：分割区分が桁数超過のためトリミングされました。")
+                                                            End If
+                                                            '-----------------
+
                                                         Else
 
                                                             '受注区分   (任意)
@@ -2007,6 +2116,22 @@ Namespace Pages.Orders
                                                                 'errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：分割区分が数値ではない、または空です。")
                                                                 'ErrFlg = True
                                                             End If
+
+                                                            '-----------------
+                                                            '桁チェック
+                                                            '-----------------
+                                                            '受注区分
+                                                            ordertype = SafeVarcharLength(ordertype, 1, isTruncated)
+                                                            If isTruncated = True Then
+                                                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　受注区分が桁数超過のためトリミングされました。")
+                                                            End If
+                                                            '分割区分
+                                                            proratedtype = SafeVarcharLength(proratedtype, 1, isTruncated)
+                                                            If isTruncated = True Then
+                                                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　分割区分が桁数超過のためトリミングされました。")
+                                                            End If
+                                                            '-----------------
+
                                                         End If
 
                                                         '客先発注番号   (ordertype = 1:内示は任意、2:確定と3：納入指示は必須)
@@ -2029,6 +2154,15 @@ Namespace Pages.Orders
                                                             End If
                                                         End If
 
+                                                        '-----------------
+                                                        '桁チェック
+                                                        '-----------------
+                                                        '客先発注番号
+                                                        customerorderNo = SafeVarcharLength(customerorderNo, 40, isTruncated)
+                                                        If isTruncated = True Then
+                                                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：客先発注番号が桁数超過のためトリミングされました。")
+                                                        End If
+                                                        '-----------------
 
                                                         '希望納期   (必須)
                                                         If Not String.IsNullOrEmpty(mKibouNouki) Then
@@ -2068,6 +2202,16 @@ Namespace Pages.Orders
                                                             selffcstflag = ""
                                                         End If
 
+                                                        '-----------------
+                                                        '桁チェック
+                                                        '-----------------
+                                                        '自社予測フラグ
+                                                        selffcstflag = SafeVarcharLength(selffcstflag, 1, isTruncated)
+                                                        If isTruncated = True Then
+                                                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：自社予測フラグが桁数超過のためトリミングされました。")
+                                                        End If
+                                                        '-----------------
+
                                                         '自社予測削除フラグ   (自社予測フラグ = Yの時は必須)
                                                         If Not String.IsNullOrEmpty(mJishaYosokuDelFlag) Then
                                                             xlRow = objSheet.Row(objSheet.Cell(mJishaYosokuDelFlag).Address.RowNumber + (stepRow * ridx))
@@ -2083,6 +2227,16 @@ Namespace Pages.Orders
                                                             End If
                                                             ErrFlg = True
                                                         End If
+
+                                                        '-----------------
+                                                        '桁チェック
+                                                        '-----------------
+                                                        '自社予測削除フラグ
+                                                        selffcstdeleteflag = SafeVarcharLength(selffcstdeleteflag, 1, isTruncated)
+                                                        If isTruncated = True Then
+                                                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：自社予測削除フラグが桁数超過のためトリミングされました。")
+                                                        End If
+                                                        '-----------------
 
                                                         '需要ステイタス    （固定値）
                                                         demandstatus = If(ordertype = 1, "F", "O")
@@ -2116,7 +2270,6 @@ Namespace Pages.Orders
                                                             Else
                                                                 currencycode = ""
                                                             End If
-
                                                         Else
                                                             '取得できない場合はSTRAMMIC.SECTMより取得
                                                             currencycode = ""
@@ -2127,14 +2280,19 @@ Namespace Pages.Orders
                                                             End If
                                                         End If
 
-                                                        '需要単位   （任意）
-                                                        'STRAMMIC.ITEMMより取得
-                                                        demandunit = ""
-                                                        errMsg = ""
-                                                        If _oderStageRepo.GetDemandUnit(productcode, demandunit, errMsg) = False Then
-                                                            'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：{errMsg}")
-                                                            'ErrFlg = True
+                                                        '-----------------
+                                                        '桁チェック
+                                                        '-----------------
+                                                        '通貨コード
+                                                        currencycode = SafeVarcharLength(currencycode, 3, isTruncated)
+                                                        If isTruncated = True Then
+                                                            If mTukaCode <> "" Then
+                                                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：通貨コードが桁数超過のためトリミングされました。")
+                                                            Else
+                                                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　通貨コードが桁数超過のためトリミングされました。")
+                                                            End If
                                                         End If
+                                                        '-----------------
 
                                                         'コメント   （任意）
                                                         If Not String.IsNullOrEmpty(mComment) Then
@@ -2144,6 +2302,15 @@ Namespace Pages.Orders
                                                             remarks = ""
                                                         End If
 
+                                                        '-----------------
+                                                        '桁チェック
+                                                        '-----------------
+                                                        'コメント
+                                                        remarks = SafeVarcharLength(remarks, 45, isTruncated)
+                                                        If isTruncated = True Then
+                                                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：コメントが桁数超過のためトリミングされました。")
+                                                        End If
+                                                        '-----------------
 
                                                         '納入先コード   （任意）
                                                         If Not String.IsNullOrEmpty(mNonyusakiCode) Then
@@ -2153,16 +2320,15 @@ Namespace Pages.Orders
                                                             deliverycode = ""
                                                         End If
 
-
-                                                        '出荷在庫場所 （任意）
-                                                        'STRAMMIC.SECTMより取得
-                                                        shipstocklocation = ""
-                                                        errMsg = ""
-                                                        'If _oderStageRepo.GetShipStockLocation(customerCode, deliverycode, shipstocklocation, errMsg) = False Then
-                                                        If _oderStageRepo.GetShipStockLocation(productcode, shipstocklocation, errMsg) = False Then
-                                                            'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：{errMsg}")
-                                                            'ErrFlg = True
+                                                        '-----------------
+                                                        '桁チェック
+                                                        '-----------------
+                                                        '納入先コード
+                                                        deliverycode = SafeVarcharLength(deliverycode, 25, isTruncated)
+                                                        If isTruncated = True Then
+                                                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：納入先コードが桁数超過のためトリミングされました。")
                                                         End If
+                                                        '-----------------
 
                                                         '出荷先　　   （必須）
                                                         'STRAMMIC.SECTMより取得
@@ -2175,6 +2341,16 @@ Namespace Pages.Orders
                                                             ErrFlg = True
                                                         End If
 
+                                                        '-----------------
+                                                        '桁チェック
+                                                        '-----------------
+                                                        '出荷先
+                                                        shipto = SafeVarcharLength(shipto, 25, isTruncated)
+                                                        If isTruncated = True Then
+                                                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & intRowidx} ：出荷先が桁数超過のためトリミングされました。")
+                                                        End If
+                                                        '-----------------
+
                                                         '取引先情報区分 （任意）
                                                         If Not String.IsNullOrEmpty(mTorihikisakiJohoKubun) Then
                                                             xlRow = objSheet.Row(objSheet.Cell(mTorihikisakiJohoKubun).Address.RowNumber + (stepRow * ridx))
@@ -2183,6 +2359,15 @@ Namespace Pages.Orders
                                                             customerinfotype = ""
                                                         End If
 
+                                                        '-----------------
+                                                        '桁チェック
+                                                        '-----------------
+                                                        '取引先情報区分
+                                                        customerinfotype = SafeVarcharLength(customerinfotype, 50, isTruncated)
+                                                        If isTruncated = True Then
+                                                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：取引先情報区分が桁数超過のためトリミングされました。")
+                                                        End If
+                                                        '-----------------
 
                                                         '情報区分 （任意）
                                                         'INFO_TYPE_MSTより取得
@@ -2193,6 +2378,16 @@ Namespace Pages.Orders
                                                             'ErrFlg = True
                                                         End If
 
+                                                        '-----------------
+                                                        '桁チェック
+                                                        '-----------------
+                                                        '情報区分
+                                                        infotype = SafeVarcharLength(infotype, 1, isTruncated)
+                                                        If isTruncated = True Then
+                                                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：情報区分が桁数超過のためトリミングされました。")
+                                                        End If
+                                                        '-----------------
+
                                                         '消込条件区分 （任意）
                                                         'IMP_RULE_MSTより取得
                                                         reconciletype = 1
@@ -2202,7 +2397,15 @@ Namespace Pages.Orders
                                                             'ErrFlg = True
                                                         End If
 
-
+                                                        '-----------------
+                                                        '桁チェック
+                                                        '-----------------
+                                                        '消込条件区分
+                                                        reconciletype = SafeVarcharLength(reconciletype, 1, isTruncated)
+                                                        If isTruncated = True Then
+                                                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & intRowidx} ：消込条件区分が桁数超過のためトリミングされました。")
+                                                        End If
+                                                        '-----------------
 
                                                         '請求先    (任意）
                                                         'STRAMMIC.SECTMより取得
@@ -2213,6 +2416,15 @@ Namespace Pages.Orders
                                                             'ErrFlg = True
                                                         End If
 
+                                                        '-----------------
+                                                        '桁チェック
+                                                        '-----------------
+                                                        '請求先
+                                                        billingto = SafeVarcharLength(billingto, 25, isTruncated)
+                                                        If isTruncated = True Then
+                                                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & intRowidx} ：請求先が桁数超過のためトリミングされました。")
+                                                        End If
+                                                        '-----------------
 
                                                         'ここまででエラーフラグがあれば登録しない
                                                         If ErrFlg = True Then
@@ -2220,9 +2432,9 @@ Namespace Pages.Orders
                                                             'ErrCustomerCode = customerCode
                                                             'ErrTorikomiFile = TorikomiFile
 
-
                                                             fileidx += 1
                                                             Continue For
+
                                                         End If
 
 

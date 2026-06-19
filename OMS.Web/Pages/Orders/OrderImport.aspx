@@ -155,11 +155,11 @@
                             <asp:BoundField DataField="CustomerUnitName" HeaderText="注文工場／担当者名" />
                             <asp:BoundField DataField="OrderType" HeaderText="受注区分" />
                             <asp:BoundField DataField="CustomerOrderNo" HeaderText="客先発注No" Visible="false" />
-                            <asp:BoundField DataField="OrderDate" HeaderText="受注日" />                            
-                            <asp:BoundField DataField="DueDate" HeaderText="希望納期" />
+                            <asp:BoundField DataField="OrderDate" HeaderText="受注日" DataFormatString="{0:yyyy/MM/dd}" HtmlEncode="False" />                            
+                            <asp:BoundField DataField="DueDate" HeaderText="希望納期" DataFormatString="{0:yyyy/MM/dd}" HtmlEncode="False" />
                             <asp:BoundField DataField="CustomerItemNo" HeaderText="客先品目No" />
                             <asp:BoundField DataField="ItemNo" HeaderText="品目No" />
-                            <asp:BoundField DataField="DemandQty" HeaderText="需要数" />
+                            <asp:BoundField DataField="DemandQty" HeaderText="需要数" ItemStyle-HorizontalAlign="Right"/>
                             <asp:BoundField DataField="CurrencyCode" HeaderText="通貨コード" />
                             <asp:BoundField DataField="ProductCode" HeaderText="製品コード" />
                             <asp:BoundField DataField="DeliveryCode" HeaderText="納入先コード" />
