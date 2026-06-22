@@ -441,7 +441,7 @@ Namespace Pages.Orders
                                     Dim splitFlag = prodPlanRule.SplitFlag
                                     Dim orderType = ordersStageRow.OrderType
                                     Dim proratedType = ordersStageRow.ProratedType
-                                    If (splitFlag = "Y") Then
+                                    If (splitFlag = "Y") Then   ' 分割指定なし そのまま抜ける
                                         ' 2026/03/09 仕様変更分 ----
                                         ' 内示指定の時 かつ 日割り指定以外
                                         If (orderType = 1 And proratedType = 2) Then

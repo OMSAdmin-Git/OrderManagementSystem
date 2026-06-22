@@ -243,6 +243,7 @@ Namespace Pages.Orders
                                 'FUSRDEC1 ((A)品揃リードタイム)
                                 Dim assortLeadTime = repu.GetAssortLeadTime(customerCode, profitCenter, customerItemNo)
                                 'FTRANLT(輸送L/T)
+                                ' FTRANLT レコードなしの場合 0
                                 Dim transferLeadTime = shproutm.GetTransferLeadTime(orderRow.ShipTo, priority)
                                 Dim orderid = orderRow.OrderId
                                 Dim dueDate = orderRow.DueDate

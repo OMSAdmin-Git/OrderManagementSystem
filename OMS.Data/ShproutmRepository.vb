@@ -79,7 +79,7 @@ Namespace OMS.Data
                              Ftranlt   As ""TransferLeadTimme""  
                         FROM Shproutm
                         WHERE FshpToCd  = :p_shipTo 
-                        AND Fpriority    = :p_priority  "
+                        AND Fpriority   = :p_priority  "
                     cmd.Parameters.Add(":p_shipTo", OracleDbType.Varchar2, 45).Value = SafeVarchar(shipTo, 25)
                     cmd.Parameters.Add(":p_priority", OracleDbType.Int16).Value = priority
                     Using reader As OracleDataReader = cmd.ExecuteReader()

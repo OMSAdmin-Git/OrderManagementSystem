@@ -247,6 +247,7 @@ Namespace Pages.Orders
                                 ' 納期計算
                                 Dim customerItemNumber As String = orderRow.CustomerItemNo
                                 Dim assortLeadTime = repu.GetAssortLeadTime(orderRow.CustomerCode, profitCenter, customerItemNumber)  'USRDEFFLDF.FUSRDEC1
+                                ' FTRANLT レコードなしの場合 0
                                 Dim transferLeadTime = shproutm.GetTransferLeadTime(orderRow.ShipTo, priority)
                                 Dim orderid = orderRow.OrderId
                                 Dim shipScheduledDate = orderRow.ShipScheduledDate
