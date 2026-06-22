@@ -714,11 +714,11 @@ Namespace OMS.Data
             'ID (Sequence) を取得する
             ' ※アイデンティティ列(ISEQ$$...)の場合は、直接 .NEXTVAL を実行して取得します　※取得先:IMP_FILESに設定されているシーケンスID
             '天方環境
-            Const sqlGetId As String = "SELECT ""OMSDB"".""ISEQ$$_77189"".NEXTVAL FROM DUAL"
+            'Const sqlGetId As String = "SELECT ""OMSDB"".""ISEQ$$_77189"".NEXTVAL FROM DUAL"
             '本番環境
             'Const sqlGetId As String = "SELECT ""OMSDB"".""ISEQ$$_66841"".NEXTVAL FROM DUAL"
             'ASKA 環境
-            'Const sqlGetId As String = "SELECT ""OMSDB"".""ISEQ$$_75059"".NEXTVAL FROM DUAL"
+            Const sqlGetId As String = "SELECT ""OMSDB"".""ISEQ$$_75059"".NEXTVAL FROM DUAL"
             '検証環境
             'Const sqlGetId As String = "SELECT ""OMSTS"".""ISEQ$$_66717"".NEXTVAL FROM DUAL"
             Using cmdId As New OracleCommand(sqlGetId, conn)

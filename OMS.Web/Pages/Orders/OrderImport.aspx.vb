@@ -405,6 +405,8 @@ Namespace Pages.Orders
 
 
                 Dim ErrFlg As Boolean = False
+                Dim ErrFileFlg As Boolean = False
+
                 Dim tran As OracleTransaction = Nothing
 
                 Dim customerCode As Integer
@@ -557,10 +559,10 @@ Namespace Pages.Orders
                             If impfilestageId <> preImpFileStageId Then
                                 ' IDが変わった場合、前のトランザクションがあればコミットして終了
                                 If tran IsNot Nothing Then
-                                    If ErrFlg = True Then
-                                        'tran.Rollback()
+                                    If ErrFileFlg = True Then
 
-                                        errors.Add($" 取引先コード：{ErrCustomerCode}　取込ファイル：[{ErrTorikomiFile} ]　はデータ不備のため取込実行から除外されました。")
+                                        'tran.Rollback()
+                                        'errors.Add($" 取引先コード：{ErrCustomerCode}　取込ファイル：[{ErrTorikomiFile} ]　はデータ不備のため取込実行から除外されました。")
 
                                         ReDrawFlg = True
 
@@ -618,8 +620,8 @@ Namespace Pages.Orders
                                                     '取込ファイルワークテーブルを削除する
                                                     _impFileStageRepo.DeleteImpFileStageRange(tran, preImpFileStageId)
 
-                                                    '受注ワーク(取込(加工)済みデータ)削除
-                                                    cnt = _oderStageRepo.DeleteProcessedOrdersByFileId(tran, UserId, preImpFileStageId)
+                                                    ''受注ワーク(取込(加工)済みデータ)削除
+                                                    'cnt = _oderStageRepo.DeleteProcessedOrdersByFileId(tran, UserId, preImpFileStageId)
 
                                                     'resultRowCnt += cnt
                                                     'foundInThisCustomer = True
@@ -642,7 +644,7 @@ Namespace Pages.Orders
                                         'Next
                                         'resultCnt += 1
                                         tran.Commit()
-                                        'resultAllCnt += resultCnt
+                                        resultAllCnt += resultCnt
 
                                     Else
 
@@ -658,7 +660,7 @@ Namespace Pages.Orders
                                 tran = conn.BeginTransaction()
                                 'previousId = customerSettingId
                                 preImpFileStageId = impfilestageId
-                                ErrFlg = False
+                                ErrFileFlg = False
                                 resultCnt = 0
 
                                 ErrCustomerCode = customerCode
@@ -895,6 +897,8 @@ Namespace Pages.Orders
                                                     infotype = ""
                                                     reconciletype = 1
                                                     errMsg = ""
+
+                                                    ErrFlg = False
 
                                                     'フォルダタイプで処理分岐
                                                     If folderType = 4 Then
@@ -1159,11 +1163,11 @@ Namespace Pages.Orders
                                                     If isTruncated = True Then
                                                         errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：需要数が桁数超過のためトリミングされました。")
                                                     End If
-                                                    '日割前受注数
-                                                    predailyorderqty = Convert.ToDecimal(SafeVarcharLength(predailyorderqty.ToString(), 10, isTruncated))
-                                                    If isTruncated = True Then
-                                                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：日割前受注数が桁数超過のためトリミングされました。")
-                                                    End If
+                                                    ''日割前受注数
+                                                    'predailyorderqty = Convert.ToDecimal(SafeVarcharLength(predailyorderqty.ToString(), 10, isTruncated))
+                                                    'If isTruncated = True Then
+                                                    '    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：日割前受注数が桁数超過のためトリミングされました。")
+                                                    'End If
                                                     '自社予測フラグ
                                                     selffcstflag = SafeVarcharLength(selffcstflag, 1, isTruncated)
                                                     If isTruncated = True Then
@@ -1249,7 +1253,7 @@ Namespace Pages.Orders
 
                                                         fileidx += 1
                                                         errcnt += 1
-
+                                                        ErrFileFlg = True
                                                         Continue While
                                                     End If
 
@@ -1400,6 +1404,8 @@ Namespace Pages.Orders
                                                     shipstocklocation = ""
                                                     infotype = ""
                                                     reconciletype = 1
+
+                                                    ErrFlg = False
 
                                                     'フォルダタイプで処理分岐
                                                     If folderType = 4 Then
@@ -1666,11 +1672,11 @@ Namespace Pages.Orders
                                                     If isTruncated = True Then
                                                         errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：需要数が桁数超過のためトリミングされました。")
                                                     End If
-                                                    '日割前受注数
-                                                    predailyorderqty = Convert.ToDecimal(SafeVarcharLength(predailyorderqty.ToString(), 10, isTruncated))
-                                                    If isTruncated = True Then
-                                                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：日割前受注数が桁数超過のためトリミングされました。")
-                                                    End If
+                                                    ''日割前受注数
+                                                    'predailyorderqty = Convert.ToDecimal(SafeVarcharLength(predailyorderqty.ToString(), 10, isTruncated))
+                                                    'If isTruncated = True Then
+                                                    '    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：日割前受注数が桁数超過のためトリミングされました。")
+                                                    'End If
                                                     '自社予測フラグ
                                                     selffcstflag = SafeVarcharLength(selffcstflag, 1, isTruncated)
                                                     If isTruncated = True Then
@@ -1757,6 +1763,7 @@ Namespace Pages.Orders
 
                                                         fileidx += 1
                                                         errcnt += 1
+                                                        ErrFileFlg = True
                                                         Continue For
 
                                                     End If
@@ -1816,9 +1823,12 @@ Namespace Pages.Orders
 
                                         ElseIf FomatType = "MATRIX" Then
 
+                                            Dim orderDateErrFlg As Boolean = False
+                                            Dim HeaderErrFlg As Boolean = False
+
                                             '希望納期がマッピングマスタにない場合は、この後の処理が成立しないため処理を中断する。
                                             If mKibouNouki = "" Then
-                                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　マッピングマスタに不備があります。(マッピングマスタに希望納期の設定が存在しません。)")
+                                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　マッピングマスタに不備があります。(希望納期がマッピングマスタ未登録)")
                                                 Continue For
                                             End If
 
@@ -1856,7 +1866,8 @@ Namespace Pages.Orders
                                                         orderDate = CDate("1900/01/01") ' または特定の既定値
                                                         'errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {objSheet.Cell(mKibouNouki).Address.ColumnLetter & (objSheet.Cell(mKibouNouki).Address.RowNumber - 1)} ：受注日が不正な値です。")
                                                         errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {objSheet.Cell(mJutyuuBi).Address.ColumnLetter & (objSheet.Cell(mJutyuuBi).Address.RowNumber)} ：受注日が不正な値です。")
-                                                        ErrFlg = True
+                                                        ' ErrFlg = True
+                                                        orderDateErrFlg = True
                                                     End If
                                                 End If
 
@@ -1915,6 +1926,12 @@ Namespace Pages.Orders
                                                     infotype = ""
                                                     reconciletype = 1
 
+                                                    If orderDateErrFlg = True Then
+                                                        HeaderErrFlg = True
+                                                    Else
+                                                        HeaderErrFlg = False
+                                                    End If
+
 
                                                     '客先品目No   (任意だが、MATRIX形式は製品コードの項目がマトリックス共通表サンプルに存在しないので客先品目Noがないと品目Noが取得できない)
                                                     Dim cell1 As Integer = 0
@@ -1937,11 +1954,12 @@ Namespace Pages.Orders
                                                     errMsg = ""
                                                     If _oderStageRepo.GetProductCode(customerCode, customeritemNo, productcode, itemNo, errMsg) = False Then
                                                         If mKyakusakiHinmokuNo = "" Then
-                                                            errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　{errMsg}")
+                                                            errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　{errMsg} (マッピングマスタ未登録)")
                                                         Else
                                                             errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {objSheet.Cell(mKyakusakiHinmokuNo).Address.ColumnLetter & xlRow.RowNumber} ：{errMsg}")
                                                         End If
-                                                        ErrFlg = True
+                                                        'ErrFlg = True
+                                                        HeaderErrFlg = True
                                                     End If
 
                                                     '需要単位   （任意）
@@ -1991,11 +2009,16 @@ Namespace Pages.Orders
                                                     If isTruncated = True Then
                                                         errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {objSheet.Cell(mKyakusakiHinmokuNo).Address.ColumnLetter & xlRow.RowNumber} ：出荷在庫場所が桁数超過のためトリミングされました。")
                                                     End If
-
                                                     '-----------------
 
                                                     '納期の列番号を始点として最終列までループ
                                                     For intColIdx As Integer = StColNum To EdColNum
+
+                                                        If HeaderErrFlg = True Then
+                                                            ErrFlg = True
+                                                        Else
+                                                            ErrFlg = False
+                                                        End If
 
                                                         '受注日
                                                         '※受注日はヘッダー部で取得済み
@@ -2007,18 +2030,42 @@ Namespace Pages.Orders
                                                         Else
                                                             strQtyValue = ""
                                                         End If
+
                                                         If String.IsNullOrEmpty(strQtyValue) Then
                                                             'MATRIXでは、需要数が空だった場合は登録対象外とする
+                                                            If mjuyouSuu = "" Then
+                                                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　需要数が取得できません。 (マッピングマスタ未登録)")
+                                                            Else
+                                                                'errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：需要数が不正な値です。")
+                                                            End If
                                                             Continue For
                                                         End If
                                                         If Not Decimal.TryParse(strQtyValue, demandqty) Then
                                                             If mjuyouSuu = "" Then
-                                                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　需要数が取得できません。")
+                                                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　需要数が取得できません。 (マッピングマスタ未登録)")
                                                             Else
                                                                 errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：需要数が不正な値です。")
                                                             End If
                                                             ErrFlg = True
                                                         End If
+
+                                                        'If String.IsNullOrEmpty(strQtyValue) Then
+                                                        '    '必須チェック
+                                                        '    If mjuyouSuu = "" Then
+                                                        '        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　需要数が取得できません。")
+                                                        '    Else
+                                                        '        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：需要数が空です。")
+                                                        '    End If
+                                                        '    ErrFlg = True
+                                                        'ElseIf Not Decimal.TryParse(strQtyValue, demandqty) Then
+                                                        '    '数値チェック
+                                                        '    If mjuyouSuu = "" Then
+                                                        '        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　需要数が取得できません。")
+                                                        '    Else
+                                                        '        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：需要数が不正な値です。")
+                                                        '    End If
+                                                        '    ErrFlg = True
+                                                        'End If
 
                                                         '日割前受注数 ※需要数をセット
                                                         predailyorderqty = demandqty
@@ -2031,11 +2078,11 @@ Namespace Pages.Orders
                                                         If isTruncated = True Then
                                                             errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：需要数が桁数超過のためトリミングされました。")
                                                         End If
-                                                        '日割前受注数
-                                                        predailyorderqty = Convert.ToDecimal(SafeVarcharLength(predailyorderqty.ToString(), 10, isTruncated))
-                                                        If isTruncated = True Then
-                                                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：日割前受注数が桁数超過のためトリミングされました。")
-                                                        End If
+                                                        ''日割前受注数
+                                                        'predailyorderqty = Convert.ToDecimal(SafeVarcharLength(predailyorderqty.ToString(), 10, isTruncated))
+                                                        'If isTruncated = True Then
+                                                        '    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：日割前受注数が桁数超過のためトリミングされました。")
+                                                        'End If
                                                         '-----------------
 
                                                         'フォルダタイプで処理分岐
@@ -2051,7 +2098,7 @@ Namespace Pages.Orders
                                                             If String.IsNullOrEmpty(strQtyValue) Then
                                                                 '必須チェック
                                                                 If mJutyuKubun = "" Then
-                                                                    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　受注区分が取得できません。")
+                                                                    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　受注区分が取得できません。 (マッピングマスタ未登録)")
                                                                 Else
                                                                     errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：受注区分が空です。")
                                                                 End If
@@ -2082,7 +2129,7 @@ Namespace Pages.Orders
                                                             If String.IsNullOrEmpty(strQtyValue) Then
                                                                 '必須チェック
                                                                 If mBunkatuKubun = "" Then
-                                                                    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　分割区分が取得できません。")
+                                                                    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　分割区分が取得できません。 (マッピングマスタ未登録)")
                                                                 Else
                                                                     errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：分割区分が空です。")
                                                                 End If
@@ -2146,7 +2193,7 @@ Namespace Pages.Orders
                                                             'ordertype = 1:内示は任意、2:確定と3：納入指示は必須
                                                             If String.IsNullOrEmpty(customerorderNo) Then
                                                                 If mKyakusakiHattyuNo = "" Then
-                                                                    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　客先発注番号が取得できません。")
+                                                                    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　客先発注番号が取得できません。 (マッピングマスタ未登録)")
                                                                 Else
                                                                     errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：客先発注番号が空です。")
                                                                 End If
@@ -2174,7 +2221,7 @@ Namespace Pages.Orders
                                                         If String.IsNullOrEmpty(strTempDate) Then
                                                             dueDate = CDate("1900/01/01")
                                                             If mKibouNouki = "" Then
-                                                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　希望納期が取得できません。")
+                                                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　希望納期が取得できません。 (マッピングマスタ未登録)")
                                                             Else
                                                                 errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：希望納期が空です。")
                                                             End If
@@ -2221,7 +2268,7 @@ Namespace Pages.Orders
                                                         End If
                                                         If selffcstflag = "Y" AndAlso String.IsNullOrEmpty(selffcstdeleteflag) Then
                                                             If mJishaYosokuDelFlag = "" Then
-                                                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　自社予測削除フラグが取得できません。")
+                                                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　自社予測削除フラグが取得できません。 (マッピングマスタ未登録)")
                                                             Else
                                                                 errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：自社予測削除フラグが空です。")
                                                             End If
@@ -2431,8 +2478,9 @@ Namespace Pages.Orders
 
                                                             'ErrCustomerCode = customerCode
                                                             'ErrTorikomiFile = TorikomiFile
-
                                                             fileidx += 1
+                                                            errcnt += 1
+                                                            ErrFileFlg = True
                                                             Continue For
 
                                                         End If
@@ -2731,8 +2779,8 @@ Namespace Pages.Orders
                                         resultCnt += 1
                                         resultRowCnt += cnt
 
-                                        'successs.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　読込 {cnt} 件　異常 {errcnt} 件")
-                                        successs.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　読込 {cnt} 件")
+                                        successs.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　読込 {cnt} 件　異常 {errcnt} 件")
+                                        'successs.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　読込 {cnt} 件")
 
                                         'errcnt = 0
 
@@ -2760,10 +2808,10 @@ Namespace Pages.Orders
 
                         ' ループ終了後、最後のグループをコミット
                         If tran IsNot Nothing Then
-                            If ErrFlg = True Then
-                                'tran.Rollback()
+                            If ErrFileFlg = True Then
 
-                                errors.Add($"取引先コード：{ErrCustomerCode}　取込ファイル：[{ErrTorikomiFile} ]　はデータ不備のため取込実行から除外されました。")
+                                'tran.Rollback()
+                                'errors.Add($"取引先コード：{ErrCustomerCode}　取込ファイル：[{ErrTorikomiFile} ]　はデータ不備のため取込実行から除外されました。")
 
                                 ReDrawFlg = True
 
@@ -2822,8 +2870,8 @@ Namespace Pages.Orders
                                             '取込ファイルワークテーブルを削除する
                                             _impFileStageRepo.DeleteImpFileStageRange(tran, impfilestageId)
 
-                                            '受注ワーク(取込(加工)済みデータ)削除
-                                            cnt = _oderStageRepo.DeleteProcessedOrdersByFileId(tran, UserId, impfilestageId)
+                                            ''受注ワーク(取込(加工)済みデータ)削除
+                                            'cnt = _oderStageRepo.DeleteProcessedOrdersByFileId(tran, UserId, impfilestageId)
 
                                             'resultRowCnt += cnt
                                             'foundInThisCustomer = True
@@ -2846,7 +2894,7 @@ Namespace Pages.Orders
                                 'Next
                                 'resultCnt += 1
                                 tran.Commit()
-                                'resultAllCnt += resultCnt
+                                resultAllCnt += resultCnt
 
                             Else
 
@@ -3291,68 +3339,74 @@ Namespace Pages.Orders
                                         ' [フォルダパス]＋[ワークフォルダパス]＋[ワークファイル名]を取得
                                         Dim folderInfos As List(Of FolderPathInfo) = _impFileStageRepo.GetFolderInfosByImpFileStageId(impFileStageId)
                                         If folderInfos Is Nothing OrElse folderInfos.Count = 0 Then
-                                            errors.Add($"{customerCode}：IMP_FILES_STAGEにフォルダ未登録")
-                                            ErrFlg = True
-                                            Continue For
+                                            'errors.Add($"{customerCode}：IMP_FILES_STAGEにフォルダ未登録")
+                                            'ErrFlg = True
+                                            'Continue For
+                                        Else
+
+                                            Dim foundInThisCustomer As Boolean = False
+
+                                            Dim info = folderInfos(0)
+
+                                            ' WORKフォルダ存在確認
+                                            Dim sourceFolder As String = Utils.ResolvePath(Me.Server, info.Staged_FolderPath)
+                                            If Not Directory.Exists(sourceFolder) Then
+                                                errors.Add($"{customerCode}：WORKフォルダが存在しません [{Server.HtmlEncode(sourceFolder)}]")
+                                                ErrFlg = True
+                                                Continue For
+                                            End If
+
+                                            '取込元フォルダ存在確認
+                                            Dim destFolder As String = Utils.ResolvePath(Me.Server, info.FolderPath)
+                                            If Not Directory.Exists(destFolder) Then
+                                                errors.Add($"{customerCode}：フォルダが存在しません [{Server.HtmlEncode(destFolder)}]")
+                                                ErrFlg = True
+                                                Continue For
+                                            End If
+
+                                            Dim files = Directory.EnumerateFiles(sourceFolder, "*.csv", SearchOption.TopDirectoryOnly) _
+                                                .Concat(Directory.EnumerateFiles(sourceFolder, "*.xlsx", SearchOption.TopDirectoryOnly))
+
+                                            Dim fileName = info.Staged_FileName
+                                            Dim destPath = Path.Combine(destFolder, fileName)
+                                            Dim srcPath = Path.Combine(sourceFolder, fileName)
+
+                                            ' ファイル名にログインユーザーIDとタイムスタンプを付ける
+                                            Dim nameNoExt = Path.GetFileNameWithoutExtension(fileName)
+                                            Dim ext = Path.GetExtension(fileName)
+                                            destPath = Path.Combine(destFolder, $"{nameNoExt}_{UserId}_{DateTime.Now:yyyyMMddHHmmss}{ext}")
+
+                                            Try
+
+                                                ' 実移動（同一ボリューム/別ボリュームどちらでもOK）
+                                                File.Move(srcPath, destPath)
+
+                                                foundInThisCustomer = True
+
+                                            Catch ex As UnauthorizedAccessException
+                                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{fileName} ]　の移動に失敗（アクセス権限不足：{ex.Message}）")
+                                                ErrFlg = True
+                                            Catch ex As IOException
+                                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{fileName} ]　の移動に失敗（I/O：{ex.Message}）")
+                                                ErrFlg = True
+                                            Catch ex As Exception
+                                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{fileName} ]　の移動に失敗（{ex.Message}）")
+                                                ErrFlg = True
+                                            End Try
+
+                                            '取込ファイルワークテーブルを削除する
+                                            _impFileStageRepo.DeleteImpFileStageRange(tran, impFileStageId)
+
                                         End If
 
-                                        Dim foundInThisCustomer As Boolean = False
 
-                                        Dim info = folderInfos(0)
-
-                                        ' WORKフォルダ存在確認
-                                        Dim sourceFolder As String = Utils.ResolvePath(Me.Server, info.Staged_FolderPath)
-                                        If Not Directory.Exists(sourceFolder) Then
-                                            errors.Add($"{customerCode}：WORKフォルダが存在しません [{Server.HtmlEncode(sourceFolder)}]")
-                                            ErrFlg = True
-                                            Continue For
-                                        End If
-
-                                        '取込元フォルダ存在確認
-                                        Dim destFolder As String = Utils.ResolvePath(Me.Server, info.FolderPath)
-                                        If Not Directory.Exists(destFolder) Then
-                                            errors.Add($"{customerCode}：フォルダが存在しません [{Server.HtmlEncode(destFolder)}]")
-                                            ErrFlg = True
-                                            Continue For
-                                        End If
-
-                                        Dim files = Directory.EnumerateFiles(sourceFolder, "*.csv", SearchOption.TopDirectoryOnly) _
-                                            .Concat(Directory.EnumerateFiles(sourceFolder, "*.xlsx", SearchOption.TopDirectoryOnly))
-
-                                        Dim fileName = info.Staged_FileName
-                                        Dim destPath = Path.Combine(destFolder, fileName)
-                                        Dim srcPath = Path.Combine(sourceFolder, fileName)
-
-                                        ' ファイル名にログインユーザーIDとタイムスタンプを付ける
-                                        Dim nameNoExt = Path.GetFileNameWithoutExtension(fileName)
-                                        Dim ext = Path.GetExtension(fileName)
-                                        destPath = Path.Combine(destFolder, $"{nameNoExt}_{UserId}_{DateTime.Now:yyyyMMddHHmmss}{ext}")
-
-                                        Try
-
-                                            ' 実移動（同一ボリューム/別ボリュームどちらでもOK）
-                                            File.Move(srcPath, destPath)
-
-                                            foundInThisCustomer = True
-
-                                        Catch ex As UnauthorizedAccessException
-                                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{fileName} ]　の移動に失敗（アクセス権限不足：{ex.Message}）")
-                                            ErrFlg = True
-                                        Catch ex As IOException
-                                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{fileName} ]　の移動に失敗（I/O：{ex.Message}）")
-                                            ErrFlg = True
-                                        Catch ex As Exception
-                                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{fileName} ]　の移動に失敗（{ex.Message}）")
-                                            ErrFlg = True
-                                        End Try
 
                                     Catch ex As Exception
                                         errors.Add($"{customerCode}：{Server.HtmlEncode(ex.Message)}")
                                         ErrFlg = True
                                     End Try
 
-                                    '取込ファイルワークテーブルを削除する
-                                    _impFileStageRepo.DeleteImpFileStageRange(tran, impFileStageId)
+
 
                                 Next
 
