@@ -615,10 +615,11 @@ Namespace Pages.Orders
                                                 Try
 
                                                     ' 実移動（同一ボリューム/別ボリュームどちらでもOK）
-                                                    File.Move(srcPath, destPath)
+                                                    'File.Move(srcPath, destPath)
+                                                    File.Copy(srcPath, destPath)
 
                                                     '取込ファイルワークテーブルを削除する
-                                                    _impFileStageRepo.DeleteImpFileStageRange(tran, preImpFileStageId)
+                                                    '_impFileStageRepo.DeleteImpFileStageRange(tran, preImpFileStageId)
 
                                                     ''受注ワーク(取込(加工)済みデータ)削除
                                                     'cnt = _oderStageRepo.DeleteProcessedOrdersByFileId(tran, UserId, preImpFileStageId)
@@ -2865,10 +2866,11 @@ Namespace Pages.Orders
                                         Try
 
                                             ' 実移動（同一ボリューム/別ボリュームどちらでもOK）
-                                            File.Move(srcPath, destPath)
+                                            'File.Move(srcPath, destPath)
+                                            File.Copy(srcPath, destPath)
 
                                             '取込ファイルワークテーブルを削除する
-                                            _impFileStageRepo.DeleteImpFileStageRange(tran, impfilestageId)
+                                            '_impFileStageRepo.DeleteImpFileStageRange(tran, impfilestageId)
 
                                             ''受注ワーク(取込(加工)済みデータ)削除
                                             'cnt = _oderStageRepo.DeleteProcessedOrdersByFileId(tran, UserId, impfilestageId)
@@ -2989,7 +2991,7 @@ Namespace Pages.Orders
 
             Dim ErrFlg As Boolean = False
             Dim resultCnt As Integer = 0
-            Dim resultRowCnt As Integer = 0
+            'Dim resultRowCnt As Integer = 0
             Dim errors As New List(Of String)()
 
             ' DB接続の取得
@@ -3118,72 +3120,79 @@ Namespace Pages.Orders
                                     ' [フォルダパス]＋[ワークフォルダパス]＋[ワークファイル名]を取得
                                     Dim folderInfos As List(Of FolderPathInfo) = _impFileStageRepo.GetFolderInfosByImpFileStageId(impFileStageId)
                                     If folderInfos Is Nothing OrElse folderInfos.Count = 0 Then
-                                        errors.Add($"{customerCode}：IMP_FILES_STAGEにフォルダ未登録")
-                                        ErrFlg = True
-                                        Continue For
+                                        'errors.Add($"{customerCode}：IMP_FILES_STAGEにフォルダ未登録")
+                                        'ErrFlg = True
+                                        'Continue For
+                                    Else
+
+                                        'Dim foundInThisCustomer As Boolean = False
+
+                                        Dim info = folderInfos(0)
+
+                                        ' WORKフォルダ存在確認
+                                        Dim sourceFolder As String = Utils.ResolvePath(Me.Server, info.Staged_FolderPath)
+                                        If Not Directory.Exists(sourceFolder) Then
+                                            errors.Add($"{customerCode}：WORKフォルダが存在しません [{Server.HtmlEncode(sourceFolder)}]")
+                                            ErrFlg = True
+                                            Continue For
+                                        End If
+
+                                        '取込元フォルダ存在確認
+                                        Dim destFolder As String = Utils.ResolvePath(Me.Server, info.FolderPath)
+                                        If Not Directory.Exists(destFolder) Then
+                                            errors.Add($"{customerCode}：フォルダが存在しません [{Server.HtmlEncode(destFolder)}]")
+                                            ErrFlg = True
+                                            Continue For
+                                        End If
+
+                                        Dim files = Directory.EnumerateFiles(sourceFolder, "*.csv", SearchOption.TopDirectoryOnly) _
+                                            .Concat(Directory.EnumerateFiles(sourceFolder, "*.xlsx", SearchOption.TopDirectoryOnly))
+
+                                        Dim fileName = info.Staged_FileName
+                                        Dim destPath = Path.Combine(destFolder, fileName)
+                                        Dim srcPath = Path.Combine(sourceFolder, fileName)
+
+                                        ' ファイル名にログインユーザーIDとタイムスタンプを付ける
+                                        Dim nameNoExt = Path.GetFileNameWithoutExtension(fileName)
+                                        Dim ext = Path.GetExtension(fileName)
+                                        destPath = Path.Combine(destFolder, $"{nameNoExt}_{UserId}_{DateTime.Now:yyyyMMddHHmmss}{ext}")
+
+                                        Try
+
+                                            ' 実移動（同一ボリューム/別ボリュームどちらでもOK）
+                                            File.Move(srcPath, destPath)
+
+                                            '取込ファイルワークテーブルを削除する
+                                            _impFileStageRepo.DeleteImpFileStageRange(tran, impFileStageId)
+
+                                            resultCnt += 1
+
+                                            'foundInThisCustomer = True
+
+                                        Catch ex As UnauthorizedAccessException
+                                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{fileName} ]　の移動に失敗（アクセス権限不足：{ex.Message}）")
+                                            ErrFlg = True
+                                        Catch ex As IOException
+                                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{fileName} ]　の移動に失敗（I/O：{ex.Message}）")
+                                            ErrFlg = True
+                                        Catch ex As Exception
+                                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{fileName} ]　の移動に失敗（{ex.Message}）")
+                                            ErrFlg = True
+                                        End Try
+
                                     End If
-
-                                    Dim foundInThisCustomer As Boolean = False
-
-                                    Dim info = folderInfos(0)
-
-                                    ' WORKフォルダ存在確認
-                                    Dim sourceFolder As String = Utils.ResolvePath(Me.Server, info.Staged_FolderPath)
-                                    If Not Directory.Exists(sourceFolder) Then
-                                        errors.Add($"{customerCode}：WORKフォルダが存在しません [{Server.HtmlEncode(sourceFolder)}]")
-                                        ErrFlg = True
-                                        Continue For
-                                    End If
-
-                                    '取込元フォルダ存在確認
-                                    Dim destFolder As String = Utils.ResolvePath(Me.Server, info.FolderPath)
-                                    If Not Directory.Exists(destFolder) Then
-                                        errors.Add($"{customerCode}：フォルダが存在しません [{Server.HtmlEncode(destFolder)}]")
-                                        ErrFlg = True
-                                        Continue For
-                                    End If
-
-                                    Dim files = Directory.EnumerateFiles(sourceFolder, "*.csv", SearchOption.TopDirectoryOnly) _
-                                        .Concat(Directory.EnumerateFiles(sourceFolder, "*.xlsx", SearchOption.TopDirectoryOnly))
-
-                                    Dim fileName = info.Staged_FileName
-                                    Dim destPath = Path.Combine(destFolder, fileName)
-                                    Dim srcPath = Path.Combine(sourceFolder, fileName)
-
-                                    ' ファイル名にログインユーザーIDとタイムスタンプを付ける
-                                    Dim nameNoExt = Path.GetFileNameWithoutExtension(fileName)
-                                    Dim ext = Path.GetExtension(fileName)
-                                    destPath = Path.Combine(destFolder, $"{nameNoExt}_{UserId}_{DateTime.Now:yyyyMMddHHmmss}{ext}")
-
-                                    Try
-
-                                        ' 実移動（同一ボリューム/別ボリュームどちらでもOK）
-                                        File.Move(srcPath, destPath)
-
-                                        foundInThisCustomer = True
-
-                                    Catch ex As UnauthorizedAccessException
-                                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{fileName} ]　の移動に失敗（アクセス権限不足：{ex.Message}）")
-                                        ErrFlg = True
-                                    Catch ex As IOException
-                                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{fileName} ]　の移動に失敗（I/O：{ex.Message}）")
-                                        ErrFlg = True
-                                    Catch ex As Exception
-                                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{fileName} ]　の移動に失敗（{ex.Message}）")
-                                        ErrFlg = True
-                                    End Try
 
                                 Catch ex As Exception
                                     errors.Add($"{customerCode}：{Server.HtmlEncode(ex.Message)}")
                                     ErrFlg = True
                                 End Try
 
-                                '取込ファイルワークテーブルを削除する
-                                _impFileStageRepo.DeleteImpFileStageRange(tran, impFileStageId)
+                                ''取込ファイルワークテーブルを削除する
+                                '_impFileStageRepo.DeleteImpFileStageRange(tran, impFileStageId)
 
                                 'Next
 
-                                resultCnt += 1
+                                'resultCnt += 1
 
 
                                 If ErrFlg = False Then
@@ -3193,7 +3202,7 @@ Namespace Pages.Orders
                                     cnt = _oderStageRepo.DeleteProcessedOrdersByFileId(tran, UserId, impFileStageId)
 
                                     'resultCnt += 1
-                                    resultRowCnt += cnt
+                                    'resultRowCnt += cnt
                                 End If
 
 
@@ -3344,7 +3353,7 @@ Namespace Pages.Orders
                                             'Continue For
                                         Else
 
-                                            Dim foundInThisCustomer As Boolean = False
+                                            'Dim foundInThisCustomer As Boolean = False
 
                                             Dim info = folderInfos(0)
 
@@ -3381,7 +3390,10 @@ Namespace Pages.Orders
                                                 ' 実移動（同一ボリューム/別ボリュームどちらでもOK）
                                                 File.Move(srcPath, destPath)
 
-                                                foundInThisCustomer = True
+                                                '取込ファイルワークテーブルを削除する
+                                                _impFileStageRepo.DeleteImpFileStageRange(tran, impFileStageId)
+
+                                                'foundInThisCustomer = True
 
                                             Catch ex As UnauthorizedAccessException
                                                 errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{fileName} ]　の移動に失敗（アクセス権限不足：{ex.Message}）")
@@ -3394,19 +3406,15 @@ Namespace Pages.Orders
                                                 ErrFlg = True
                                             End Try
 
-                                            '取込ファイルワークテーブルを削除する
-                                            _impFileStageRepo.DeleteImpFileStageRange(tran, impFileStageId)
+                                            ''取込ファイルワークテーブルを削除する
+                                            '_impFileStageRepo.DeleteImpFileStageRange(tran, impFileStageId)
 
                                         End If
-
-
 
                                     Catch ex As Exception
                                         errors.Add($"{customerCode}：{Server.HtmlEncode(ex.Message)}")
                                         ErrFlg = True
                                     End Try
-
-
 
                                 Next
 
@@ -3569,71 +3577,92 @@ Namespace Pages.Orders
                                         '[ワークフォルダフォルダパス]＋[ワークファイル名]＋[受注区分]を取得
                                         Dim folderInfos As List(Of FolderPathInfo) = _impFileStageRepo.GetStageFolderInfosByImpFileStageId(impFileStageId)
                                         If folderInfos Is Nothing OrElse folderInfos.Count = 0 Then
-                                            errors.Add($"{customerCode}：IMP_FILES_STAGEにフォルダ未登録")
-                                            ErrFlg = True
-                                            Continue For
+                                            'errors.Add($"{customerCode}：IMP_FILES_STAGEにフォルダ未登録")
+                                            'ErrFlg = True
+                                            'Continue For
+
+                                        Else
+
+                                            'Dim foundInThisCustomer As Boolean = False
+
+                                            Dim info = folderInfos(0)
+
+                                            Dim sourceFolder As String = Utils.ResolvePath(Me.Server, info.Staged_FolderPath)
+
+                                            ' フォルダ存在確認
+                                            If Not Directory.Exists(sourceFolder) Then
+                                                errors.Add($"{customerCode}：WORKフォルダが存在しません [{Server.HtmlEncode(sourceFolder)}]")
+                                                ErrFlg = True
+                                                Continue For
+                                            End If
+
+                                            ' COMPLETEDサブフォルダ作成
+                                            Dim destFolder As String = Path.Combine(_compUserRoot, customerCode, info.FolderType.ToString())
+                                            Utils.EnsureDirectory(destFolder)
+
+                                            Dim files = Directory.EnumerateFiles(sourceFolder, "*.csv", SearchOption.TopDirectoryOnly) _
+                                            .Concat(Directory.EnumerateFiles(sourceFolder, "*.xlsx", SearchOption.TopDirectoryOnly))
+
+                                            Dim fileName = info.Staged_FileName
+                                            Dim destPath = Path.Combine(destFolder, fileName)
+                                            Dim srcPath = Path.Combine(sourceFolder, fileName)
+
+                                            ' ファイル名にログインユーザーIDとタイムスタンプを付ける
+                                            Dim nameNoExt = Path.GetFileNameWithoutExtension(fileName)
+                                            Dim ext = Path.GetExtension(fileName)
+                                            destPath = Path.Combine(destFolder, $"{nameNoExt}_{UserId}_{DateTime.Now:yyyyMMddHHmmss}{ext}")
+
+                                            Try
+
+                                                ' 実移動（同一ボリューム/別ボリュームどちらでもOK）
+                                                File.Move(srcPath, destPath)
+
+                                                '取込ファイルテーブル(imp_files)に取込ファイルワークテーブル(imp_files_stage)のレコードを追加する
+                                                Dim newimpfileid As Long = _impFileStageRepo.InsertImpFileFromStage(tran, impFileStageId, now, UserId, pgId)
+
+                                                '取込ファイルワークテーブルを削除する
+                                                _impFileStageRepo.DeleteImpFileStageRange(tran, impFileStageId)
+
+                                                '正規データ更新 (ORDERSテーブルのIMP_FILE_IDを更新する)
+                                                _oderStageRepo.UpdateOrdersImpFileId(tran, newimpfileid, impFileStageId)
+
+                                                'foundInThisCustomer = True
+
+                                            Catch ex As UnauthorizedAccessException
+                                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{fileName} ]　の移動に失敗（アクセス権限不足：{ex.Message}）")
+                                                ErrFlg = True
+                                            Catch ex As IOException
+                                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{fileName} ]　の移動に失敗（I/O：{ex.Message}）")
+                                                ErrFlg = True
+                                            Catch ex As Exception
+                                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{fileName} ]　の移動に失敗（{ex.Message}）")
+                                                ErrFlg = True
+                                            End Try
+
+                                            ''取込ファイルテーブル(imp_files)に取込ファイルワークテーブル(imp_files_stage)のレコードを追加する
+                                            'Dim newimpfileid As Long = _impFileStageRepo.InsertImpFileFromStage(tran, impFileStageId, now, UserId, pgId)
+
+                                            ''取込ファイルワークテーブルを削除する
+                                            '_impFileStageRepo.DeleteImpFileStageRange(tran, impFileStageId)
+
+                                            ''正規データ更新 (ORDERSテーブルのIMP_FILE_IDを更新する)
+                                            '_oderStageRepo.UpdateOrdersImpFileId(tran, newimpfileid, impFileStageId)
+
                                         End If
-
-                                        Dim foundInThisCustomer As Boolean = False
-
-                                        Dim info = folderInfos(0)
-
-                                        Dim sourceFolder As String = Utils.ResolvePath(Me.Server, info.Staged_FolderPath)
-
-                                        ' フォルダ存在確認
-                                        If Not Directory.Exists(sourceFolder) Then
-                                            errors.Add($"{customerCode}：WORKフォルダが存在しません [{Server.HtmlEncode(sourceFolder)}]")
-                                            ErrFlg = True
-                                            Continue For
-                                        End If
-
-                                        ' COMPLETEDサブフォルダ作成
-                                        Dim destFolder As String = Path.Combine(_compUserRoot, customerCode, info.FolderType.ToString())
-                                        Utils.EnsureDirectory(destFolder)
-
-                                        Dim files = Directory.EnumerateFiles(sourceFolder, "*.csv", SearchOption.TopDirectoryOnly) _
-                                        .Concat(Directory.EnumerateFiles(sourceFolder, "*.xlsx", SearchOption.TopDirectoryOnly))
-
-                                        Dim fileName = info.Staged_FileName
-                                        Dim destPath = Path.Combine(destFolder, fileName)
-                                        Dim srcPath = Path.Combine(sourceFolder, fileName)
-
-                                        ' ファイル名にログインユーザーIDとタイムスタンプを付ける
-                                        Dim nameNoExt = Path.GetFileNameWithoutExtension(fileName)
-                                        Dim ext = Path.GetExtension(fileName)
-                                        destPath = Path.Combine(destFolder, $"{nameNoExt}_{UserId}_{DateTime.Now:yyyyMMddHHmmss}{ext}")
-
-                                        Try
-
-                                            ' 実移動（同一ボリューム/別ボリュームどちらでもOK）
-                                            File.Move(srcPath, destPath)
-
-                                            foundInThisCustomer = True
-
-                                        Catch ex As UnauthorizedAccessException
-                                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{fileName} ]　の移動に失敗（アクセス権限不足：{ex.Message}）")
-                                            ErrFlg = True
-                                        Catch ex As IOException
-                                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{fileName} ]　の移動に失敗（I/O：{ex.Message}）")
-                                            ErrFlg = True
-                                        Catch ex As Exception
-                                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{fileName} ]　の移動に失敗（{ex.Message}）")
-                                            ErrFlg = True
-                                        End Try
 
                                     Catch ex As Exception
                                         errors.Add($"{customerCode}：{Server.HtmlEncode(ex.Message)}")
                                         ErrFlg = True
                                     End Try
 
-                                    '取込ファイルテーブル(imp_files)に取込ファイルワークテーブル(imp_files_stage)のレコードを追加する
-                                    Dim newimpfileid As Long = _impFileStageRepo.InsertImpFileFromStage(tran, impFileStageId, now, UserId, pgId)
+                                    ''取込ファイルテーブル(imp_files)に取込ファイルワークテーブル(imp_files_stage)のレコードを追加する
+                                    'Dim newimpfileid As Long = _impFileStageRepo.InsertImpFileFromStage(tran, impFileStageId, now, UserId, pgId)
 
-                                    '取込ファイルワークテーブルを削除する
-                                    _impFileStageRepo.DeleteImpFileStageRange(tran, impFileStageId)
+                                    ''取込ファイルワークテーブルを削除する
+                                    '_impFileStageRepo.DeleteImpFileStageRange(tran, impFileStageId)
 
-                                    '正規データ更新 (ORDERSテーブルのIMP_FILE_IDを更新する)
-                                    _oderStageRepo.UpdateOrdersImpFileId(tran, newimpfileid, impFileStageId)
+                                    ''正規データ更新 (ORDERSテーブルのIMP_FILE_IDを更新する)
+                                    '_oderStageRepo.UpdateOrdersImpFileId(tran, newimpfileid, impFileStageId)
 
                                 Next
 
