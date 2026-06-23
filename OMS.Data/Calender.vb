@@ -2,6 +2,7 @@
 Imports System.Data
 Imports System.Text
 Imports System.Text.RegularExpressions
+Imports DocumentFormat.OpenXml.Drawing
 Imports DocumentFormat.OpenXml.Drawing.Diagrams
 Imports DocumentFormat.OpenXml.Spreadsheet
 Imports DocumentFormat.OpenXml.Wordprocessing
@@ -45,6 +46,34 @@ Namespace OMS.Data
                 cmd.Parameters.Add(":p_endDate", OracleDbType.Char, 20).Value = endDate
                 cmd.Parameters.Add(":p_holidayflg", OracleDbType.Char, 1).Value = holidayFlag
 
+                cnt = cmd.ExecuteScalar()
+
+            End Using
+            Return cnt
+
+        End Function
+        ''' <summary>
+        ''' 指定日から前方の 稼働日を探す
+        ''' </summary>
+        ''' <param name="conn"></param>
+        ''' <param name="tran"></param>
+        ''' <param name="dtTarget"></param>
+        ''' <returns></returns>
+        Public Function GetWorkingDayDescendingOrder(conn As OracleConnection, tran As OracleTransaction, dtTarget As DateTime) As DateTime
+            Dim cnt As DateTime
+
+            Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
+
+                cmd.CommandText = "SELECT * FROM ( 
+                                SELECT * 
+                                FROM Calender 
+                                WHERE TARGET_DATE <= TO_DATE(:p_targetDate, 'YY-MM-DD') 
+                                  AND FHOLIDAYFLG = 'W' 
+                                ORDER BY TARGET_DATE DESC  
+                             )
+                             WHERE ROWNUM = 1 "
+                Dim targetDate = dtTarget.ToString("yyyy-MM-dd")
+                cmd.Parameters.Add(":p_targetDate", OracleDbType.Char, 20).Value = targetDate
                 cnt = cmd.ExecuteScalar()
 
             End Using

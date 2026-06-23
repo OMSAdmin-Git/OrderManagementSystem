@@ -250,6 +250,7 @@ Namespace Pages.Orders
                                 ' FTRANLT レコードなしの場合 0
                                 Dim transferLeadTime = shproutm.GetTransferLeadTime(orderRow.ShipTo, priority)
                                 Dim orderid = orderRow.OrderId
+
                                 Dim shipScheduledDate = orderRow.ShipScheduledDate
                                 Dim shipDateOrg = orderRow.ShipDate
                                 '#If DEBUG Then
@@ -268,6 +269,12 @@ Namespace Pages.Orders
                                 Dim shipDate As Date = shipScheduledDate.Value.AddDays(assortLeadTime)
                                 ' (生産計画ワークテーブル.出荷日 + 出荷ルートマスター.輸送L/T)
                                 Dim dueDate = shipDateOrg.Value.AddDays(transferLeadTime)
+
+                                ' 2026/6/23 非稼働日排除 処理
+                                Dim cal = New CalenderRepository(Utils.GetConnectionString())
+                                shipDate = cal.GetWorkingDayDescendingOrder(conn, tran, shipDate)
+                                ' 2026/6/23 非稼働日排除 処理
+
                                 Dim status = "POST_PLAN_DUE_SET"
                                 Dim updateAt = ProcessingStartDate
                                 Dim updateUserId = PageHelpers.GetUserId(Me)

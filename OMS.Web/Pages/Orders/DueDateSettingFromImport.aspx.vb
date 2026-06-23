@@ -261,6 +261,14 @@ Namespace Pages.Orders
                                 ' (受注ワークテーブル.希望納期 - 出荷ルートマスター.輸送L/T - ユーザー定義マスタ.(A)品揃リードタイム)
                                 'ORDERS_STAGE.DUE_DATE - shproutm.FTRANLT - USRDEFFLDF.FUSRDEC1
                                 Dim shipPlanDate = dueDate.Value.AddDays(-(transferLeadTime + assortLeadTime))
+
+                                ' 2026/6/23 非稼働日排除 処理
+                                Dim cal = New CalenderRepository(Utils.GetConnectionString())
+                                shipScaduleDate = cal.GetWorkingDayDescendingOrder(conn, tran, shipScaduleDate)
+                                shipdate = cal.GetWorkingDayDescendingOrder(conn, tran, shipdate)
+                                shipPlanDate = cal.GetWorkingDayDescendingOrder(conn, tran, shipPlanDate)
+                                ' 2026/6/23 非稼働日排除 処理
+
                                 Dim status = "DUE_SET"
                                 Dim updateAt = ProcessingStartDate
                                 Dim updateUserId = PageHelpers.GetUserId(Me)
