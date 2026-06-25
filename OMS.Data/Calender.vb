@@ -76,12 +76,9 @@ Namespace OMS.Data
         ''' <param name="iDate"></param>
         ''' <returns></returns>
         Public Function SearchForwardWorkingDays(conn As OracleConnection, tran As OracleTransaction, iCaleTyp As String, iDate As Date, iDays As Integer) As Date
-            ' ターゲット 日が稼働日かどうかを判定する
-            Dim tDate = iDate.AddDays(iDays)
-            If (IsWorkingDays(conn, tran, iCaleTyp, tDate)) Then
-                Return tDate
-            End If
-            Return SearchForwardWorkingDays(conn, tran, iCaleTyp, tDate)
+
+            Return SearchForwardWorkingDays(conn, tran, iCaleTyp, iDate.AddDays(iDays))
+
         End Function
         ''' <summary>
         ''' 指定の年月日 が非稼働日の場合 前方検索して最初の稼働日を返す(OMSDB.Function.IS_WORKING_DAY/OMSDB.Function.ADD_WORKING_DAYS使用)
