@@ -441,6 +441,32 @@ Namespace Pages.Orders
             Dim conn As New OracleConnection(Utils.GetConnectionString())
             conn.Open()
             Dim tran As OracleTransaction = conn.BeginTransaction()
+
+            ' ######## DEBUG
+#If False Then
+            Dim cal = New CalenderRepository(Utils.GetConnectionString())
+            Dim tdt = New DateTime(2026, 6, 21)
+            Dim dys = -1
+            Dim tdy = cal.AddWorkingDays(conn, tran, "00001", tdt, dys)
+
+            'tdt = New DateTime(2026, 6, 19)
+            'dys = -1
+            'tdy = cal.AddWorkingDays(conn, tran, "00001", tdt, dys)
+
+            'tdt = New DateTime(2026, 6, 21)
+            'dys = 0
+            'tdy = cal.AddWorkingDays(conn, tran, "00001", tdt, dys)
+
+
+            tdt = New DateTime(2026, 6, 21)
+            tdy = cal.SearchForwardWorkingDays(conn, tran, "00001", tdt)
+
+            tdt = New DateTime(2026, 6, 19)
+            tdy = cal.SearchForwardWorkingDays(conn, tran, "00001", tdt)
+
+#End If
+            ' ######## DEBUG
+
             ' Table class access 
             ' 受注履歴
             Dim reph = New OrderHistoryRepository(Utils.GetConnectionString())

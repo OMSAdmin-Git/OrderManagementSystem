@@ -2,6 +2,7 @@
 Imports System.Data
 Imports System.Text
 Imports System.Text.RegularExpressions
+Imports DocumentFormat.OpenXml.Bibliography
 Imports DocumentFormat.OpenXml.Drawing
 Imports DocumentFormat.OpenXml.Drawing.Diagrams
 Imports DocumentFormat.OpenXml.Spreadsheet
@@ -18,6 +19,70 @@ Namespace OMS.Data
             _connectionString = connectionString
         End Sub
 
+        ''' <summary>
+        ''' 指定の年月日 から 指定日 前/後 の稼働日を取得する(OMSDB.Function.ADD_WORKING_DAYS使用)
+        ''' 2026/6/25
+        ''' </summary>
+        ''' <param name="conn"></param>
+        ''' <param name="tran"></param>
+        ''' <param name="iCaleTyp"></param>
+        ''' <param name="iDate"></param>
+        ''' <param name="iDays"></param>
+        ''' <returns>Date</returns>
+        Public Function AddWorkingDays(conn As OracleConnection, tran As OracleTransaction, iCaleTyp As String, iDate As Date, iDays As Integer) As Date
+            Dim tdate As Date
+            Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
+                cmd.CommandText = "SELECT
+                                   ADD_WORKING_DAYS(:p_iCaleTyp, :p_iDate, :p_iDays) 
+                                   FROM DUAL "
+                cmd.Parameters.Add(":p_iCaleTyp", OracleDbType.Char, 20).Value = iCaleTyp
+                cmd.Parameters.Add(":p_iDate", OracleDbType.Date).Value = iDate
+                cmd.Parameters.Add(":p_iDays", OracleDbType.Int16).Value = iDays
+                tdate = cmd.ExecuteScalar()
+
+            End Using
+            Return tdate
+
+        End Function
+        ''' <summary>
+        ''' 指定の年月日 が稼働日かどうか(OMSDB.Function.IS_WORKING_DAY)
+        ''' 2026/6/25
+        ''' </summary>
+        ''' <param name="conn"></param>
+        ''' <param name="tran"></param>
+        ''' <param name="iCaleTyp"></param>
+        ''' <param name="iDate"></param>
+        ''' <returns></returns>
+        Public Function IsWorkingDays(conn As OracleConnection, tran As OracleTransaction, iCaleTyp As String, iDate As Date) As Boolean
+            Dim judge As Boolean = False
+            Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
+                cmd.CommandText = "SELECT
+                                   IS_WORKING_DAY(:p_iCaleTyp, :p_iDate) 
+                                   FROM DUAL "
+                cmd.Parameters.Add(":p_iCaleTyp", OracleDbType.Char, 20).Value = iCaleTyp
+                cmd.Parameters.Add(":p_iDate", OracleDbType.Date).Value = iDate
+                Dim jg = cmd.ExecuteScalar()
+                judge = jg = "Y"
+            End Using
+            Return judge
+        End Function
+        ''' <summary>
+        ''' 指定の年月日 が非稼働日の場合 前方検索して最初の稼働日を返す(OMSDB.Function.IS_WORKING_DAY/OMSDB.Function.ADD_WORKING_DAYS使用)
+        ''' 2026/6/25
+        ''' </summary>
+        ''' <param name="conn"></param>
+        ''' <param name="tran"></param>
+        ''' <param name="iCaleTyp"></param>
+        ''' <param name="iDate"></param>
+        ''' <returns></returns>
+        Public Function SearchForwardWorkingDays(conn As OracleConnection, tran As OracleTransaction, iCaleTyp As String, iDate As Date) As Date
+            ' 指定日が稼働日かどうかを判定する
+            If (IsWorkingDays(conn, tran, iCaleTyp, iDate)) Then
+                Return iDate
+            End If
+            ' 稼働日を前方検索する
+            Return AddWorkingDays(conn, tran, iCaleTyp, iDate, -1)
+        End Function
 
         ''' <summary>
         ''' 期間指定で 休日/営業日 日数を取得する
