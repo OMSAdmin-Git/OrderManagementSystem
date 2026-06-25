@@ -443,11 +443,20 @@ Namespace Pages.Orders
             Dim tran As OracleTransaction = conn.BeginTransaction()
 
             ' ######## DEBUG
-#If False Then
+#If True Then
             Dim cal = New CalenderRepository(Utils.GetConnectionString())
             Dim tdt = New DateTime(2026, 6, 21)
             Dim dys = -1
             Dim tdy = cal.AddWorkingDays(conn, tran, "00001", tdt, dys)
+
+            ' 2026/6/20 非稼働日になるため
+            ' この時は 2026/6/19 が欲しいが実現不可
+            tdt = New DateTime(2026, 6, 18)
+            dys = 2
+            tdy = cal.AddWorkingDays(conn, tran, "00001", tdt, dys)
+
+
+
 
             'tdt = New DateTime(2026, 6, 19)
             'dys = -1
@@ -457,12 +466,11 @@ Namespace Pages.Orders
             'dys = 0
             'tdy = cal.AddWorkingDays(conn, tran, "00001", tdt, dys)
 
+            'tdt = New DateTime(2026, 6, 21)
+            'tdy = cal.SearchForwardWorkingDays(conn, tran, "00001", tdt)
 
-            tdt = New DateTime(2026, 6, 21)
-            tdy = cal.SearchForwardWorkingDays(conn, tran, "00001", tdt)
-
-            tdt = New DateTime(2026, 6, 19)
-            tdy = cal.SearchForwardWorkingDays(conn, tran, "00001", tdt)
+            'tdt = New DateTime(2026, 6, 19)
+            'tdy = cal.SearchForwardWorkingDays(conn, tran, "00001", tdt)
 
 #End If
             ' ######## DEBUG
