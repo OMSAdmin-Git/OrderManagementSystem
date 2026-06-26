@@ -1,5 +1,6 @@
 ﻿Imports System.Data
 Imports System.Text
+Imports DocumentFormat.OpenXml.Bibliography
 Imports OMS.Common
 Imports OMS.Data.SectmRepository
 Imports OMS.Data.UsrDeffIdfRepository
@@ -13,6 +14,77 @@ Namespace OMS.Data
         Public Sub New(connectionString As String)
             _connectionString = connectionString
         End Sub
+
+        ''' <summary>
+        ''' 輸送リードタイム取得
+        ''' </summary>
+        ''' <param name="custmerCode"></param>
+        ''' <param name="deliveryCode"></param>
+        ''' <param name="customerItemNo"></param>
+        ''' <returns></returns>
+        Public Function GetTransferLeadTime(custmerCode As String, deliveryCode As String, customerItemNo As String) As Int16
+            Dim dt As New DataTable()
+            Dim lt = -1
+            Try
+                Using conn As New OracleConnection(_connectionString)
+                    conn.Open()
+                    Using tran As OracleTransaction = conn.BeginTransaction()
+
+                        Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
+                            cmd.CommandText = "WITH target_input AS (
+                                              -- 1.2. 外部から値を与え、取引先コードと納入先コードを連結して「取引先コード1」を作成
+                                              SELECT 
+                                                :p_custmerCode || :p_deliveryCode AS customerDeliveryCode,
+                                                :p_customerItemNo AS target_item_no
+                                              FROM dual
+                                            ),
+                                            first_product AS (
+                                              -- 3. PRDSLSODRM から顧客番号と客先品目Noが一致する先頭の製品コードを取得
+                                              SELECT p.fprdcd
+                                              FROM prdslsodrm p
+                                              JOIN target_input ti ON p.fcustcd = ti.customerDeliveryCode 
+                                                                  AND p.fcustitemno = ti.target_item_no
+                                              ORDER BY p.rowid -- 先頭を特定するソート（主キー等への変更を推奨）
+                                              FETCH FIRST 1 ROW ONLY
+                                            ),
+                                            first_warehouse AS (
+                                              -- 4. ITEMM から製品コードが一致する先頭の出荷在庫場所を取得
+                                              SELECT i.fprmwhcd
+                                              FROM itemm i
+                                              JOIN first_product fp ON i.fitemno = fp.fprdcd
+                                              ORDER BY i.rowid -- 先頭を特定するソート
+                                              FETCH FIRST 1 ROW ONLY
+                                            )
+                                            -- 5. SHPROUTM から条件に一致する全レコードを抽出し、優先順位の昇順でソート
+                                            SELECT s.*
+                                            FROM shproutm s
+                                            JOIN target_input ti ON s.fshptocd = ti.customerDeliveryCode
+                                            JOIN first_warehouse fw ON s.fprmwhcd = fw.fprmwhcd
+                                            ORDER BY s.fpriority ASC;"
+
+                            cmd.Parameters.Add(":p_custmerCode", OracleDbType.Char, 25).Value = custmerCode
+                            cmd.Parameters.Add(":p_deliveryCode", OracleDbType.Char, 25).Value = deliveryCode
+                            cmd.Parameters.Add(":p_customerItemNo", OracleDbType.Char, 45).Value = customerItemNo
+
+                            Using reader As OracleDataReader = cmd.ExecuteReader()
+                                dt.Load(reader)
+                            End Using
+
+                            If (dt.Rows.Count > 0) Then
+                                Dim dtr = ToClass(dt.Rows(0))
+                                lt = dtr.TransferLeadTime
+                            End If
+
+                        End Using
+                    End Using
+                End Using
+            Catch ex As Exception
+
+            End Try
+            Return lt
+
+        End Function
+
         ''' <summary>
         ''' 輸送リードタイム取得
         ''' </summary>

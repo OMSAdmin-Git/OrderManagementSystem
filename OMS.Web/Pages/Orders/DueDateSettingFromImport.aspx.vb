@@ -443,7 +443,7 @@ Namespace Pages.Orders
             Dim tran As OracleTransaction = conn.BeginTransaction()
 
             ' ######## DEBUG
-#If False Then
+#If True Then
             Dim cal = New CalenderRepository(Utils.GetConnectionString())
             Dim tdt = New DateTime(2026, 6, 21)
             Dim dys = -1
@@ -459,6 +459,11 @@ Namespace Pages.Orders
             tdt = New DateTime(2026, 6, 18)
             dys = 2
             tdy = cal.SearchForwardWorkingDays(conn, tran, "00001", tdt, dys)
+
+
+            tdt = New DateTime(2026, 6, 20)
+            dys = 0
+            tdy = cal.AddWorkingDays(conn, tran, "00001", tdt, dys)
 
 
             'tdt = New DateTime(2026, 6, 19)
