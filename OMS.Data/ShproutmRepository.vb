@@ -79,7 +79,7 @@ Namespace OMS.Data
                     End Using
                 End Using
             Catch ex As Exception
-
+                Dim m = ex.Message
             End Try
             Return lt
 
