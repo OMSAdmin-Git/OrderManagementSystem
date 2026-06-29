@@ -77,6 +77,7 @@ Namespace OMS.Data
 
                         End Using
                     End Using
+                    conn.Close()
                 End Using
             Catch ex As Exception
                 Dim m = ex.Message

@@ -20,6 +20,36 @@ Namespace OMS.Data
         End Sub
 
         ''' <summary>
+        ''' 指定の年月日 から 指定日 前/後 の稼働日を取得する(OMSDB.Function.ADD_WORKING_DAYS2使用)
+        ''' iCaletype は "00001" を指定します
+        ''' iDays (オフセット日数)で 0 を指定し、iDate が非稼働日の場合 前倒し して稼働日を返します。
+        ''' 2026/6/29
+        ''' </summary>
+        ''' <param name="iCaleTyp"></param>
+        ''' <param name="iDate"></param>
+        ''' <param name="iDays"></param>
+        ''' <returns>Date</returns>
+        Public Function AddWorkingDays(iCaleTyp As String, iDate As Date, iDays As Integer) As Date
+            Dim tdate As Date
+
+            Using conn As New OracleConnection(_connectionString)
+                conn.Open()
+                Using tran As OracleTransaction = conn.BeginTransaction()
+                    Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
+                        cmd.CommandText = "SELECT
+                                   ADD_WORKING_DAYS2(:p_iCaleTyp, :p_iDate, :p_iDays) 
+                                   FROM DUAL "
+                        cmd.Parameters.Add(":p_iCaleTyp", OracleDbType.Char, 20).Value = iCaleTyp
+                        cmd.Parameters.Add(":p_iDate", OracleDbType.Date).Value = iDate
+                        cmd.Parameters.Add(":p_iDays", OracleDbType.Int16).Value = iDays
+                        tdate = cmd.ExecuteScalar()
+                    End Using
+                End Using
+                conn.Close()
+            End Using
+            Return tdate
+        End Function
+        ''' <summary>
         ''' 指定の年月日 から 指定日 前/後 の稼働日を取得する(OMSDB.Function.ADD_WORKING_DAYS使用)
         ''' 2026/6/25
         ''' </summary>
