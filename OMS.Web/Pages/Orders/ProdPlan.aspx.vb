@@ -549,7 +549,7 @@ Namespace Pages.Orders
 
                                             ' 指定期間の カレンダーを取得(仕様書では カレンダーは もっと上で取得することになっているが 期間が判明するここで取得する)
                                             Dim calm As CalenderRepository = New CalenderRepository(Utils.GetConnectionString())
-                                            Dim calender = calm.GetCalenderList(conn, tran, startDate, endDate)
+                                            Dim calender = calm.GetCalenderList(conn, tran, "00001", startDate, endDate)
                                             ' 営業日リスト
                                             Dim businessDayList As List(Of CalenderRow) = calender.Where(Function(x) x.HolidayFlag = "W").ToList()
                                             ' 営業日日数
