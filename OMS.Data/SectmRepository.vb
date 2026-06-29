@@ -26,7 +26,7 @@ Namespace OMS.Data
 
             ' 1. SECTD 指定の customerCode 条件で FSECTTYP = 'ST' が存在する sectdr
             ' 2. SECTM 指定の customerCode + deliveryCode が FSECTCD に存在する sectmr
-            ' 3. SECTM 指定の FSECTCD'516885S' が SECTD の FSECTCD '5168' であること
+            ' 3. SECTM 指定の FSECTCD'516885S' が SECTD の FSECTCD '51685S' であること
 
             Dim errorMessage = ""
             ' 1.

@@ -45,8 +45,9 @@ Namespace OMS.Data
                         cmd.Parameters.Add(":p_iDays", OracleDbType.Int16).Value = iDays
                         tdate = cmd.ExecuteScalar()
                     End Using
+                    tran.Commit()
                 End Using
-                conn.Close()
+                'conn.Close()
             End Using
             Return tdate
         End Function

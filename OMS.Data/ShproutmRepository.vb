@@ -60,8 +60,8 @@ Namespace OMS.Data
                                             FROM shproutm s
                                             JOIN target_input ti ON s.fshptocd = ti.customerDeliveryCode
                                             JOIN first_warehouse fw ON s.fprmwhcd = fw.fprmwhcd
-                                            ORDER BY s.fpriority ASC;"
-
+                                            ORDER BY s.fpriority ASC 
+                                            FETCH FIRST 1 ROW ONLY "
                             cmd.Parameters.Add(":p_custmerCode", OracleDbType.Char, 25).Value = custmerCode
                             cmd.Parameters.Add(":p_deliveryCode", OracleDbType.Char, 25).Value = deliveryCode
                             cmd.Parameters.Add(":p_customerItemNo", OracleDbType.Char, 45).Value = customerItemNo
@@ -76,8 +76,9 @@ Namespace OMS.Data
                             End If
 
                         End Using
+                        tran.Commit()
                     End Using
-                    conn.Close()
+                    'conn.Close()
                 End Using
             Catch ex As Exception
                 Dim m = ex.Message
