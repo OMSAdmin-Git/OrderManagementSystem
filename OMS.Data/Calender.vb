@@ -31,6 +31,7 @@ Namespace OMS.Data
         ''' <returns>Date</returns>
         Public Function AddWorkingDays(iCaleTyp As String, iDate As Date, iDays As Integer) As Date
             Dim tdate As Date
+            Dim piCaleTyp As String = Utils.BuildLikePattern(iCaleTyp, LikeMode.Contains)
 
             Using conn As New OracleConnection(_connectionString)
                 conn.Open()
@@ -39,7 +40,7 @@ Namespace OMS.Data
                         cmd.CommandText = "SELECT
                                    ADD_WORKING_DAYS2(:p_iCaleTyp, :p_iDate, :p_iDays) 
                                    FROM DUAL "
-                        cmd.Parameters.Add(":p_iCaleTyp", OracleDbType.Char, 20).Value = iCaleTyp
+                        cmd.Parameters.Add(":p_iCaleTyp", OracleDbType.Char, 20).Value = piCaleTyp
                         cmd.Parameters.Add(":p_iDate", OracleDbType.Date).Value = iDate
                         cmd.Parameters.Add(":p_iDays", OracleDbType.Int16).Value = iDays
                         tdate = cmd.ExecuteScalar()
@@ -61,11 +62,12 @@ Namespace OMS.Data
         ''' <returns>Date</returns>
         Public Function AddWorkingDays(conn As OracleConnection, tran As OracleTransaction, iCaleTyp As String, iDate As Date, iDays As Integer) As Date
             Dim tdate As Date
+            Dim piCaleTyp As String = Utils.BuildLikePattern(iCaleTyp, LikeMode.Contains)
             Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
                 cmd.CommandText = "SELECT
                                    ADD_WORKING_DAYS(:p_iCaleTyp, :p_iDate, :p_iDays) 
                                    FROM DUAL "
-                cmd.Parameters.Add(":p_iCaleTyp", OracleDbType.Char, 20).Value = iCaleTyp
+                cmd.Parameters.Add(":p_iCaleTyp", OracleDbType.Char, 20).Value = piCaleTyp
                 cmd.Parameters.Add(":p_iDate", OracleDbType.Date).Value = iDate
                 cmd.Parameters.Add(":p_iDays", OracleDbType.Int16).Value = iDays
                 tdate = cmd.ExecuteScalar()
@@ -85,11 +87,12 @@ Namespace OMS.Data
         ''' <returns></returns>
         Public Function IsWorkingDays(conn As OracleConnection, tran As OracleTransaction, iCaleTyp As String, iDate As Date) As Boolean
             Dim judge As Boolean = False
+            Dim piCaleTyp As String = Utils.BuildLikePattern(iCaleTyp, LikeMode.Contains)
             Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
                 cmd.CommandText = "SELECT
                                    IS_WORKING_DAY(:p_iCaleTyp, :p_iDate) 
                                    FROM DUAL "
-                cmd.Parameters.Add(":p_iCaleTyp", OracleDbType.Char, 20).Value = iCaleTyp
+                cmd.Parameters.Add(":p_iCaleTyp", OracleDbType.Char, 20).Value = piCaleTyp
                 cmd.Parameters.Add(":p_iDate", OracleDbType.Date).Value = iDate
                 Dim jg = cmd.ExecuteScalar()
                 judge = jg = "Y"
