@@ -234,21 +234,21 @@ Namespace Pages.Orders
                             Dim sectm = New SectmRepository(Utils.GetConnectionString())
                             Dim shproutm = New ShproutmRepository(Utils.GetConnectionString())
                             For Each orderRow In orderRows
-                                Dim priority = 1
-                                ' 納期計算
-                                Dim upSection = sectm.GetUpSection(orderRow.CustomerCode)
-                                If (upSection = "F") Then
-                                    ' 'F'の場合（ハーネス）
-                                    priority = 2
-                                Else
-                                    ' ≠ 'F'の場合（電子機器）	
-                                    priority = 1
+                                ' STRAMMIC DB チェック  
+                                Dim deliveryCode = orderRow.DeliveryCode
+                                errors.Add(shproutm.CheckShippingDestination(conn, tran, customerCode, deliveryCode))
+                                If (CheckError(errors)) Then
+                                    ' エラー DB更新無効
+                                    DBError(tran)
+                                    Continue For
                                 End If
+
                                 ' 納期計算
-                                Dim customerItemNumber As String = orderRow.CustomerItemNo
-                                Dim assortLeadTime = repu.GetAssortLeadTime(orderRow.CustomerCode, profitCenter, customerItemNumber)  'USRDEFFLDF.FUSRDEC1
-                                ' FTRANLT レコードなしの場合 0
-                                Dim transferLeadTime = shproutm.GetTransferLeadTime(orderRow.ShipTo, priority)
+                                Dim customerItemNo As String = orderRow.CustomerItemNo
+                                'FUSRDEC1 ((A)品揃リードタイム)
+                                Dim assortLeadTime = shproutm.GetAssortmentLeadTime(customerCode, profitCenter, customerItemNo)
+                                'FTRANLT(輸送L/T)
+                                Dim transferLeadTime = shproutm.GetTransferLeadTime(orderRow.ShipTo, orderRow.ShipStockLocation)
                                 Dim orderid = orderRow.OrderId
 
                                 Dim shipScheduledDate = orderRow.ShipScheduledDate
@@ -259,22 +259,22 @@ Namespace Pages.Orders
                                 '                                assortLeadTime = 3
                                 '                                ' #### DEBUG
                                 '#End If
-                                If (shipScheduledDate Is Nothing) Then
-                                    shipScheduledDate = DateTime.MinValue
+                                ' 日付確認
+                                If (shipScheduledDate Is Nothing) Or (shipDateOrg Is Nothing) Then
+                                    errors.Add("出荷日/出荷予定日 の設定が間違っています。")
                                 End If
-                                If (shipDateOrg Is Nothing) Then
-                                    shipDateOrg = DateTime.MinValue
+                                If (CheckError(errors)) Then
+                                    ' エラー DB更新無効
+                                    DBError(tran)
+                                    Continue For
                                 End If
-                                '(生産計画ワークテーブル.出荷予定日 + ユーザー定義マスタ.(A)品揃リードタイム)
-                                Dim shipDate As Date = shipScheduledDate.Value.AddDays(assortLeadTime)
-                                ' (生産計画ワークテーブル.出荷日 + 出荷ルートマスター.輸送L/T)
-                                Dim dueDate = shipDateOrg.Value.AddDays(transferLeadTime)
 
-                                ' 2026/6/23 非稼働日排除 処理
+                                Dim calType = "00001"
                                 Dim cal = New CalenderRepository(Utils.GetConnectionString())
-                                shipDate = cal.GetWorkingDayDescendingOrder(conn, tran, "00001", shipDate)
-                                ' 2026/6/23 非稼働日排除 処理
+                                Dim shipDate = cal.AddWorkingDays(calType, shipScheduledDate.Value, transferLeadTime)
+                                Dim dueDate = cal.AddWorkingDays(calType, shipDateOrg.Value, transferLeadTime)
 
+                                ' UPDATE(生産計画)
                                 Dim status = "POST_PLAN_DUE_SET"
                                 Dim updateAt = ProcessingStartDate
                                 Dim updateUserId = PageHelpers.GetUserId(Me)

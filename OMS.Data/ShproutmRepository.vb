@@ -16,7 +16,84 @@ Namespace OMS.Data
         End Sub
 
         ''' <summary>
-        ''' 輸送リードタイム取得
+        ''' 輸送リードタイム (出荷 LT) 取得前 データチェック
+        ''' 受注データ抽出システム_STRAMMIC連携データセット_20260603.xlsx 資料からの取得方法
+        ''' 出荷ルートマスタ・出荷在庫場所
+        ''' </summary>
+        ''' <param name="conn"></param>
+        ''' <param name="tran"></param>
+        ''' <param name="customerCode"></param>
+        ''' <param name="deliveryCode"></param>
+        ''' <returns></returns>
+        Public Function CheckShippingDestination(conn As OracleConnection, tran As OracleTransaction, customerCode As String, deliveryCode As String) As String
+
+            ' 1. SECTD 指定の customerCode 条件で FSECTTYP = 'ST' が存在する sectdr
+            ' 2. SECTM 指定の customerCode + deliveryCode が FSECTCD に存在する sectmr
+            ' 3. SECTM 指定の FSECTCD'516885S' が SECTD の FSECTCD '51685S' であること
+
+            Dim errorMessage = ""
+            ' 1.
+            Dim sectdr As New DataTable()
+            Dim sectmr As New DataTable()
+            Try
+                Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
+                    cmd.CommandText = "
+                        Select
+                            FSECTCD, 
+                            FSECTTYP  
+                        From sectd
+                        Where fsectcd = :p_customerCode  ||  :p_deliveryCode 
+                        And fsecttyp = 'ST' 
+                        And ROWNUM = 1 "
+                    cmd.Parameters.Add(":p_customerCode", OracleDbType.Varchar2, 45).Value = SafeVarchar(customerCode, 45)
+                    cmd.Parameters.Add(":p_deliveryCode", OracleDbType.Varchar2, 45).Value = SafeVarchar(deliveryCode, 45)
+                    Using reader As OracleDataReader = cmd.ExecuteReader()
+                        sectdr.Load(reader)
+                    End Using
+                End Using
+            Catch ex As Exception
+                errorMessage = ex.Message
+            End Try
+            If (sectdr.Rows.Count = 0) Then
+                errorMessage = "部署明細マスタ(SECTD)に 取引先コード{ customerCode } が登録されていません。"
+            Else
+                Try
+                    ' 2.
+                    Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
+                        cmd.CommandText = "
+                        Select
+                            FSECTCD 
+                        From sectd
+                        Where fsectcd = :p_customerCode || :p_deliveryCode 
+                        And ROWNUM = 1 "
+                        cmd.Parameters.Add(":p_customerCode", OracleDbType.Varchar2, 45).Value = SafeVarchar(customerCode, 45)
+                        cmd.Parameters.Add(":p_deliveryCode", OracleDbType.Varchar2, 45).Value = SafeVarchar(deliveryCode, 45)
+                        Using reader As OracleDataReader = cmd.ExecuteReader()
+                            sectmr.Load(reader)
+                        End Using
+                    End Using
+                Catch ex As Exception
+                    errorMessage = ex.Message
+                End Try
+                If (sectmr.Rows.Count = 0) Then
+                    errorMessage = "部署マスタ(SECTM)に 部署コード{ customerCode + deliveryCode } が登録されていません。"
+                Else
+                    ' 3.
+                    Dim fsectcdm = sectmr(0).Field(Of String)("FSECTCD")
+                    Dim fsectcdd = sectdr(0).Field(Of String)("FSECTCD")
+
+                    If (fsectcdm <> fsectcdd) Then
+                        errorMessage = "部署マスタ(SECTM)と部署明細マスタ(SECTD)の 部署コード{ customerCode + deliveryCode } が一致していません。"
+                    End If
+                End If
+            End If
+            Return errorMessage
+
+        End Function
+        ''' <summary>
+        ''' 輸送リードタイム(出荷 LT) 取得
+        ''' 受注データ抽出システム_STRAMMIC連携データセット_20260603.xlsx 資料からの取得方法
+        ''' 出荷ルートマスタ・出荷在庫場所
         ''' </summary>
         ''' <param name="custmerCode"></param>
         ''' <param name="deliveryCode"></param>
@@ -61,6 +138,7 @@ Namespace OMS.Data
                                             JOIN target_input ti ON s.fshptocd = ti.customerDeliveryCode
                                             JOIN first_warehouse fw ON s.fprmwhcd = fw.fprmwhcd
                                             ORDER BY s.fpriority ASC 
+                                            -- 6. 先頭レコードを抽出
                                             FETCH FIRST 1 ROW ONLY "
                             cmd.Parameters.Add(":p_custmerCode", OracleDbType.Char, 25).Value = custmerCode
                             cmd.Parameters.Add(":p_deliveryCode", OracleDbType.Char, 25).Value = deliveryCode
@@ -85,6 +163,90 @@ Namespace OMS.Data
             End Try
             Return lt
 
+        End Function
+
+        ''' <summary>
+        ''' 品揃えリードタイム取得
+        ''' 2026/6/30 仕様変更  
+        ''' </summary>
+        ''' <param name="customerCode"></param>
+        ''' <param name="profitCenter"></param>
+        ''' <param name="customerItemNumber"></param>
+        ''' <returns></returns>
+        Public Function GetAssortmentLeadTime(customerCode As String, profitCenter As String, customerItemNumber As String) As Integer
+            Dim lt As Decimal = 0 ' 戻り値の初期値
+            Dim dt As New DataTable()
+            Try
+                Using conn As New OracleConnection(_connectionString)
+                    conn.Open()
+                    Using tran As OracleTransaction = conn.BeginTransaction()
+                        Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
+                            cmd.CommandText = "SELECT 
+                                        FUSRDEC1
+                                    FROM 
+                                        USRDEFFLDF
+                                    WHERE 
+                                        FUSRSTR10 = :p_customerCode
+                                        AND FUSRSTR1 = :p_profitCenter
+                                        AND FUSRSTR18 = :p_customerItemNumber
+                                    FETCH FIRST 1 ROW ONLY "
+                            cmd.Parameters.Add(":p_customerCode", OracleDbType.Varchar2, 25).Value = SafeVarchar(customerCode, 25)
+                            cmd.Parameters.Add(":p_profitCenter", OracleDbType.Varchar2, 50).Value = SafeVarchar(profitCenter, 50)
+                            cmd.Parameters.Add(":p_customerItemNumber", OracleDbType.Varchar2, 45).Value = SafeVarchar(customerItemNumber, 45)
+                            Dim result As Object = cmd.ExecuteScalar()
+                            ' 結果の存在チェックと型変換
+                            If result IsNot Nothing AndAlso Not IsDBNull(result) Then
+                                lt = Convert.ToDecimal(result)
+                            End If
+                        End Using
+                    End Using
+                    conn.Close()
+                End Using
+            Catch ex As Exception
+                Dim s = ex.Message
+            End Try
+            Return lt
+        End Function
+        ''' <summary>
+        ''' 輸送リードタイム取得
+        ''' 2026/6/30 仕様変更  
+        ''' </summary>
+        ''' <param name="shipTo"></param>
+        ''' <param name="shipStockLocation"></param>
+        ''' <returns></returns>
+        Public Function GetTransferLeadTime(shipTo As String, shipStockLocation As String) As Int16
+            Dim lt As Decimal = 0 ' 戻り値の初期値
+            Dim dt As New DataTable()
+            Try
+                Using conn As New OracleConnection(_connectionString)
+                    conn.Open()
+                    Using tran As OracleTransaction = conn.BeginTransaction()
+                        Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
+                            cmd.CommandText = "SELECT 
+                                            FTRANLT
+                                        FROM 
+                                            SHPROUTM
+                                        WHERE 
+                                            FSHPTOCD = :p_shipTo
+                                            AND FPRMWHCD = :p_shipStockLocation
+                                        ORDER BY 
+                                            FPRIORITY ASC
+                                        FETCH FIRST 1 ROW ONLY "
+                            cmd.Parameters.Add(":p_shipTo", OracleDbType.Varchar2, 45).Value = SafeVarchar(shipTo, 25)
+                            cmd.Parameters.Add(":p_shipStockLocation", OracleDbType.Varchar2, 45).Value = SafeVarchar(shipStockLocation, 25)
+                            Dim result As Object = cmd.ExecuteScalar()
+                            ' 結果の存在チェックと型変換
+                            If result IsNot Nothing AndAlso Not IsDBNull(result) Then
+                                lt = Convert.ToDecimal(result)
+                            End If
+                        End Using
+                    End Using
+                    conn.Close()
+                End Using
+            Catch ex As Exception
+                Dim s = ex.Message
+            End Try
+            Return lt
         End Function
 
         ''' <summary>

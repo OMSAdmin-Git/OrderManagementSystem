@@ -29,7 +29,7 @@ Namespace OMS.Data
         ''' <param name="iDate"></param>
         ''' <param name="iDays"></param>
         ''' <returns>Date</returns>
-        Public Function AddWorkingDays(iCaleTyp As String, iDate As Date, iDays As Integer) As Date
+        Public Function AddWorkingDays2(iCaleTyp As String, iDate As Date, iDays As Integer) As Date
             Dim tdate As Date
             Dim piCaleTyp As String = Utils.BuildLikePattern(iCaleTyp, LikeMode.Contains)
 

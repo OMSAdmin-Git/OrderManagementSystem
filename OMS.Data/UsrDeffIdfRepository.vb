@@ -41,6 +41,7 @@ Namespace OMS.Data
                     dt = GetUsrDeffIdf(conn, tran, customerCode, profitCenter, customerItemNumber)
                     tran.Commit()
                 End Using
+                conn.Close()
             End Using
             Return dt
         End Function
