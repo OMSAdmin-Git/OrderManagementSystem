@@ -264,9 +264,9 @@ Namespace Pages.Orders
 
                                 ' 2026/6/23 非稼働日排除 処理
                                 Dim cal = New CalenderRepository(Utils.GetConnectionString())
-                                shipScaduleDate = cal.GetWorkingDayDescendingOrder(conn, tran, shipScaduleDate)
-                                shipdate = cal.GetWorkingDayDescendingOrder(conn, tran, shipdate)
-                                shipPlanDate = cal.GetWorkingDayDescendingOrder(conn, tran, shipPlanDate)
+                                shipScaduleDate = cal.GetWorkingDayDescendingOrder(conn, tran, "00001", shipScaduleDate)
+                                shipdate = cal.GetWorkingDayDescendingOrder(conn, tran, "00001", shipdate)
+                                shipPlanDate = cal.GetWorkingDayDescendingOrder(conn, tran, "00001", shipPlanDate)
                                 ' 2026/6/23 非稼働日排除 処理
 
                                 Dim status = "DUE_SET"

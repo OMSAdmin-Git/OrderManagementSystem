@@ -31,6 +31,7 @@ Namespace OMS.Data
         ''' <returns>Date</returns>
         Public Function AddWorkingDays(iCaleTyp As String, iDate As Date, iDays As Integer) As Date
             Dim tdate As Date
+            Dim piCaleTyp As String = Utils.BuildLikePattern(iCaleTyp, LikeMode.Contains)
 
             Using conn As New OracleConnection(_connectionString)
                 conn.Open()
@@ -39,13 +40,14 @@ Namespace OMS.Data
                         cmd.CommandText = "SELECT
                                    ADD_WORKING_DAYS2(:p_iCaleTyp, :p_iDate, :p_iDays) 
                                    FROM DUAL "
-                        cmd.Parameters.Add(":p_iCaleTyp", OracleDbType.Char, 20).Value = iCaleTyp
+                        cmd.Parameters.Add(":p_iCaleTyp", OracleDbType.Char, 20).Value = piCaleTyp
                         cmd.Parameters.Add(":p_iDate", OracleDbType.Date).Value = iDate
                         cmd.Parameters.Add(":p_iDays", OracleDbType.Int16).Value = iDays
                         tdate = cmd.ExecuteScalar()
                     End Using
+                    tran.Commit()
                 End Using
-                conn.Close()
+                'conn.Close()
             End Using
             Return tdate
         End Function
@@ -61,11 +63,12 @@ Namespace OMS.Data
         ''' <returns>Date</returns>
         Public Function AddWorkingDays(conn As OracleConnection, tran As OracleTransaction, iCaleTyp As String, iDate As Date, iDays As Integer) As Date
             Dim tdate As Date
+            Dim piCaleTyp As String = Utils.BuildLikePattern(iCaleTyp, LikeMode.Contains)
             Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
                 cmd.CommandText = "SELECT
                                    ADD_WORKING_DAYS(:p_iCaleTyp, :p_iDate, :p_iDays) 
                                    FROM DUAL "
-                cmd.Parameters.Add(":p_iCaleTyp", OracleDbType.Char, 20).Value = iCaleTyp
+                cmd.Parameters.Add(":p_iCaleTyp", OracleDbType.Char, 20).Value = piCaleTyp
                 cmd.Parameters.Add(":p_iDate", OracleDbType.Date).Value = iDate
                 cmd.Parameters.Add(":p_iDays", OracleDbType.Int16).Value = iDays
                 tdate = cmd.ExecuteScalar()
@@ -85,11 +88,12 @@ Namespace OMS.Data
         ''' <returns></returns>
         Public Function IsWorkingDays(conn As OracleConnection, tran As OracleTransaction, iCaleTyp As String, iDate As Date) As Boolean
             Dim judge As Boolean = False
+            Dim piCaleTyp As String = Utils.BuildLikePattern(iCaleTyp, LikeMode.Contains)
             Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
                 cmd.CommandText = "SELECT
                                    IS_WORKING_DAY(:p_iCaleTyp, :p_iDate) 
                                    FROM DUAL "
-                cmd.Parameters.Add(":p_iCaleTyp", OracleDbType.Char, 20).Value = iCaleTyp
+                cmd.Parameters.Add(":p_iCaleTyp", OracleDbType.Char, 20).Value = piCaleTyp
                 cmd.Parameters.Add(":p_iDate", OracleDbType.Date).Value = iDate
                 Dim jg = cmd.ExecuteScalar()
                 judge = jg = "Y"
@@ -133,24 +137,28 @@ Namespace OMS.Data
         ''' </summary>
         ''' <param name="conn"></param>
         ''' <param name="tran"></param>
+        ''' <param name="iCaleTyp"></param>
         ''' <param name="dtStart"></param>
         ''' <param name="dtEnd"></param>
         ''' <param name="holiday"></param>
         ''' <returns></returns>
-        Public Function NumberOfHolidayDurPeriod(conn As OracleConnection, tran As OracleTransaction, dtStart As Date, dtEnd As Date, holiday As Boolean) As Integer
+        Public Function NumberOfHolidayDurPeriod(conn As OracleConnection, tran As OracleTransaction, iCaleTyp As String, dtStart As Date, dtEnd As Date, holiday As Boolean) As Integer
             Dim cnt As Integer
+            Dim piCaleTyp As String = Utils.BuildLikePattern(iCaleTyp, LikeMode.Contains)
             Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
                 cmd.CommandText = "
                         SELECT Count (*)
                              Fdate As ""Fdate"",  
                              Fholidayflg As ""Holidayflg""  
                         FROM Calem
-                        WHERE Fdate >= to_date(:p_startDate, 'yyyy-mm-dd') 
+                        WHERE Fcaletyp = :p_iCaleTyp 
+                        AND Fdate >= to_date(:p_startDate, 'yyyy-mm-dd') 
                         AND Fdate <= to_date(:p_endDate, 'yyyy-mm-dd') 
                         AND Fholidayflg = :p_holidayflg  "
                 Dim startDate = dtStart.ToString("yyyy-MM-dd")
                 Dim endDate = dtEnd.ToString("yyyy-MM-dd")
                 Dim holidayFlag = If(holiday, "H", "W")
+                cmd.Parameters.Add(":p_iCaleTyp", OracleDbType.Char, 20).Value = piCaleTyp
                 cmd.Parameters.Add(":p_startDate", OracleDbType.Char, 20).Value = startDate
                 cmd.Parameters.Add(":p_endDate", OracleDbType.Char, 20).Value = endDate
                 cmd.Parameters.Add(":p_holidayflg", OracleDbType.Char, 1).Value = holidayFlag
@@ -168,21 +176,23 @@ Namespace OMS.Data
         ''' <param name="tran"></param>
         ''' <param name="dtTarget"></param>
         ''' <returns></returns>
-        Public Function GetWorkingDayDescendingOrder(conn As OracleConnection, tran As OracleTransaction, dtTarget As DateTime) As DateTime
+        Public Function GetWorkingDayDescendingOrder(conn As OracleConnection, tran As OracleTransaction, iCaleTyp As String, dtTarget As DateTime) As DateTime
             Dim cnt As DateTime
-
+            Dim piCaleTyp As String = Utils.BuildLikePattern(iCaleTyp, LikeMode.Contains)
             Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
 
                 cmd.CommandText = "SELECT * FROM ( 
                                 SELECT * 
                                 FROM Calender 
-                                WHERE TARGET_DATE <= TO_DATE(:p_targetDate, 'YY-MM-DD') 
+                                WHERE Fcaletyp = :p_iCaleTyp 
+                                  TARGET_DATE <= TO_DATE(:p_targetDate, 'YY-MM-DD') 
                                   AND FHOLIDAYFLG = 'W' 
                                 ORDER BY TARGET_DATE DESC  
                              )
                              WHERE ROWNUM = 1 "
                 Dim targetDate = dtTarget.ToString("yyyy-MM-dd")
                 cmd.Parameters.Add(":p_targetDate", OracleDbType.Char, 20).Value = targetDate
+                cmd.Parameters.Add(":p_iCaleTyp", OracleDbType.Char, 20).Value = piCaleTyp
                 cnt = cmd.ExecuteScalar()
 
             End Using
@@ -197,18 +207,19 @@ Namespace OMS.Data
         End Enum
 
         ' 生産計画条件マスタ一覧取得
-        Public Function GetCalenderList(conn As OracleConnection, tran As OracleTransaction, dtStart As Date, dtEnd As Date) As List(Of CalenderRow)
+        Public Function GetCalenderList(conn As OracleConnection, tran As OracleTransaction, iCaleTyp As String, dtStart As Date, dtEnd As Date) As List(Of CalenderRow)
 
-            Dim cl = GetCalenderList(conn, tran, dtStart, dtEnd, CaptureDef.All)
+            Dim cl = GetCalenderList(conn, tran, iCaleTyp, dtStart, dtEnd, CaptureDef.All)
             Dim calenderRowList = ToClass(cl)
             Return calenderRowList
         End Function
 
         ' 生産計画条件マスタ一覧取得
-        Public Function GetCalenderList(conn As OracleConnection, tran As OracleTransaction, dtStart As Date, dtEnd As Date, capture As CaptureDef) As DataTable
+        Public Function GetCalenderList(conn As OracleConnection, tran As OracleTransaction, iCaleTyp As String, dtStart As Date, dtEnd As Date, capture As CaptureDef) As DataTable
 
             Dim dt As New DataTable()
             Dim sb As New StringBuilder()
+            Dim piCaleTyp As String = Utils.BuildLikePattern(iCaleTyp, LikeMode.Contains)
             sb.AppendLine("SELECT ")
             sb.AppendLine(" fcaletyp          AS ""CalenderType"", ")
             sb.AppendLine(" fdate             AS ""DefDate"", ")
@@ -229,6 +240,9 @@ Namespace OMS.Data
             sb.AppendLine("FROM calem ")
             sb.AppendLine("WHERE 1=1 ")
             Dim prm As New List(Of OracleParameter)()
+
+            sb.AppendLine("AND Fcaletyp = :p_iCaleTyp  ")
+            prm.Add(New OracleParameter(":p_iCaleTyp", OracleDbType.Char, 20) With {.Value = piCaleTyp})
 
             Dim startDate = dtStart.ToString("yyyy-MM-dd")
             Dim endDate = dtEnd.ToString("yyyy-MM-dd")

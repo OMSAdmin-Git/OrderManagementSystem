@@ -14,7 +14,79 @@ Namespace OMS.Data
         Public Sub New(connectionString As String)
             _connectionString = connectionString
         End Sub
+        ''' <summary>
+        ''' 出荷 LT 取得前 データチェック
+        ''' </summary>
+        ''' <param name="conn"></param>
+        ''' <param name="tran"></param>
+        ''' <param name="customerCode"></param>
+        ''' <param name="deliveryCode"></param>
+        ''' <returns></returns>
+        Public Function CheckShippingDestination(conn As OracleConnection, tran As OracleTransaction, customerCode As String, deliveryCode As String) As String
 
+            ' 1. SECTD 指定の customerCode 条件で FSECTTYP = 'ST' が存在する sectdr
+            ' 2. SECTM 指定の customerCode + deliveryCode が FSECTCD に存在する sectmr
+            ' 3. SECTM 指定の FSECTCD'516885S' が SECTD の FSECTCD '51685S' であること
+
+            Dim errorMessage = ""
+            ' 1.
+            Dim sectdr As New DataTable()
+            Dim sectmr As New DataTable()
+            Try
+                Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
+                    cmd.CommandText = "
+                        Select
+                            FSECTCD, 
+                            FSECTTYP  
+                        From sectd
+                        Where fsectcd = :p_customerCode  ||  :p_deliveryCode 
+                        And fsecttyp = 'ST' 
+                        And ROWNUM = 1 "
+                    cmd.Parameters.Add(":p_customerCode", OracleDbType.Varchar2, 45).Value = SafeVarchar(customerCode, 45)
+                    cmd.Parameters.Add(":p_deliveryCode", OracleDbType.Varchar2, 45).Value = SafeVarchar(deliveryCode, 45)
+                    Using reader As OracleDataReader = cmd.ExecuteReader()
+                        sectdr.Load(reader)
+                    End Using
+                End Using
+            Catch ex As Exception
+                errorMessage = ex.Message
+            End Try
+            If (sectdr.Rows.Count = 0) Then
+                errorMessage = "部署明細マスタ(SECTD)に 取引先コード{ customerCode } が登録されていません。"
+            Else
+                Try
+                    ' 2.
+                    Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
+                        cmd.CommandText = "
+                        Select
+                            FSECTCD 
+                        From sectd
+                        Where fsectcd = :p_customerCode || :p_deliveryCode 
+                        And ROWNUM = 1 "
+                        cmd.Parameters.Add(":p_customerCode", OracleDbType.Varchar2, 45).Value = SafeVarchar(customerCode, 45)
+                        cmd.Parameters.Add(":p_deliveryCode", OracleDbType.Varchar2, 45).Value = SafeVarchar(deliveryCode, 45)
+                        Using reader As OracleDataReader = cmd.ExecuteReader()
+                            sectmr.Load(reader)
+                        End Using
+                    End Using
+                Catch ex As Exception
+                    errorMessage = ex.Message
+                End Try
+                If (sectmr.Rows.Count = 0) Then
+                    errorMessage = "部署マスタ(SECTM)に 部署コード{ customerCode + deliveryCode } が登録されていません。"
+                Else
+                    ' 3.
+                    Dim fsectcdm = sectmr(0).Field(Of String)("FSECTCD")
+                    Dim fsectcdd = sectdr(0).Field(Of String)("FSECTCD")
+
+                    If (fsectcdm <> fsectcdd) Then
+                        errorMessage = "部署マスタ(SECTM)と部署明細マスタ(SECTD)の 部署コード{ customerCode + deliveryCode } が一致していません。"
+                    End If
+                End If
+            End If
+            Return errorMessage
+
+        End Function
         ''' <summary>
         ''' 納期計算 (customerCodeより 出荷ルートマスター.上位部署 取得)
         ''' </summary>
