@@ -997,7 +997,7 @@ Namespace Pages.Orders
                                                     Dim cal = New CalenderRepository(Utils.GetConnectionString())
                                                     Dim tdt = New Date
                                                     tdt = dueDate
-                                                    dueDate = cal.AddWorkingDays("00001", tdt, 0)
+                                                    dueDate = cal.AddWorkingDays2("00001", tdt, 0)
                                                     '--
 
                                                     '需要数   (必須)
@@ -1100,7 +1100,7 @@ Namespace Pages.Orders
                                                     deliverycode = If(csv.ColumnCount > nNonyusakiCode AndAlso nNonyusakiCode > -1, csv.GetField(nNonyusakiCode).Trim(), "")
 
                                                     '出荷在庫場所   （任意）
-                                                    'STRAMMIC.SECTMより取得
+                                                    'STRAMMIC.ITEMMより取得
                                                     shipstocklocation = ""
                                                     errMsg = ""
                                                     'If _oderStageRepo.GetShipStockLocation(customerCode, deliverycode, shipstocklocation, errMsg) = False Then
@@ -1513,7 +1513,7 @@ Namespace Pages.Orders
                                                     Dim cal = New CalenderRepository(Utils.GetConnectionString())
                                                     Dim tdt = New Date
                                                     tdt = dueDate
-                                                    dueDate = cal.AddWorkingDays("00001", tdt, 0)
+                                                    dueDate = cal.AddWorkingDays2("00001", tdt, 0)
                                                     '--
 
 
@@ -1617,7 +1617,7 @@ Namespace Pages.Orders
                                                     deliverycode = If(nNonyusakiCode > 0, xlRow.Cell(nNonyusakiCode).GetValue(Of String)().Trim(), "")
 
                                                     '出荷在庫場所 （任意）
-                                                    'STRAMMIC.SECTMより取得
+                                                    'STRAMMIC.ITEMMより取得
                                                     shipstocklocation = ""
                                                     errMsg = ""
                                                     'If _oderStageRepo.GetShipStockLocation(customerCode, deliverycode, shipstocklocation, errMsg) = False Then
@@ -1988,7 +1988,7 @@ Namespace Pages.Orders
                                                     End If
 
                                                     '出荷在庫場所 （任意）
-                                                    'STRAMMIC.SECTMより取得
+                                                    'STRAMMIC.ITEMMより取得
                                                     shipstocklocation = ""
                                                     errMsg = ""
                                                     'If _oderStageRepo.GetShipStockLocation(customerCode, deliverycode, shipstocklocation, errMsg) = False Then
@@ -2261,7 +2261,7 @@ Namespace Pages.Orders
                                                         Dim cal = New CalenderRepository(Utils.GetConnectionString())
                                                         Dim tdt = New Date
                                                         tdt = dueDate
-                                                        dueDate = cal.AddWorkingDays("00001", tdt, 0)
+                                                        dueDate = cal.AddWorkingDays2("00001", tdt, 0)
                                                         '--
 
                                                         '自社予測フラグ   (任意)
