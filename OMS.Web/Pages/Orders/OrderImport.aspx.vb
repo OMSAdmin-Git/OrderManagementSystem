@@ -1100,7 +1100,7 @@ Namespace Pages.Orders
                                                     deliverycode = If(csv.ColumnCount > nNonyusakiCode AndAlso nNonyusakiCode > -1, csv.GetField(nNonyusakiCode).Trim(), "")
 
                                                     '出荷在庫場所   （任意）
-                                                    'STRAMMIC.SECTMより取得
+                                                    'STRAMMIC.ITEMMより取得
                                                     shipstocklocation = ""
                                                     errMsg = ""
                                                     'If _oderStageRepo.GetShipStockLocation(customerCode, deliverycode, shipstocklocation, errMsg) = False Then
@@ -1267,39 +1267,39 @@ Namespace Pages.Orders
 
                                                     '受注ワーク登録用リストへ格納
                                                     rowsForTemp2.Add(New OrdersStageRow With {
-                                                        .CustomerSettingId = customerSettingId,
-                                                        .CustomerCode = customerCode,
-                                                        .BillingTo = billingto,
-                                                        .CustomerOrderNo = customerorderNo,
-                                                        .DemandStatus = demandstatus,
-                                                        .ShipTo = shipto,
-                                                        .OrderDate = orderDate,
-                                                        .DueDate = FormatDate(dueDate),
-                                                        .CustomerItemNo = customeritemNo,
-                                                        .ItemNo = itemNo,
-                                                        .DemandQty = demandqty,
-                                                        .DemandUnit = demandunit,
-                                                        .CurrencyCode = currencycode,
-                                                        .ShipStockLocation = shipstocklocation,
+                                                        .customerSettingId = customerSettingId,
+                                                        .customerCode = customerCode,
+                                                        .billingto = billingto,
+                                                        .customerorderNo = customerorderNo,
+                                                        .demandstatus = demandstatus,
+                                                        .shipto = shipto,
+                                                        .orderDate = orderDate,
+                                                        .dueDate = FormatDate(dueDate),
+                                                        .customeritemNo = customeritemNo,
+                                                        .itemNo = itemNo,
+                                                        .demandqty = demandqty,
+                                                        .demandunit = demandunit,
+                                                        .currencycode = currencycode,
+                                                        .shipstocklocation = shipstocklocation,
                                                         .CompanyId = "1000",
-                                                        .ProductCode = productcode,
+                                                        .productcode = productcode,
                                                         .BillingStandard = "S",
-                                                        .ShipProcessType = shipprocesstype,
-                                                        .DeliveryInstrFlag = deliveryinstrflag,
-                                                        .Remarks = remarks,
-                                                        .DeliveryCode = deliverycode,
-                                                        .TotalShipQty = totalshipqty,
+                                                        .shipprocesstype = shipprocesstype,
+                                                        .deliveryinstrflag = deliveryinstrflag,
+                                                        .remarks = remarks,
+                                                        .deliverycode = deliverycode,
+                                                        .totalshipqty = totalshipqty,
                                                         .TransportMethod = "2",
-                                                        .PreDailyOrderQty = predailyorderqty,
-                                                        .PreDailyDeliveryDate = predailydeliveryDate,
-                                                        .ImpFileStageId = impfilestageId,
-                                                        .OrderType = ordertype,
-                                                        .ProratedType = proratedtype,
-                                                        .CustomerInfoType = customerinfotype,
-                                                        .InfoType = infotype,
-                                                        .SelfFcstFlag = selffcstflag,
-                                                        .SelfFcstDeleteFlag = selffcstdeleteflag,
-                                                        .ReconcileType = reconciletype,
+                                                        .predailyorderqty = predailyorderqty,
+                                                        .predailydeliveryDate = predailydeliveryDate,
+                                                        .impfilestageId = impfilestageId,
+                                                        .ordertype = ordertype,
+                                                        .proratedtype = proratedtype,
+                                                        .customerinfotype = customerinfotype,
+                                                        .infotype = infotype,
+                                                        .selffcstflag = selffcstflag,
+                                                        .selffcstdeleteflag = selffcstdeleteflag,
+                                                        .reconciletype = reconciletype,
                                                         .ImpRunId = newId,
                                                         .Status = "IMPORTED",
                                                         .ActiveFlag = "Y",
@@ -1513,7 +1513,7 @@ Namespace Pages.Orders
                                                     Dim cal = New CalenderRepository(Utils.GetConnectionString())
                                                     Dim tdt = New Date
                                                     tdt = dueDate
-                                                    dueDate = cal.AddWorkingDays(conn, tran, "00001", tdt, 0)
+                                                    dueDate = cal.AddWorkingDays2("00001", tdt, 0)
                                                     '--
 
 
@@ -1617,7 +1617,7 @@ Namespace Pages.Orders
                                                     deliverycode = If(nNonyusakiCode > 0, xlRow.Cell(nNonyusakiCode).GetValue(Of String)().Trim(), "")
 
                                                     '出荷在庫場所 （任意）
-                                                    'STRAMMIC.SECTMより取得
+                                                    'STRAMMIC.ITEMMより取得
                                                     shipstocklocation = ""
                                                     errMsg = ""
                                                     'If _oderStageRepo.GetShipStockLocation(customerCode, deliverycode, shipstocklocation, errMsg) = False Then
@@ -1786,39 +1786,39 @@ Namespace Pages.Orders
 
                                                     '受注ワーク登録用リストへ格納
                                                     rowsForTemp2.Add(New OrdersStageRow With {
-                                                        .CustomerSettingId = customerSettingId,
-                                                        .CustomerCode = customerCode,
-                                                        .BillingTo = billingto,
-                                                        .CustomerOrderNo = customerorderNo,
-                                                        .DemandStatus = demandstatus,
-                                                        .ShipTo = shipto,
-                                                        .OrderDate = orderDate,
-                                                        .DueDate = FormatDate(dueDate),
-                                                        .CustomerItemNo = customeritemNo,
-                                                        .ItemNo = itemNo,
-                                                        .DemandQty = demandqty,
-                                                        .DemandUnit = demandunit,
-                                                        .CurrencyCode = currencycode,
-                                                        .ShipStockLocation = shipstocklocation,
+                                                        .customerSettingId = customerSettingId,
+                                                        .customerCode = customerCode,
+                                                        .billingto = billingto,
+                                                        .customerorderNo = customerorderNo,
+                                                        .demandstatus = demandstatus,
+                                                        .shipto = shipto,
+                                                        .orderDate = orderDate,
+                                                        .dueDate = FormatDate(dueDate),
+                                                        .customeritemNo = customeritemNo,
+                                                        .itemNo = itemNo,
+                                                        .demandqty = demandqty,
+                                                        .demandunit = demandunit,
+                                                        .currencycode = currencycode,
+                                                        .shipstocklocation = shipstocklocation,
                                                         .CompanyId = "1000",
-                                                        .ProductCode = productcode,
+                                                        .productcode = productcode,
                                                         .BillingStandard = "S",
-                                                        .ShipProcessType = shipprocesstype,
-                                                        .DeliveryInstrFlag = deliveryinstrflag,
-                                                        .Remarks = remarks,
-                                                        .DeliveryCode = deliverycode,
-                                                        .TotalShipQty = totalshipqty,
+                                                        .shipprocesstype = shipprocesstype,
+                                                        .deliveryinstrflag = deliveryinstrflag,
+                                                        .remarks = remarks,
+                                                        .deliverycode = deliverycode,
+                                                        .totalshipqty = totalshipqty,
                                                         .TransportMethod = "2",
-                                                        .PreDailyOrderQty = predailyorderqty,
-                                                        .PreDailyDeliveryDate = predailydeliveryDate,
-                                                        .ImpFileStageId = impfilestageId,
-                                                        .OrderType = ordertype,
-                                                        .ProratedType = proratedtype,
-                                                        .CustomerInfoType = customerinfotype,
-                                                        .InfoType = infotype,
-                                                        .SelfFcstFlag = selffcstflag,
-                                                        .SelfFcstDeleteFlag = selffcstdeleteflag,
-                                                        .ReconcileType = reconciletype,
+                                                        .predailyorderqty = predailyorderqty,
+                                                        .predailydeliveryDate = predailydeliveryDate,
+                                                        .impfilestageId = impfilestageId,
+                                                        .ordertype = ordertype,
+                                                        .proratedtype = proratedtype,
+                                                        .customerinfotype = customerinfotype,
+                                                        .infotype = infotype,
+                                                        .selffcstflag = selffcstflag,
+                                                        .selffcstdeleteflag = selffcstdeleteflag,
+                                                        .reconciletype = reconciletype,
                                                         .ImpRunId = newId,
                                                         .Status = "IMPORTED",
                                                         .ActiveFlag = "Y",
@@ -1988,7 +1988,7 @@ Namespace Pages.Orders
                                                     End If
 
                                                     '出荷在庫場所 （任意）
-                                                    'STRAMMIC.SECTMより取得
+                                                    'STRAMMIC.ITEMMより取得
                                                     shipstocklocation = ""
                                                     errMsg = ""
                                                     'If _oderStageRepo.GetShipStockLocation(customerCode, deliverycode, shipstocklocation, errMsg) = False Then
@@ -2511,39 +2511,39 @@ Namespace Pages.Orders
 
                                                         '受注ワーク登録用リストへ格納
                                                         rowsForTemp2.Add(New OrdersStageRow With {
-                                                            .CustomerSettingId = customerSettingId,
-                                                            .CustomerCode = customerCode,
-                                                            .BillingTo = billingto,
-                                                            .CustomerOrderNo = customerorderNo,
-                                                            .DemandStatus = demandstatus,
-                                                            .ShipTo = shipto,
-                                                            .OrderDate = orderDate,
-                                                            .DueDate = FormatDate(dueDate),
-                                                            .CustomerItemNo = customeritemNo,
-                                                            .ItemNo = itemNo,
-                                                            .DemandQty = demandqty,
-                                                            .DemandUnit = demandunit,
-                                                            .CurrencyCode = currencycode,
-                                                            .ShipStockLocation = shipstocklocation,
+                                                            .customerSettingId = customerSettingId,
+                                                            .customerCode = customerCode,
+                                                            .billingto = billingto,
+                                                            .customerorderNo = customerorderNo,
+                                                            .demandstatus = demandstatus,
+                                                            .shipto = shipto,
+                                                            .orderDate = orderDate,
+                                                            .dueDate = FormatDate(dueDate),
+                                                            .customeritemNo = customeritemNo,
+                                                            .itemNo = itemNo,
+                                                            .demandqty = demandqty,
+                                                            .demandunit = demandunit,
+                                                            .currencycode = currencycode,
+                                                            .shipstocklocation = shipstocklocation,
                                                             .CompanyId = "1000",
-                                                            .ProductCode = productcode,
+                                                            .productcode = productcode,
                                                             .BillingStandard = "S",
-                                                            .ShipProcessType = shipprocesstype,
-                                                            .DeliveryInstrFlag = deliveryinstrflag,
-                                                            .Remarks = remarks,
-                                                            .DeliveryCode = deliverycode,
-                                                            .TotalShipQty = totalshipqty,
+                                                            .shipprocesstype = shipprocesstype,
+                                                            .deliveryinstrflag = deliveryinstrflag,
+                                                            .remarks = remarks,
+                                                            .deliverycode = deliverycode,
+                                                            .totalshipqty = totalshipqty,
                                                             .TransportMethod = "2",
-                                                            .PreDailyOrderQty = predailyorderqty,
-                                                            .PreDailyDeliveryDate = predailydeliveryDate,
-                                                            .ImpFileStageId = impfilestageId,
-                                                            .OrderType = ordertype,
-                                                            .ProratedType = proratedtype,
-                                                            .CustomerInfoType = customerinfotype,
-                                                            .InfoType = infotype,
-                                                            .SelfFcstFlag = selffcstflag,
-                                                            .SelfFcstDeleteFlag = selffcstdeleteflag,
-                                                            .ReconcileType = reconciletype,
+                                                            .predailyorderqty = predailyorderqty,
+                                                            .predailydeliveryDate = predailydeliveryDate,
+                                                            .impfilestageId = impfilestageId,
+                                                            .ordertype = ordertype,
+                                                            .proratedtype = proratedtype,
+                                                            .customerinfotype = customerinfotype,
+                                                            .infotype = infotype,
+                                                            .selffcstflag = selffcstflag,
+                                                            .selffcstdeleteflag = selffcstdeleteflag,
+                                                            .reconciletype = reconciletype,
                                                             .ImpRunId = newId,
                                                             .Status = "IMPORTED",
                                                             .ActiveFlag = "Y",
@@ -2595,7 +2595,7 @@ Namespace Pages.Orders
 
                                     Dim rowsForTemp3 = New List(Of ImpFilesStageRow) From {
                                                         New ImpFilesStageRow With {
-                                                            .ImpFileStageId = impfilestageId,
+                                                            .impfilestageId = impfilestageId,
                                                             .HandFlag = strHandFlag,
                                                             .Status = "PARSED",
                                                             .UpdatedAt = now,
@@ -2619,7 +2619,7 @@ Namespace Pages.Orders
                                     'ORDER_STAGEにORDERSのレコード追加
                                     rowsForTemp2 = New List(Of OrdersStageRow) From {
                                         New OrdersStageRow With {
-                                            .CustomerSettingId = customerSettingId
+                                            .customerSettingId = customerSettingId
                                         }
                                     }
                                     _oderStageRepo.InsertStageFromOrders(tran, customerSettingId)
