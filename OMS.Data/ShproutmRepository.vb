@@ -228,7 +228,7 @@ Namespace OMS.Data
                                             SHPROUTM
                                         WHERE 
                                             FSHPTOCD = :p_shipTo
-                                            AND FPRMWHCD = :p_shipStockLocation
+                                            AND FSHPWHCD = :p_shipStockLocation
                                         ORDER BY 
                                             FPRIORITY ASC
                                         FETCH FIRST 1 ROW ONLY "
