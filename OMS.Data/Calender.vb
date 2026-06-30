@@ -31,7 +31,7 @@ Namespace OMS.Data
         ''' <returns>Date</returns>
         Public Function AddWorkingDays2(iCaleTyp As String, iDate As Date, iDays As Integer) As Date
             Dim tdate As Date
-            Dim piCaleTyp As String = Utils.BuildLikePattern(iCaleTyp, LikeMode.Contains)
+            Dim piCaleTyp = iCaleTyp 'Utils.BuildLikePattern(iCaleTyp, LikeMode.Contains)
 
             Using conn As New OracleConnection(_connectionString)
                 conn.Open()
@@ -61,9 +61,9 @@ Namespace OMS.Data
         ''' <param name="iDate"></param>
         ''' <param name="iDays"></param>
         ''' <returns>Date</returns>
-        Public Function AddWorkingDays(conn As OracleConnection, tran As OracleTransaction, iCaleTyp As String, iDate As Date, iDays As Integer) As Date
+        Public Function AddWorkingDays(conn As OracleConnection, tran As OracleTransaction, iCaleTyp As String, iDate As Date?, iDays As Integer) As Date
             Dim tdate As Date
-            Dim piCaleTyp As String = Utils.BuildLikePattern(iCaleTyp, LikeMode.Contains)
+            Dim piCaleTyp = iCaleTyp ' Utils.BuildLikePattern(iCaleTyp, LikeMode.Contains)
             Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
                 cmd.CommandText = "SELECT
                                    ADD_WORKING_DAYS(:p_iCaleTyp, :p_iDate, :p_iDays) 
@@ -88,7 +88,7 @@ Namespace OMS.Data
         ''' <returns></returns>
         Public Function IsWorkingDays(conn As OracleConnection, tran As OracleTransaction, iCaleTyp As String, iDate As Date) As Boolean
             Dim judge As Boolean = False
-            Dim piCaleTyp As String = Utils.BuildLikePattern(iCaleTyp, LikeMode.Contains)
+            Dim piCaleTyp = iCaleTyp 'Utils.BuildLikePattern(iCaleTyp, LikeMode.Contains)
             Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
                 cmd.CommandText = "SELECT
                                    IS_WORKING_DAY(:p_iCaleTyp, :p_iDate) 
@@ -144,7 +144,7 @@ Namespace OMS.Data
         ''' <returns></returns>
         Public Function NumberOfHolidayDurPeriod(conn As OracleConnection, tran As OracleTransaction, iCaleTyp As String, dtStart As Date, dtEnd As Date, holiday As Boolean) As Integer
             Dim cnt As Integer
-            Dim piCaleTyp As String = Utils.BuildLikePattern(iCaleTyp, LikeMode.Contains)
+            Dim piCaleTyp = iCaleTyp 'Utils.BuildLikePattern(iCaleTyp, LikeMode.Contains)
             Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
                 cmd.CommandText = "
                         SELECT Count (*)
@@ -178,7 +178,7 @@ Namespace OMS.Data
         ''' <returns></returns>
         Public Function GetWorkingDayDescendingOrder(conn As OracleConnection, tran As OracleTransaction, iCaleTyp As String, dtTarget As DateTime) As DateTime
             Dim cnt As DateTime
-            Dim piCaleTyp As String = Utils.BuildLikePattern(iCaleTyp, LikeMode.Contains)
+            Dim piCaleTyp = iCaleTyp 'Utils.BuildLikePattern(iCaleTyp, LikeMode.Contains)
             Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
 
                 cmd.CommandText = "SELECT * FROM ( 
@@ -219,7 +219,7 @@ Namespace OMS.Data
 
             Dim dt As New DataTable()
             Dim sb As New StringBuilder()
-            Dim piCaleTyp As String = Utils.BuildLikePattern(iCaleTyp, LikeMode.Contains)
+            Dim piCaleTyp = iCaleTyp 'Utils.BuildLikePattern(iCaleTyp, LikeMode.Contains)
             sb.AppendLine("SELECT ")
             sb.AppendLine(" fcaletyp          AS ""CalenderType"", ")
             sb.AppendLine(" fdate             AS ""DefDate"", ")

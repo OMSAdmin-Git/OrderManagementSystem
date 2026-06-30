@@ -995,9 +995,9 @@ Namespace Pages.Orders
 
                                                     '2026/06/29 日割前納期に希望納期をセットした後に希望納期の稼働日チェック
                                                     Dim cal = New CalenderRepository(Utils.GetConnectionString())
-                                                    Dim tdt = New Date
+                                                    Dim tdt = New Date?
                                                     tdt = dueDate
-                                                    dueDate = cal.AddWorkingDays("00001", tdt, 0)
+                                                    dueDate = cal.AddWorkingDays2("00001", tdt, 0)
                                                     '--
 
                                                     '需要数   (必須)
@@ -1513,7 +1513,7 @@ Namespace Pages.Orders
                                                     Dim cal = New CalenderRepository(Utils.GetConnectionString())
                                                     Dim tdt = New Date
                                                     tdt = dueDate
-                                                    dueDate = cal.AddWorkingDays("00001", tdt, 0)
+                                                    dueDate = cal.AddWorkingDays(conn, tran, "00001", tdt, 0)
                                                     '--
 
 
@@ -2261,7 +2261,7 @@ Namespace Pages.Orders
                                                         Dim cal = New CalenderRepository(Utils.GetConnectionString())
                                                         Dim tdt = New Date
                                                         tdt = dueDate
-                                                        dueDate = cal.AddWorkingDays("00001", tdt, 0)
+                                                        dueDate = cal.AddWorkingDays2("00001", tdt, 0)
                                                         '--
 
                                                         '自社予測フラグ   (任意)

@@ -271,8 +271,8 @@ Namespace Pages.Orders
 
                                 Dim calType = "00001"
                                 Dim cal = New CalenderRepository(Utils.GetConnectionString())
-                                Dim shipDate = cal.AddWorkingDays(calType, shipScheduledDate.Value, transferLeadTime)
-                                Dim dueDate = cal.AddWorkingDays(calType, shipDateOrg.Value, transferLeadTime)
+                                Dim shipDate = cal.AddWorkingDays(conn, tran, calType, shipScheduledDate.Value, transferLeadTime)
+                                Dim dueDate = cal.AddWorkingDays(conn, tran, calType, shipDateOrg.Value, transferLeadTime)
 
                                 ' UPDATE(生産計画)
                                 Dim status = "POST_PLAN_DUE_SET"

@@ -253,11 +253,11 @@ Namespace Pages.Orders
                                 Dim calType = "00001"
                                 Dim cal = New CalenderRepository(Utils.GetConnectionString())
                                 ' (受注ワークテーブル.希望納期 - 出荷ルートマスター.輸送L/T - ユーザー定義マスタ.(A)品揃リードタイム)
-                                Dim shipScaduleDate = cal.AddWorkingDays(calType, dueDate.Value, -(transferLeadTime + assortLeadTime))
+                                Dim shipScaduleDate = cal.AddWorkingDays(conn, tran, calType, dueDate.Value, -(transferLeadTime + assortLeadTime))
                                 ' (受注ワークテーブル.希望納期 - 出荷ルートマスター.輸送L/T)
-                                Dim shipdate = cal.AddWorkingDays(calType, dueDate.Value, -transferLeadTime)
+                                Dim shipdate = cal.AddWorkingDays(conn, tran, calType, dueDate.Value, -transferLeadTime)
                                 ' (受注ワークテーブル.希望納期 - 出荷ルートマスター.輸送L/T - ユーザー定義マスタ.(A)品揃リードタイム)
-                                Dim shipPlanDate = cal.AddWorkingDays(calType, dueDate.Value, -(transferLeadTime + assortLeadTime))
+                                Dim shipPlanDate = cal.AddWorkingDays(conn, tran, calType, dueDate.Value, -(transferLeadTime + assortLeadTime))
 
                                 ' UPDATE(受注)
                                 Dim status = "DUE_SET"
