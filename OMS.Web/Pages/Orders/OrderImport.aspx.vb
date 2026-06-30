@@ -993,6 +993,13 @@ Namespace Pages.Orders
                                                     '日割前納期 ※希望納期をセット （希望納期が必須）
                                                     predailydeliveryDate = dueDate
 
+                                                    '2026/06/29 日割前納期に希望納期をセットした後に希望納期の稼働日チェック
+                                                    Dim cal = New CalenderRepository(Utils.GetConnectionString())
+                                                    Dim tdt = New Date
+                                                    tdt = dueDate
+                                                    dueDate = cal.AddWorkingDays("00001", tdt, 0)
+                                                    '--
+
                                                     '需要数   (必須)
                                                     strQtyValue = If(csv.ColumnCount > njuyouSuu AndAlso njuyouSuu > -1, csv.GetField(njuyouSuu).Trim(), "")
                                                     If String.IsNullOrEmpty(strQtyValue) Then
@@ -1501,6 +1508,14 @@ Namespace Pages.Orders
 
                                                     '日割前納期 ※希望納期をセット （希望納期が必須）
                                                     predailydeliveryDate = dueDate
+
+                                                    '2026/06/29 日割前納期に希望納期をセットした後に希望納期の稼働日チェック
+                                                    Dim cal = New CalenderRepository(Utils.GetConnectionString())
+                                                    Dim tdt = New Date
+                                                    tdt = dueDate
+                                                    dueDate = cal.AddWorkingDays("00001", tdt, 0)
+                                                    '--
+
 
                                                     '需要数   (必須)
                                                     strQtyValue = If(njuyouSuu > 0, xlRow.Cell(njuyouSuu).GetValue(Of String)().Trim(), "")
@@ -2241,6 +2256,13 @@ Namespace Pages.Orders
 
                                                         '日割前納期 ※希望納期をセット
                                                         predailydeliveryDate = dueDate
+
+                                                        '2026/06/29 日割前納期に希望納期をセットした後に希望納期の稼働日チェック
+                                                        Dim cal = New CalenderRepository(Utils.GetConnectionString())
+                                                        Dim tdt = New Date
+                                                        tdt = dueDate
+                                                        dueDate = cal.AddWorkingDays("00001", tdt, 0)
+                                                        '--
 
                                                         '自社予測フラグ   (任意)
                                                         If Not String.IsNullOrEmpty(mJishaYosokuFlag) Then
