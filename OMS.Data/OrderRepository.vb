@@ -2153,6 +2153,39 @@ Namespace OMS.Data
             Return errors
         End Function
 
+        ''' <summary>
+        ''' Yamaha Robotex 月次処理 受注データ削除
+        ''' </summary>
+        ''' <param name="customerCode"></param>
+        ''' <param name="firstDate"></param>
+        ''' <param name="lastDate"></param>
+        ''' <returns></returns>
+        Public Function YamahaRobotexMonthlyProcess(customerCode As String, firstDate As DateTime, lastDate As DateTime) As String
+            Dim errors = ""
+            Try
+                Dim sb As New StringBuilder()
+                sb.AppendLine("DELETE FROM Orders ")
+                sb.AppendLine("WHERE CREATED_AT >= :p_startDate ")
+                sb.AppendLine(" And CREATED_AT < :p_endDate +1 ")
+                sb.AppendLine(" And Customer_Code = :p_customerCode ")
+                sb.AppendLine(" And Customer_Order_No Not Like 'R%' ")
+                Using conn As New OracleConnection(_connectionString)
+                    Using cmd As New OracleCommand(sb.ToString(), conn)
+                        cmd.CommandType = CommandType.StoredProcedure
+                        cmd.Parameters.Add(":p_customerCode", OracleDbType.Varchar2).Value = customerCode
+                        cmd.Parameters.Add(":p_startDate", OracleDbType.Date).Value = firstDate
+                        cmd.Parameters.Add(":p_endDate", OracleDbType.Date).Value = lastDate
+                        conn.Open()
+                        cmd.ExecuteNonQuery()
+                    End Using
+                    conn.Close()
+                End Using
+            Catch ex As Exception
+                errors = ex.Message
+            End Try
+            Return errors
+        End Function
+
     End Class
     ''' <summary>
     ''' Customer data class

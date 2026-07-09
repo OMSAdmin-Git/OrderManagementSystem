@@ -8,10 +8,36 @@ Imports System.Xml.Linq
 
 Module StraOrderBacklogUpdate
 
+    ' 受注残 内示受注残数削除 定時処理
+
+    ' 毎日 21:00 にタスクスケジューラーより起動されます。
     ' STRAMMICの受注残情報Viewから情報を取得、受注テーブルへ反映更新する。
     ' 受注テーブルの受注残数が０以上かつSTRAMMIC受注残情報が取得できない受注データは、
     ' STRAMMICの出荷が完了(受注残数０)と判断し、受注テーブルの受注残数を[0](ゼロ)に更新する。
-    ' ※STRAMMIC側で出荷完了した場合、受注残情報VIEWにデータが表示されなくなる使用
+    ' ※STRAMMIC側で出荷完了した場合、受注残情報VIEWにデータが表示されなくなる仕様
+
+    'アセンブリ名:STRA_ORDER_BACKLOG_UPDATE
+    'ルート名前空間:STRA_ORDER_BACKLOG_UPDATE
+    'フレームワーク: .NET Framework 4.8
+    '種類:コンソールアプリケーション
+    '環境
+    '参照 アセンブリ
+    'System
+    'System.Core
+    'System.Data
+    'System.Data.DataSetExtensions
+    'System.Deployment
+    'System.Net.Http
+    'System.Numeric
+    'System.Windows.Forms
+    'System.Xml
+    'System.Xml.Linq
+    '
+    '参照 プロジェクト
+    'OMS.Common
+    'OMS.Data
+    '
+    ' スケジューラー設定
 
     Private Const LogFilename As String = "StraOrderBacklog.txt"
 

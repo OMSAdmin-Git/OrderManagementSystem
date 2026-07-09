@@ -8,17 +8,17 @@ Imports System.Runtime.InteropServices
 
 ' アセンブリ属性の値を確認します
 
-<Assembly: AssemblyTitle("STRA_ORDER_BACKLOG_UPDATE")>
-<Assembly: AssemblyDescription("受注残 内示数削除")>
+<Assembly: AssemblyTitle("STRA_YAMAHA_ROBOTEX_MONTHLY_PROCESSING")>
+<Assembly: AssemblyDescription("Yamaha Robotex 月次内示削除")>
 <Assembly: AssemblyCompany("天方産業株式会社")>
-<Assembly: AssemblyProduct("STRA_ORDER_BACKLOG_UPDATE")>
+<Assembly: AssemblyProduct("STRA_YAMAHA_ROBOTEX_MONTHLY_PROCESSING")>
 <Assembly: AssemblyCopyright("Copyright ©天方産業  2026")>
 <Assembly: AssemblyTrademark("")>
 
 <Assembly: ComVisible(False)>
 
 'このプロジェクトが COM に公開される場合、次の GUID が typelib の ID になります
-<Assembly: Guid("dd5729ac-4e4a-4978-afd0-2056c8b6ff34")>
+<Assembly: Guid("dee99988-0962-4a80-a646-24b80fc4062c")>
 
 ' アセンブリのバージョン情報は次の 4 つの値で構成されています:
 '

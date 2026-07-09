@@ -18,6 +18,32 @@ Namespace OMS.Data
         Public Sub New(connectionString As String)
             _connectionString = connectionString
         End Sub
+        ''' <summary>
+        ''' Calenderテーブルから指定日以降の最初の稼働日を取得する
+        ''' </summary>
+        ''' <param name="iCaleTyp"></param>
+        ''' <param name="iDate"></param>
+        ''' <returns></returns>
+        Public Function GetFirstWorkingDay(iCaleTyp As String, iDate As Date) As Date
+            Dim tdate As Date
+            Dim piCaleTyp = iCaleTyp 'Utils.BuildLikePattern(iCaleTyp, LikeMode.Contains)
+
+            Using conn As New OracleConnection(_connectionString)
+                conn.Open()
+
+                Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
+                    cmd.CommandText = "Select Case MIN(fDate) As first_working_day
+                                        From Calem
+                                        Where fDate >= : input_date
+                                        And fHolidayFlag = 'W' "
+                    cmd.Parameters.Add(":p_iCaleTyp", OracleDbType.Char, 20).Value = piCaleTyp
+                    cmd.Parameters.Add(":p_iDate", OracleDbType.Date).Value = iDate
+                    tdate = cmd.ExecuteScalar()
+                End Using
+                conn.Close()
+            End Using
+            Return tdate
+        End Function
 
         ''' <summary>
         ''' 指定の年月日 から 指定日 前/後 の稼働日を取得する(OMSDB.Function.ADD_WORKING_DAYS2使用)

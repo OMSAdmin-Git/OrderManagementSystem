@@ -169,9 +169,9 @@ Namespace OMS.Data
         ''' 品揃えリードタイム取得
         ''' 2026/6/30 仕様変更  
         ''' </summary>
-        ''' <param name="customerCode"></param>
-        ''' <param name="profitCenter"></param>
-        ''' <param name="customerItemNumber"></param>
+        ''' <param name="customerCode">取引先コード</param>
+        ''' <param name="profitCenter">部門</param>
+        ''' <param name="customerItemNumber">客先品目No</param>
         ''' <returns></returns>
         Public Function GetAssortmentLeadTime(customerCode As String, profitCenter As String, customerItemNumber As String) As Integer
             Dim lt As Decimal = 0 ' 戻り値の初期値
@@ -181,18 +181,39 @@ Namespace OMS.Data
                     conn.Open()
                     Using tran As OracleTransaction = conn.BeginTransaction()
                         Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
+                            ' AI で SQL 作成
+                            'Oracle で使用する次のSQL を作成してください。VB で実行します。
+                            '外部から p_customerCode (取引先コード [文字列])、客先品番(p_customerItemNo [文字列])、を渡します。
+                            'PRDSLSODRM(製品受注基準マスタ)テーブルで FCUSTCD(顧客[文字列])と p_customerCode が一致する、かつ
+                            'FCUSTITEMNO(客先品目No[文字列])が一致する、最初のレコードにある FPRDCD(製品コード[文字列])を取得します。
+                            '取得した FPRDCD を使用して、USRDEFFLDF(ユーザー定義項目)テーブルを次の条件で検索します。
+                            'FTABLEID(ﾃｰﾌﾞﾙID[文字列]) が "ITEMM" でかつ FRECKEY(ﾚｺｰﾄﾞｷｰ)が取得した FPRDCD と一致するレコードを抽出し
+                            '先頭レコードの FUSRDEC1(品揃L/T)を取得します。
+                            'FRECKEY 他 フィールドには 文字列後端に 空白(スペース)が含まれている場合があります
+
                             cmd.CommandText = "SELECT 
-                                        FUSRDEC1
-                                    FROM 
-                                        USRDEFFLDF
-                                    WHERE 
-                                        FUSRSTR10 = :p_customerCode
-                                        AND FUSRSTR1 = :p_profitCenter
-                                        AND FUSRSTR18 = :p_customerItemNumber
-                                    FETCH FIRST 1 ROW ONLY "
-                            cmd.Parameters.Add(":p_customerCode", OracleDbType.Varchar2, 25).Value = SafeVarchar(customerCode, 25)
-                            cmd.Parameters.Add(":p_profitCenter", OracleDbType.Varchar2, 50).Value = SafeVarchar(profitCenter, 50)
-                            cmd.Parameters.Add(":p_customerItemNumber", OracleDbType.Varchar2, 45).Value = SafeVarchar(customerItemNumber, 45)
+                                                    u.FUSRDEC1
+                                                FROM 
+                                                    (
+                                                        -- 1. 右側の空白を除去して条件比較し、最初のFPRDCDを取得
+                                                        SELECT RTRIM(FPRDCD) AS FPRDCD_TRIM
+                                                        FROM PRDSLSODRM
+                                                        WHERE RTRIM(FCUSTCD) = :p_customerCode
+                                                          AND RTRIM(FCUSTITEMNO) = :p_customerItemNo
+                                                        ORDER BY FPRDCD
+                                                        FETCH FIRST 1 ROWS ONLY
+                                                    ) p
+                                                INNER JOIN 
+                                                    (
+                                                        -- 2. FRECKEYの右側の空白を除去して順位付け
+                                                        SELECT RTRIM(FRECKEY) AS FRECKEY_TRIM, FUSRDEC1,
+                                                               ROW_NUMBER() OVER (PARTITION BY RTRIM(FRECKEY) ORDER BY FUSRDEC1) as rn
+                                                        FROM USRDEFFLDF
+                                                        WHERE FTABLEID = 'ITEMM'
+                                                    ) u
+                                                    ON u.FRECKEY_TRIM = p.FPRDCD_TRIM AND u.rn = 1 "
+                            cmd.Parameters.Add(":p_customerCode", OracleDbType.Varchar2, 25).Value = SafeVarchar(customerCode.Trim(), 25)
+                            cmd.Parameters.Add(":p_customerItemNumber", OracleDbType.Varchar2, 45).Value = SafeVarchar(customerItemNumber.Trim(), 45)
                             Dim result As Object = cmd.ExecuteScalar()
                             ' 結果の存在チェックと型変換
                             If result IsNot Nothing AndAlso Not IsDBNull(result) Then
@@ -211,8 +232,8 @@ Namespace OMS.Data
         ''' 輸送リードタイム取得
         ''' 2026/6/30 仕様変更  
         ''' </summary>
-        ''' <param name="shipTo"></param>
-        ''' <param name="shipStockLocation"></param>
+        ''' <param name="shipTo">出荷先</param>
+        ''' <param name="shipStockLocation">出荷在庫場所</param>
         ''' <returns></returns>
         Public Function GetTransferLeadTime(shipTo As String, shipStockLocation As String) As Int16
             Dim lt As Decimal = 0 ' 戻り値の初期値
