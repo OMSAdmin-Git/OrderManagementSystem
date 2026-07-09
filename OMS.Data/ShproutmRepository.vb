@@ -199,7 +199,7 @@ Namespace OMS.Data
                                                         SELECT RTRIM(FPRDCD) AS FPRDCD_TRIM
                                                         FROM PRDSLSODRM
                                                         WHERE RTRIM(FCUSTCD) = :p_customerCode
-                                                          AND RTRIM(FCUSTITEMNO) = :p_customerItemNo
+                                                          AND RTRIM(FCUSTITEMNO) = :p_customerItemNumber 
                                                         ORDER BY FPRDCD
                                                         FETCH FIRST 1 ROWS ONLY
                                                     ) p
