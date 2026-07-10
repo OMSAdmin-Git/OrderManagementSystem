@@ -181,16 +181,8 @@ Namespace OMS.Data
                     conn.Open()
                     Using tran As OracleTransaction = conn.BeginTransaction()
                         Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
-                            ' AI で SQL 作成
-                            'Oracle で使用する次のSQL を作成してください。VB で実行します。
-                            '外部から p_customerCode (取引先コード [文字列])、客先品番(p_customerItemNo [文字列])、を渡します。
-                            'PRDSLSODRM(製品受注基準マスタ)テーブルで FCUSTCD(顧客[文字列])と p_customerCode が一致する、かつ
-                            'FCUSTITEMNO(客先品目No[文字列])が一致する、最初のレコードにある FPRDCD(製品コード[文字列])を取得します。
-                            '取得した FPRDCD を使用して、USRDEFFLDF(ユーザー定義項目)テーブルを次の条件で検索します。
-                            'FTABLEID(ﾃｰﾌﾞﾙID[文字列]) が "ITEMM" でかつ FRECKEY(ﾚｺｰﾄﾞｷｰ)が取得した FPRDCD と一致するレコードを抽出し
-                            '先頭レコードの FUSRDEC1(品揃L/T)を取得します。
-                            'FRECKEY 他 フィールドには 文字列後端に 空白(スペース)が含まれている場合があります
-
+                            ' 製品受注基準マスタ(PRDSLSODRM) から顧客(FCUSTCD)と客先品目No(FCUSTITEMNO)で製品コード(FPRDCD)を検索
+                            'ユーザー定義項目マスタ(USRDEFFLDF)から製品コード(FPRDCD)とﾃｰﾌﾞﾙID(FTABLEID)="ITEMM"で検索し品揃L/T(FUSRDEC1)を取得
                             cmd.CommandText = "SELECT 
                                                     u.FUSRDEC1
                                                 FROM 
