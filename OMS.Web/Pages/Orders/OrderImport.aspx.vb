@@ -264,6 +264,10 @@ Namespace Pages.Orders
             Dim shipstocklocation As String
             Dim infotype As String
             Dim reconciletype As Integer
+
+            Dim profitcenter As String
+            Dim profitcenterCSM As String
+
             Dim errMsg As String
 
 
@@ -552,7 +556,6 @@ Namespace Pages.Orders
                                 errors.Add($"Row {idx}：WORKファイル名が不正")
                                 Continue For
                             End If
-
 
                             'トランザクション制御
                             'If customerSettingId <> previousId Then
@@ -897,6 +900,9 @@ Namespace Pages.Orders
                                                     shipstocklocation = ""
                                                     infotype = ""
                                                     reconciletype = 1
+                                                    profitcenterCSM = ""
+                                                    profitcenter = ""
+
                                                     errMsg = ""
 
                                                     ErrFlg = False
@@ -1082,8 +1088,6 @@ Namespace Pages.Orders
                                                         ErrFlg = True
                                                     End If
 
-
-
                                                     '需要単位   （任意）
                                                     'STRAMMIC.ITEMMより取得
                                                     demandunit = ""
@@ -1147,6 +1151,35 @@ Namespace Pages.Orders
                                                         'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
                                                         'ErrFlg = True
                                                     End If
+
+
+
+                                                    '取引先設定IDのPC   （必須）
+                                                    'CUSTOMER_SETTING_MSTより取得
+                                                    profitcenterCSM = ""
+                                                    errMsg = ""
+                                                    If _oderStageRepo.GetProfitCenterFromCSM(customerSettingId, profitcenterCSM, errMsg) = False Then
+                                                        'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                                                        'ErrFlg = True
+                                                    End If
+
+                                                    '品目NoのPC   （必須）
+                                                    'STRAMMIC.USRDEFFLDFより取得
+                                                    profitcenter = ""
+                                                    errMsg = ""
+                                                    If _oderStageRepo.GetProfitCenter(itemNo, profitcenter, errMsg) = False Then
+                                                        'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                                                        'ErrFlg = True
+                                                    End If
+
+                                                    '取引先設定IDのPCと同じPCのみ取込対象とする
+                                                    If String.IsNullOrEmpty(profitcenterCSM) OrElse String.IsNullOrEmpty(profitcenter) OrElse profitcenterCSM <> profitcenter Then
+                                                        'PCが違う場合は取込しない、エラーメッセージなし、ファイル移動もなし
+                                                        fileidx += 1
+                                                        Continue While
+                                                    End If
+
+
 
                                                     '-----------------
                                                     '桁チェック
@@ -1336,12 +1369,6 @@ Namespace Pages.Orders
                                             Continue For
                                         End If
 
-
-                                        Using StmRdr As New IO.StreamReader(strWorkFile, MapEncoding(CharSet))
-
-                                        End Using
-
-
                                     Case "EXCEL"
                                         '4:EXCEL LIST
 
@@ -1412,6 +1439,9 @@ Namespace Pages.Orders
                                                     shipstocklocation = ""
                                                     infotype = ""
                                                     reconciletype = 1
+                                                    profitcenterCSM = ""
+                                                    profitcenter = ""
+                                                    errMsg = ""
 
                                                     ErrFlg = False
 
@@ -1664,6 +1694,35 @@ Namespace Pages.Orders
                                                         'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
                                                         'ErrFlg = True
                                                     End If
+
+
+
+                                                    '取引先設定IDのPC   （必須）
+                                                    'CUSTOMER_SETTING_MSTより取得
+                                                    profitcenterCSM = ""
+                                                    errMsg = ""
+                                                    If _oderStageRepo.GetProfitCenterFromCSM(customerSettingId, profitcenterCSM, errMsg) = False Then
+                                                        'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                                                        'ErrFlg = True
+                                                    End If
+
+                                                    '品目NoのPC   （必須）
+                                                    'STRAMMIC.USRDEFFLDFより取得
+                                                    profitcenter = ""
+                                                    errMsg = ""
+                                                    If _oderStageRepo.GetProfitCenter(itemNo, profitcenter, errMsg) = False Then
+                                                        'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                                                        'ErrFlg = True
+                                                    End If
+
+                                                    '取引先設定IDのPCと同じPCのみ取込対象とする
+                                                    If String.IsNullOrEmpty(profitcenterCSM) OrElse String.IsNullOrEmpty(profitcenter) OrElse profitcenterCSM <> profitcenter Then
+                                                        'PCが違う場合は取込しない、エラーメッセージなし、ファイル移動もなし
+                                                        fileidx += 1
+                                                        Continue For
+                                                    End If
+
+
 
                                                     '-----------------
                                                     '桁チェック
@@ -1941,6 +2000,8 @@ Namespace Pages.Orders
                                                     shipstocklocation = ""
                                                     infotype = ""
                                                     reconciletype = 1
+                                                    profitcenterCSM = ""
+                                                    profitcenter = ""
 
                                                     If orderDateErrFlg = True Then
                                                         HeaderErrFlg = True
@@ -1997,38 +2058,78 @@ Namespace Pages.Orders
                                                         'ErrFlg = True
                                                     End If
 
-                                                    '-----------------
-                                                    '桁チェック
-                                                    '-----------------
-                                                    '客先品目No
-                                                    customeritemNo = SafeVarcharLength(customeritemNo, 45, isTruncated)
-                                                    If isTruncated = True Then
-                                                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {objSheet.Cell(mKyakusakiHinmokuNo).Address.ColumnLetter & xlRow.RowNumber} ：客先品目Noが桁数超過のためトリミングされました。")
-                                                    End If
-                                                    '製品コード
-                                                    productcode = SafeVarcharLength(productcode, 45, isTruncated)
-                                                    If isTruncated = True Then
-                                                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {objSheet.Cell(mKyakusakiHinmokuNo).Address.ColumnLetter & xlRow.RowNumber} ：製品コードが桁数超過のためトリミングされました。")
-                                                    End If
-                                                    '品目No
-                                                    itemNo = SafeVarcharLength(itemNo, 45, isTruncated)
-                                                    If isTruncated = True Then
-                                                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {objSheet.Cell(mKyakusakiHinmokuNo).Address.ColumnLetter & xlRow.RowNumber} ：品目Noが桁数超過のためトリミングされました。")
-                                                    End If
-                                                    '需要単位
-                                                    demandunit = SafeVarcharLength(demandunit, 4, isTruncated)
-                                                    If isTruncated = True Then
-                                                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {objSheet.Cell(mKyakusakiHinmokuNo).Address.ColumnLetter & xlRow.RowNumber} ：需要単位が桁数超過のためトリミングされました。")
-                                                    End If
-                                                    '出荷在庫場所
-                                                    shipstocklocation = SafeVarcharLength(shipstocklocation, 25, isTruncated)
-                                                    If isTruncated = True Then
-                                                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {objSheet.Cell(mKyakusakiHinmokuNo).Address.ColumnLetter & xlRow.RowNumber} ：出荷在庫場所が桁数超過のためトリミングされました。")
-                                                    End If
-                                                    '-----------------
 
-                                                    '納期の列番号を始点として最終列までループ
+
+                                                    '取引先設定IDのPC   （必須）
+                                                    'CUSTOMER_SETTING_MSTより取得
+                                                    profitcenterCSM = ""
+                                                    errMsg = ""
+                                                    If _oderStageRepo.GetProfitCenterFromCSM(customerSettingId, profitcenterCSM, errMsg) = False Then
+                                                        'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                                                        'ErrFlg = True
+                                                    End If
+
+                                                    '品目NoのPC   （必須）
+                                                    'STRAMMIC.USRDEFFLDFより取得
+                                                    profitcenter = ""
+                                                    errMsg = ""
+                                                    If _oderStageRepo.GetProfitCenter(itemNo, profitcenter, errMsg) = False Then
+                                                        'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                                                        'ErrFlg = True
+                                                    End If
+
+
+                                                    '取引先設定IDのPCと同じPCのみ取込対象とする
+                                                    If String.IsNullOrEmpty(profitcenterCSM) OrElse String.IsNullOrEmpty(profitcenter) OrElse profitcenterCSM <> profitcenter Then
+                                                        ''PCが違う場合は取込しない、エラーメッセージなし、ファイル移動もなし
+                                                        'fileidx += 1
+                                                        'Continue For
+                                                    Else
+
+                                                        '-----------------
+                                                        '桁チェック
+                                                        '-----------------
+                                                        '客先品目No
+                                                        customeritemNo = SafeVarcharLength(customeritemNo, 45, isTruncated)
+                                                        If isTruncated = True Then
+                                                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {objSheet.Cell(mKyakusakiHinmokuNo).Address.ColumnLetter & xlRow.RowNumber} ：客先品目Noが桁数超過のためトリミングされました。")
+                                                        End If
+                                                        '製品コード
+                                                        productcode = SafeVarcharLength(productcode, 45, isTruncated)
+                                                        If isTruncated = True Then
+                                                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {objSheet.Cell(mKyakusakiHinmokuNo).Address.ColumnLetter & xlRow.RowNumber} ：製品コードが桁数超過のためトリミングされました。")
+                                                        End If
+                                                        '品目No
+                                                        itemNo = SafeVarcharLength(itemNo, 45, isTruncated)
+                                                        If isTruncated = True Then
+                                                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {objSheet.Cell(mKyakusakiHinmokuNo).Address.ColumnLetter & xlRow.RowNumber} ：品目Noが桁数超過のためトリミングされました。")
+                                                        End If
+                                                        '需要単位
+                                                        demandunit = SafeVarcharLength(demandunit, 4, isTruncated)
+                                                        If isTruncated = True Then
+                                                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {objSheet.Cell(mKyakusakiHinmokuNo).Address.ColumnLetter & xlRow.RowNumber} ：需要単位が桁数超過のためトリミングされました。")
+                                                        End If
+                                                        '出荷在庫場所
+                                                        shipstocklocation = SafeVarcharLength(shipstocklocation, 25, isTruncated)
+                                                        If isTruncated = True Then
+                                                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {objSheet.Cell(mKyakusakiHinmokuNo).Address.ColumnLetter & xlRow.RowNumber} ：出荷在庫場所が桁数超過のためトリミングされました。")
+                                                        End If
+                                                        '-----------------
+
+                                                    End If
+
+
+                                                    '納期の列番号を始点として最終列までループ(横へループ)
                                                     For intColIdx As Integer = StColNum To EdColNum
+
+
+                                                        '取引先設定IDのPCと同じPCのみ取込対象とする
+                                                        If String.IsNullOrEmpty(profitcenterCSM) OrElse String.IsNullOrEmpty(profitcenter) OrElse profitcenterCSM <> profitcenter Then
+                                                            'PCが違う場合は取込しない、エラーメッセージなし、ファイル移動もなし
+                                                            fileidx += 1
+                                                            Continue For
+                                                        End If
+
 
                                                         If HeaderErrFlg = True Then
                                                             ErrFlg = True
@@ -2977,7 +3078,8 @@ Namespace Pages.Orders
 
                 Else
                     If errors.Count = 0 Then
-                        lblImportResult.Text = "取込実行：予期せぬエラーが発生しました。"
+                        'lblImportResult.Text = "取込実行：予期せぬエラーが発生しました。"
+                        lblImportResult.Text = "取込実行：取込対象データがありません。"
                     End If
                 End If
 

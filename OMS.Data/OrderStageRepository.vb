@@ -1780,8 +1780,222 @@ Namespace OMS.Data
                         End If
                     End If
 
+                    Return False
+
                 End Using
             End Using
+
+        End Function
+
+        ''' <summary>
+        ''' 品目NoからPC(プロフィットセンター)を取得する
+        ''' </summary>
+        ''' <param name="itemNo">処理中の品目No</param>
+        ''' <param name="Code">取得内容</param>
+        ''' <param name="errorMessage">エラーメッセージ</param>
+        Public Function GetProfitCenter(ByVal itemNo As String, ByRef Code As String, ByRef errorMessage As String) As Boolean
+
+            Dim pItemNo As String = If(String.IsNullOrWhiteSpace(itemNo), Nothing, itemNo.Trim())
+            'Code = Nothing
+            Code = ""
+            errorMessage = String.Empty
+
+            Const sql As String =
+                        " SELECT fusrstr1 FROM usrdeffldf " &
+                        " WHERE ftableid = 'ITEMM' AND fvreckey = :p_item_no "
+
+            Using conn As New OracleConnection(_connectionString)
+                conn.Open()
+                Using cmd As New OracleCommand(sql, conn)
+
+                    cmd.BindByName = True
+                    cmd.CommandType = CommandType.Text
+
+                    cmd.Parameters.Clear()
+                    cmd.Parameters.Add(":p_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(pItemNo, 45)
+
+                    Dim hitCount As Integer = 0
+                    Dim tempCode As String = Nothing
+
+                    Using reader As OracleDataReader = cmd.ExecuteReader()
+                        While reader.Read()
+                            hitCount += 1
+                            If hitCount = 1 Then
+                                tempCode = Convert.ToString(reader("fusrstr1"))
+                            End If
+                            If hitCount > 1 Then Exit While
+                        End While
+                    End Using
+
+                    ' 件数判定
+                    If hitCount = 0 Then
+                        errorMessage = "PCが取得できません。"
+                        Return False
+                    ElseIf hitCount > 1 Then
+                        errorMessage = "PCが複数件取得されました。"
+                        Return False
+                    End If
+
+
+                    ' 正常終了
+                    Code = tempCode
+                    Return True
+
+                End Using
+            End Using
+
+        End Function
+
+        ''' <summary>
+        ''' 取引先設定IDからPC(プロフィットセンター)を取得する
+        ''' </summary>
+        ''' <param name="customerSettingId">処理中の取引先設定ID</param>
+        ''' <param name="Code">取得内容</param>
+        ''' <param name="errorMessage">エラーメッセージ</param>
+        Public Function GetProfitCenterFromCSM(ByVal CustomerSettingId As String, ByRef Code As String, ByRef errorMessage As String) As Boolean
+
+            Code = ""
+            errorMessage = String.Empty
+
+            Const sql As String =
+                        " SELECT profit_center FROM customer_setting_mst " &
+                        " WHERE 1=1 " &
+                        " AND customer_setting_id = :p_customer_setting_id " &
+                        " AND active_flag = 'Y' "
+
+            Using conn As New OracleConnection(_connectionString)
+                conn.Open()
+                Using cmd As New OracleCommand(sql, conn)
+
+                    cmd.BindByName = True
+                    cmd.CommandType = CommandType.Text
+
+                    cmd.Parameters.Clear()
+                    cmd.Parameters.Add(":p_customer_setting_id", OracleDbType.Int64).Value = CustomerSettingId
+
+                    Dim hitCount As Integer = 0
+                    Dim tempCode As String = Nothing
+
+                    Using reader As OracleDataReader = cmd.ExecuteReader()
+                        While reader.Read()
+                            hitCount += 1
+                            If hitCount = 1 Then
+                                tempCode = Convert.ToString(reader("profit_center"))
+                            End If
+                            If hitCount > 1 Then Exit While
+                        End While
+                    End Using
+
+                    ' 件数判定
+                    If hitCount = 0 Then
+                        errorMessage = "PCが取得できません。"
+                        Return False
+                    ElseIf hitCount > 1 Then
+                        errorMessage = "PCが複数件取得されました。"
+                        Return False
+                    End If
+
+
+                    ' 正常終了
+                    Code = tempCode
+                    Return True
+
+                End Using
+            End Using
+
+        End Function
+        ''' <summary>
+        ''' 製品コード(品目No)を取得する
+        ''' </summary>
+        ''' <param name="CustomerCode">処理中の取引先コード</param>
+        ''' <param name="CustomerItemNo">処理中の客先品目No</param>
+        ''' <param name="PatternList">整形パターンのリスト（例: {"3-5-2", "5-5"}）</param>
+        ''' <param name="Status">ステータス 2=試作品</param>
+        ''' <param name="itemNo">取得内容</param>
+        ''' <param name="errorMessage">エラーメッセージ</param>
+        Public Function GetProductCode2(ByVal CustomerCode As String, ByRef CustomerItemNo As String, ByVal patternList As List(Of String), ByVal Status As String, ByRef itemNo As String, ByRef errorMessage As String) As Boolean
+
+            Dim pCustomerCode As String = If(String.IsNullOrWhiteSpace(CustomerCode), Nothing, CustomerCode.Trim())
+            Dim pCustomerItemNo As String = If(String.IsNullOrWhiteSpace(CustomerItemNo), Nothing, CustomerItemNo.Trim())
+
+            'Code = Nothing
+            itemNo = ""
+            errorMessage = String.Empty
+
+            ' 引数のパターンリストが空、または件数が0の場合はエラー
+            If patternList Is Nothing OrElse patternList.Count = 0 Then
+                errorMessage = "変換パターンリストが指定されていません。"
+                Return False
+            End If
+
+            Dim orgCustomerItemNo As String = pCustomerItemNo
+
+            'パターンの数だけループ処理
+            For Each currentPattern As String In patternList
+
+                pCustomerItemNo = orgCustomerItemNo
+                '客先品目Noにハイフォンをつける
+                pCustomerItemNo = FormatByCostmerItemNo(pCustomerItemNo, currentPattern)
+
+                Dim sql As String =
+                        " SELECT fprdcd,fcustitemno FROM prdslsodrm " &
+                        " WHERE 1=1 " &
+                        " AND fcustcd = :p_customer_code " &
+                        " AND fcustitemno = :p_customer_item_no "
+
+                'ステータスが2の場合は、試作品なので品目Noの末尾がSのレコードが対象
+                If Status IsNot Nothing AndAlso Status = "2" Then
+                    sql &= " AND fprdcd like '%S' "
+                End If
+
+                Using conn As New OracleConnection(_connectionString)
+                    conn.Open()
+                    Using cmd As New OracleCommand(sql, conn)
+
+                        cmd.BindByName = True
+                        cmd.CommandType = CommandType.Text
+
+                        cmd.Parameters.Clear()
+                        cmd.Parameters.Add(":p_customer_code", OracleDbType.Varchar2, 25).Value = SafeVarchar(pCustomerCode, 25)
+                        cmd.Parameters.Add(":p_customer_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(pCustomerItemNo, 45)
+
+                        Dim hitCount As Integer = 0
+                        Dim fprdcd As String = Nothing
+                        Dim fcustitemno As String = Nothing
+
+                        Using reader As OracleDataReader = cmd.ExecuteReader()
+                            While reader.Read()
+                                hitCount += 1
+                                If hitCount = 1 Then
+                                    fprdcd = Convert.ToString(reader("fprdcd"))
+                                    fcustitemno = Convert.ToString(reader("fcustitemno"))
+                                End If
+                                If hitCount > 1 Then Exit While
+                            End While
+                        End Using
+
+                        ' 件数判定
+                        If hitCount = 0 Then
+                            '結果が0件
+                            errorMessage = "品目No及び製品コードが取得できません。"
+                            'Return False
+                        ElseIf hitCount = 1 Then
+                            '結果が1件
+                            itemNo = fprdcd
+                            'ProductCode = fprdcd
+                            Return True
+                        ElseIf hitCount > 1 Then
+                            '結果が複数件
+                            errorMessage = "製品受注基準マスタが複数件取得されました。"
+                            'Return False
+                        End If
+
+                    End Using
+                End Using
+
+            Next
+
+            Return False
 
         End Function
 

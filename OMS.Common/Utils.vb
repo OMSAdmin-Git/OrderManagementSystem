@@ -983,102 +983,82 @@ Namespace OMS.Common
             Return False
         End Function
 
+        ''' <summary>
+        ''' 指定されたパターン（例: "3-5-2", "5-5"）に従って客先品目Noを分割し、ハイフンで結合します。
+        ''' </summary>
+        ''' <param name="cstitemno">元の文字列</param>
+        ''' <param name="pattern">ハイフン区切りのパターン（例: "3-5-2"）</param>
+        Function FormatByCostmerItemNo(cstitemno As String, pattern As String) As String
+            ' 安全チェック：入力が空の場合はそのまま返す
+            If String.IsNullOrEmpty(cstitemno) OrElse String.IsNullOrEmpty(pattern) Then
+                Return cstitemno
+            End If
 
+            ' パターン文字列を「-」で分解して数値の配列にする（例: "3-5-2" -> {3, 5, 2}）
+            Dim lengthStrings As String() = pattern.Split("-"c)
+            Dim parts As New List(Of String)()
+            Dim currentIndex As Integer = 0
 
+            ' 各ブロックの文字数ごとに切り出し処理
+            For Each lenStr As String In lengthStrings
+                Dim targetLength As Integer = 0
+
+                ' 数字として正しく変換できるかチェック
+                If Integer.TryParse(lenStr, targetLength) Then
+                    ' 切り出す文字がまだ残っているかチェック
+                    If currentIndex < cstitemno.Length Then
+                        ' 残り文字数が必要数より少なければ、ある分だけ切り出す
+                        Dim remainingLength As Integer = Math.Min(targetLength, cstitemno.Length - currentIndex)
+                        parts.Add(cstitemno.Substring(currentIndex, remainingLength))
+                        currentIndex += remainingLength
+                    Else
+                        ' 元の文字列をすべて使い切った場合はループを抜ける
+                        Exit For
+                    End If
+                End If
+            Next
+
+            ' 切り出したパーツをハイフン「-」で結合して返す
+            Return String.Join("-", parts)
+        End Function
 
         ''' <summary>
-        ''' csv ファイルを Excel ファイルに変換する関数
-        ''' Yamaha robotex 内示受注データ取り込みで仕様する
+        ''' 指定されたパターン（例: "3-5-2", "5-5"）に従って客先品目Noを分割し、ハイフンで結合します。
         ''' </summary>
-        ''' <param name="csvFilename"></param>
-        ''' <param name="excelFilename"></param>
-        ''' <returns></returns>
-        Public Function CsvToExcel(csvFilename As String, excelFilename As String) As String
+        ''' <param name="cstitemno">元の文字列</param>
+        ''' <param name="pattern">ハイフン区切りのパターン（例: "3-5-2"）</param>
+        Function FormatByCostmerItemNo(cstitemno As String, pattern As String) As String
+            ' 安全チェック：入力が空の場合はそのまま返す
+            If String.IsNullOrEmpty(cstitemno) OrElse String.IsNullOrEmpty(pattern) Then
+                Return cstitemno
+            End If
 
-            ' 入力CSVと出力Excelのパス設定
-            Dim csvPath As String = csvFilename
-            Dim excelPath As String = excelFilename
-            Dim result = ""
+            ' パターン文字列を「-」で分解して数値の配列にする（例: "3-5-2" -> {3, 5, 2}）
+            Dim lengthStrings As String() = pattern.Split("-"c)
+            Dim parts As New List(Of String)()
+            Dim currentIndex As Integer = 0
 
-            Try
-                ' 1. .NET Core / .NET 5以降でShift-JISを扱うために必要な登録（Framework環境なら不要ですが、あっても無害です）
-                'Encoding.RegisterProvider(CodePagesEncodingProvider.Instance)
+            ' 各ブロックの文字数ごとに切り出し処理
+            For Each lenStr As String In lengthStrings
+                Dim targetLength As Integer = 0
 
-                ' 2. Shift-JIS (CP932) のエンコーディングオブジェクトを作成
-                Dim sjisEnc As Encoding = Encoding.GetEncoding(932)
+                ' 数字として正しく変換できるかチェック
+                If Integer.TryParse(lenStr, targetLength) Then
+                    ' 切り出す文字がまだ残っているかチェック
+                    If currentIndex < cstitemno.Length Then
+                        ' 残り文字数が必要数より少なければ、ある分だけ切り出す
+                        Dim remainingLength As Integer = Math.Min(targetLength, cstitemno.Length - currentIndex)
+                        parts.Add(cstitemno.Substring(currentIndex, remainingLength))
+                        currentIndex += remainingLength
+                    Else
+                        ' 元の文字列をすべて使い切った場合はループを抜ける
+                        Exit For
+                    End If
+                End If
+            Next
 
-                ' 3. ClosedXMLのワークブックとシートを初期化
-                Using workbook As New XLWorkbook()
-                    Dim worksheet = workbook.Worksheets.Add("CSVデータ")
-
-                    ' 4. TextFieldParserを使ってCSVを読み込む
-                    Using parser As New TextFieldParser(csvPath, Encoding.GetEncoding("Shift-JIS"))
-                        parser.TextFieldType = FieldType.Delimited
-                        parser.SetDelimiters(",") ' カンマ区切り
-                        parser.HasFieldsEnclosedInQuotes = True ' 引用符(")の考慮
-
-                        Dim rowCount As Integer = 1
-
-                        ' CSVの各行をループ処理してExcelセルへ格納
-                        While Not parser.EndOfData
-                            Dim fields As String() = parser.ReadFields()
-                            Dim cntFlag = False
-
-                            ' 今月以外の行データの場合
-
-                            ' 不要な 行データの場合 ここで排除
-                            If (cntFlag) Then
-                                Continue While
-                            End If
-
-
-                            For colCount As Integer = 0 To fields.Length - 1
-                                Dim cellValue As String = fields(colCount)
-                                Dim targetCell = worksheet.Cell(rowCount, colCount + 1)
-
-                                ' 【追加】納品日の列（例：4列目/Index=3 と仮定）の処理
-                                ' ※実際のCSVの列インデックスに合わせて数値を変更してください
-                                If colCount = 3 Then
-                                    ' 1. スラッシュを除去して「YYYYMMDD」にする
-                                    Dim formattedDate As String = cellValue.Replace("/", "")
-
-                                    ' 2. 【修正】型を指定して文字列として値を設定する（DataTypeの代入を廃止）
-                                    targetCell.SetValue(formattedDate)
-
-                                    ' 3. （オプション）Excel上で文字列型セルとして明示的に認識させる書式設定
-                                    targetCell.Style.NumberFormat.Format = "@"
-                                Else
-                                    ' 通常の列は前回同様に数値・文字列を自動判別
-                                    Dim numericValue As Double
-                                    If Double.TryParse(cellValue, numericValue) Then
-                                        targetCell.Value = numericValue
-                                    Else
-                                        ' 【修正】文字列として安全に格納（DataTypeの代入を廃止）
-                                        targetCell.SetValue(cellValue)
-                                        targetCell.Style.NumberFormat.Format = "@"
-                                    End If
-                                End If
-                            Next
-
-                            rowCount += 1
-                        End While
-                    End Using
-
-                    ' 6. 見た目を少し整える（列幅の自動調整）
-                    worksheet.Columns().AdjustToContents()
-
-                    ' 7. Excelファイルとして保存（ストリーム保存も可能）
-                    workbook.SaveAs(excelPath)
-                End Using
-
-                Console.WriteLine("Excelファイルの作成が成功しました。")
-                Console.WriteLine($"出力先: {excelPath}")
-                result = ""
-            Catch ex As Exception
-                result = $"csv to excel 変換処理でエラーが発生しました: {ex.Message}"
-            End Try
-            Return result
-
+            ' 切り出したパーツをハイフン「-」で結合して返す
+            Return String.Join("-", parts)
         End Function
 
 #End Region
