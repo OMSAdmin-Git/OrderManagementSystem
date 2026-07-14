@@ -1865,19 +1865,19 @@ Namespace Pages.Orders
             'hfResult.Value = ""
         End Sub
 
-        ''' <summary>
-        ''' Work path 取得 (ない場合は作成する)
-        ''' </summary>
-        ''' <returns></returns>
-        Public Function GetWorkPath() As String
+        '''' <summary>
+        '''' Work path 取得 (ない場合は作成する)
+        '''' </summary>
+        '''' <returns></returns>
+        'Public Function GetWorkPath() As String
 
-            Dim rawWork As String = GetWorkFolderRoot()
-            Dim workFolder = rawWork & "FileTempFolder"
-            If (Not IO.File.Exists(workFolder)) Then
-                EnsureDirectory(workFolder)
-            End If
-            Return workFolder
-        End Function
+        '    Dim rawWork As String = GetWorkFolderRoot()
+        '    Dim workFolder = rawWork & "FileTempFolder"
+        '    If (Not IO.File.Exists(workFolder)) Then
+        '        EnsureDirectory(workFolder)
+        '    End If
+        '    Return workFolder
+        'End Function
 
         ''' <summary>
         ''' 完了 path 取得 (ない場合は作成する)

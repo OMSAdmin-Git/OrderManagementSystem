@@ -15,12 +15,14 @@ Imports System.Threading
 Imports System.Web
 Imports System.Web.UI
 Imports System.Web.UI.WebControls
+Imports ClosedXML.Excel
 Imports DocumentFormat.OpenXml.ExtendedProperties
 Imports DocumentFormat.OpenXml.Math
 Imports DocumentFormat.OpenXml.Vml.Office
 Imports DocumentFormat.OpenXml.Wordprocessing
 Imports Ionic.Zip
 Imports Microsoft.SqlServer
+Imports Microsoft.VisualBasic.FileIO
 Imports Oracle.ManagedDataAccess.Client
 
 Namespace OMS.Common
@@ -146,6 +148,19 @@ Namespace OMS.Common
                 Throw New ConfigurationErrorsException("appSettings['WorkFolderRoot'] が未定義です。Web.config を確認してください。")
             End If
             Return rawWork
+        End Function
+        ''' <summary>
+        ''' Work path 取得 (ない場合は作成する)
+        ''' </summary>
+        ''' <returns></returns>
+        Public Function GetWorkPath() As String
+
+            Dim rawWork As String = GetWorkFolderRoot()
+            Dim workFolder = rawWork & "FileTempFolder"
+            If (Not IO.File.Exists(workFolder)) Then
+                EnsureDirectory(workFolder)
+            End If
+            Return workFolder
         End Function
         ''' <summary>
         ''' Work base folder 取得
@@ -773,6 +788,184 @@ Namespace OMS.Common
         '        Dim m = ex.Message
         '    End Try
         'End Sub
+
+        ' Yamaha robotex 内示受注ファイル読み込み 変換
+
+        ''' <summary>
+        ''' 横並びのCSVデータテーブルを、4列の縦並びデータテーブルに展開・変換します。
+        ''' </summary>
+        ''' <param name="filename">Yamaha robotex 内示受注データファイル</param>
+        ''' <returns>部品番号、部品名称、日付、需要数 の4列で構成された新しいDataTable</returns>
+        Public Function CreateNewDataSetFromCsv(filename As String) As DataTable
+
+            ' CSVをDataTableに変換
+            Dim dt = ConvertCsvToDataTable(filename)
+            ' 条件に合う行だけを抽出
+            Dim sourceDt = RemoveRowsWithoutThisTime(dt)
+
+
+            ' 1. 固定の列名を定義
+            Dim fixedColumns As New HashSet(Of String) From {"部品番号", "部品名称", "Column1", "日付"}
+
+            ' 2. 元のDataTableの列名から、年月ヘッダー（可変）だけを自動抽出
+            Dim dateHeaders As New List(Of String)()
+            For Each col As DataColumn In sourceDt.Columns
+                If Not fixedColumns.Contains(col.ColumnName) Then
+                    dateHeaders.Add(col.ColumnName)
+                End If
+            Next
+
+            ' 3. 新しいDataTableの構造（列）を作成
+            Dim newDt As New DataTable()
+            newDt.Columns.Add("部品番号", GetType(String))
+            newDt.Columns.Add("部品名称", GetType(String))
+            newDt.Columns.Add("日付", GetType(String))      ' "20250701" 等の形式
+            newDt.Columns.Add("需要数", GetType(Integer))
+
+            ' 元のデータが空の場合は、空の構造だけを返す
+            If sourceDt.Rows.Count = 0 Then
+                Return newDt
+            End If
+
+            ' 4. LINQの SelectMany を使って動的な年月列の数だけ行を展開
+            Dim newRows = sourceDt.AsEnumerable().SelectMany(
+        Function(row)
+            Return dateHeaders.Select(
+                Function(header)
+                    Dim newRow As DataRow = newDt.NewRow()
+                    newRow("部品番号") = row("部品番号")
+                    newRow("部品名称") = row("部品名称")
+
+                    ' 取得したヘッダー名（可変）に "01" を付加
+                    newRow("日付") = header & "01"
+
+                    ' 需要数の安全な数値化
+                    Dim qty As Integer = 0
+                    If row(header) IsNot DBNull.Value Then
+                        Integer.TryParse(row(header).ToString(), qty)
+                    End If
+                    newRow("需要数") = qty
+
+                    Return newRow
+                End Function)
+        End Function)
+
+            ' 5. 展開した行データを新しいDataTableに追加
+            For Each row As DataRow In newRows
+                newDt.Rows.Add(row)
+            Next
+
+            ' 6. 変換後のDataTableを返す
+            Return newDt
+        End Function
+        ''' <summary>
+        '''  Yamaha Robotex 内示受注データ有効な"今回"データ以外を削除する
+        ''' </summary>
+        ''' <param name="dt"></param>
+        ''' <returns></returns>
+        Public Function RemoveRowsWithoutThisTime(dt As DataTable) As DataTable
+
+            ' 1. LINQで条件に合う行を特定
+            Dim query = dt.AsEnumerable().Where(Function(row) row.Field(Of String)("Column1") = "今回")
+
+            Dim filteredDt As DataTable
+
+            ' 2. 該当する行があるかチェック
+            If query.Any() Then
+                ' 行がある場合はDataTableに変換
+                filteredDt = query.CopyToDataTable()
+            Else
+                ' 1件もない場合は、構造（列）だけをコピーした空のDataTableを作成
+                filteredDt = dt.Clone()
+            End If
+            Return filteredDt
+
+        End Function
+        ''' <summary>
+        ''' csvファイルをDataTableに変換する
+        ''' </summary>
+        ''' <param name="filePath"></param>
+        ''' <returns></returns>
+        Public Function ConvertCsvToDataTable(filePath As String) As DataTable
+            Dim dt As New DataTable()
+
+            ' TextFieldParserの初期化
+            Using parser As New TextFieldParser(filePath, System.Text.Encoding.GetEncoding("Shift_JIS"))
+                ' カンマ区切りの設定
+                parser.TextFieldType = FieldType.Delimited
+                parser.SetDelimiters(",")
+
+                ' ダブルクォーテーションの囲みを考慮する設定
+                parser.HasFieldsEnclosedInQuotes = True
+
+                ' 1行目（ヘッダー）の読み込みと列作成
+                If Not parser.EndOfData Then
+                    Dim headers As String() = parser.ReadFields()
+                    For Each header As String In headers
+                        dt.Columns.Add(header)
+                    Next
+                End If
+
+                ' 2行目以降（データ）の読み込み
+                While Not parser.EndOfData
+                    Dim fields As String() = parser.ReadFields()
+                    dt.Rows.Add(fields)
+                End While
+            End Using
+
+            Return dt
+        End Function
+
+        ''' <summary>
+        ''' DataTableの内容をCSVファイルとして保存します（Shift_JIS、カンマ区切り、ダブルクォーテーション囲み対応）
+        ''' </summary>
+        ''' <param name="dt">保存対象のDataTable</param>
+        ''' <param name="filePath">保存先のフルパス（例: "C:\Output\result.csv"）</param>
+        Public Sub SaveDataTableToCsv(dt As DataTable, filePath As String)
+            ' Shift_JISのエンコーディングを取得（.NET Core/.NET 5以降の場合は事前に Encoding.RegisterProvider(CodePagesEncodingProvider.Instance) が必要）
+            Dim encoding As Encoding = Encoding.GetEncoding("Shift_JIS")
+
+            Using sw As New StreamWriter(filePath, False, encoding)
+                ' 1. ヘッダー（列名）の書き込み
+                Dim headerLine As New List(Of String)()
+                For Each col As DataColumn In dt.Columns
+                    headerLine.Add(EscapeCsvField(col.ColumnName))
+                Next
+                sw.WriteLine(String.Join(",", headerLine))
+
+                ' 2. データ行の書き込み
+                For Each row As DataRow In dt.Rows
+                    Dim fields As New List(Of String)()
+                    For Each col As DataColumn In dt.Columns
+                        fields.Add(EscapeCsvField(row(col).ToString()))
+                    Next
+                    sw.WriteLine(String.Join(",", fields))
+                Next
+            End Using
+        End Sub
+
+        ''' <summary>
+        ''' CSVのフィールドとして安全な文字列にエスケープ・囲み処理を行います。
+        ''' </summary>
+        Private Function EscapeCsvField(field As String) As String
+            If String.IsNullOrEmpty(field) Then
+                Return """""" ' 空白はダブルクォーテーション2つ
+            End If
+
+            ' 値の中にダブルクォーテーションがある場合は「""」に置換
+            If field.Contains("""") Then
+                field = field.Replace("""", """""")
+            End If
+
+            ' カンマ、ダブルクォーテーション、改行が含まれる場合は全体を「"」で囲む
+            If field.Contains(",") OrElse field.Contains("""") OrElse field.Contains(vbCr) OrElse field.Contains(vbLf) Then
+                Return $"""{field}"""
+            End If
+
+            ' それ以外はそのまま「"」で囲んで返す（すべての値を一律囲む仕様にするとより安全です）
+            Return $"""{field}"""
+        End Function
+
         '============================================
         ' ファイル転送
         '============================================
@@ -964,6 +1157,104 @@ Namespace OMS.Common
             End Try
 
             Return False
+        End Function
+
+
+
+
+        ''' <summary>
+        ''' csv ファイルを Excel ファイルに変換する関数
+        ''' Yamaha robotex 内示受注データ取り込みで仕様する
+        ''' </summary>
+        ''' <param name="csvFilename"></param>
+        ''' <param name="excelFilename"></param>
+        ''' <returns></returns>
+        Public Function CsvToExcel(csvFilename As String, excelFilename As String) As String
+
+            ' 入力CSVと出力Excelのパス設定
+            Dim csvPath As String = csvFilename
+            Dim excelPath As String = excelFilename
+            Dim result = ""
+
+            Try
+                ' 1. .NET Core / .NET 5以降でShift-JISを扱うために必要な登録（Framework環境なら不要ですが、あっても無害です）
+                'Encoding.RegisterProvider(CodePagesEncodingProvider.Instance)
+
+                ' 2. Shift-JIS (CP932) のエンコーディングオブジェクトを作成
+                Dim sjisEnc As Encoding = Encoding.GetEncoding(932)
+
+                ' 3. ClosedXMLのワークブックとシートを初期化
+                Using workbook As New XLWorkbook()
+                    Dim worksheet = workbook.Worksheets.Add("CSVデータ")
+
+                    ' 4. TextFieldParserを使ってCSVを読み込む
+                    Using parser As New TextFieldParser(csvPath, Encoding.GetEncoding("Shift-JIS"))
+                        parser.TextFieldType = FieldType.Delimited
+                        parser.SetDelimiters(",") ' カンマ区切り
+                        parser.HasFieldsEnclosedInQuotes = True ' 引用符(")の考慮
+
+                        Dim rowCount As Integer = 1
+
+                        ' CSVの各行をループ処理してExcelセルへ格納
+                        While Not parser.EndOfData
+                            Dim fields As String() = parser.ReadFields()
+                            Dim cntFlag = False
+
+                            ' 今月以外の行データの場合
+
+                            ' 不要な 行データの場合 ここで排除
+                            If (cntFlag) Then
+                                Continue While
+                            End If
+
+
+                            For colCount As Integer = 0 To fields.Length - 1
+                                Dim cellValue As String = fields(colCount)
+                                Dim targetCell = worksheet.Cell(rowCount, colCount + 1)
+
+                                ' 【追加】納品日の列（例：4列目/Index=3 と仮定）の処理
+                                ' ※実際のCSVの列インデックスに合わせて数値を変更してください
+                                If colCount = 3 Then
+                                    ' 1. スラッシュを除去して「YYYYMMDD」にする
+                                    Dim formattedDate As String = cellValue.Replace("/", "")
+
+                                    ' 2. 【修正】型を指定して文字列として値を設定する（DataTypeの代入を廃止）
+                                    targetCell.SetValue(formattedDate)
+
+                                    ' 3. （オプション）Excel上で文字列型セルとして明示的に認識させる書式設定
+                                    targetCell.Style.NumberFormat.Format = "@"
+                                Else
+                                    ' 通常の列は前回同様に数値・文字列を自動判別
+                                    Dim numericValue As Double
+                                    If Double.TryParse(cellValue, numericValue) Then
+                                        targetCell.Value = numericValue
+                                    Else
+                                        ' 【修正】文字列として安全に格納（DataTypeの代入を廃止）
+                                        targetCell.SetValue(cellValue)
+                                        targetCell.Style.NumberFormat.Format = "@"
+                                    End If
+                                End If
+                            Next
+
+                            rowCount += 1
+                        End While
+                    End Using
+
+                    ' 6. 見た目を少し整える（列幅の自動調整）
+                    worksheet.Columns().AdjustToContents()
+
+                    ' 7. Excelファイルとして保存（ストリーム保存も可能）
+                    workbook.SaveAs(excelPath)
+                End Using
+
+                Console.WriteLine("Excelファイルの作成が成功しました。")
+                Console.WriteLine($"出力先: {excelPath}")
+                result = ""
+            Catch ex As Exception
+                result = $"csv to excel 変換処理でエラーが発生しました: {ex.Message}"
+            End Try
+            Return result
+
         End Function
 
 #End Region
