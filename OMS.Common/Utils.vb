@@ -789,6 +789,181 @@ Namespace OMS.Common
         '    End Try
         'End Sub
 
+        ' Yamaha robotex 内示受注ファイル読み込み 変換
+        ''' <summary>
+        ''' 横並びのCSVデータテーブルを、4列の縦並びデータテーブルに展開・変換します。
+        ''' </summary>
+        ''' <param name="filename">Yamaha robotex 内示受注データファイル</param>
+        ''' <returns>部品番号、部品名称、日付、需要数 の4列で構成された新しいDataTable</returns>
+        Public Function CreateNewDataSetFromCsv(filename As String) As DataTable
+
+            ' CSVをDataTableに変換
+            Dim dt = ConvertCsvToDataTable(filename)
+            ' 条件に合う行だけを抽出
+            Dim sourceDt = RemoveRowsWithoutThisTime(dt)
+
+
+            ' 1. 固定の列名を定義
+            Dim fixedColumns As New HashSet(Of String) From {"部品番号", "部品名称", "Column1", "日付"}
+
+            ' 2. 元のDataTableの列名から、年月ヘッダー（可変）だけを自動抽出
+            Dim dateHeaders As New List(Of String)()
+            For Each col As DataColumn In sourceDt.Columns
+                If Not fixedColumns.Contains(col.ColumnName) Then
+                    dateHeaders.Add(col.ColumnName)
+                End If
+            Next
+
+            ' 3. 新しいDataTableの構造（列）を作成
+            Dim newDt As New DataTable()
+            newDt.Columns.Add("部品番号", GetType(String))
+            newDt.Columns.Add("部品名称", GetType(String))
+            newDt.Columns.Add("日付", GetType(String))      ' "20250701" 等の形式
+            newDt.Columns.Add("需要数", GetType(Integer))
+
+            ' 元のデータが空の場合は、空の構造だけを返す
+            If sourceDt.Rows.Count = 0 Then
+                Return newDt
+            End If
+
+            ' 4. LINQの SelectMany を使って動的な年月列の数だけ行を展開
+            Dim newRows = sourceDt.AsEnumerable().SelectMany(
+        Function(row)
+            Return dateHeaders.Select(
+                Function(header)
+                    Dim newRow As DataRow = newDt.NewRow()
+                    newRow("部品番号") = row("部品番号")
+                    newRow("部品名称") = row("部品名称")
+
+                    ' 取得したヘッダー名（可変）に "01" を付加
+                    newRow("日付") = header & "01"
+
+                    ' 需要数の安全な数値化
+                    Dim qty As Integer = 0
+                    If row(header) IsNot DBNull.Value Then
+                        Integer.TryParse(row(header).ToString(), qty)
+                    End If
+                    newRow("需要数") = qty
+
+                    Return newRow
+                End Function)
+        End Function)
+
+            ' 5. 展開した行データを新しいDataTableに追加
+            For Each row As DataRow In newRows
+                newDt.Rows.Add(row)
+            Next
+
+            ' 6. 変換後のDataTableを返す
+            Return newDt
+        End Function
+        ''' <summary>
+        '''  Yamaha Robotex 内示受注データ有効な"今回"データ以外を削除する
+        ''' </summary>
+        ''' <param name="dt"></param>
+        ''' <returns></returns>
+        Public Function RemoveRowsWithoutThisTime(dt As DataTable) As DataTable
+
+            ' 1. LINQで条件に合う行を特定
+            Dim query = dt.AsEnumerable().Where(Function(row) row.Field(Of String)("Column1") = "今回")
+
+            Dim filteredDt As DataTable
+
+            ' 2. 該当する行があるかチェック
+            If query.Any() Then
+                ' 行がある場合はDataTableに変換
+                filteredDt = query.CopyToDataTable()
+            Else
+                ' 1件もない場合は、構造（列）だけをコピーした空のDataTableを作成
+                filteredDt = dt.Clone()
+            End If
+            Return filteredDt
+
+        End Function
+        ''' <summary>
+        ''' csvファイルをDataTableに変換する
+        ''' </summary>
+        ''' <param name="filePath"></param>
+        ''' <returns></returns>
+        Public Function ConvertCsvToDataTable(filePath As String) As DataTable
+            Dim dt As New DataTable()
+
+            ' TextFieldParserの初期化
+            Using parser As New TextFieldParser(filePath, System.Text.Encoding.GetEncoding("Shift_JIS"))
+                ' カンマ区切りの設定
+                parser.TextFieldType = FieldType.Delimited
+                parser.SetDelimiters(",")
+
+                ' ダブルクォーテーションの囲みを考慮する設定
+                parser.HasFieldsEnclosedInQuotes = True
+
+                ' 1行目（ヘッダー）の読み込みと列作成
+                If Not parser.EndOfData Then
+                    Dim headers As String() = parser.ReadFields()
+                    For Each header As String In headers
+                        dt.Columns.Add(header)
+                    Next
+                End If
+
+                ' 2行目以降（データ）の読み込み
+                While Not parser.EndOfData
+                    Dim fields As String() = parser.ReadFields()
+                    dt.Rows.Add(fields)
+                End While
+            End Using
+
+            Return dt
+        End Function
+
+        ''' <summary>
+        ''' DataTableの内容をCSVファイルとして保存します（Shift_JIS、カンマ区切り、ダブルクォーテーション囲み対応）
+        ''' </summary>
+        ''' <param name="dt">保存対象のDataTable</param>
+        ''' <param name="filePath">保存先のフルパス（例: "C:\Output\result.csv"）</param>
+        Public Sub SaveDataTableToCsv(dt As DataTable, filePath As String)
+            ' Shift_JISのエンコーディングを取得（.NET Core/.NET 5以降の場合は事前に Encoding.RegisterProvider(CodePagesEncodingProvider.Instance) が必要）
+            Dim encoding As Encoding = Encoding.GetEncoding("Shift_JIS")
+
+            Using sw As New StreamWriter(filePath, False, encoding)
+                ' 1. ヘッダー（列名）の書き込み
+                Dim headerLine As New List(Of String)()
+                For Each col As DataColumn In dt.Columns
+                    headerLine.Add(EscapeCsvField(col.ColumnName))
+                Next
+                sw.WriteLine(String.Join(",", headerLine))
+
+                ' 2. データ行の書き込み
+                For Each row As DataRow In dt.Rows
+                    Dim fields As New List(Of String)()
+                    For Each col As DataColumn In dt.Columns
+                        fields.Add(EscapeCsvField(row(col).ToString()))
+                    Next
+                    sw.WriteLine(String.Join(",", fields))
+                Next
+            End Using
+        End Sub
+
+        ''' <summary>
+        ''' CSVのフィールドとして安全な文字列にエスケープ・囲み処理を行います。
+        ''' </summary>
+        Private Function EscapeCsvField(field As String) As String
+            If String.IsNullOrEmpty(field) Then
+                Return """""" ' 空白はダブルクォーテーション2つ
+            End If
+
+            ' 値の中にダブルクォーテーションがある場合は「""」に置換
+            If field.Contains("""") Then
+                field = field.Replace("""", """""")
+            End If
+
+            ' カンマ、ダブルクォーテーション、改行が含まれる場合は全体を「"」で囲む
+            If field.Contains(",") OrElse field.Contains("""") OrElse field.Contains(vbCr) OrElse field.Contains(vbLf) Then
+                Return $"""{field}"""
+            End If
+
+            ' それ以外はそのまま「"」で囲んで返す（すべての値を一律囲む仕様にするとより安全です）
+            Return $"""{field}"""
+        End Function
 
         '============================================
         ' ファイル転送
@@ -1022,44 +1197,44 @@ Namespace OMS.Common
             Return String.Join("-", parts)
         End Function
 
-        ''' <summary>
-        ''' 指定されたパターン（例: "3-5-2", "5-5"）に従って客先品目Noを分割し、ハイフンで結合します。
-        ''' </summary>
-        ''' <param name="cstitemno">元の文字列</param>
-        ''' <param name="pattern">ハイフン区切りのパターン（例: "3-5-2"）</param>
-        Function FormatByCostmerItemNo(cstitemno As String, pattern As String) As String
-            ' 安全チェック：入力が空の場合はそのまま返す
-            If String.IsNullOrEmpty(cstitemno) OrElse String.IsNullOrEmpty(pattern) Then
-                Return cstitemno
-            End If
+        '''' <summary>
+        '''' 指定されたパターン（例: "3-5-2", "5-5"）に従って客先品目Noを分割し、ハイフンで結合します。
+        '''' </summary>
+        '''' <param name="cstitemno">元の文字列</param>
+        '''' <param name="pattern">ハイフン区切りのパターン（例: "3-5-2"）</param>
+        'Function FormatByCostmerItemNo(cstitemno As String, pattern As String) As String
+        '    ' 安全チェック：入力が空の場合はそのまま返す
+        '    If String.IsNullOrEmpty(cstitemno) OrElse String.IsNullOrEmpty(pattern) Then
+        '        Return cstitemno
+        '    End If
 
-            ' パターン文字列を「-」で分解して数値の配列にする（例: "3-5-2" -> {3, 5, 2}）
-            Dim lengthStrings As String() = pattern.Split("-"c)
-            Dim parts As New List(Of String)()
-            Dim currentIndex As Integer = 0
+        '    ' パターン文字列を「-」で分解して数値の配列にする（例: "3-5-2" -> {3, 5, 2}）
+        '    Dim lengthStrings As String() = pattern.Split("-"c)
+        '    Dim parts As New List(Of String)()
+        '    Dim currentIndex As Integer = 0
 
-            ' 各ブロックの文字数ごとに切り出し処理
-            For Each lenStr As String In lengthStrings
-                Dim targetLength As Integer = 0
+        '    ' 各ブロックの文字数ごとに切り出し処理
+        '    For Each lenStr As String In lengthStrings
+        '        Dim targetLength As Integer = 0
 
-                ' 数字として正しく変換できるかチェック
-                If Integer.TryParse(lenStr, targetLength) Then
-                    ' 切り出す文字がまだ残っているかチェック
-                    If currentIndex < cstitemno.Length Then
-                        ' 残り文字数が必要数より少なければ、ある分だけ切り出す
-                        Dim remainingLength As Integer = Math.Min(targetLength, cstitemno.Length - currentIndex)
-                        parts.Add(cstitemno.Substring(currentIndex, remainingLength))
-                        currentIndex += remainingLength
-                    Else
-                        ' 元の文字列をすべて使い切った場合はループを抜ける
-                        Exit For
-                    End If
-                End If
-            Next
+        '        ' 数字として正しく変換できるかチェック
+        '        If Integer.TryParse(lenStr, targetLength) Then
+        '            ' 切り出す文字がまだ残っているかチェック
+        '            If currentIndex < cstitemno.Length Then
+        '                ' 残り文字数が必要数より少なければ、ある分だけ切り出す
+        '                Dim remainingLength As Integer = Math.Min(targetLength, cstitemno.Length - currentIndex)
+        '                parts.Add(cstitemno.Substring(currentIndex, remainingLength))
+        '                currentIndex += remainingLength
+        '            Else
+        '                ' 元の文字列をすべて使い切った場合はループを抜ける
+        '                Exit For
+        '            End If
+        '        End If
+        '    Next
 
-            ' 切り出したパーツをハイフン「-」で結合して返す
-            Return String.Join("-", parts)
-        End Function
+        '    ' 切り出したパーツをハイフン「-」で結合して返す
+        '    Return String.Join("-", parts)
+        'End Function
 
 #End Region
 
