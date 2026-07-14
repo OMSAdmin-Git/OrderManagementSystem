@@ -244,7 +244,8 @@ Namespace Pages.Orders
                                 End If
 
                                 ' 納期計算
-                                Dim customerItemNo As String = orderRow.CustomerItemNo
+                                'Dim customerItemNo As String = orderRow.CustomerItemNo
+                                Dim customerItemNo As String = orderRow.ItemNo
                                 'FUSRDEC1 ((A)品揃リードタイム)
                                 Dim assortLeadTime = shproutm.GetAssortmentLeadTime(customerCode, profitCenter, customerItemNo)
                                 'FTRANLT(輸送L/T)

@@ -237,7 +237,8 @@ Namespace Pages.Orders
                                     Continue For
                                 End If
 
-                                Dim customerItemNo = orderRow.CustomerItemNo
+                                'Dim customerItemNo = orderRow.CustomerItemNo
+                                Dim customerItemNo = orderRow.ItemNo
                                 'FUSRDEC1 ((A)品揃リードタイム)
                                 Dim assortLeadTime = shproutm.GetAssortmentLeadTime(customerCode, profitCenter, customerItemNo)
                                 'FTRANLT(輸送L/T)

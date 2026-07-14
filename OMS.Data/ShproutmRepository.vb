@@ -181,29 +181,33 @@ Namespace OMS.Data
                     conn.Open()
                     Using tran As OracleTransaction = conn.BeginTransaction()
                         Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
-                            ' 製品受注基準マスタ(PRDSLSODRM) から顧客(FCUSTCD)と客先品目No(FCUSTITEMNO)で製品コード(FPRDCD)を検索
-                            'ユーザー定義項目マスタ(USRDEFFLDF)から製品コード(FPRDCD)とﾃｰﾌﾞﾙID(FTABLEID)="ITEMM"で検索し品揃L/T(FUSRDEC1)を取得
-                            cmd.CommandText = "SELECT 
-                                                    u.FUSRDEC1
-                                                FROM 
-                                                    (
-                                                        -- 1. 右側の空白を除去して条件比較し、最初のFPRDCDを取得
-                                                        SELECT RTRIM(FPRDCD) AS FPRDCD_TRIM
-                                                        FROM PRDSLSODRM
-                                                        WHERE RTRIM(FCUSTCD) = :p_customerCode
-                                                          AND RTRIM(FCUSTITEMNO) = :p_customerItemNumber 
-                                                        ORDER BY FPRDCD
-                                                        FETCH FIRST 1 ROWS ONLY
-                                                    ) p
-                                                INNER JOIN 
-                                                    (
-                                                        -- 2. FRECKEYの右側の空白を除去して順位付け
-                                                        SELECT RTRIM(FRECKEY) AS FRECKEY_TRIM, FUSRDEC1,
-                                                               ROW_NUMBER() OVER (PARTITION BY RTRIM(FRECKEY) ORDER BY FUSRDEC1) as rn
-                                                        FROM USRDEFFLDF
-                                                        WHERE FTABLEID = 'ITEMM'
-                                                    ) u
-                                                    ON u.FRECKEY_TRIM = p.FPRDCD_TRIM AND u.rn = 1 "
+                            cmd.CommandText = "Select Case FUSRDEC1
+                                                From USRDEFFLDF
+                                                Where FPRDCD = :p_customerItemNumber ' 
+                                                And FTABLEID = 'ITEMM' "
+                            '' 製品受注基準マスタ(PRDSLSODRM) から顧客(FCUSTCD)と客先品目No(FCUSTITEMNO)で製品コード(FPRDCD)を検索
+                            ''ユーザー定義項目マスタ(USRDEFFLDF)から製品コード(FPRDCD)とﾃｰﾌﾞﾙID(FTABLEID)="ITEMM"で検索し品揃L/T(FUSRDEC1)を取得
+                            'cmd.CommandText = "SELECT 
+                            '                        u.FUSRDEC1
+                            '                    FROM 
+                            '                        (
+                            '                            -- 1. 右側の空白を除去して条件比較し、最初のFPRDCDを取得
+                            '                            SELECT RTRIM(FPRDCD) AS FPRDCD_TRIM
+                            '                            FROM PRDSLSODRM
+                            '                            WHERE RTRIM(FCUSTCD) = :p_customerCode
+                            '                              AND RTRIM(FCUSTITEMNO) = :p_customerItemNumber 
+                            '                            ORDER BY FPRDCD
+                            '                            FETCH FIRST 1 ROWS ONLY
+                            '                        ) p
+                            '                    INNER JOIN 
+                            '                        (
+                            '                            -- 2. FRECKEYの右側の空白を除去して順位付け
+                            '                            SELECT RTRIM(FRECKEY) AS FRECKEY_TRIM, FUSRDEC1,
+                            '                                   ROW_NUMBER() OVER (PARTITION BY RTRIM(FRECKEY) ORDER BY FUSRDEC1) as rn
+                            '                            FROM USRDEFFLDF
+                            '                            WHERE FTABLEID = 'ITEMM'
+                            '                        ) u
+                            '                        ON u.FRECKEY_TRIM = p.FPRDCD_TRIM AND u.rn = 1 "
                             cmd.Parameters.Add(":p_customerCode", OracleDbType.Varchar2, 25).Value = SafeVarchar(customerCode.Trim(), 25)
                             cmd.Parameters.Add(":p_customerItemNumber", OracleDbType.Varchar2, 45).Value = SafeVarchar(customerItemNumber.Trim(), 45)
                             Dim result As Object = cmd.ExecuteScalar()
