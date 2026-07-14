@@ -966,6 +966,45 @@ Namespace OMS.Common
             Return False
         End Function
 
+        ''' <summary>
+        ''' 指定されたパターン（例: "3-5-2", "5-5"）に従って客先品目Noを分割し、ハイフンで結合します。
+        ''' </summary>
+        ''' <param name="cstitemno">元の文字列</param>
+        ''' <param name="pattern">ハイフン区切りのパターン（例: "3-5-2"）</param>
+        Function FormatByCostmerItemNo(cstitemno As String, pattern As String) As String
+            ' 安全チェック：入力が空の場合はそのまま返す
+            If String.IsNullOrEmpty(cstitemno) OrElse String.IsNullOrEmpty(pattern) Then
+                Return cstitemno
+            End If
+
+            ' パターン文字列を「-」で分解して数値の配列にする（例: "3-5-2" -> {3, 5, 2}）
+            Dim lengthStrings As String() = pattern.Split("-"c)
+            Dim parts As New List(Of String)()
+            Dim currentIndex As Integer = 0
+
+            ' 各ブロックの文字数ごとに切り出し処理
+            For Each lenStr As String In lengthStrings
+                Dim targetLength As Integer = 0
+
+                ' 数字として正しく変換できるかチェック
+                If Integer.TryParse(lenStr, targetLength) Then
+                    ' 切り出す文字がまだ残っているかチェック
+                    If currentIndex < cstitemno.Length Then
+                        ' 残り文字数が必要数より少なければ、ある分だけ切り出す
+                        Dim remainingLength As Integer = Math.Min(targetLength, cstitemno.Length - currentIndex)
+                        parts.Add(cstitemno.Substring(currentIndex, remainingLength))
+                        currentIndex += remainingLength
+                    Else
+                        ' 元の文字列をすべて使い切った場合はループを抜ける
+                        Exit For
+                    End If
+                End If
+            Next
+
+            ' 切り出したパーツをハイフン「-」で結合して返す
+            Return String.Join("-", parts)
+        End Function
+
 #End Region
 
 #Region "ドメイン変換（フォルダ区分など）"
