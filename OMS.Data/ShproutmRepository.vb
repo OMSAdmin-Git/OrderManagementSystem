@@ -90,90 +90,90 @@ Namespace OMS.Data
             Return errorMessage
 
         End Function
-        ''' <summary>
-        ''' 輸送リードタイム(出荷 LT) 取得
-        ''' 受注データ抽出システム_STRAMMIC連携データセット_20260603.xlsx 資料からの取得方法
-        ''' 出荷ルートマスタ・出荷在庫場所
-        ''' </summary>
-        ''' <param name="custmerCode"></param>
-        ''' <param name="deliveryCode"></param>
-        ''' <param name="customerItemNo"></param>
-        ''' <returns></returns>
-        Public Function GetTransferLeadTime(custmerCode As String, deliveryCode As String, customerItemNo As String) As Int16
-            Dim dt As New DataTable()
-            Dim lt = -1
-            Try
-                Using conn As New OracleConnection(_connectionString)
-                    conn.Open()
-                    Using tran As OracleTransaction = conn.BeginTransaction()
+        '''' <summary>
+        '''' 輸送リードタイム(出荷 LT) 取得
+        '''' 受注データ抽出システム_STRAMMIC連携データセット_20260603.xlsx 資料からの取得方法
+        '''' 出荷ルートマスタ・出荷在庫場所
+        '''' </summary>
+        '''' <param name="custmerCode"></param>
+        '''' <param name="deliveryCode"></param>
+        '''' <param name="customerItemNo"></param>
+        '''' <returns></returns>
+        'Public Function GetTransferLeadTime(custmerCode As String, deliveryCode As String, customerItemNo As String) As Int16
+        '    Dim dt As New DataTable()
+        '    Dim lt = -1
+        '    Try
+        '        Using conn As New OracleConnection(_connectionString)
+        '            conn.Open()
+        '            Using tran As OracleTransaction = conn.BeginTransaction()
 
-                        Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
-                            cmd.CommandText = "WITH target_input AS (
-                                              -- 1.2. 外部から値を与え、取引先コードと納入先コードを連結して「取引先コード1」を作成
-                                              SELECT 
-                                                :p_custmerCode || :p_deliveryCode AS customerDeliveryCode,
-                                                :p_customerItemNo AS target_item_no
-                                              FROM dual
-                                            ),
-                                            first_product AS (
-                                              -- 3. PRDSLSODRM から顧客番号と客先品目Noが一致する先頭の製品コードを取得
-                                              SELECT p.fprdcd
-                                              FROM prdslsodrm p
-                                              JOIN target_input ti ON p.fcustcd = ti.customerDeliveryCode 
-                                                                  AND p.fcustitemno = ti.target_item_no
-                                              ORDER BY p.rowid -- 先頭を特定するソート（主キー等への変更を推奨）
-                                              FETCH FIRST 1 ROW ONLY
-                                            ),
-                                            first_warehouse AS (
-                                              -- 4. ITEMM から製品コードが一致する先頭の出荷在庫場所を取得
-                                              SELECT i.fprmwhcd
-                                              FROM itemm i
-                                              JOIN first_product fp ON i.fitemno = fp.fprdcd
-                                              ORDER BY i.rowid -- 先頭を特定するソート
-                                              FETCH FIRST 1 ROW ONLY
-                                            )
-                                            -- 5. SHPROUTM から条件に一致する全レコードを抽出し、優先順位の昇順でソート
-                                            SELECT s.*
-                                            FROM shproutm s
-                                            JOIN target_input ti ON s.fshptocd = ti.customerDeliveryCode
-                                            JOIN first_warehouse fw ON s.fprmwhcd = fw.fprmwhcd
-                                            ORDER BY s.fpriority ASC 
-                                            -- 6. 先頭レコードを抽出
-                                            FETCH FIRST 1 ROW ONLY "
-                            cmd.Parameters.Add(":p_custmerCode", OracleDbType.Char, 25).Value = custmerCode
-                            cmd.Parameters.Add(":p_deliveryCode", OracleDbType.Char, 25).Value = deliveryCode
-                            cmd.Parameters.Add(":p_customerItemNo", OracleDbType.Char, 45).Value = customerItemNo
+        '                Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
+        '                    cmd.CommandText = "WITH target_input AS (
+        '                                      -- 1.2. 外部から値を与え、取引先コードと納入先コードを連結して「取引先コード1」を作成
+        '                                      SELECT 
+        '                                        :p_custmerCode || :p_deliveryCode AS customerDeliveryCode,
+        '                                        :p_customerItemNo AS target_item_no
+        '                                      FROM dual
+        '                                    ),
+        '                                    first_product AS (
+        '                                      -- 3. PRDSLSODRM から顧客番号と客先品目Noが一致する先頭の製品コードを取得
+        '                                      SELECT p.fprdcd
+        '                                      FROM prdslsodrm p
+        '                                      JOIN target_input ti ON p.fcustcd = ti.customerDeliveryCode 
+        '                                                          AND p.fcustitemno = ti.target_item_no
+        '                                      ORDER BY p.rowid -- 先頭を特定するソート（主キー等への変更を推奨）
+        '                                      FETCH FIRST 1 ROW ONLY
+        '                                    ),
+        '                                    first_warehouse AS (
+        '                                      -- 4. ITEMM から製品コードが一致する先頭の出荷在庫場所を取得
+        '                                      SELECT i.fprmwhcd
+        '                                      FROM itemm i
+        '                                      JOIN first_product fp ON i.fitemno = fp.fprdcd
+        '                                      ORDER BY i.rowid -- 先頭を特定するソート
+        '                                      FETCH FIRST 1 ROW ONLY
+        '                                    )
+        '                                    -- 5. SHPROUTM から条件に一致する全レコードを抽出し、優先順位の昇順でソート
+        '                                    SELECT s.*
+        '                                    FROM shproutm s
+        '                                    JOIN target_input ti ON s.fshptocd = ti.customerDeliveryCode
+        '                                    JOIN first_warehouse fw ON s.fprmwhcd = fw.fprmwhcd
+        '                                    ORDER BY s.fpriority ASC 
+        '                                    -- 6. 先頭レコードを抽出
+        '                                    FETCH FIRST 1 ROW ONLY "
+        '                    cmd.Parameters.Add(":p_custmerCode", OracleDbType.Char, 25).Value = custmerCode
+        '                    cmd.Parameters.Add(":p_deliveryCode", OracleDbType.Char, 25).Value = deliveryCode
+        '                    cmd.Parameters.Add(":p_customerItemNo", OracleDbType.Char, 45).Value = customerItemNo
 
-                            Using reader As OracleDataReader = cmd.ExecuteReader()
-                                dt.Load(reader)
-                            End Using
+        '                    Using reader As OracleDataReader = cmd.ExecuteReader()
+        '                        dt.Load(reader)
+        '                    End Using
 
-                            If (dt.Rows.Count > 0) Then
-                                Dim dtr = ToClass(dt.Rows(0))
-                                lt = dtr.TransferLeadTime
-                            End If
+        '                    If (dt.Rows.Count > 0) Then
+        '                        Dim dtr = ToClass(dt.Rows(0))
+        '                        lt = dtr.TransferLeadTime
+        '                    End If
 
-                        End Using
-                        tran.Commit()
-                    End Using
-                    'conn.Close()
-                End Using
-            Catch ex As Exception
-                Dim m = ex.Message
-            End Try
-            Return lt
+        '                End Using
+        '                tran.Commit()
+        '            End Using
+        '            'conn.Close()
+        '        End Using
+        '    Catch ex As Exception
+        '        Dim m = ex.Message
+        '    End Try
+        '    Return lt
 
-        End Function
+        'End Function
 
         ''' <summary>
         ''' 品揃えリードタイム取得
-        ''' 2026/6/30 仕様変更  
+        ''' 2026/7/15 不具合修正 
         ''' </summary>
         ''' <param name="customerCode">取引先コード</param>
         ''' <param name="profitCenter">部門</param>
-        ''' <param name="customerItemNumber">客先品目No</param>
+        ''' <param name="itemNumber">客先品目No</param>
         ''' <returns></returns>
-        Public Function GetAssortmentLeadTime(customerCode As String, profitCenter As String, customerItemNumber As String) As Integer
+        Public Function GetAssortmentLeadTime(customerCode As String, profitCenter As String, itemNumber As String) As Integer
             Dim lt As Decimal = 0 ' 戻り値の初期値
             Dim dt As New DataTable()
             Try
@@ -181,35 +181,13 @@ Namespace OMS.Data
                     conn.Open()
                     Using tran As OracleTransaction = conn.BeginTransaction()
                         Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
-                            cmd.CommandText = "Select Case FUSRDEC1
-                                                From USRDEFFLDF
-                                                Where FPRDCD = :p_customerItemNumber ' 
-                                                And FTABLEID = 'ITEMM' "
-                            '' 製品受注基準マスタ(PRDSLSODRM) から顧客(FCUSTCD)と客先品目No(FCUSTITEMNO)で製品コード(FPRDCD)を検索
-                            ''ユーザー定義項目マスタ(USRDEFFLDF)から製品コード(FPRDCD)とﾃｰﾌﾞﾙID(FTABLEID)="ITEMM"で検索し品揃L/T(FUSRDEC1)を取得
-                            'cmd.CommandText = "SELECT 
-                            '                        u.FUSRDEC1
-                            '                    FROM 
-                            '                        (
-                            '                            -- 1. 右側の空白を除去して条件比較し、最初のFPRDCDを取得
-                            '                            SELECT RTRIM(FPRDCD) AS FPRDCD_TRIM
-                            '                            FROM PRDSLSODRM
-                            '                            WHERE RTRIM(FCUSTCD) = :p_customerCode
-                            '                              AND RTRIM(FCUSTITEMNO) = :p_customerItemNumber 
-                            '                            ORDER BY FPRDCD
-                            '                            FETCH FIRST 1 ROWS ONLY
-                            '                        ) p
-                            '                    INNER JOIN 
-                            '                        (
-                            '                            -- 2. FRECKEYの右側の空白を除去して順位付け
-                            '                            SELECT RTRIM(FRECKEY) AS FRECKEY_TRIM, FUSRDEC1,
-                            '                                   ROW_NUMBER() OVER (PARTITION BY RTRIM(FRECKEY) ORDER BY FUSRDEC1) as rn
-                            '                            FROM USRDEFFLDF
-                            '                            WHERE FTABLEID = 'ITEMM'
-                            '                        ) u
-                            '                        ON u.FRECKEY_TRIM = p.FPRDCD_TRIM AND u.rn = 1 "
-                            cmd.Parameters.Add(":p_customerCode", OracleDbType.Varchar2, 25).Value = SafeVarchar(customerCode.Trim(), 25)
-                            cmd.Parameters.Add(":p_customerItemNumber", OracleDbType.Varchar2, 45).Value = SafeVarchar(customerItemNumber.Trim(), 45)
+                            cmd.CommandText = "SELECT FUSRDEC1 
+                                FROM USRDEFFLDF 
+                                WHERE FRECKEY = :p_itemNumber   
+                                AND FTABLEID = 'ITEMM' 
+                                ORDER BY FRECKEY 
+                                FETCH FIRST 1 ROWS ONLY "
+                            cmd.Parameters.Add(":p_itemNumber", OracleDbType.Char, 45).Value = SafeVarchar(itemNumber.Trim(), 45)
                             Dim result As Object = cmd.ExecuteScalar()
                             ' 結果の存在チェックと型変換
                             If result IsNot Nothing AndAlso Not IsDBNull(result) Then
@@ -249,8 +227,8 @@ Namespace OMS.Data
                                         ORDER BY 
                                             FPRIORITY ASC
                                         FETCH FIRST 1 ROW ONLY "
-                            cmd.Parameters.Add(":p_shipTo", OracleDbType.Varchar2, 45).Value = SafeVarchar(shipTo, 25)
-                            cmd.Parameters.Add(":p_shipStockLocation", OracleDbType.Varchar2, 45).Value = SafeVarchar(shipStockLocation, 25)
+                            cmd.Parameters.Add(":p_shipTo", OracleDbType.Varchar2, 25).Value = SafeVarchar(shipTo, 25)
+                            cmd.Parameters.Add(":p_shipStockLocation", OracleDbType.Varchar2, 25).Value = SafeVarchar(shipStockLocation, 25)
                             Dim result As Object = cmd.ExecuteScalar()
                             ' 結果の存在チェックと型変換
                             If result IsNot Nothing AndAlso Not IsDBNull(result) Then

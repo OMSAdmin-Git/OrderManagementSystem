@@ -237,7 +237,6 @@ Namespace Pages.Orders
                                     Continue For
                                 End If
 
-                                'Dim customerItemNo = orderRow.CustomerItemNo
                                 Dim customerItemNo = orderRow.ItemNo
                                 'FUSRDEC1 ((A)品揃リードタイム)
                                 Dim assortLeadTime = shproutm.GetAssortmentLeadTime(customerCode, profitCenter, customerItemNo)
@@ -435,7 +434,20 @@ Namespace Pages.Orders
             Dim tran As OracleTransaction = conn.BeginTransaction()
 
             ' ######## DEBUG
+
+
 #If False Then
+            Dim customerCode = "5168"
+            Dim customerItemNo = "KATZZD0010W"
+            Dim profitCenter = "W999"
+
+            Dim shproutm = New ShproutmRepository(Utils.GetConnectionString())
+            Dim assortLeadTime = shproutm.GetAssortmentLeadTime(customerCode, profitCenter, customerItemNo)
+
+            Dim lt = assortLeadTime
+            'FTRANLT(輸送L/T)
+            'Dim transferLeadTime = shproutm.GetTransferLeadTime(orderRow.ShipTo, orderRow.ShipStockLocation)
+
             Dim cal = New CalenderRepository(Utils.GetConnectionString())
             Dim tdt = New DateTime(2026, 6, 21)
             Dim dys = -1
