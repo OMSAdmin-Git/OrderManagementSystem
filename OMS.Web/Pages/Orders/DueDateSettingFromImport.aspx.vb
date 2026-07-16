@@ -435,8 +435,6 @@ Namespace Pages.Orders
 
             ' ######## DEBUG
 
-
-#If False Then
             Dim customerCode = "5168"
             Dim customerItemNo = "KATZZD0010W"
             Dim profitCenter = "W999"
@@ -445,8 +443,13 @@ Namespace Pages.Orders
             Dim assortLeadTime = shproutm.GetAssortmentLeadTime(customerCode, profitCenter, customerItemNo)
 
             Dim lt = assortLeadTime
+
             'FTRANLT(輸送L/T)
-            'Dim transferLeadTime = shproutm.GetTransferLeadTime(orderRow.ShipTo, orderRow.ShipStockLocation)
+            Dim shipTo = "5168"
+            Dim shipStockLocation = "W999"
+            Dim transferLeadTime = shproutm.GetTransferLeadTime(shipTo, shipStockLocation)
+
+#If False Then
 
             Dim cal = New CalenderRepository(Utils.GetConnectionString())
             Dim tdt = New DateTime(2026, 6, 21)

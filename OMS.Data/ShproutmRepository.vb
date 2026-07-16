@@ -45,8 +45,8 @@ Namespace OMS.Data
                         Where fsectcd = :p_customerCode  ||  :p_deliveryCode 
                         And fsecttyp = 'ST' 
                         And ROWNUM = 1 "
-                    cmd.Parameters.Add(":p_customerCode", OracleDbType.Varchar2, 45).Value = SafeVarchar(customerCode, 45)
-                    cmd.Parameters.Add(":p_deliveryCode", OracleDbType.Varchar2, 45).Value = SafeVarchar(deliveryCode, 45)
+                    cmd.Parameters.Add(":p_customerCode", OracleDbType.Varchar2, 25).Value = SafeVarchar(customerCode, 25)
+                    cmd.Parameters.Add(":p_deliveryCode", OracleDbType.Varchar2, 25).Value = SafeVarchar(deliveryCode, 25)
                     Using reader As OracleDataReader = cmd.ExecuteReader()
                         sectdr.Load(reader)
                     End Using
@@ -66,8 +66,8 @@ Namespace OMS.Data
                         From sectd
                         Where fsectcd = :p_customerCode || :p_deliveryCode 
                         And ROWNUM = 1 "
-                        cmd.Parameters.Add(":p_customerCode", OracleDbType.Varchar2, 45).Value = SafeVarchar(customerCode, 45)
-                        cmd.Parameters.Add(":p_deliveryCode", OracleDbType.Varchar2, 45).Value = SafeVarchar(deliveryCode, 45)
+                        cmd.Parameters.Add(":p_customerCode", OracleDbType.Varchar2, 25).Value = SafeVarchar(customerCode, 25)
+                        cmd.Parameters.Add(":p_deliveryCode", OracleDbType.Varchar2, 25).Value = SafeVarchar(deliveryCode, 25)
                         Using reader As OracleDataReader = cmd.ExecuteReader()
                             sectmr.Load(reader)
                         End Using
@@ -180,7 +180,7 @@ Namespace OMS.Data
                 Using conn As New OracleConnection(_connectionString)
                     conn.Open()
                     Using tran As OracleTransaction = conn.BeginTransaction()
-                        Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
+                        Using cmd As New OracleCommand() With {.Connection = conn, .Transaction = tran, .BindByName = True}
                             cmd.CommandText = "SELECT FUSRDEC1 
                                 FROM USRDEFFLDF 
                                 WHERE FRECKEY = :p_itemNumber   
@@ -216,17 +216,28 @@ Namespace OMS.Data
                 Using conn As New OracleConnection(_connectionString)
                     conn.Open()
                     Using tran As OracleTransaction = conn.BeginTransaction()
-                        Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
+                        Using cmd As New OracleCommand() With {.Connection = conn, .Transaction = tran, .BindByName = True}
+                            ' 2026/7/16 p_shipTo 文字列が含まれる場合 に修正
                             cmd.CommandText = "SELECT 
-                                            FTRANLT
-                                        FROM 
-                                            SHPROUTM
-                                        WHERE 
-                                            FSHPTOCD = :p_shipTo
-                                            AND FSHPWHCD = :p_shipStockLocation
-                                        ORDER BY 
-                                            FPRIORITY ASC
-                                        FETCH FIRST 1 ROW ONLY "
+                                                FTRANLT 
+                                            FROM 
+                                                SHPROUTM 
+                                            WHERE 
+                                                FSHPTOCD LIKE :p_shipTo || '%' 
+                                                AND FSHPWHCD = :p_shipStockLocation 
+                                            ORDER BY  
+                                                FPRIORITY ASC 
+                                            FETCH FIRST 1 ROW ONLY "
+                            'cmd.CommandText = "SELECT 
+                            '                FTRANLT
+                            '            FROM 
+                            '                SHPROUTM
+                            '            WHERE 
+                            '                FSHPTOCD = :p_shipTo
+                            '                AND FSHPWHCD = :p_shipStockLocation
+                            '            ORDER BY 
+                            '                FPRIORITY ASC
+                            '            FETCH FIRST 1 ROW ONLY "
                             cmd.Parameters.Add(":p_shipTo", OracleDbType.Varchar2, 25).Value = SafeVarchar(shipTo, 25)
                             cmd.Parameters.Add(":p_shipStockLocation", OracleDbType.Varchar2, 25).Value = SafeVarchar(shipStockLocation, 25)
                             Dim result As Object = cmd.ExecuteScalar()
@@ -311,7 +322,7 @@ Namespace OMS.Data
                         FROM Shproutm
                         WHERE FshpToCd  = :p_shipTo 
                         AND Fpriority   = :p_priority  "
-                    cmd.Parameters.Add(":p_shipTo", OracleDbType.Varchar2, 45).Value = SafeVarchar(shipTo, 25)
+                    cmd.Parameters.Add(":p_shipTo", OracleDbType.Varchar2, 25).Value = SafeVarchar(shipTo, 25)
                     cmd.Parameters.Add(":p_priority", OracleDbType.Int16).Value = priority
                     Using reader As OracleDataReader = cmd.ExecuteReader()
                         dt.Load(reader)

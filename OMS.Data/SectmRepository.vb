@@ -64,7 +64,7 @@ Namespace OMS.Data
                              fuppsect As ""AppSection""  
                         FROM sectm
                         WHERE fsectcd = :p_customerCode "
-                    cmd.Parameters.Add(":p_customerCode", OracleDbType.Varchar2, 45).Value = SafeVarchar(customerCode, 45)
+                    cmd.Parameters.Add(":p_customerCode", OracleDbType.Varchar2, 25).Value = SafeVarchar(customerCode, 25)
                     Using reader As OracleDataReader = cmd.ExecuteReader()
                         dt.Load(reader)
                     End Using
