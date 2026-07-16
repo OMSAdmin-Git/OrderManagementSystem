@@ -434,6 +434,7 @@ Namespace Pages.Orders
             Dim tran As OracleTransaction = conn.BeginTransaction()
 
             ' ######## DEBUG
+#If False Then
 
             Dim customerCode = "5168"
             Dim customerItemNo = "KATZZD0010W"
@@ -449,7 +450,6 @@ Namespace Pages.Orders
             Dim shipStockLocation = "W999"
             Dim transferLeadTime = shproutm.GetTransferLeadTime(shipTo, shipStockLocation)
 
-#If False Then
 
             Dim cal = New CalenderRepository(Utils.GetConnectionString())
             Dim tdt = New DateTime(2026, 6, 21)

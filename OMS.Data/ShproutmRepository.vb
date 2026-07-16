@@ -217,27 +217,27 @@ Namespace OMS.Data
                     conn.Open()
                     Using tran As OracleTransaction = conn.BeginTransaction()
                         Using cmd As New OracleCommand() With {.Connection = conn, .Transaction = tran, .BindByName = True}
-                            ' 2026/7/16 p_shipTo 文字列が含まれる場合 に修正
-                            cmd.CommandText = "SELECT 
-                                                FTRANLT 
-                                            FROM 
-                                                SHPROUTM 
-                                            WHERE 
-                                                FSHPTOCD LIKE :p_shipTo || '%' 
-                                                AND FSHPWHCD = :p_shipStockLocation 
-                                            ORDER BY  
-                                                FPRIORITY ASC 
-                                            FETCH FIRST 1 ROW ONLY "
+                            ''  p_shipTo 文字列が含まれる場合
                             'cmd.CommandText = "SELECT 
-                            '                FTRANLT
-                            '            FROM 
-                            '                SHPROUTM
-                            '            WHERE 
-                            '                FSHPTOCD = :p_shipTo
-                            '                AND FSHPWHCD = :p_shipStockLocation
-                            '            ORDER BY 
-                            '                FPRIORITY ASC
-                            '            FETCH FIRST 1 ROW ONLY "
+                            '                    FTRANLT 
+                            '                FROM 
+                            '                    SHPROUTM 
+                            '                WHERE 
+                            '                    FSHPTOCD LIKE :p_shipTo || '%' 
+                            '                    AND FSHPWHCD = :p_shipStockLocation 
+                            '                ORDER BY  
+                            '                    FPRIORITY ASC 
+                            '                FETCH FIRST 1 ROW ONLY "
+                            cmd.CommandText = "SELECT 
+                                            FTRANLT
+                                        FROM 
+                                            SHPROUTM
+                                        WHERE 
+                                            FSHPTOCD = :p_shipTo
+                                            AND FSHPWHCD = :p_shipStockLocation
+                                        ORDER BY 
+                                            FPRIORITY ASC
+                                        FETCH FIRST 1 ROW ONLY "
                             cmd.Parameters.Add(":p_shipTo", OracleDbType.Varchar2, 25).Value = SafeVarchar(shipTo, 25)
                             cmd.Parameters.Add(":p_shipStockLocation", OracleDbType.Varchar2, 25).Value = SafeVarchar(shipStockLocation, 25)
                             Dim result As Object = cmd.ExecuteScalar()
