@@ -711,6 +711,8 @@ Namespace Pages.Orders
                                 Dim SourceColumnIndex As Integer = 0
                                 Dim SourceCellAddress As String = ""
 
+                                Dim FstFlg As Boolean = True
+
                                 For Each info In mappingInfos
 
                                     HeaderRowIndex = info.HeaderRowIndex
@@ -763,6 +765,28 @@ Namespace Pages.Orders
                                     Else
                                         'CSV、TSVは開始列が0からのため-1
                                         SourceColumnIndex = info.source_column_index - 1   '列番号
+
+                                        If FstFlg = True Then
+
+                                            nKyakusakiHattyuNo = -1
+                                            nJutyuuBi = -1
+                                            nKibouNouki = -1
+                                            nKyakusakiHinmokuNo = -1
+                                            njuyouSuu = -1
+                                            nTukaCode = -1
+                                            nSeihinCode = -1
+                                            nNonyusakiCode = -1
+                                            nComment = -1
+                                            nJutyuKubun = -1
+                                            nBunkatuKubun = -1
+                                            nTorihikisakiJohoKubun = -1
+                                            nJishaYosokuFlag = -1
+                                            nJishaYosokuDelFlag = -1
+
+                                            FstFlg = False
+
+                                        End If
+
                                     End If
 
                                     'MATRIX用
@@ -940,7 +964,7 @@ Namespace Pages.Orders
                                                         ordertype = folderType
 
                                                         '分割区分   (任意)
-                                                        'INFO_TYPE_MSTより取得
+                                                        'IMP_RULE_MSTより取得
                                                         proratedtype = 1
                                                         errMsg = ""
                                                         If _oderStageRepo.GetProratedType(customerSettingId, folderType, proratedtype, errMsg) = False Then
@@ -1125,7 +1149,7 @@ Namespace Pages.Orders
                                                         'ErrFlg = True
                                                     End If
 
-                                                    '消込条件区分   （任意）
+                                                    '消込条件区分 ※順次/同月まで/同月内のみ   （任意）
                                                     'IMP_RULE_MSTより取得
                                                     reconciletype = 1
                                                     errMsg = ""
@@ -1480,7 +1504,7 @@ Namespace Pages.Orders
                                                         ordertype = folderType
 
                                                         '分割区分   (任意)
-                                                        'INFO_TYPE_MSTより取得
+                                                        'IMP_RULE_MSTより取得
                                                         proratedtype = 1
                                                         errMsg = ""
                                                         If _oderStageRepo.GetProratedType(customerSettingId, folderType, proratedtype, errMsg) = False Then
@@ -1668,7 +1692,7 @@ Namespace Pages.Orders
                                                         'ErrFlg = True
                                                     End If
 
-                                                    '消込条件区分     （任意）
+                                                    '消込条件区分 ※順次/同月まで/同月内のみ     （任意）
                                                     'IMP_RULE_MSTより取得
                                                     reconciletype = 1
                                                     errMsg = ""
@@ -2273,7 +2297,7 @@ Namespace Pages.Orders
                                                             ordertype = folderType
 
                                                             '分割区分   (任意)
-                                                            'INFO_TYPE_MSTより取得
+                                                            'IMP_RULE_MSTより取得
                                                             proratedtype = 1
                                                             errMsg = ""
                                                             If _oderStageRepo.GetProratedType(customerSettingId, folderType, proratedtype, errMsg) = False Then
@@ -2559,7 +2583,7 @@ Namespace Pages.Orders
                                                         End If
                                                         '-----------------
 
-                                                        '消込条件区分 （任意）
+                                                        '消込条件区分 ※順次/同月まで/同月内のみ （任意）
                                                         'IMP_RULE_MSTより取得
                                                         reconciletype = 1
                                                         errMsg = ""

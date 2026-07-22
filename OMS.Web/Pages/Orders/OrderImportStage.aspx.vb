@@ -251,7 +251,8 @@ Namespace Pages.Orders
                         Utils.EnsureDirectory(destFolder)
 
                         Dim files = Directory.EnumerateFiles(sourceFolder, "*.csv", SearchOption.TopDirectoryOnly) _
-                            .Concat(Directory.EnumerateFiles(sourceFolder, "*.xlsx", SearchOption.TopDirectoryOnly))
+                            .Concat(Directory.EnumerateFiles(sourceFolder, "*.xlsx", SearchOption.TopDirectoryOnly)) _
+                            .Concat(Directory.EnumerateFiles(sourceFolder, "*.txt", SearchOption.TopDirectoryOnly))
 
                         For Each src In files
                             Dim fileName = Path.GetFileName(src)

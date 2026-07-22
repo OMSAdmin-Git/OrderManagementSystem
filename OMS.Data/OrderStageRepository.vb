@@ -1982,7 +1982,7 @@ Namespace OMS.Data
                         ElseIf hitCount = 1 Then
                             '結果が1件
                             itemNo = fprdcd
-                            'ProductCode = fprdcd
+                            CustomerItemNo = fcustitemno
                             Return True
                         ElseIf hitCount > 1 Then
                             '結果が複数件
