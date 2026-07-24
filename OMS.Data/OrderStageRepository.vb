@@ -3046,7 +3046,7 @@ Namespace OMS.Data
                         " AND cur.customer_setting_id = :p_customer_setting_id " &
                         " AND cur.order_type = 2 " &
                         " AND cur.active_flag = 'Y' " &
-                        " AND NVL(cur.info_type, 'U') = 'U' " &
+                        " AND (cur.info_type IN ('U', 'D') OR cur.info_type IS NULL) " &
                         " AND cur.customer_setting_id = tgt.customer_setting_id " &
                         " AND cur.customer_order_no = tgt.customer_order_no) "
 
