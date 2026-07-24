@@ -169,8 +169,7 @@ Namespace OMS.Common
             New Dictionary(Of Integer, String) From {
                 {1, "月初"},
                 {2, "前月第4週"},
-                {3, "納期の4週前"},
-                {4, "日付指定"}
+                {3, "納期の4週前"}
             }
         Public ReadOnly AuthorityLevelMap As IReadOnlyDictionary(Of Integer, String) =
             New Dictionary(Of Integer, String) From {

@@ -114,6 +114,15 @@ Namespace Pages.Orders
 #End Region
 
 #Region "アクション（納期設定／差異出力）"
+
+        Public Function AfterOrderDeliveryDateSetting(subject As List(Of (customerSettingId As String, customerCode As String, profitCenter As String))) As String
+
+
+
+            Return ""
+        End Function
+
+
         ' 納期設定ボタン
         Protected Sub btnDueDateSetting_Click(sender As Object, e As EventArgs)
             'lblError.Text = "開発未着手"
@@ -143,6 +152,25 @@ Namespace Pages.Orders
             ' ファイルリスト
             Dim fileList As List(Of String) = New List(Of String)()
             Try
+
+                '==================================================================
+                ' Phase-2 対応
+                ' ここから 外に 出す 
+                ' Grid にチェックのある下記の内容を リスト化して引数として
+                ' 納期設定メソッドを呼び出す (特殊取引先対応のため
+                ' 差異リスト 出す/出さない フラグ付ける
+                'customerSettingId
+                'customerCode
+                'profitCenter
+                ' AfterOrderDeliveryDateSetting
+                '==================================================================
+
+                'Dim deliveryList As New List(Of (customerSettingId As String, customerCode As String, profitCenter As String)) From {
+                '    ("1001", "C001", "P001"),
+                '    ("1002", "C002", "P002"),
+                '    ("1003", "C003", "P003")
+                '}
+
                 ' 処理対象 がチェックされている行
                 For Each row In gvSelectCustomers.Rows
 
@@ -168,6 +196,11 @@ Namespace Pages.Orders
                             Dim customerCode As String = csidObj.ToString()
                             csidObj = keys("ProfitCenter")
                             Dim profitCenter As String = csidObj.ToString()
+
+
+                            '==================================================================
+                            ' ここまで
+                            '==================================================================
 
                             ' 受注ワーク削除
                             ' ①	CUSTOMER_SETTING_ID = 処理中のCUSTOMER_SETTING_ID（取引先設定ID） 	
@@ -237,9 +270,9 @@ Namespace Pages.Orders
                                     Continue For
                                 End If
 
-                                Dim customerItemNo = orderRow.ItemNo
+                                Dim itemNo = orderRow.ItemNo
                                 'FUSRDEC1 ((A)品揃リードタイム)
-                                Dim assortLeadTime = shproutm.GetAssortmentLeadTime(customerCode, profitCenter, customerItemNo)
+                                Dim assortLeadTime = shproutm.GetAssortmentLeadTime(customerCode, profitCenter, itemNo)
                                 'FTRANLT(輸送L/T)
                                 Dim transferLeadTime = shproutm.GetTransferLeadTime(orderRow.ShipTo, orderRow.ShipStockLocation)
                                 Dim orderid = orderRow.OrderId
@@ -295,29 +328,6 @@ Namespace Pages.Orders
                                 DBError(tran)
                                 Continue For
                             End If
-
-                            'For Each orderRow In orderRows
-                            '    Dim dt = reps.GetOrders(conn, tran, orderId:=orderRow.OrderId)
-                            '    Dim orderStageRows = reps.ToClass(dt)
-                            '    If orderStageRows Is Nothing Then
-                            '        Exit Try
-                            '    End If
-                            '    Dim orderStageRow = orderStageRows(0)
-                            '    ' 受注データの 出荷日を更新する (0) 代表
-                            '    ' 2026/6/2 ShipPlanDate 追加ミス 不具合修正
-                            '    errors.Add(repo.UpdateDeadline(conn, tran, OrderRepository.OrdersTable.Orders, orderId:=orderStageRow.OrderId, shipScheduledDate:=orderStageRow.ShipScheduledDate, shipDate:=orderStageRow.ShipDate, shipPlanDate:=orderStageRow.ShipPlanDate, status:=orderStageRow.Status, updatedAt:=orderStageRow.UpdatedAt, updatedUserId:=orderStageRow.UpdatedUserId, updatedPgId:=orderStageRow.UpdatedPgId))
-                            '    '#If DEBUG Then
-                            '    '                                ' #### DEBUG
-                            '    '                                tran.Commit()
-                            '    '                                tran = conn.BeginTransaction()
-                            '    '                                ' #### DEBUG
-                            '    '#End If
-                            '    If (CheckError(errors)) Then
-                            '        ' エラー DB更新無効
-                            '        DBError(tran)
-                            '        Continue For
-                            '    End If
-                            'Next
 
                             ' 受注履歴追加
                             ' 受注データ取得
