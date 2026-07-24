@@ -288,6 +288,7 @@ Namespace Pages.Orders
             Dim errors As New List(Of String)()
 
             Dim successs As New List(Of String)()
+            Dim nodata As New List(Of String)()
 
             Dim resultCnt As Integer = 0
             Dim resultRowCnt As Integer = 0
@@ -2935,6 +2936,9 @@ Namespace Pages.Orders
                                     End If
 
 
+                                Else
+                                    '取込対象が一件も無い場合、
+                                    nodata.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　対象データが1件も無いため破棄してください。")
                                 End If
 
 
@@ -3099,12 +3103,11 @@ Namespace Pages.Orders
                         lblImportResult.Text = alreadyText & "<br/>" & addText
                     End If
 
-
                 Else
-                    If errors.Count = 0 Then
-                        'lblImportResult.Text = "取込実行：予期せぬエラーが発生しました。"
-                        lblImportResult.Text = "取込実行：取込対象データがありません。"
-                    End If
+                    'If errors.Count = 0 Then
+                    '    'lblImportResult.Text = "取込実行：予期せぬエラーが発生しました。"
+                    '    lblImportResult.Text = "取込実行：取込対象データがありません。"
+                    'End If
                 End If
 
             End If
@@ -3113,6 +3116,16 @@ Namespace Pages.Orders
                 'Dim alreadyText = lblImportError.Text
                 Dim alreadyText = "（ORDERS_STAGE 読込時にエラー）"
                 Dim addText = String.Join("<br/>", errors.Select(Function(s) Server.HtmlEncode(s)))
+                If String.IsNullOrEmpty(alreadyText) Then
+                    lblImportError.Text = addText
+                Else
+                    lblImportError.Text = alreadyText & "<br/>" & addText
+                End If
+            End If
+
+            If nodata.Count > 0 Then
+                Dim alreadyText = lblImportError.Text & "<br/>" & "（取込実行：取込対象データがありません）"
+                Dim addText = String.Join("<br/>", nodata.Select(Function(s) Server.HtmlEncode(s)))
                 If String.IsNullOrEmpty(alreadyText) Then
                     lblImportError.Text = addText
                 Else
