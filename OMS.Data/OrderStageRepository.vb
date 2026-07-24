@@ -2822,7 +2822,7 @@ Namespace OMS.Data
         End Sub
 
         ''' <summary>
-        ''' 一致するデータの STATUS を 'REPLACED' に更新する
+        ''' 一致するデータの STATUS を 'REPLACED'洗替済データ に更新する
         ''' </summary>
         '''  ''' <param name="tran">トランザクション</param>
         ''' <param name="impFileStageId">処理対象の一時取込ファイルID</param>
@@ -2838,7 +2838,7 @@ Namespace OMS.Data
 
 
             '2026/05/22 st 酒井
-            ' 一致するデータの STATUS を 'REPLACED' に更新
+            ' 一致するデータの STATUS を 'REPLACED'洗替済データ に更新
             'Dim sql As String =
             '            " UPDATE orders_stage SET" &
             '            " status = 'REPLACED', " &
@@ -2899,13 +2899,13 @@ Namespace OMS.Data
         End Sub
 
         ''' <summary>
-        ''' 今回取り込んだ内示データのステータスを 'PROCESSED' に更新する
+        ''' 今回取り込んだ内示データのステータスを 'PROCESSED'加工済データ に更新する
         ''' </summary>
         '''  ''' <param name="tran">トランザクション</param>
         ''' <param name="impFileStageId">処理対象の一時取込ファイルID</param>
         Public Sub UpdateNaijiStatusProcessed(ByVal tran As OracleTransaction, ByVal impFileStageId As Long)
 
-            ' 今回のimp_file_stage_idに一致するデータの STATUS を 'PROCESSED' に更新
+            ' 今回のimp_file_stage_idに一致するデータの STATUS を 'PROCESSED'加工済データ に更新
             Const sql As String =
                         " UPDATE orders_stage " &
                         " SET status = 'PROCESSED' " &
@@ -2927,7 +2927,7 @@ Namespace OMS.Data
         End Sub
 
         ''' <summary>
-        ''' 打切処理
+        ''' 打切処理    INFO_TYPE='N'打切 を'PROCESSED'加工済データに更新する
         ''' </summary>
         ''' <param name="tran">実行中のトランザクション</param>
         ''' <param name="impFileStageId">処理中の一時取込ファイルID</param>
@@ -2959,7 +2959,7 @@ Namespace OMS.Data
         End Sub
 
         ''' <summary>
-        ''' 取消処理
+        ''' 取消処理    INFO_TYPE='D'取消 を'PROCESSED'加工済データに更新する
         ''' </summary>
         ''' <param name="tran">実行中のトランザクション</param>
         ''' <param name="impFileStageId">処理中の一時取込ファイルID</param>
@@ -3006,7 +3006,28 @@ Namespace OMS.Data
                                         ByVal updateUserId As String,
                                         ByVal updatepgId As String)
 
-            ' 過去データ（今回取込データ以外）で、キーが一致するものを無効化
+            ' 過去データ（今回取込データ以外）で、キーが一致するものを無効化(REPLACED:洗替済データ)
+            'Dim sql As String =
+            '            " UPDATE orders_stage tgt" &
+            '            " SET " &
+            '            " tgt.status = 'REPLACED', " &
+            '            " tgt.active_flag = 'N', " &
+            '            " tgt.updated_at = :p_updated_at, " &
+            '            " tgt.updated_user_id = :p_user_id, " &
+            '            " tgt.updated_pg_id = :p_updated_pg_id " &
+            '            " WHERE tgt.order_type = 2 " &
+            '            " AND tgt.active_flag = 'Y' " &
+            '            " AND tgt.imp_file_id <> :p_imp_file_stage_id " &
+            '            " AND EXISTS ( " &
+            '            " SELECT 1 " &
+            '            " FROM orders_stage cur " &
+            '            " WHERE cur.imp_file_stage_id = :p_imp_file_stage_id " &
+            '            " AND cur.customer_setting_id = :p_customer_setting_id " &
+            '            " AND cur.order_type = 2 " &
+            '            " AND cur.active_flag = 'Y' " &
+            '            " AND NVL(cur.info_type, 'U') = 'U' " &
+            '            " AND cur.customer_setting_id = tgt.customer_setting_id " &
+            '            " AND cur.customer_order_no = tgt.customer_order_no) "
             Dim sql As String =
                         " UPDATE orders_stage tgt" &
                         " SET " &
@@ -3017,7 +3038,7 @@ Namespace OMS.Data
                         " tgt.updated_pg_id = :p_updated_pg_id " &
                         " WHERE tgt.order_type = 2 " &
                         " AND tgt.active_flag = 'Y' " &
-                        " AND tgt.imp_file_id <> :p_imp_file_stage_id " &
+                        " AND tgt.imp_file_stage_id IS NULL " &
                         " AND EXISTS ( " &
                         " SELECT 1 " &
                         " FROM orders_stage cur " &
@@ -3046,7 +3067,7 @@ Namespace OMS.Data
 
             End Using
 
-            ' 今回の取込データを更新
+            ' 今回の取込データ INFO_TYPE='U'or NULL を'PROCESSED'加工済データ に更新
             sql =
                         " UPDATE orders_stage tgt" &
                         " SET " &
