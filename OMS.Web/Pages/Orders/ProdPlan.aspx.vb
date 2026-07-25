@@ -815,8 +815,8 @@ Namespace Pages.Orders
                                                                 tg.ShipPlanDate = setDay
                                                                 'tg.CustomerOrderLineNo = "" ' ????? 仕様不明
                                                             End If
-                                                            ' 次の週
-                                                            weekStart = DateSerial(Year(weekStart), Month(weekStart), Day(weekStart) + 7)
+                                                        ' 次の週 
+                                                        weekStart = DateSerial(Year(weekStart), Month(weekStart), Day(weekStart) + 7)
                                                         Next
                                                 End Select
                                             '
