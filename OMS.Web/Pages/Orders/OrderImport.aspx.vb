@@ -605,7 +605,8 @@ Namespace Pages.Orders
                                             If MoveFileErrFlg = False Then
 
                                                 Dim files = Directory.EnumerateFiles(sourceFolder, "*.csv", SearchOption.TopDirectoryOnly) _
-                                                .Concat(Directory.EnumerateFiles(sourceFolder, "*.xlsx", SearchOption.TopDirectoryOnly))
+                                                .Concat(Directory.EnumerateFiles(sourceFolder, "*.xlsx", SearchOption.TopDirectoryOnly)) _
+                                                .Concat(Directory.EnumerateFiles(sourceFolder, "*.txt", SearchOption.TopDirectoryOnly))
 
                                                 Dim fileName = info.Staged_FileName
                                                 Dim destPath = Path.Combine(destFolder, fileName)
@@ -932,6 +933,54 @@ Namespace Pages.Orders
 
                                                     ErrFlg = False
 
+
+
+                                                    '取引先設定IDのPC   （必須）
+                                                    'CUSTOMER_SETTING_MSTより取得
+                                                    profitcenterCSM = ""
+                                                    errMsg = ""
+                                                    If _oderStageRepo.GetProfitCenterFromCSM(customerSettingId, profitcenterCSM, errMsg) = False Then
+                                                        'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                                                        'ErrFlg = True
+                                                    End If
+
+                                                    '客先品目No   (任意)
+                                                    If nKyakusakiHinmokuNo > -1 Then
+                                                        customeritemNo = If(csv.ColumnCount > nKyakusakiHinmokuNo AndAlso nKyakusakiHinmokuNo > -1, csv.GetField(nKyakusakiHinmokuNo).Trim(), "")
+                                                    End If
+
+                                                    '製品コード  （任意）
+                                                    If nSeihinCode > -1 Then
+                                                        productcode = If(csv.ColumnCount > nSeihinCode AndAlso nSeihinCode > -1, csv.GetField(nSeihinCode).Trim(), "")
+                                                    End If
+
+                                                    '品目No   （必須）
+                                                    'STRAMMIC.PRDSLSODRMより取得
+                                                    itemNo = ""
+                                                    errMsg = ""
+                                                    If _oderStageRepo.GetProductCode(customerCode, customeritemNo, productcode, itemNo, errMsg) = False Then
+                                                        'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                                                        'ErrFlg = True
+                                                    End If
+
+                                                    '品目NoのPC   （必須）
+                                                    'STRAMMIC.USRDEFFLDFより取得
+                                                    profitcenter = ""
+                                                    errMsg = ""
+                                                    If _oderStageRepo.GetProfitCenter(itemNo, profitcenter, errMsg) = False Then
+                                                        'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                                                        'ErrFlg = True
+                                                    End If
+
+                                                    '取引先設定IDのPCと同じPCのみ取込対象とする
+                                                    If String.IsNullOrEmpty(profitcenterCSM) OrElse String.IsNullOrEmpty(profitcenter) OrElse profitcenterCSM <> profitcenter Then
+                                                        'PCが違う場合は取込しない、エラーメッセージなし、ファイル移動もなし
+                                                        fileidx += 1
+                                                        Continue While
+                                                    End If
+
+
+
                                                     'フォルダタイプで処理分岐
                                                     If folderType = 4 Then
 
@@ -1179,30 +1228,7 @@ Namespace Pages.Orders
 
 
 
-                                                    '取引先設定IDのPC   （必須）
-                                                    'CUSTOMER_SETTING_MSTより取得
-                                                    profitcenterCSM = ""
-                                                    errMsg = ""
-                                                    If _oderStageRepo.GetProfitCenterFromCSM(customerSettingId, profitcenterCSM, errMsg) = False Then
-                                                        'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
-                                                        'ErrFlg = True
-                                                    End If
 
-                                                    '品目NoのPC   （必須）
-                                                    'STRAMMIC.USRDEFFLDFより取得
-                                                    profitcenter = ""
-                                                    errMsg = ""
-                                                    If _oderStageRepo.GetProfitCenter(itemNo, profitcenter, errMsg) = False Then
-                                                        'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
-                                                        'ErrFlg = True
-                                                    End If
-
-                                                    '取引先設定IDのPCと同じPCのみ取込対象とする
-                                                    If String.IsNullOrEmpty(profitcenterCSM) OrElse String.IsNullOrEmpty(profitcenter) OrElse profitcenterCSM <> profitcenter Then
-                                                        'PCが違う場合は取込しない、エラーメッセージなし、ファイル移動もなし
-                                                        fileidx += 1
-                                                        Continue While
-                                                    End If
 
 
 
@@ -1470,6 +1496,55 @@ Namespace Pages.Orders
 
                                                     ErrFlg = False
 
+
+
+                                                    '取引先設定IDのPC   （必須）
+                                                    'CUSTOMER_SETTING_MSTより取得
+                                                    profitcenterCSM = ""
+                                                    errMsg = ""
+                                                    If _oderStageRepo.GetProfitCenterFromCSM(customerSettingId, profitcenterCSM, errMsg) = False Then
+                                                        'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                                                        'ErrFlg = True
+                                                    End If
+
+                                                    '客先品目No   (任意)
+                                                    If nKyakusakiHinmokuNo > 0 Then
+                                                        customeritemNo = If(nKyakusakiHinmokuNo > 0, xlRow.Cell(nKyakusakiHinmokuNo).GetValue(Of String)().Trim(), "")
+                                                    End If
+
+                                                    '製品コード  （任意）
+                                                    If nSeihinCode > 0 Then
+                                                        productcode = If(nSeihinCode > 0, xlRow.Cell(nSeihinCode).GetValue(Of String)().Trim(), "")
+                                                    End If
+
+                                                    '品目No   （必須）
+                                                    'STRAMMIC.PRDSLSODRMより取得
+                                                    itemNo = ""
+                                                    errMsg = ""
+                                                    If _oderStageRepo.GetProductCode(customerCode, customeritemNo, productcode, itemNo, errMsg) = False Then
+                                                        'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                                                        'ErrFlg = True
+                                                    End If
+
+                                                    '品目NoのPC   （必須）
+                                                    'STRAMMIC.USRDEFFLDFより取得
+                                                    profitcenter = ""
+                                                    errMsg = ""
+                                                    If _oderStageRepo.GetProfitCenter(itemNo, profitcenter, errMsg) = False Then
+                                                        'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                                                        'ErrFlg = True
+                                                    End If
+
+                                                    '取引先設定IDのPCと同じPCのみ取込対象とする
+                                                    If String.IsNullOrEmpty(profitcenterCSM) OrElse String.IsNullOrEmpty(profitcenter) OrElse profitcenterCSM <> profitcenter Then
+                                                        'PCが違う場合は取込しない、エラーメッセージなし、ファイル移動もなし
+                                                        fileidx += 1
+                                                        Continue For
+                                                    End If
+
+
+
+
                                                     'フォルダタイプで処理分岐
                                                     If folderType = 4 Then
 
@@ -1722,30 +1797,7 @@ Namespace Pages.Orders
 
 
 
-                                                    '取引先設定IDのPC   （必須）
-                                                    'CUSTOMER_SETTING_MSTより取得
-                                                    profitcenterCSM = ""
-                                                    errMsg = ""
-                                                    If _oderStageRepo.GetProfitCenterFromCSM(customerSettingId, profitcenterCSM, errMsg) = False Then
-                                                        'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
-                                                        'ErrFlg = True
-                                                    End If
 
-                                                    '品目NoのPC   （必須）
-                                                    'STRAMMIC.USRDEFFLDFより取得
-                                                    profitcenter = ""
-                                                    errMsg = ""
-                                                    If _oderStageRepo.GetProfitCenter(itemNo, profitcenter, errMsg) = False Then
-                                                        'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
-                                                        'ErrFlg = True
-                                                    End If
-
-                                                    '取引先設定IDのPCと同じPCのみ取込対象とする
-                                                    If String.IsNullOrEmpty(profitcenterCSM) OrElse String.IsNullOrEmpty(profitcenter) OrElse profitcenterCSM <> profitcenter Then
-                                                        'PCが違う場合は取込しない、エラーメッセージなし、ファイル移動もなし
-                                                        fileidx += 1
-                                                        Continue For
-                                                    End If
 
 
 
@@ -2034,7 +2086,6 @@ Namespace Pages.Orders
                                                         HeaderErrFlg = False
                                                     End If
 
-
                                                     '客先品目No   (任意だが、MATRIX形式は製品コードの項目がマトリックス共通表サンプルに存在しないので客先品目Noがないと品目Noが取得できない)
                                                     Dim cell1 As Integer = 0
                                                     'Dim cellname As String = ""
@@ -2055,35 +2106,14 @@ Namespace Pages.Orders
                                                     itemNo = ""
                                                     errMsg = ""
                                                     If _oderStageRepo.GetProductCode(customerCode, customeritemNo, productcode, itemNo, errMsg) = False Then
-                                                        If mKyakusakiHinmokuNo = "" Then
-                                                            errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　{errMsg} (マッピングマスタ未登録)")
-                                                        Else
-                                                            errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {objSheet.Cell(mKyakusakiHinmokuNo).Address.ColumnLetter & xlRow.RowNumber} ：{errMsg}")
-                                                        End If
+                                                        'If mKyakusakiHinmokuNo = "" Then
+                                                        '    errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　{errMsg} (マッピングマスタ未登録)")
+                                                        'Else
+                                                        '    errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {objSheet.Cell(mKyakusakiHinmokuNo).Address.ColumnLetter & xlRow.RowNumber} ：{errMsg}")
+                                                        'End If
                                                         'ErrFlg = True
-                                                        HeaderErrFlg = True
+                                                        'HeaderErrFlg = True
                                                     End If
-
-                                                    '需要単位   （任意）
-                                                    'STRAMMIC.ITEMMより取得
-                                                    demandunit = ""
-                                                    errMsg = ""
-                                                    If _oderStageRepo.GetDemandUnit(productcode, demandunit, errMsg) = False Then
-                                                        'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：{errMsg}")
-                                                        'ErrFlg = True
-                                                    End If
-
-                                                    '出荷在庫場所 （任意）
-                                                    'STRAMMIC.ITEMMより取得
-                                                    shipstocklocation = ""
-                                                    errMsg = ""
-                                                    'If _oderStageRepo.GetShipStockLocation(customerCode, deliverycode, shipstocklocation, errMsg) = False Then
-                                                    If _oderStageRepo.GetShipStockLocation(productcode, shipstocklocation, errMsg) = False Then
-                                                        'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：{errMsg}")
-                                                        'ErrFlg = True
-                                                    End If
-
-
 
                                                     '取引先設定IDのPC   （必須）
                                                     'CUSTOMER_SETTING_MSTより取得
@@ -2110,6 +2140,39 @@ Namespace Pages.Orders
                                                         'fileidx += 1
                                                         'Continue For
                                                     Else
+
+                                                        '品目No   （必須）
+                                                        'STRAMMIC.PRDSLSODRMより取得
+                                                        itemNo = ""
+                                                        errMsg = ""
+                                                        If _oderStageRepo.GetProductCode(customerCode, customeritemNo, productcode, itemNo, errMsg) = False Then
+                                                            If mKyakusakiHinmokuNo = "" Then
+                                                                errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　{errMsg} (マッピングマスタ未登録)")
+                                                            Else
+                                                                errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {objSheet.Cell(mKyakusakiHinmokuNo).Address.ColumnLetter & xlRow.RowNumber} ：{errMsg}")
+                                                            End If
+                                                            'ErrFlg = True
+                                                            HeaderErrFlg = True
+                                                        End If
+
+                                                        '需要単位   （任意）
+                                                        'STRAMMIC.ITEMMより取得
+                                                        demandunit = ""
+                                                        errMsg = ""
+                                                        If _oderStageRepo.GetDemandUnit(productcode, demandunit, errMsg) = False Then
+                                                            'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：{errMsg}")
+                                                            'ErrFlg = True
+                                                        End If
+
+                                                        '出荷在庫場所 （任意）
+                                                        'STRAMMIC.ITEMMより取得
+                                                        shipstocklocation = ""
+                                                        errMsg = ""
+                                                        'If _oderStageRepo.GetShipStockLocation(customerCode, deliverycode, shipstocklocation, errMsg) = False Then
+                                                        If _oderStageRepo.GetShipStockLocation(productcode, shipstocklocation, errMsg) = False Then
+                                                            'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：{errMsg}")
+                                                            'ErrFlg = True
+                                                        End If
 
                                                         '-----------------
                                                         '桁チェック
@@ -2923,17 +2986,17 @@ Namespace Pages.Orders
                                     '-----------------------------------------------
 
 
-                                    If ErrFlg = False Then
+                                    'If ErrFlg = False Then
 
-                                        resultCnt += 1
-                                        resultRowCnt += cnt
+                                    resultCnt += 1
+                                    resultRowCnt += cnt
 
-                                        successs.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　読込 {cnt} 件　異常 {errcnt} 件")
-                                        'successs.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　読込 {cnt} 件")
+                                    successs.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　読込 {cnt} 件　異常 {errcnt} 件")
+                                    'successs.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　読込 {cnt} 件")
 
-                                        'errcnt = 0
+                                    'errcnt = 0
 
-                                    End If
+                                    'End If
 
 
                                 Else
@@ -3003,7 +3066,8 @@ Namespace Pages.Orders
                                     If MoveFileErrFlg = False Then
 
                                         Dim files = Directory.EnumerateFiles(sourceFolder, "*.csv", SearchOption.TopDirectoryOnly) _
-                                        .Concat(Directory.EnumerateFiles(sourceFolder, "*.xlsx", SearchOption.TopDirectoryOnly))
+                                        .Concat(Directory.EnumerateFiles(sourceFolder, "*.xlsx", SearchOption.TopDirectoryOnly)) _
+                                        .Concat(Directory.EnumerateFiles(sourceFolder, "*.txt", SearchOption.TopDirectoryOnly))
 
                                         Dim fileName = info.Staged_FileName
                                         Dim destPath = Path.Combine(destFolder, fileName)
@@ -3307,7 +3371,8 @@ Namespace Pages.Orders
                                         End If
 
                                         Dim files = Directory.EnumerateFiles(sourceFolder, "*.csv", SearchOption.TopDirectoryOnly) _
-                                            .Concat(Directory.EnumerateFiles(sourceFolder, "*.xlsx", SearchOption.TopDirectoryOnly))
+                                            .Concat(Directory.EnumerateFiles(sourceFolder, "*.xlsx", SearchOption.TopDirectoryOnly)) _
+                                            .Concat(Directory.EnumerateFiles(sourceFolder, "*.txt", SearchOption.TopDirectoryOnly))
 
                                         Dim fileName = info.Staged_FileName
                                         Dim destPath = Path.Combine(destFolder, fileName)
@@ -3535,7 +3600,8 @@ Namespace Pages.Orders
                                             End If
 
                                             Dim files = Directory.EnumerateFiles(sourceFolder, "*.csv", SearchOption.TopDirectoryOnly) _
-                                                .Concat(Directory.EnumerateFiles(sourceFolder, "*.xlsx", SearchOption.TopDirectoryOnly))
+                                                .Concat(Directory.EnumerateFiles(sourceFolder, "*.xlsx", SearchOption.TopDirectoryOnly)) _
+                                                .Concat(Directory.EnumerateFiles(sourceFolder, "*.txt", SearchOption.TopDirectoryOnly))
 
                                             Dim fileName = info.Staged_FileName
                                             Dim destPath = Path.Combine(destFolder, fileName)
@@ -3762,7 +3828,8 @@ Namespace Pages.Orders
                                             Utils.EnsureDirectory(destFolder)
 
                                             Dim files = Directory.EnumerateFiles(sourceFolder, "*.csv", SearchOption.TopDirectoryOnly) _
-                                            .Concat(Directory.EnumerateFiles(sourceFolder, "*.xlsx", SearchOption.TopDirectoryOnly))
+                                            .Concat(Directory.EnumerateFiles(sourceFolder, "*.xlsx", SearchOption.TopDirectoryOnly)) _
+                                            .Concat(Directory.EnumerateFiles(sourceFolder, "*.txt", SearchOption.TopDirectoryOnly))
 
                                             Dim fileName = info.Staged_FileName
                                             Dim destPath = Path.Combine(destFolder, fileName)
