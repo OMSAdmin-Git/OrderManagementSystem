@@ -81,6 +81,14 @@
                     <asp:ListItem Text="同月内のみ" Value="3"></asp:ListItem>
                 </asp:DropDownList>
             </div>
+            <div>
+                <span class="label-title">特殊加工*</span>
+                <asp:DropDownList ID="ddlSpProcessType" runat="server">
+                    <asp:ListItem Text="しない" Value="0"></asp:ListItem>
+                    <asp:ListItem Text="スズキ" Value="1"></asp:ListItem>
+                    <asp:ListItem Text="ヤマハ" Value="2"></asp:ListItem>
+                </asp:DropDownList>
+            </div>
 
             <!-- アクションボタン -->
             <div class="action-buttons">

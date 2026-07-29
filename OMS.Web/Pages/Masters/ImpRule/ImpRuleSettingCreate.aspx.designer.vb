@@ -141,6 +141,15 @@ Namespace Pages.Masters.ImpRule
         Protected WithEvents ddlReconcileType As Global.System.Web.UI.WebControls.DropDownList
 
         '''<summary>
+        '''ddlSpProcessType コントロール。
+        '''</summary>
+        '''<remarks>
+        '''自動生成されたフィールド。
+        '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
+        '''</remarks>
+        Protected WithEvents ddlSpProcessType As Global.System.Web.UI.WebControls.DropDownList
+
+        '''<summary>
         '''btnCreateImpRuleSetting コントロール。
         '''</summary>
         '''<remarks>

@@ -42,6 +42,7 @@ Namespace OMS.Data
             sb.AppendLine("  reconcile_flag         AS ""ReconcileFlag"",")
             sb.AppendLine("  fcst_reconcile_flag    AS ""FcstReconcileFlag"",")
             sb.AppendLine("  reconcile_type         AS ""ReconcileType"",")
+            sb.AppendLine("  sp_process_type        AS ""SpProcessType"",")
             sb.AppendLine("  active_flag            AS ""ActiveFlag"",")
             sb.AppendLine("  created_at             AS ""CreatedAt"",")
             sb.AppendLine("  created_user_id        AS ""CreatedUserId"",")
@@ -135,6 +136,7 @@ Namespace OMS.Data
                     reconcile_flag      AS ""ReconcileFlag"",
                     fcst_reconcile_flag AS ""FcstReconcileFlag"",
                     reconcile_type      AS ""ReconcileType"",
+                    sp_process_type     AS ""SpProcessType"",
                     active_flag         AS ""ActiveFlag"",
                     created_at          AS ""CreatedAt"",
                     created_user_id     AS ""CreatedUserId"",
@@ -288,6 +290,7 @@ Namespace OMS.Data
             reconcileFlag As String,
             fcstReconcileFlag As String,
             reconcileType As Integer,
+            spProcessType As Integer,
             activeFlag As String,
             loginUserId As String,
             programId As String
@@ -301,6 +304,7 @@ Namespace OMS.Data
                     reconcile_flag,
                     fcst_reconcile_flag,
                     reconcile_type,
+                    sp_process_type,
                     active_flag,
                     created_user_id,
                     created_pg_id,
@@ -313,6 +317,7 @@ Namespace OMS.Data
                     :p_recflag,
                     :p_frecflag,
                     :p_rectype,
+                    :p_spproctype,
                     :p_active,
                     :p_user,
                     :p_pg,
@@ -335,6 +340,7 @@ Namespace OMS.Data
                         cmd.Parameters.Add(":p_recflag", OracleDbType.Varchar2).Value = reconcileFlag
                         cmd.Parameters.Add(":p_frecflag", OracleDbType.Varchar2).Value = fcstReconcileFlag
                         cmd.Parameters.Add(":p_rectype", OracleDbType.Int32).Value = reconcileType
+                        cmd.Parameters.Add(":p_spproctype", OracleDbType.Int32).Value = spProcessType
 
                         cmd.Parameters.Add(":p_active", OracleDbType.Char).Value = activeFlag
                         cmd.Parameters.Add(":p_user", OracleDbType.Varchar2).Value = loginUserId
@@ -425,6 +431,7 @@ Namespace OMS.Data
             reconcileFlag As String,
             fcstReconcileFlag As String,
             reconcileType As Integer,
+            spProcessType As Integer,
             activeFlag As String,
             loginUserId As String,
             programId As String
@@ -466,6 +473,7 @@ Namespace OMS.Data
                             reconcile_flag      = :p_recflag,
                             fcst_reconcile_flag = :p_frecflag,
                             reconcile_type      = :p_rectype,
+                            sp_process_type      = :p_spproctype,
                             active_flag         = :p_active,
                             updated_at          = SYSDATE,
                             updated_user_id     = :p_user,
@@ -484,6 +492,7 @@ Namespace OMS.Data
                         cmdUpd.Parameters.Add(":p_recflag", OracleDbType.Varchar2).Value = reconcileFlag
                         cmdUpd.Parameters.Add(":p_frecflag", OracleDbType.Varchar2).Value = fcstReconcileFlag
                         cmdUpd.Parameters.Add(":p_rectype", OracleDbType.Int32).Value = reconcileType
+                        cmdUpd.Parameters.Add(":p_spproctype", OracleDbType.Int32).Value = spProcessType
 
                         cmdUpd.Parameters.Add(":p_active", OracleDbType.Char).Value = activeFlag
                         cmdUpd.Parameters.Add(":p_user", OracleDbType.Varchar2).Value = loginUserId

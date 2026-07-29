@@ -76,6 +76,7 @@ Namespace Pages.Masters.ImpRule
             ddlReconcileFlag.SelectedValue = If(GetStr(r, "ReconcileFlag"), "")
             ddlFcstReconcileFlag.SelectedValue = If(GetStr(r, "FcstReconcileFlag"), "")
             ddlReconcileType.SelectedValue = If(GetStr(r, "ReconcileType"), "")
+            ddlSpProcessType.SelectedValue = If(GetStr(r, "SpProcessType"), "")
             ddlActiveFlag.SelectedValue = If(GetStr(r, "ActiveFlag"), "")
             txtUpdatedAt.Text = If(GetStr(r, "UpdatedAt"), "")
             txtUpdatedUserName.Text = If(GetStr(r, "UpdatedUserId"), "")
@@ -122,6 +123,14 @@ Namespace Pages.Masters.ImpRule
                     lblError.Text = "消込条件（ReconcileType）の選択が不正です。"
                     Return
                 End If
+
+                Dim spProcessTypeValueRaw As String = If(ddlSpProcessType.SelectedValue, "").Trim()
+                Dim spProcessType As Integer
+                If Not Integer.TryParse(spProcessTypeValueRaw, spProcessType) Then
+                    lblError.Text = "特殊加工（SpProcessType）の選択が不正です。"
+                    Return
+                End If
+
                 Dim activeFlag As String = If(ddlActiveFlag.SelectedValue, "").Trim().ToUpperInvariant()
 
                 ' ログイン情報
@@ -140,6 +149,7 @@ Namespace Pages.Masters.ImpRule
                     reconcileFlag:=reconcileFlag,
                     fcstReconcileFlag:=fcstReconcileFlag,
                     reconcileType:=reconcileType,
+                    spProcessType:=spProcessType,
                     activeFlag:=activeFlag,
                     loginUserId:=loginUserId,
                     programId:=pgId

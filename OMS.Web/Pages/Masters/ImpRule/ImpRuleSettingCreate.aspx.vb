@@ -70,6 +70,13 @@ Namespace Pages.Masters.ImpRule
                     Return
                 End If
 
+                Dim spProcessTypeValueRaw As String = If(ddlSpProcessType.SelectedValue, "").Trim()
+                Dim spProcessType As Integer
+                If Not Integer.TryParse(spProcessTypeValueRaw, spProcessType) Then
+                    lblError.Text = "特殊加工（SpProcessType）の選択が不正です。"
+                    Return
+                End If
+
                 ' ログイン情報
                 Dim loginUserId As String = PageHelpers.GetUserId(Me)
                 Dim programId As String = "FolderSettingCreate(Insert)"
@@ -126,6 +133,7 @@ Namespace Pages.Masters.ImpRule
                     reconcileFlag:=reconcileFlag,
                     fcstReconcileFlag:=fcstReconcileFlag,
                     reconcileType:=reconcileType,
+                    spProcessType:=spProcessType,
                     activeFlag:=activeFlag,
                     loginUserId:=loginUserId,
                     programId:=programId
