@@ -472,10 +472,27 @@ Namespace Pages.Orders
                                             Dim shipScheduledDate = ordersStageRow.ShipScheduledDate
 
                                             '' ++++++++++++++++++++++ DEBUG
-                                            'splitMethodType = 4 '1(日割り) 2(4分割) 3(3分割) 4(2分割) 5(週まるめ) 6(分割なし)    
+                                            '' DEBUG Data
+                                            '' customerCode: 7158
+                                            '' profitCenter: P1
+                                            '' ItemNo : MDSNSS0161MZ
+                                            '' ShipTo: 71587158
+                                            '' shipStockLocation: M999
+                                            '' 希望納期: 2026/8/28
+                                            '' 需要数:150
+                                            '' 品揃LT: 1
+                                            '' 搬送LT: 0
+                                            '' 納期設定後 出荷予定日: 2026/8/27
+
+                                            'splitMethodType = 3 '1(日割り) 2(4分割) 3(3分割) 4(2分割) 5(週まるめ) 6(分割なし)    
                                             'splitStartType = 3  '1(月初) 2(前月第4週) 3(納期の4週前)
-                                            'shipScheduledDate = New Date(2026, 8, 28)
-                                            ''shipScheduledDate = New Date(2026, 3, 1)
+                                            'shipScheduledDate = New Date(2026, 8, 27)
+
+                                            ''Dim shproutm = New ShproutmRepository(Utils.GetConnectionString())
+                                            '''FUSRDEC1 ((A)品揃リードタイム)
+                                            ''Dim assortLeadTime = shproutm.GetAssortmentLeadTime(customerCode, profitCenter, "MDSNSS0161MZ")
+                                            '''FTRANLT(輸送L/T)
+                                            ''Dim transferLeadTime = shproutm.GetTransferLeadTime("71587158", "M999")
                                             '' ++++++++++++++++++++++ DEBUG
 
 
@@ -503,9 +520,9 @@ Namespace Pages.Orders
                                                     'startDate = Get4WeeksBefore(shipScheduledDate)
                                                     'endDate = GetWeekendSaturday(shipScheduledDate)
 
-                                                    ' 3. ②-3 用 仕様に合っている
+                                                    ' 4. ②-3 用 仕様に合っている
                                                     startDate = Get4WeeksBefore(shipScheduledDate)
-                                                    endDate = DateSerial(Year(shipScheduledDate), Month(shipScheduledDate), Day(shipScheduledDate)).AddDays(-8)
+                                                    endDate = startDate.AddDays(28 - 1)
 
                                             End Select
 
@@ -530,7 +547,8 @@ Namespace Pages.Orders
                                             End If
 
                                             '' ++++++++++++++++++++++ DEBUG
-                                            'splitRationType = 2 ' 1:1 2:1
+                                            'splitRationType = 1 ' 1:1 2:1
+                                            'unit = 1            ' 丸め数
                                             '' ++++++++++++++++++++++ DEBUG
 
                                             ' 分割条件 読み込み
@@ -1742,7 +1760,7 @@ Namespace Pages.Orders
         ''' <param name="tgDate"></param>
         ''' <returns></returns>
         Public Function Get4WeeksBefore(tgDate As Date) As Date
-            Return GetDaysBefore(tgDate, 7 * 4 + 1)
+            Return GetDaysBefore(tgDate, 7 * 4) ' + 1)
         End Function
 
         ''' <summary>
