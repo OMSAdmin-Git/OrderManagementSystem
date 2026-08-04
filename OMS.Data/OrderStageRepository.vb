@@ -4581,20 +4581,26 @@ Namespace OMS.Data
 
         End Function
 
-
-
         ''' <summary>
         ''' Yamaha robotex 内示/確定 ファイル読み込み
         ''' </summary>
         ''' <param name="filename"></param>
         ''' <returns></returns>
-        Public Function YamahaRobotexOrdersdatImport(conn As OracleConnection, tran As OracleTransaction, filename As String) As String
+        Public Function YamahaRobotexOrdersdatImport(conn As OracleConnection, tran As OracleTransaction, filename As String, userID As String, impfilestageId As Long, customerSettingId As Long, folderType As Integer) As String
             Dim calen = New CalenderRepository(_connectionString)
+            Dim customerSetting = New CustomerRepository(_connectionString)
+            Dim impRunRepo = New ImpRunRepository(_connectionString)
             Dim rt As String = ""
+            Dim errors As String = ""
             ' 内示 は データ変換後の csv ファイルを読み込む
             ' マトリックス設定は 使用せずに 直値 固定値で読み込む
             ' 受注ワーク(orders_stage)に追加する    
-
+            Dim customer = customerSetting.GetCustomerSetting(customerSettingId)
+            Dim customerCode = customer.Rows(0).Item("CustomerCode").ToString()
+            Dim deliverycode = "0001"
+            Dim runRepo = impRunRepo.GetImpRun(conn, tran, status:="RUNNING", startedUserId:=userID)
+            Dim impRunId = Long.Parse(runRepo.Rows(0).Item("ImpRunId").ToString())
+            Dim stardedAt = Date.Parse(runRepo.Rows(0).Item("StartedAt").ToString())
             ' Yamaha robotex field
             '                   内示     確定
             '部品番号           〇       〇
@@ -4615,32 +4621,65 @@ Namespace OMS.Data
             Dim ordersStage As New List(Of OrdersStageRow)
             For Each row As DataRow In dt.Rows
                 Dim order = New OrdersStageRow
+                Dim shipto = ""
+                Dim customerItemNo As String = row.ItemArray(0).ToString()
+                Dim productCode As String = ""
+                Dim itemNo As String = ""
+                Dim errMsg As String = ""
+                Dim demandunit As String = ""
+                Dim currencycode As String = ""
+                Dim shipstocklocation As String = ""
+                Dim orderType As Integer = folderType
+                Dim proratedType As Integer = 1
+                Dim reconciletype As String = ""
+                ' Field 検索
+                If (GetShipTo(customerCode, deliverycode, shipto, errMsg) = False) Then
+                    errors = errors & errMsg & vbCrLf
+                End If
+                If (GetProductCode(customerCode, customerItemNo, productCode, itemNo, errMsg) = False) Then
+                    errors = errors & errMsg & vbCrLf
+                End If
+                If (GetDemandUnit(productCode, demandunit, errMsg) = False) Then
+                    errors = errors & errMsg & vbCrLf
+                End If
+                If (GetCurrencyCode(customerCode, currencycode, errMsg) = False) Then
+                    errors = errors & errMsg & vbCrLf
+                End If
+                If (GetShipStockLocation(productCode, shipstocklocation, errMsg) = False) Then
+                    errors = errors & errMsg & vbCrLf
+                End If
+                If (GetProratedType(customerSettingId, folderType, proratedType, errMsg) = False) Then
+                    errors = errors & errMsg & vbCrLf
+                End If
+                If (GetReconcileType(customerSettingId, folderType, reconciletype, errMsg) = False) Then
+                    errors = errors & errMsg & vbCrLf
+                End If
                 ' Yamaha Data set
-                'order.CustomerSettingId/IMP_FILES_STAGE.CUSTOMER_SETTING_ID
-                'order.CustomerCode/CUSTOMER_SETTING_MST.CUSTOMER_CODE
-                'order.ShipTo =/'SECTD.FSECTCD + CUSTOMER_CODE
-                'order.OrderDate=システム日付
-                'order.ItemNo = (品目No) ASTI 品番
-                'order.DemandUnit =/ ITEMM.FUNIT
-                'order.CurrencyCode =/ Sectm.FCURR
-                'order.ShipStockLocation =/'SHPROUTM.FSHPWHCD
-                'order.CompanyId ='1000' 固定値
-                'order.ProductCode =/ PRDSLSODRM.FPRDCD(品目No)
-                'order.BillingStandard =/'’S' 固定値
+                order.CustomerSettingId = customerSettingId '/IMP_FILES_STAGE.CUSTOMER_SETTING_ID
+                order.CustomerCode = customerCode           '/CUSTOMER_SETTING_MST.CUSTOMER_CODE
+                order.ShipTo = customerCode & customerCode  '/'SECTD.FSECTCD + CUSTOMER_CODE
+                order.OrderDate = sysDate
+                order.ItemNo = itemNo                       '(品目No) ASTI 品番
+                order.DemandUnit = demandunit               '/ ITEMM.FUNIT
+                order.CurrencyCode = currencycode           '/ Sectm.FCURR
+                order.ShipStockLocation = shipstocklocation '/'SHPROUTM.FSHPWHCD
+                order.CompanyId = "1000"                    ' 固定値
+                order.ProductCode = productCode             '/ PRDSLSODRM.FPRDCD(品目No)
+                order.BillingStandard = "S"                 '/'S' 固定値
                 'order.DeliveryInstrFlag = / 納入指示('Y') 以外('N')
-                'order.Remarks = ""
-                'order.DeliveryCode = /0001 '固定値
-                'order.TransportMethod =/ 2 固定値
-                'order.ImpFileStageId = IMP_FILES_STAGE.IMP_FILE_STAGE_ID
-                'order.OrderType = /内示(1) 確定(2)
-                'order.ProratedType =/ 日割り(1)
-                'order.CustomerInfoType = null
-                'order.InfoType = null
-                'order.SelfFcstDeleteFlag =/'N'
-                'order.ReconcileType = IMP_RULE_MST.RECONCILE_TYPE
-                'order.ImpRunId = IMP_RUN.IMP_RUN_ID
-                'order.CreatedAt = IMP_RUN.STARTED_AT
-                'order.CreatedUserId = ログイン情報
+                order.Remarks = ""
+                order.DeliveryCode = "0001"                 '/0001 '固定値
+                order.TransportMethod = 2                   '/ 2 固定値
+                order.ImpFileStageId = impfilestageId       'IMP_FILES_STAGE.IMP_FILE_STAGE_ID
+                order.OrderType = orderType                 '/内示(1) 確定(2)
+                order.ProratedType = proratedType           '/ 日割り(1)
+                order.CustomerInfoType = Nothing            'null
+                order.InfoType = Nothing                    ' null
+                order.SelfFcstDeleteFlag = "N"              '/'N'
+                order.ReconcileType = reconciletype         'IMP_RULE_MST.RECONCILE_TYPE
+                order.ImpRunId = impRunId                   'IMP_RUN.IMP_RUN_ID
+                order.CreatedAt = stardedAt                 'IMP_RUN.STARTED_AT
+                order.CreatedUserId = userID                'ログイン情報
                 '-----------------------------------------------
                 'order.Status =/'IMPORTED' 固定値
                 'order.ActiveFlag =/'Y' 固定値
@@ -4662,19 +4701,17 @@ Namespace OMS.Data
                     Dim calType = "00001"
                     Dim dtcvt As DateTime = DateTime.ParseExact(row.ItemArray(2), "yyyyMMdd", Nothing)
                     Dim FirstWorkingDay = calen.GetFirstWorkingDay(calType, dtcvt)
-                    'order.DueDate = 2.日付
-                    'order.CustomerItemNo = 0.部品番号
-                    'order.DEMAND_QTY = 3.需要数
-                    'order.SelfFcstFlag = 4.長期受注
+                    order.DueDate = FirstWorkingDay         '2.日付
+                    order.CustomerItemNo = row.ItemArray(0) '0.部品番号
+                    order.DemandQty = row.ItemArray(3)      '3.需要数
+                    order.SelfFcstFlag = row.ItemArray(4)   '4.長期受注
                     '---------------------------------------
-                    'order.CustomerOrderNo = 月 + 先頭稼働日
+                    order.CustomerOrderNo = FirstWorkingDay '月 + 先頭稼働日
                     'order.DemandStatus = 内示('F') 内示以外('O')
                     'order.ShipProcessType = / 内示('O') 確定('E') 以外('K')
                     'order.TotalShipQty = / 内示(なし) 以外(0)
-                    'order.PreDailyOrderQty = 3.需要数
-                    'order.PreDailyDeliveryDate = 2.日付
-                    'order.OrderType = /内示(1) 確定(2)
-
+                    order.PreDailyOrderQty = order.DemandQty '3.需要数
+                    order.PreDailyDeliveryDate = order.DueDate '2.日付
                     ordersStage.Add(order)
 
                     ' 確定
@@ -4691,10 +4728,10 @@ Namespace OMS.Data
                     '8.発注理由
                     '9.特注管理No
 
-                    'order.DueDate = 2.納入指示日
-                    'order.CustomerItemNo = 0.部品番号
-                    'order.DEMAND_QTY = 3.納入指示数
-
+                    order.DueDate = row.ItemArray(2)        ' 2.納入指示日
+                    order.CustomerItemNo = row.ItemArray(0) '0.部品番号
+                    order.DemandQty = row.ItemArray(3)      '3.納入指示数
+                    order.CustomerOrderNo = row.ItemArray(4) '4.オーダーＮｏ
                     'order.DemandStatus = 内示('F') 内示以外('O')
                     'order.ShipProcessType = / 内示('’O') 確定('’E') 以外('’K')
                     'order.TotalShipQty = / 内示(なし) 以外(0)
@@ -4702,7 +4739,6 @@ Namespace OMS.Data
                     'order.PreDailyDeliveryDate = 2.日付
                     'order.OrderType = /内示(1) 確定(2)
                     'order.SelfFcstFlag = /長期受注 データ (Y) 通常受注データ (N)
-
 
                     ordersStage.Add(order)
 
