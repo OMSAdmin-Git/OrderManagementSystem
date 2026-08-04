@@ -7,6 +7,7 @@ Imports DocumentFormat.OpenXml.Drawing.Charts
 Imports DocumentFormat.OpenXml.Spreadsheet
 Imports Microsoft.VisualBasic.ApplicationServices
 Imports OMS.Common
+Imports OMS.Data.SectmRepository
 Imports Oracle.ManagedDataAccess.Client
 Imports DataTable = System.Data.DataTable
 
@@ -4578,6 +4579,144 @@ Namespace OMS.Data
 
             Return errors
 
+        End Function
+
+
+
+        ''' <summary>
+        ''' Yamaha robotex 内示/確定 ファイル読み込み
+        ''' </summary>
+        ''' <param name="filename"></param>
+        ''' <returns></returns>
+        Public Function YamahaRobotexOrdersdatImport(conn As OracleConnection, tran As OracleTransaction, filename As String) As String
+            Dim calen = New CalenderRepository(_connectionString)
+            Dim rt As String = ""
+            ' 内示 は データ変換後の csv ファイルを読み込む
+            ' マトリックス設定は 使用せずに 直値 固定値で読み込む
+            ' 受注ワーク(orders_stage)に追加する    
+
+            ' Yamaha robotex field
+            '                   内示     確定
+            '部品番号           〇       〇
+            '部品名称           〇       〇
+            '納入指示日         〇       〇
+            '納入指示数         〇       〇
+            'オーダーＮｏ       --       〇
+            '納入場所           --       〇
+            '支給先             --       〇
+            'カード発行日       --       〇
+            '発注理由           --       〇
+            '特注管理No         --       〇
+            '長期内示           〇       --
+            Dim unofficialNoticeCount = 5   ' 内示 Field 数
+            Dim confirmedCount = 10         ' 確定 Field 数
+            Dim sysDate = DateTime.Now      ' システム日付
+            Dim dt = Utils.ConvertCsvToDataTable(filename)
+            Dim ordersStage As New List(Of OrdersStageRow)
+            For Each row As DataRow In dt.Rows
+                Dim order = New OrdersStageRow
+                ' Yamaha Data set
+                'order.CustomerSettingId/IMP_FILES_STAGE.CUSTOMER_SETTING_ID
+                'order.CustomerCode/CUSTOMER_SETTING_MST.CUSTOMER_CODE
+                'order.ShipTo =/'SECTD.FSECTCD + CUSTOMER_CODE
+                'order.OrderDate=システム日付
+                'order.ItemNo = (品目No) ASTI 品番
+                'order.DemandUnit =/ ITEMM.FUNIT
+                'order.CurrencyCode =/ Sectm.FCURR
+                'order.ShipStockLocation =/'SHPROUTM.FSHPWHCD
+                'order.CompanyId ='1000' 固定値
+                'order.ProductCode =/ PRDSLSODRM.FPRDCD(品目No)
+                'order.BillingStandard =/'’S' 固定値
+                'order.DeliveryInstrFlag = / 納入指示('Y') 以外('N')
+                'order.Remarks = ""
+                'order.DeliveryCode = /0001 '固定値
+                'order.TransportMethod =/ 2 固定値
+                'order.ImpFileStageId = IMP_FILES_STAGE.IMP_FILE_STAGE_ID
+                'order.OrderType = /内示(1) 確定(2)
+                'order.ProratedType =/ 日割り(1)
+                'order.CustomerInfoType = null
+                'order.InfoType = null
+                'order.SelfFcstDeleteFlag =/'N'
+                'order.ReconcileType = IMP_RULE_MST.RECONCILE_TYPE
+                'order.ImpRunId = IMP_RUN.IMP_RUN_ID
+                'order.CreatedAt = IMP_RUN.STARTED_AT
+                'order.CreatedUserId = ログイン情報
+                '-----------------------------------------------
+                'order.Status =/'IMPORTED' 固定値
+                'order.ActiveFlag =/'Y' 固定値
+                'order.CreatedPgId ='OrderImport(Execute)' 固定値
+                'order.UpdatedAt = IMP_RUN.STARTED_AT
+                'order.UpdatedUserId = ログイン情報
+                'order.UpdatedPgId ='OrderImport(Execute)' 固定値
+
+                ' 内示
+                If (unofficialNoticeCount = dt.Columns.Count) Then
+                    '[内示変換後]
+                    '0.部品番号
+                    '1.部品名称
+                    '2.日付
+                    '3.需要数
+                    '4.長期受注
+
+                    ' その月の先頭稼働日を取得する
+                    Dim calType = "00001"
+                    Dim dtcvt As DateTime = DateTime.ParseExact(row.ItemArray(2), "yyyyMMdd", Nothing)
+                    Dim FirstWorkingDay = calen.GetFirstWorkingDay(calType, dtcvt)
+                    'order.DueDate = 2.日付
+                    'order.CustomerItemNo = 0.部品番号
+                    'order.DEMAND_QTY = 3.需要数
+                    'order.SelfFcstFlag = 4.長期受注
+                    '---------------------------------------
+                    'order.CustomerOrderNo = 月 + 先頭稼働日
+                    'order.DemandStatus = 内示('F') 内示以外('O')
+                    'order.ShipProcessType = / 内示('O') 確定('E') 以外('K')
+                    'order.TotalShipQty = / 内示(なし) 以外(0)
+                    'order.PreDailyOrderQty = 3.需要数
+                    'order.PreDailyDeliveryDate = 2.日付
+                    'order.OrderType = /内示(1) 確定(2)
+
+                    ordersStage.Add(order)
+
+                    ' 確定
+                ElseIf (confirmedCount = dt.Columns.Count) Then
+                    ' [確定]
+                    '0.部品番号
+                    '1.部品名称
+                    '2.納入指示日
+                    '3.納入指示数
+                    '4.オーダーＮｏ
+                    '5.納入場所
+                    '6.支給先
+                    '7.カード発行日
+                    '8.発注理由
+                    '9.特注管理No
+
+                    'order.DueDate = 2.納入指示日
+                    'order.CustomerItemNo = 0.部品番号
+                    'order.DEMAND_QTY = 3.納入指示数
+
+                    'order.DemandStatus = 内示('F') 内示以外('O')
+                    'order.ShipProcessType = / 内示('’O') 確定('’E') 以外('’K')
+                    'order.TotalShipQty = / 内示(なし) 以外(0)
+                    'order.PreDailyOrderQty = 3.需要数
+                    'order.PreDailyDeliveryDate = 2.日付
+                    'order.OrderType = /内示(1) 確定(2)
+                    'order.SelfFcstFlag = /長期受注 データ (Y) 通常受注データ (N)
+
+
+                    ordersStage.Add(order)
+
+                    ' エラー
+                Else
+
+                End If
+            Next
+
+            If (rt = "") Then
+                ' OrderStage 追加
+                rt = InsertRange(conn, tran, OrdersTable.Orders, ordersStage)
+            End If
+            Return rt
         End Function
 
     End Class
