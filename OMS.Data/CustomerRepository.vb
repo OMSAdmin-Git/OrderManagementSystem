@@ -136,7 +136,8 @@ Namespace OMS.Data
             sb.AppendLine("  created_pg_id          AS ""CreatedPgId"",")
             sb.AppendLine("  updated_at             AS ""UpdatedAt"",")
             sb.AppendLine("  updated_user_id        AS ""UpdatedUserId"",")
-            sb.AppendLine("  updated_pg_id          AS ""UpdatedPgId""")
+            sb.AppendLine("  updated_pg_id          AS ""UpdatedPgId"",")
+            sb.AppendLine("  sp_process_type        AS ""SpProcessType""")
             sb.AppendLine("FROM (
                                 SELECT
                                     v.*,

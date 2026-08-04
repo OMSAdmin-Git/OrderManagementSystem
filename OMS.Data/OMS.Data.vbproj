@@ -177,6 +177,7 @@
     <Compile Include="StraOrderBackLog.vb" />
     <Compile Include="UserRepository.vb" />
     <Compile Include="UsrDeffIdfRepository.vb" />
+    <Compile Include="YamahaOrderImport.vb" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="My Project\Resources.resx">

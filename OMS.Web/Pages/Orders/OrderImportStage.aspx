@@ -65,7 +65,7 @@
                         BackColor="White"
                         BorderColor="#CCCCCC" BorderStyle="None" BorderWidth="1px"
                         CellPadding="4" ForeColor="Black" GridLines="Both"
-                        DataKeyNames="CustomerSettingId, CustomerCode, ProfitCenter, CustomerUnitId">
+                        DataKeyNames="CustomerSettingId, CustomerCode, ProfitCenter, CustomerUnitId, SpProcessType">
                         <Columns>
                             <asp:BoundField DataField="CustomerSettingId" HeaderText="取引先設定ID" Visible="false" />
                             <asp:BoundField DataField="CustomerCode" HeaderText="取引先コード" />
@@ -73,6 +73,7 @@
                             <asp:BoundField DataField="ProfitCenter" HeaderText="PC" />
                             <asp:BoundField DataField="CustomerUnitId" HeaderText="注文工場／担当者ID" Visible="false" />
                             <asp:BoundField DataField="CustomerUnitName" HeaderText="注文工場／担当者名" />
+                            <asp:BoundField DataField="SpProcessType" HeaderText="特殊加工区分"  Visible="false" />
                             <asp:TemplateField HeaderText="消込処理" ItemStyle-HorizontalAlign="Center">
                                 <ItemTemplate>
                                     <asp:DropDownList ID="ddlReconcileFlag"
