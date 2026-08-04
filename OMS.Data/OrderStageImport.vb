@@ -15,23 +15,26 @@ Imports OMS.Common
 Imports Oracle.ManagedDataAccess.Client
 
 Namespace OMS.Data
-    Public Class YamahaOrderImport
+    Public Class OrderStageImport
 
         'Private _folderRepo As FolderRepository
 
         Public Property IsValid As Boolean = False
         Public Property ErrorMessage As String = ""
+        Public Property InsertedCount As Integer = 0
         ' 検証成功時に呼び出し元で利用するパース済みの値
         Public Property CustomerSettingId As Long
         Public Property ImpFileStageId As Long
         Public Property FolderType As Integer
         Public Property CustomerCode As Integer
         Public Property ReconcileFlag As String = ""
+        Public Property ReconcileType As String = ""
         Public Property FcstReconcileFlag As String = ""
         Public Property WorkFolderPath As String = ""
         Public Property StagedFileName As String = ""
         Public Property UserId As String = ""
         Public Property PgId As String = ""
+
 
         '/// ヤマハ取込データ保存配列
         Private Structure ImportDataType
@@ -64,6 +67,7 @@ Namespace OMS.Data
                                         ByVal folderTypeRaw As Object,
                                         ByVal customerCodeRaw As Object,
                                         ByVal reconcileFlagRaw As Object,
+                                        ByVal reconcileTypeRaw As Object,
                                         ByVal fcstReconcileFlagRaw As Object,
                                         ByVal stagedFolderPathRaw As Object,
                                         ByVal stagedFileNameRaw As Object,
@@ -71,12 +75,12 @@ Namespace OMS.Data
                                         ByVal pgIdRaw As Object,
                                         ByVal blnHandFlag As Boolean,
                                         rowsForTemp2 As List(Of OrdersStageRow)
-                                            ) As YamahaOrderImport
+                                            ) As OrderStageImport
 
             Dim _oderStageRepo As New OrderStageRepository(Utils.GetConnectionString())
             Dim _impFileStageRepo As New ImpFilesStageRepository(Utils.GetConnectionString())
 
-            Dim result As New YamahaOrderImport()
+            Dim result As New OrderStageImport()
 
             Dim cnt As Integer = 0
 
@@ -85,7 +89,10 @@ Namespace OMS.Data
             cnt = _oderStageRepo.InsertRange(tran, rowsForTemp2)
             '-----------------------------------------------
 
-            If cnt > 0 Then
+            result.InsertedCount = cnt
+
+            'If cnt > 0 Then
+            If result.InsertedCount > 0 Then
 
 
                 '-----------------------------------------------
@@ -132,174 +139,174 @@ Namespace OMS.Data
 
 
 
-                ''-----------------------------------------------
-                ''--------
-                ''内示加工
-                ''--------
-                ''今回取込した内示データの抽出
-                'Dim dtNaiji As DataTable = _oderStageRepo.GetNaijiData(tran, ImpFileStageId)
+                '-----------------------------------------------
+                '--------
+                '内示加工
+                '--------
+                '今回取込した内示データの抽出
+                Dim dtNaiji As DataTable = _oderStageRepo.GetNaijiData(tran, result.ImpFileStageId)
 
-                ''今回取込した内示データの件数をチェック
-                'If dtNaiji.Rows.Count > 0 Then
+                '今回取込した内示データの件数をチェック
+                If dtNaiji.Rows.Count > 0 Then
 
-                '    '内示洗い替え
-                '    _oderStageRepo.ReplaceNaijiRelation(tran, ImpFileStageId, CustomerSettingId, Now, UserId, PgId)
+                    '内示洗い替え
+                    _oderStageRepo.ReplaceNaijiRelation(tran, result.ImpFileStageId, result.CustomerSettingId, Now, result.UserId, result.PgId)
 
-                '    'ステータス更新
-                '    _oderStageRepo.UpdateNaijiStatusProcessed(tran, ImpFileStageId)
-
-
-
-                '    '2026/05/26 酒井 フェーズ2 受注残対応
-                '    '受注残加工
-                '    '消込フラグをチェック
-                '    If ReconcileFlag = "Y" Then
-
-                '        '--------------------------------
-                '        '受注残消込
-                '        '--------------------------------
-                '        _oderStageRepo.BacklogForecast(tran,
-                '                                                            CustomerSettingId,
-                '                                                            ImpFileStageId,
-                '                                                            reconciletype,
-                '                                                            Now,
-                '                                                            UserId,
-                '                                                            PgId)
-
-                '    End If
-                '    '--
+                    'ステータス更新
+                    _oderStageRepo.UpdateNaijiStatusProcessed(tran, result.ImpFileStageId)
 
 
 
-                'End If
-                ''-----------------------------------------------
+                    '2026/05/26 酒井 フェーズ2 受注残対応
+                    '受注残加工
+                    '消込フラグをチェック
+                    If result.ReconcileFlag = "Y" Then
+
+                        '--------------------------------
+                        '受注残消込
+                        '--------------------------------
+                        _oderStageRepo.BacklogForecast(tran,
+                                                                            result.CustomerSettingId,
+                                                                            result.ImpFileStageId,
+                                                                            result.ReconcileType,
+                                                                            Now,
+                                                                            result.UserId,
+                                                                            result.PgId)
+
+                    End If
+                    '--
 
 
 
-
-
-
-                ''-----------------------------------------------
-                ''--------
-                ''確定加工
-                ''--------
-
-                ''打切処理
-                '_oderStageRepo.UpdateClese(tran, ImpFileStageId, 2)
-
-                ''取消処理
-                '_oderStageRepo.UpdateCancel(tran, ImpFileStageId, 2)
-
-
-                ''確定データ無効化
-                '_oderStageRepo.ReplaceKakuteiRelation(tran,
-                '                                                            CustomerSettingId,
-                '                                                            ImpFileStageId,
-                '                                                            Now,
-                '                                                            UserId,
-                '                                                            PgId)
-
-                ''デバック用
-                ''tran.Commit()
-                ''Exit Sub
-
-                ''消込フラグをチェック
-                'If ReconcileFlag = "Y" Then
-
-                '    '確定の抽出
-                '    Dim dtKakutei As DataTable = _oderStageRepo.GetKakuteiData(tran, ImpFileStageId)
-
-                '    If dtKakutei.Rows.Count > 0 Then
-
-                '        '--------------------------------
-                '        '確定データで内示消込
-                '        '--------------------------------
-                '        _oderStageRepo.ReconcileForecast(tran,
-                '                                                                CustomerSettingId,
-                '                                                                ImpFileStageId,
-                '                                                                2,
-                '                                                                reconciletype,
-                '                                                                Now,
-                '                                                                UserId,
-                '                                                                PgId)
-
-                '    End If
-
-                'End If
-
-                ''--------------------------------
-                ''確定 新規
-                ''--------------------------------
-                '_oderStageRepo.UpdateKakuteiNewOrders(tran, ImpFileStageId)
-
-                ''-----------------------------------------------
+                End If
+                '-----------------------------------------------
 
 
 
 
 
-                ''-----------------------------------------------
-                ''--------
-                ''納入指示加工
-                ''--------
 
-                ''打切処理
-                '_oderStageRepo.UpdateClese(tran, ImpFileStageId, 3)
+                '-----------------------------------------------
+                '--------
+                '確定加工
+                '--------
 
-                ''取消処理
-                '_oderStageRepo.UpdateCancel(tran, ImpFileStageId, 3)
+                '打切処理
+                _oderStageRepo.UpdateClese(tran, result.ImpFileStageId, 2)
 
-                ''消込フラグをチェック
-                'If ReconcileFlag = "Y" Then
+                '取消処理
+                _oderStageRepo.UpdateCancel(tran, result.ImpFileStageId, 2)
 
 
-                '    '--------------------------------
-                '    '確定消込 ※客先発注Noでの消込
-                '    '--------------------------------
-                '    '受注消込(客先発注No)
-                '    _oderStageRepo.ExecuteOrderReconciliationByOrderNo(tran,
-                '                                                                            CustomerSettingId,
-                '                                                                            ImpFileStageId,
-                '                                                                            Now,
-                '                                                                            UserId,
-                '                                                                            PgId)
+                '確定データ無効化
+                _oderStageRepo.ReplaceKakuteiRelation(tran,
+                                                                            result.CustomerSettingId,
+                                                                            result.ImpFileStageId,
+                                                                            Now,
+                                                                            result.UserId,
+                                                                            result.PgId)
 
-                '    '内示消込フラグをチェック
-                '    If FcstReconcileFlag = "Y" Then
+                'デバック用
+                'tran.Commit()
+                'Exit Sub
 
-                '        '納入指示注文の抽出
-                '        Dim dtNonyuSiji As DataTable = _oderStageRepo.GetNonyuSijiData(tran, ImpFileStageId)
+                '消込フラグをチェック
+                If result.ReconcileFlag = "Y" Then
 
-                '        If dtNonyuSiji.Rows.Count > 0 Then
+                    '確定の抽出
+                    Dim dtKakutei As DataTable = _oderStageRepo.GetKakuteiData(tran, result.ImpFileStageId)
 
-                '            ''デバック用
-                '            'tran.Commit()
-                '            'Exit Sub
+                    If dtKakutei.Rows.Count > 0 Then
 
-                '            '--------------------------------
-                '            '納入指示データで内示消込
-                '            '--------------------------------
-                '            _oderStageRepo.ReconcileForecast(tran,
-                '                                                                    CustomerSettingId,
-                '                                                                    ImpFileStageId,
-                '                                                                    3,
-                '                                                                    reconciletype,
-                '                                                                    Now,
-                '                                                                    UserId,
-                '                                                                    PgId)
+                        '--------------------------------
+                        '確定データで内示消込
+                        '--------------------------------
+                        _oderStageRepo.ReconcileForecast(tran,
+                                                                                result.CustomerSettingId,
+                                                                                result.ImpFileStageId,
+                                                                                2,
+                                                                                result.ReconcileType,
+                                                                                Now,
+                                                                                result.UserId,
+                                                                                result.PgId)
 
-                '        End If
+                    End If
 
-                '    End If
+                End If
 
-                'End If
+                '--------------------------------
+                '確定 新規
+                '--------------------------------
+                _oderStageRepo.UpdateKakuteiNewOrders(tran, result.ImpFileStageId)
 
-                ''--------------------------------
-                ''納入指示 新規
-                ''--------------------------------
-                '_oderStageRepo.UpdateNonyuSijiNewOrders(tran, ImpFileStageId)
+                '-----------------------------------------------
 
-                ''-----------------------------------------------
+
+
+
+
+                '-----------------------------------------------
+                '--------
+                '納入指示加工
+                '--------
+
+                '打切処理
+                _oderStageRepo.UpdateClese(tran, result.ImpFileStageId, 3)
+
+                '取消処理
+                _oderStageRepo.UpdateCancel(tran, result.ImpFileStageId, 3)
+
+                '消込フラグをチェック
+                If result.ReconcileFlag = "Y" Then
+
+
+                    '--------------------------------
+                    '確定消込 ※客先発注Noでの消込
+                    '--------------------------------
+                    '受注消込(客先発注No)
+                    _oderStageRepo.ExecuteOrderReconciliationByOrderNo(tran,
+                                                                                            result.CustomerSettingId,
+                                                                                            result.ImpFileStageId,
+                                                                                            Now,
+                                                                                            result.UserId,
+                                                                                            result.PgId)
+
+                    '内示消込フラグをチェック
+                    If result.FcstReconcileFlag = "Y" Then
+
+                        '納入指示注文の抽出
+                        Dim dtNonyuSiji As DataTable = _oderStageRepo.GetNonyuSijiData(tran, result.ImpFileStageId)
+
+                        If dtNonyuSiji.Rows.Count > 0 Then
+
+                            ''デバック用
+                            'tran.Commit()
+                            'Exit Sub
+
+                            '--------------------------------
+                            '納入指示データで内示消込
+                            '--------------------------------
+                            _oderStageRepo.ReconcileForecast(tran,
+                                                                                    result.CustomerSettingId,
+                                                                                    result.ImpFileStageId,
+                                                                                    3,
+                                                                                    result.ReconcileType,
+                                                                                    Now,
+                                                                                    result.UserId,
+                                                                                    result.PgId)
+
+                        End If
+
+                    End If
+
+                End If
+
+                '--------------------------------
+                '納入指示 新規
+                '--------------------------------
+                _oderStageRepo.UpdateNonyuSijiNewOrders(tran, result.ImpFileStageId)
+
+                '-----------------------------------------------
 
 
                 'If ErrFlg = False Then
@@ -322,7 +329,8 @@ Namespace OMS.Data
 
             End If
 
-
+            result.IsValid = True
+            Return result
 
         End Function
 
@@ -339,7 +347,7 @@ Namespace OMS.Data
                                         ByVal fcstReconcileFlagRaw As Object,
                                         ByVal stagedFolderPathRaw As Object,
                                         ByVal stagedFileNameRaw As Object
-                                            ) As YamahaOrderImport
+                                            ) As OrderImport
 
 
             Dim oderStageRepo As New OrderStageRepository(Utils.GetConnectionString())
@@ -389,7 +397,7 @@ Namespace OMS.Data
                                                 "yyyy/MM/dd H:mm:ss", "yyyy-MM-dd H:mm:ss"
                                             }
 
-            Dim result As New YamahaOrderImport()
+            Dim result As New OrderImport()
             Dim rowsForTemp2 As New List(Of OrdersStageRow)
 
 

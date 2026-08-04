@@ -188,7 +188,7 @@
     <Compile Include="SUZUKI\Spirits663NAnd663SAnd66Repository.vb" />
     <Compile Include="UserRepository.vb" />
     <Compile Include="UsrDeffIdfRepository.vb" />
-    <Compile Include="YamahaOrderImport.vb" />
+    <Compile Include="OrderStageImport.vb" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="My Project\Resources.resx">
