@@ -175,6 +175,17 @@
     <Compile Include="ShproutmRepository.vb" />
     <Compile Include="SplitCaseRepository.vb" />
     <Compile Include="StraOrderBackLog.vb" />
+    <Compile Include="SUZUKI\Spirits0501And0502Repository.vb" />
+    <Compile Include="SUZUKI\Spirits0600And0630Repository.vb" />
+    <Compile Include="SUZUKI\Spirits0602Repository.vb" />
+    <Compile Include="SUZUKI\Spirits0650Repository.vb" />
+    <Compile Include="SUZUKI\Spirits0651Repository.vb" />
+    <Compile Include="SUZUKI\Spirits0740Repository.vb" />
+    <Compile Include="SUZUKI\Spirits0813Repository.vb" />
+    <Compile Include="SUZUKI\Spirits0814Repository.vb" />
+    <Compile Include="SUZUKI\Spirits6604And6634Repository.vb" />
+    <Compile Include="SUZUKI\Spirits6624Repository.vb" />
+    <Compile Include="SUZUKI\Spirits663NAnd663SAnd66Repository.vb" />
     <Compile Include="UserRepository.vb" />
     <Compile Include="UsrDeffIdfRepository.vb" />
     <Compile Include="YamahaOrderImport.vb" />
