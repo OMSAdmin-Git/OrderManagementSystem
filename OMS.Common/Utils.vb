@@ -803,10 +803,11 @@ Namespace OMS.Common
             Dim sourceDt = RemoveRowsWithoutThisTime(dt)
 
 
-            ' 1. 固定の列名を定義
+            ' 1. 固定の列名を定義 (元データ)
             Dim fixedColumns As New HashSet(Of String) From {"部品番号", "部品名称", "Column1", "日付"}
 
-            ' 2. 元のDataTableの列名から、年月ヘッダー（可変）だけを自動抽出
+            ' 2. 元のDataTableの列名から、年月ヘッダー（可変）だけを自動抽出 してヘッダー項目に追加
+            '    長期内示 の日付は 可変長
             Dim dateHeaders As New List(Of String)()
             For Each col As DataColumn In sourceDt.Columns
                 If Not fixedColumns.Contains(col.ColumnName) Then
@@ -814,12 +815,13 @@ Namespace OMS.Common
                 End If
             Next
 
-            ' 3. 新しいDataTableの構造（列）を作成
+            ' 3. 新しいDataTableの構造（列）を作成 長期内示か判断するフラグを追加 (変換後データ)
             Dim newDt As New DataTable()
             newDt.Columns.Add("部品番号", GetType(String))
             newDt.Columns.Add("部品名称", GetType(String))
             newDt.Columns.Add("日付", GetType(String))      ' "20250701" 等の形式
             newDt.Columns.Add("需要数", GetType(Integer))
+            newDt.Columns.Add("長期内示", GetType(String))
 
             ' 元のデータが空の場合は、空の構造だけを返す
             If sourceDt.Rows.Count = 0 Then
@@ -828,26 +830,35 @@ Namespace OMS.Common
 
             ' 4. LINQの SelectMany を使って動的な年月列の数だけ行を展開
             Dim newRows = sourceDt.AsEnumerable().SelectMany(
-        Function(row)
-            Return dateHeaders.Select(
-                Function(header)
-                    Dim newRow As DataRow = newDt.NewRow()
-                    newRow("部品番号") = row("部品番号")
-                    newRow("部品名称") = row("部品名称")
+            Function(row)
+                ' Select の引数に index を追加して、何番目の日付（数量）かを判定
+                Return dateHeaders.Select(
+                    Function(header, index)
+                        Dim newRow As DataRow = newDt.NewRow()
+                        newRow("部品番号") = row("部品番号")
+                        newRow("部品名称") = row("部品名称")
 
-                    ' 取得したヘッダー名（可変）に "01" を付加
-                    newRow("日付") = header & "01"
+                        ' 取得したヘッダー名（可変）に "01" を付加
+                        newRow("日付") = header & "01"
 
-                    ' 需要数の安全な数値化
-                    Dim qty As Integer = 0
-                    If row(header) IsNot DBNull.Value Then
-                        Integer.TryParse(row(header).ToString(), qty)
-                    End If
-                    newRow("需要数") = qty
+                        ' 需要数の安全な数値化
+                        Dim qty As Integer = 0
+                        If row(header) IsNot DBNull.Value Then
+                            Integer.TryParse(row(header).ToString(), qty)
+                        End If
+                        newRow("需要数") = qty
 
-                    Return newRow
-                End Function)
-        End Function)
+                        ' 数量の順番に応じて長期内示フラグを設定
+                        ' indexは0から始まるので、0〜3（1〜4番目）は "N"、4〜7（5番目以降）は "Y"
+                        If index < 4 Then
+                            newRow("長期内示") = "N"
+                        Else
+                            newRow("長期内示") = "Y"
+                        End If
+
+                        Return newRow
+                    End Function)
+            End Function)
 
             ' 5. 展開した行データを新しいDataTableに追加
             For Each row As DataRow In newRows
