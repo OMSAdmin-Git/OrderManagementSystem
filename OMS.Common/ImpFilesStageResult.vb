@@ -25,6 +25,8 @@ Namespace OMS.Common
         Public Property FcstReconcileFlag As String     ' FCST_RECONCILE_FLAG
         Public Property HandFlag As String              ' HAND_FLAG
 
+        Public Property SpProcessType As String         ' SP_PROCESS_TYPE
+
         ' エラー表示用（あれば）
         Public Property ErrorMessage As String
     End Class

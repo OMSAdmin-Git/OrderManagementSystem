@@ -107,6 +107,7 @@ Namespace OMS.Data
             Dim nohinshoNo As String        '納品書番号
             Dim hinmokugyoNo As String      '品目情報行番号
             Dim ordergyoNo As String        'オーダー情報行番号
+            Dim customercode As String      '得意先コード
         End Structure
         Private Shared m_ImpData() As ImportDataType
 
@@ -255,6 +256,46 @@ Namespace OMS.Data
             Return result
 
         End Function
+
+        Public Shared Function ParseImportFileY(ByVal CustomerSettingId As Long,
+                                               ByVal customerCode As String,
+                                               ByRef ErrFlg As Boolean,
+                                               ByRef ErrFileFlg As Boolean,
+                                               ByRef errcnt As Integer,
+                                               ByVal FolderType As Integer,
+                                               ByVal UserId As String,
+                                               ByVal pgId As String,
+                                               ByVal errors As List(Of String),
+                                               ByVal rowsForTemp2 As List(Of OrdersStageRow),
+                                               ByVal mapResult As OrderStageImport.MappingResult) As Boolean
+
+
+
+            '実行管理
+            'IMP_RUNの新しいIDを取得
+            Dim newId As Integer = 0
+            'newId += 1
+            'IMP_RUNに新規レコード追加
+            Dim now As DateTime = DateTime.Now
+            'Dim userId As String = (If(Context?.User?.Identity?.Name, "")).Trim()
+
+
+            Dim rowsForTemp As New List(Of ImpRunRow) From {
+                New ImpRunRow With {
+                    .StartedAt = now,
+                    .Status = "RUNNING",
+                    .StartedUserId = UserId,
+                    .StartedPgId = pgId,
+                    .FileCount = 0,
+                    .RowCount = 0,
+                    .ErrorCount = 0
+                }
+            }
+
+
+
+        End Function
+
 
         Public Shared Function ParseImportFile(ByVal tran As OracleTransaction,
                                                ByVal CustomerSettingId As Long,
@@ -935,6 +976,7 @@ Namespace OMS.Data
                         ' ヘッダ情報をループ内で保持するための退避用変数
                         Dim currentHakkobi As String = ""
                         Dim currentHakkojikan As String = ""
+                        Dim currentCostomercode As String = ""
 
                         ' 品目情報をループ内で保持するための退避用変数
                         Dim currentYokibangou As String = ""
@@ -957,8 +999,9 @@ Namespace OMS.Data
                                 'ヘッダ情報
 
                                 'ヘッダ情報を取込データから取得
-                                currentHakkobi = StrLine.Substring(5 - 1, 8).Trim()          '発行日
+                                currentHakkobi = StrLine.Substring(5 - 1, 8).Trim()           '発行日
                                 currentHakkojikan = StrLine.Substring(13 - 1, 4).Trim()       '発行時刻
+                                currentCostomercode = customerCode                            '得意先コード
 
                             ElseIf Left(StrLine, 4) = "TRAL" Then
                                 'EOF情報
@@ -1002,6 +1045,7 @@ Namespace OMS.Data
                                     'ヘッダ情報をセット
                                     m_ImpData(UBound(m_ImpData)).hakkobi = currentHakkobi                                   '発行日
                                     m_ImpData(UBound(m_ImpData)).hakkojikan = currentHakkojikan                             '発行時間
+                                    m_ImpData(UBound(m_ImpData)).customercode = currentCostomercode                         '得意先コード
 
                                     '品目情報をセット
                                     m_ImpData(UBound(m_ImpData)).siyosha = currentSiyosha                                   '使用者
@@ -1047,6 +1091,7 @@ Namespace OMS.Data
                                     'ヘッダ情報をセット
                                     m_ImpData(UBound(m_ImpData)).hakkobi = currentHakkobi                                   '発行日
                                     m_ImpData(UBound(m_ImpData)).hakkojikan = currentHakkojikan                             '発行時間
+                                    m_ImpData(UBound(m_ImpData)).customercode = currentCostomercode                         '得意先コード
 
                                     '品目情報をセット
                                     m_ImpData(UBound(m_ImpData)).siyosha = currentSiyosha                                   '使用者
@@ -2745,30 +2790,18 @@ Namespace OMS.Data
 
             Dim sql As String = "
                         INSERT INTO yamaha_imp_orders_test (
-                            imp_file_stage_id, hinmoku_gyo_no, order_gyo_no, siyosha, status, customer_item_no, nonyuplat,
+                            imp_file_stage_id, hinmoku_gyo_no, order_gyo_no, customer_code, siyosha, status, customer_item_no, nonyuplat,
                             yokisyuuyousuu, yokibangou, ordersikibetu_no, nonyusijibi, nonyujikan,
                             nonyusijisu, cardkubun, naijikubun, icdenpyo_no, nohinsho_no,
                             publication_date, publication_time, imp_run_id, active_flag,
                             created_at, created_user_id, created_pg_id
                         ) VALUES (
-                            :p_imp_file_stage_id, :p_hinmoku_gyo_no, :p_order_gyo_no, :p_siyosha, :p_status, :p_customer_item_no, :p_nonyuplat,
+                            :p_imp_file_stage_id, :p_hinmoku_gyo_no, :p_order_gyo_no, :p_customer_code, :p_siyosha, :p_status, :p_customer_item_no, :p_nonyuplat,
                             :p_yokisyuuyousuu, :p_yokibangou, :p_ordersikibetu_no, :p_nonyusijibi, :p_nonyujikan,
                             :p_nonyusijisu, :p_cardkubun, :p_naijikubun, :p_icdenpyo_no, :p_nohinsho_no,
                             :p_publication_date, :p_publication_time, :p_imp_run_id, :p_active_flag,
                             :p_created_at, :p_created_user_id, :p_created_pg_id
                         )"
-            'Dim sql As String = "
-            '            INSERT INTO yamaha_imp_orders_test (
-            '                imp_file_stage_id, hinmoku_gyo_no, order_gyo_no, siyosha, status, customer_item_no, nonyuplat,
-            '                yokisyuuyousuu, yokibangou, ordersikibetu_no, nonyusijibi, nonyujikan,
-            '                nonyusijisu, cardkubun, naijikubun, icdenpyo_no, nohinsho_no,
-            '                publication_date, publication_time
-            '            ) VALUES (
-            '                :p_imp_file_stage_id, :p_hinmoku_gyo_no, :p_order_gyo_no, :p_siyosha, :p_status, :p_customer_item_no, :p_nonyuplat,
-            '                :p_yokisyuuyousuu, :p_yokibangou, :p_ordersikibetu_no, :p_nonyusijibi, :p_nonyujikan,
-            '                :p_nonyusijisu, :p_cardkubun, :p_naijikubun, :p_icdenpyo_no, :p_nohinsho_no,
-            '                :p_publication_date, :p_publication_time
-            '            )"
 
             Using cmd As New OracleCommand(sql, tran.Connection)
                 'cmd.Transaction = tran
@@ -2781,6 +2814,7 @@ Namespace OMS.Data
                 cmd.Parameters.Add("p_imp_file_stage_id", OracleDbType.Int64)
                 cmd.Parameters.Add("p_hinmoku_gyo_no", OracleDbType.Int32)
                 cmd.Parameters.Add("p_order_gyo_no", OracleDbType.Int32)
+                cmd.Parameters.Add("p_customer_code", OracleDbType.Varchar2, 25)
                 cmd.Parameters.Add("p_siyosha", OracleDbType.Varchar2)
                 cmd.Parameters.Add("p_status", OracleDbType.Varchar2)
                 cmd.Parameters.Add("p_customer_item_no", OracleDbType.Varchar2)
@@ -2809,6 +2843,7 @@ Namespace OMS.Data
                     cmd.Parameters("p_imp_file_stage_id").Value = impFileStageId
                     cmd.Parameters("p_hinmoku_gyo_no").Value = impDataList(i).hinmokugyoNo
                     cmd.Parameters("p_order_gyo_no").Value = impDataList(i).ordergyoNo
+                    cmd.Parameters("p_customer_code").Value = SafeVarchar(impDataList(i).customercode, 25)
                     cmd.Parameters("p_siyosha").Value = impDataList(i).siyosha
                     cmd.Parameters("p_status").Value = impDataList(i).status
                     cmd.Parameters("p_customer_item_no").Value = impDataList(i).customeritemNo

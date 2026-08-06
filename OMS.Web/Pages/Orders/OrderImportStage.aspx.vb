@@ -292,7 +292,8 @@ Namespace Pages.Orders
                                     .LastWriteTime = lw,
                                     .ReconcileFlag = reconcileVal,
                                     .FcstReconcileFlag = fcstReconcileVal,
-                                    .HandFlag = "N"
+                                    .HandFlag = "N",
+                                    .SpProcessType = spprocesstype
                                 })
 
                                 foundInThisCustomer = True
@@ -365,6 +366,36 @@ Namespace Pages.Orders
                     .UpdatedUserId = loginUserId,
                     .UpdatedPgId = pgId
                 }).ToList()
+
+
+
+                'Select Case spprocesstype
+                '    Case "1"    'スズキ
+
+                '    Case "2"    'ヤマハ
+
+
+                '        '取込ファイルからデータを取得する処理
+                '        OMS.Data.OrderStageImport.ParseImportFileY(
+                '                                        customerSettingId,
+                '                                        customerCode,
+                '                                        ErrFlg,
+                '                                        ErrFileFlg,
+                '                                        errcnt,
+                '                                        folderType,
+                '                                        loginUserId,
+                '                                        pgId,
+                '                                        errors,
+                '                                        rowsForTemp2,
+                '                                        mapResult)
+
+                '    Case "3"    'ヤマハ(IM)
+
+                '    Case Else
+
+                'End Select
+
+
             End If
 
             If rowsForTemp.Count > 0 Then
