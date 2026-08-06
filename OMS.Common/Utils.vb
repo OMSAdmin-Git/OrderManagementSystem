@@ -19,6 +19,7 @@ Imports ClosedXML.Excel
 Imports DocumentFormat.OpenXml.ExtendedProperties
 Imports DocumentFormat.OpenXml.Math
 Imports DocumentFormat.OpenXml.Vml.Office
+Imports DocumentFormat.OpenXml.Vml.Wordprocessing
 Imports DocumentFormat.OpenXml.Wordprocessing
 Imports Ionic.Zip
 Imports Microsoft.SqlServer
@@ -790,80 +791,154 @@ Namespace OMS.Common
         'End Sub
 
         ' Yamaha robotex 内示受注ファイル読み込み 変換
+        Public Enum YamahaRobotexType
+            Unknown = -1                    ' ファイルタイプエラー
+            UnofficialNotice = 0            ' 内示ファイル
+            Confirmed = 1                   ' 確定受注ファイル
+            ASTIInternalNotification = 2    ' ASTI追加内示ファイル  
+        End Enum
         ''' <summary>
         ''' 横並びのCSVデータテーブルを、4列の縦並びデータテーブルに展開・変換します。
         ''' </summary>
         ''' <param name="filename">Yamaha robotex 内示受注データファイル</param>
         ''' <returns>部品番号、部品名称、日付、需要数 の4列で構成された新しいDataTable</returns>
-        Public Function CreateNewDataSetFromCsv(filename As String) As DataTable
+        Public Function CreateNewDataSetFromCsv(filename As String, type As YamahaRobotexType) As DataTable
 
             ' CSVをDataTableに変換
             Dim dt = ConvertCsvToDataTable(filename)
-            ' 条件に合う行だけを抽出
-            Dim sourceDt = RemoveRowsWithoutThisTime(dt)
 
-
-            ' 1. 固定の列名を定義 (元データ)
-            Dim fixedColumns As New HashSet(Of String) From {"部品番号", "部品名称", "Column1", "日付"}
-
-            ' 2. 元のDataTableの列名から、年月ヘッダー（可変）だけを自動抽出 してヘッダー項目に追加
-            '    長期内示 の日付は 可変長
-            Dim dateHeaders As New List(Of String)()
-            For Each col As DataColumn In sourceDt.Columns
-                If Not fixedColumns.Contains(col.ColumnName) Then
-                    dateHeaders.Add(col.ColumnName)
-                End If
-            Next
-
-            ' 3. 新しいDataTableの構造（列）を作成 長期内示か判断するフラグを追加 (変換後データ)
+            ' 0. 新しいDataTableの構造（列）を作成 長期内示か判断するフラグを追加 (変換後データ)
+            ' 内示 および 確定 データを ASTI 追加内示形式の データ構成に並び替える
             Dim newDt As New DataTable()
-            newDt.Columns.Add("部品番号", GetType(String))
-            newDt.Columns.Add("部品名称", GetType(String))
-            newDt.Columns.Add("日付", GetType(String))      ' "20250701" 等の形式
+            newDt.Columns.Add("顧客", GetType(String))
+            newDt.Columns.Add("客先発注No", GetType(String))
+            newDt.Columns.Add("受注日", GetType(String))            ' "20250701" 等の形式
+            newDt.Columns.Add("希望納期", GetType(String))          ' "20250701" 等の形式
+            newDt.Columns.Add("客先品目No", GetType(String))
             newDt.Columns.Add("需要数", GetType(Integer))
-            newDt.Columns.Add("長期内示", GetType(String))
+            newDt.Columns.Add("通貨コード", GetType(String))
+            newDt.Columns.Add("製品コード", GetType(String))
+            newDt.Columns.Add("納入先コード", GetType(String))
+            newDt.Columns.Add("分割区分", GetType(String))
+            newDt.Columns.Add("受注区分", GetType(String))
+            newDt.Columns.Add("コメント", GetType(String))
+            newDt.Columns.Add("情報区分", GetType(String))
+            newDt.Columns.Add("ASTI追加内示フラグ", GetType(String))
+            newDt.Columns.Add("ASTI追加内示削除フラグ", GetType(String))
 
-            ' 元のデータが空の場合は、空の構造だけを返す
-            If sourceDt.Rows.Count = 0 Then
-                Return newDt
-            End If
+            Dim newRow As DataRow = newDt.NewRow()
+            newRow("取引先コード") = ""
+            newRow("客先発注No") = ""
+            newRow("受注日") = ""
+            newRow("希望納期") = ""
+            newRow("客先品目No") = ""
+            newRow("需要数") = ""
+            newRow("通貨コード") = ""
+            newRow("製品コード") = ""
+            newRow("納入先コード") = ""
+            newRow("分割区分") = ""
+            newRow("受注区分") = ""
+            newRow("コメント") = ""
+            newRow("情報区分") = ""
+            newRow("ASTI追加内示フラグ") = ""
+            newRow("ASTI追加内示削除フラグ") = ""
 
-            ' 4. LINQの SelectMany を使って動的な年月列の数だけ行を展開
-            Dim newRows = sourceDt.AsEnumerable().SelectMany(
-            Function(row)
-                ' Select の引数に index を追加して、何番目の日付（数量）かを判定
-                Return dateHeaders.Select(
-                    Function(header, index)
-                        Dim newRow As DataRow = newDt.NewRow()
+            Select Case type
+                Case YamahaRobotexType.UnofficialNotice
+                    ' 条件に合う行だけを抽出
+                    Dim sourceDt = RemoveRowsWithoutThisTime(dt)
+
+                    ' 1. 固定の列名を定義 (元データ)
+                    Dim fixedColumns As New HashSet(Of String) From {"部品番号", "部品名称", "Column1", "日付"}
+
+                    ' 2. 元のDataTableの列名から、年月ヘッダー（可変）だけを自動抽出 してヘッダー項目に追加
+                    '    長期内示 の日付は 可変長
+                    Dim dateHeaders As New List(Of String)()
+                    For Each col As DataColumn In sourceDt.Columns
+                        If Not fixedColumns.Contains(col.ColumnName) Then
+                            dateHeaders.Add(col.ColumnName)
+                        End If
+                    Next
+
+                    ' 3. 元のデータが空の場合は、空の構造だけを返す
+                    If sourceDt.Rows.Count = 0 Then
+                        Return newDt
+                    End If
+
+                    ' 内示ファイルの場合の処理
+                    ' 4. LINQの SelectMany を使って動的な年月列の数だけ行を展開
+                    Dim newRows = sourceDt.AsEnumerable().SelectMany(
+                            Function(row)
+                                ' Select の引数に index を追加して、何番目の日付（数量）かを判定
+                                Return dateHeaders.Select(
+                                    Function(header, index)
+
+                                        newRow("部品番号") = row("部品番号")
+                                        newRow("部品名称") = row("部品名称")
+
+                                        ' 取得したヘッダー名（可変）に "01" を付加
+                                        newRow("希望納期") = header & "01"
+
+                                        ' 需要数の安全な数値化
+                                        Dim qty As Integer = 0
+                                        If row(header) IsNot DBNull.Value Then
+                                            Integer.TryParse(row(header).ToString(), qty)
+                                        End If
+                                        newRow("需要数") = qty
+
+                                        ' 数量の順番に応じて長期内示フラグを設定
+                                        ' indexは0から始まるので、0〜3（1〜4番目）は "N"、4〜7（5番目以降）は "Y"
+                                        If index < 4 Then
+                                            newRow("ASTI追加内示フラグ") = "N"
+                                            newRow("ASTI追加内示削除フラグ") = "N"
+                                        Else
+                                            newRow("ASTI追加内示フラグ") = "Y"
+                                            newRow("ASTI追加内示削除フラグ") = "Y"
+                                        End If
+
+                                        Return newRow
+                                    End Function)
+                            End Function)
+
+                    ' 5. 展開した行データを新しいDataTableに追加
+                    For Each row As DataRow In newRows
+                        newDt.Rows.Add(row)
+                    Next
+
+                Case YamahaRobotexType.Confirmed
+                    ' 確定受注ファイルの場合の処理
+                    Dim sourceDt = dt
+
+                    Dim newRows = sourceDt.AsEnumerable().Select(
+                    Function(row)
                         newRow("部品番号") = row("部品番号")
                         newRow("部品名称") = row("部品名称")
-
-                        ' 取得したヘッダー名（可変）に "01" を付加
-                        newRow("日付") = header & "01"
-
-                        ' 需要数の安全な数値化
+                        Dim dd As Date
+                        Date.TryParse(row("納入指示日").ToString(), dd)
+                        newRow("希望納期") = dd.ToString("yyyyMMdd")
                         Dim qty As Integer = 0
-                        If row(header) IsNot DBNull.Value Then
-                            Integer.TryParse(row(header).ToString(), qty)
-                        End If
+                        Integer.TryParse(row("納入指示数").ToString(), qty)
                         newRow("需要数") = qty
+                        newRow("部品番号") = row("オーダーＮｏ")
 
-                        ' 数量の順番に応じて長期内示フラグを設定
-                        ' indexは0から始まるので、0〜3（1〜4番目）は "N"、4〜7（5番目以降）は "Y"
-                        If index < 4 Then
-                            newRow("長期内示") = "N"
-                        Else
-                            newRow("長期内示") = "Y"
-                        End If
-
+                        '5.納入場所
+                        '6.支給先
+                        '7.カード発行日
+                        '8.発注理由
+                        '9.特注管理No
                         Return newRow
                     End Function)
-            End Function)
+                    ' 5. 展開した行データを新しいDataTableに追加
+                    For Each row As DataRow In newRows
+                        newDt.Rows.Add(row)
+                    Next
 
-            ' 5. 展開した行データを新しいDataTableに追加
-            For Each row As DataRow In newRows
-                newDt.Rows.Add(row)
-            Next
+                Case YamahaRobotexType.ASTIInternalNotification
+                    ' ASTI追加内示ファイルの場合の処理 (File 読み込み DataTable(ASTI追加内示形式)をそのまま返す)
+                    newDt = dt
+                Case Else
+                    Throw New ArgumentException("不明なYamahaRobotexTypeです。", NameOf(type))
+            End Select
 
             ' 6. 変換後のDataTableを返す
             Return newDt
@@ -891,6 +966,7 @@ Namespace OMS.Common
             Return filteredDt
 
         End Function
+
         ''' <summary>
         ''' csvファイルをDataTableに変換する
         ''' </summary>
