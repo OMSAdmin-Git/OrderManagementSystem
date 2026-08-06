@@ -16,6 +16,7 @@ Imports Oracle.ManagedDataAccess.Client
 Imports CsvHelper
 Imports CsvHelper.Configuration
 Imports System.Globalization
+Imports System.Runtime.InteropServices
 
 Namespace OMS.Data
     Public Class OrderStageImport
@@ -86,6 +87,8 @@ Namespace OMS.Data
 
         '/// ヤマハ取込データ保存配列
         Private Structure ImportDataType
+            Dim hakkobi As String           '発行日
+            Dim hakkojikan As String        '発光時間
             Dim siyosha As String           '使用者
             Dim status As String            '品目ステータス
             Dim customeritemNo As String    '旧体系部品番号(客先品目No)
@@ -105,7 +108,7 @@ Namespace OMS.Data
             Dim hinmokugyoNo As String      '品目情報行番号
             Dim ordergyoNo As String        'オーダー情報行番号
         End Structure
-        Private m_ImpData() As ImportDataType
+        Private Shared m_ImpData() As ImportDataType
 
 
         Public Shared Function ResolveMapping(ByVal mappingRepo As MappingRepository,
@@ -253,7 +256,8 @@ Namespace OMS.Data
 
         End Function
 
-        Public Shared Function ParseImportFile(ByVal CustomerSettingId As Long,
+        Public Shared Function ParseImportFile(ByVal tran As OracleTransaction,
+                                               ByVal CustomerSettingId As Long,
                                                ByVal customerCode As String,
                                                ByVal impfilestageId As String,
                                                ByVal strWorkFile As String,
@@ -905,20 +909,179 @@ Namespace OMS.Data
 
 
                 Case "FIXED"
-                    '    '3:FIXED(固定長)
-                    '    'フェーズ2で実装
+                    '3:FIXED(固定長)
+                    'フェーズ2で実装
 
-                    '    '許可する拡張子のリスト（小文字で定義）
-                    '    Dim allowedExtensions As New List(Of String) From {".txt"}
+                    '許可する拡張子のリスト（小文字で定義）
+                    Dim allowedExtensions As New List(Of String) From {".txt"}
 
-                    '    'ファイルパスから拡張子を取得
-                    '    Dim fileExtension As String = Path.GetExtension(strWorkFile).ToLower()
+                    'ファイルパスから拡張子を取得
+                    Dim fileExtension As String = Path.GetExtension(strWorkFile).ToLower()
 
-                    '    '拡張子チェック
-                    '    If Not allowedExtensions.Contains(fileExtension) Then
-                    '        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　許可されていないファイル形式です。")
-                    '        Continue For
-                    '    End If
+                    '拡張子チェック
+                    If Not allowedExtensions.Contains(fileExtension) Then
+                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　許可されていないファイル形式です。")
+                        Return False
+                    End If
+
+                    Using StmRdr As New IO.StreamReader(strWorkFile, MapEncoding(mapResult.CharSet))
+
+                        'ヤマハ取込データ保存配列　初期化
+                        'Dim m_ImpData(0) As ImportDataType
+                        ReDim m_ImpData(0)
+
+                        Dim isFirstRow As Boolean = True ' 初回の要素追加判定用
+
+                        ' ヘッダ情報をループ内で保持するための退避用変数
+                        Dim currentHakkobi As String = ""
+                        Dim currentHakkojikan As String = ""
+
+                        ' 品目情報をループ内で保持するための退避用変数
+                        Dim currentYokibangou As String = ""
+                        Dim currentYokisyuuyousuu As String = ""
+                        Dim currentCustomeritemNo As String = ""
+                        Dim currentStatus As String = ""
+                        Dim currentNonyuplat As String = ""
+                        Dim currentSiyosha As String = ""
+                        Dim currentHinmokugyoNo As String = ""
+
+                        fileidx = 0
+
+                        '文字開始位置、文字数を指定する場合
+                        While Not StmRdr.EndOfStream
+
+                            Dim StrLine As String = StmRdr.ReadLine()
+                            fileidx += 1
+
+                            If Left(StrLine, 4) = "HEAD" Then
+                                'ヘッダ情報
+
+                                'ヘッダ情報を取込データから取得
+                                currentHakkobi = StrLine.Substring(5 - 1, 8).Trim()          '発行日
+                                currentHakkojikan = StrLine.Substring(13 - 1, 4).Trim()       '発行時刻
+
+                            ElseIf Left(StrLine, 4) = "TRAL" Then
+                                'EOF情報
+
+                            ElseIf Left(StrLine, 4) = "LE01" Then
+                                '品目情報
+
+                                '品目情報を取込データから取得
+                                currentSiyosha = StrLine.Substring(20 - 1, 4).Trim()          '使用者
+                                currentStatus = StrLine.Substring(24 - 1, 1).Trim()           '品目ステータス
+                                currentCustomeritemNo = StrLine.Substring(55 - 1, 14).Trim()  '旧体系部品番号(客先品目No)
+                                currentNonyuplat = StrLine.Substring(78 - 1, 4).Trim()        '納入プラットフォーム
+                                currentYokisyuuyousuu = StrLine.Substring(87 - 1, 5).Trim()   '容器収容数
+                                currentYokibangou = StrLine.Substring(92 - 1, 5).Trim()       '容器番号
+                                currentHinmokugyoNo = fileidx
+
+                                '品目情報の2行目は今のところ使用しない予定
+                                If Not StmRdr.EndOfStream Then
+                                    StmRdr.ReadLine()
+                                    fileidx += 1 ' 行数カウントの整合性を保つためにインクリメント
+                                End If
+
+                            Else
+                                'オーダ情報（1行の中にデータ1とデータ2が最大2つ格納されている）
+
+                                ' --------------------------------------------------
+                                ' 1つ目のオーダ情報データの処理
+                                ' --------------------------------------------------
+                                ' 変更区分1（データ1のキー項目など）が空でないか確認
+                                Dim HenkouKubun1 As String = StrLine.Substring(1 - 1, 1).Trim()
+
+                                If HenkouKubun1 <> "" Then
+
+                                    ' 初回のみ ReDim m_ImpData(0) をそのまま使い、2回目以降は配列を拡張する
+                                    If isFirstRow Then
+                                        isFirstRow = False
+                                    Else
+                                        ReDim Preserve m_ImpData(UBound(m_ImpData) + 1)
+                                    End If
+
+                                    'ヘッダ情報をセット
+                                    m_ImpData(UBound(m_ImpData)).hakkobi = currentHakkobi                                   '発行日
+                                    m_ImpData(UBound(m_ImpData)).hakkojikan = currentHakkojikan                             '発行時間
+
+                                    '品目情報をセット
+                                    m_ImpData(UBound(m_ImpData)).siyosha = currentSiyosha                                   '使用者
+                                    m_ImpData(UBound(m_ImpData)).status = currentStatus                                     '品目ステータス
+                                    m_ImpData(UBound(m_ImpData)).customeritemNo = currentCustomeritemNo                     '旧体系部品番号(客先品目No)
+                                    m_ImpData(UBound(m_ImpData)).nonyuplat = currentNonyuplat                               '納入プラットフォーム
+                                    m_ImpData(UBound(m_ImpData)).yokisyuuyousuu = currentYokisyuuyousuu                     '容器収容数
+                                    m_ImpData(UBound(m_ImpData)).yokibangou = currentYokibangou                             '容器番号
+
+                                    'オーダ情報を取込データから取得
+                                    m_ImpData(UBound(m_ImpData)).ordersikibetuNo = StrLine.Substring(3 - 1, 5).Trim()      'オーダー識別番号1
+                                    m_ImpData(UBound(m_ImpData)).nonyusijibi = StrLine.Substring(10 - 1, 8).Trim()         '納入指示日1
+                                    m_ImpData(UBound(m_ImpData)).nonyujikan = StrLine.Substring(18 - 1, 4).Trim()      '納入時間1
+                                    m_ImpData(UBound(m_ImpData)).nonyusijisu = StrLine.Substring(22 - 1, 6).Trim()         '納入指示数1
+                                    m_ImpData(UBound(m_ImpData)).cardkubun = StrLine.Substring(29 - 1, 1).Trim()           'カード区分1
+                                    m_ImpData(UBound(m_ImpData)).naijikubun = StrLine.Substring(30 - 1, 1).Trim()          '内示区分1
+                                    m_ImpData(UBound(m_ImpData)).icdenpyoNo = StrLine.Substring(33 - 1, 5).Trim()          'IC伝票No1
+                                    m_ImpData(UBound(m_ImpData)).nohinshoNo = StrLine.Substring(60 - 1, 15).Trim()         '納品書番号1
+
+                                    m_ImpData(UBound(m_ImpData)).hinmokugyoNo = currentHinmokugyoNo                        '品目情報行番号
+                                    m_ImpData(UBound(m_ImpData)).ordergyoNo = fileidx                                      'オーダー情報行番号
+
+                                End If
+
+                                ' --------------------------------------------------
+                                ' 2つ目のオーダデータの処理（データが存在する場合のみ格納）
+                                ' --------------------------------------------------
+                                ' 変更区分2が空文字でない、かつSubstringできる長さがあるか確認
+                                Dim HenkouKubun2 As String = ""
+                                If StrLine.Length >= 88 Then ' Substring(87 - 1, 1)がエラーにならない長さチェック
+                                    HenkouKubun2 = StrLine.Substring(87 - 1, 1).Trim()
+                                End If
+
+                                If HenkouKubun2 <> "" Then
+
+                                    ' データ2用に必ず配列を新しく1枠拡張する
+                                    If isFirstRow Then
+                                        isFirstRow = False
+                                    Else
+                                        ReDim Preserve m_ImpData(UBound(m_ImpData) + 1)
+                                    End If
+
+                                    'ヘッダ情報をセット
+                                    m_ImpData(UBound(m_ImpData)).hakkobi = currentHakkobi                                   '発行日
+                                    m_ImpData(UBound(m_ImpData)).hakkojikan = currentHakkojikan                             '発行時間
+
+                                    '品目情報をセット
+                                    m_ImpData(UBound(m_ImpData)).siyosha = currentSiyosha                                   '使用者
+                                    m_ImpData(UBound(m_ImpData)).status = currentStatus                                     '品目ステータス
+                                    m_ImpData(UBound(m_ImpData)).customeritemNo = currentCustomeritemNo                     '旧体系部品番号(客先品目No)
+                                    m_ImpData(UBound(m_ImpData)).nonyuplat = currentNonyuplat                               '納入プラットフォーム
+                                    m_ImpData(UBound(m_ImpData)).yokisyuuyousuu = currentYokisyuuyousuu                     '容器収容数
+                                    m_ImpData(UBound(m_ImpData)).yokibangou = currentYokibangou                             '容器番号
+
+                                    m_ImpData(UBound(m_ImpData)).ordersikibetuNo = StrLine.Substring(89 - 1, 5).Trim()     'オーダー識別番号2
+                                    m_ImpData(UBound(m_ImpData)).nonyusijibi = StrLine.Substring(96 - 1, 8).Trim()         '納入指示日2
+                                    m_ImpData(UBound(m_ImpData)).nonyujikan = StrLine.Substring(104 - 1, 4).Trim()     '納入時間2
+                                    m_ImpData(UBound(m_ImpData)).nonyusijisu = StrLine.Substring(108 - 1, 6).Trim()        '納入指示数2
+                                    m_ImpData(UBound(m_ImpData)).cardkubun = StrLine.Substring(115 - 1, 1).Trim()          'カード区分2
+                                    m_ImpData(UBound(m_ImpData)).naijikubun = StrLine.Substring(116 - 1, 1).Trim()         '内示区分2
+                                    m_ImpData(UBound(m_ImpData)).icdenpyoNo = StrLine.Substring(119 - 1, 5).Trim()         'IC伝票No2
+                                    m_ImpData(UBound(m_ImpData)).nohinshoNo = StrLine.Substring(146 - 1, 15).Trim()        '納品書番号2
+
+                                    m_ImpData(UBound(m_ImpData)).hinmokugyoNo = currentHinmokugyoNo                        '品目情報行番号
+                                    m_ImpData(UBound(m_ImpData)).ordergyoNo = fileidx                                      'オーダー情報行番号
+
+                                End If
+
+
+
+
+                            End If
+
+                        End While
+
+                    End Using
+
+                    'デバック用に取込したデータをワークテーブルに保存
+                    SaveImportDataToWorkTable(tran, m_ImpData, impfilestageId, newId, UserId, pgId)
+
 
                 Case "EXCEL"
                     '4:EXCEL LIST
@@ -1321,7 +1484,6 @@ Namespace OMS.Data
                                     fileidx += 1
                                     Continue For
                                 End If
-
 
 
                                 '-----------------
@@ -2563,18 +2725,21 @@ Namespace OMS.Data
         Private Shared Sub SaveImportDataToWorkTable(
             ByVal tran As OracleTransaction,
             ByVal impDataList() As ImportDataType,
-            ByVal impFileStageId As Long)
+            ByVal impFileStageId As Long,
+            ByVal newId As Integer,
+            ByVal UserId As String,
+            ByVal pgId As String)
 
             ' 配列が空、またはデータが1件もない場合は処理を抜ける
             If impDataList Is Nothing OrElse impDataList.Length = 0 Then Return
             ' 配列が初期化（0）のままで、かつ有効なデータが1件もセットされていなければスキップ
             If impDataList.Length = 1 AndAlso String.IsNullOrEmpty(impDataList(0).customeritemNo) Then Return
 
-            '前回の取込データをクリアする
-            Using delCmd As New OracleCommand("DELETE FROM yamaha_imp_orders_test", tran.Connection)
-                'delCmd.Transaction = tran
-                delCmd.ExecuteNonQuery()
-            End Using
+            ''前回の取込データをクリアする
+            'Using delCmd As New OracleCommand("DELETE FROM yamaha_imp_orders_test", tran.Connection)
+            '    'delCmd.Transaction = tran
+            '    delCmd.ExecuteNonQuery()
+            'End Using
 
             Dim nowTime As DateTime = DateTime.Now
 
@@ -2582,13 +2747,28 @@ Namespace OMS.Data
                         INSERT INTO yamaha_imp_orders_test (
                             imp_file_stage_id, hinmoku_gyo_no, order_gyo_no, siyosha, status, customer_item_no, nonyuplat,
                             yokisyuuyousuu, yokibangou, ordersikibetu_no, nonyusijibi, nonyujikan,
-                            nonyusijisu, cardkubun, naijikubun, icdenpyo_no, nohinsho_no, created_at
+                            nonyusijisu, cardkubun, naijikubun, icdenpyo_no, nohinsho_no,
+                            publication_date, publication_time, imp_run_id, active_flag,
+                            created_at, created_user_id, created_pg_id
                         ) VALUES (
-                            :p_file_id, :p_hinmoku_gyo_no, :p_order_gyo_no, :p_siyosha, :p_status, :p_item_no, :p_plat,
-                            :p_suu, :p_ban, :p_shikibetu, :p_jibi, :p_jikan,
-                            :p_sijisu, :p_card, :p_naiji, :p_ic, :p_nohin, :p_created
-                        )
-                    "
+                            :p_imp_file_stage_id, :p_hinmoku_gyo_no, :p_order_gyo_no, :p_siyosha, :p_status, :p_customer_item_no, :p_nonyuplat,
+                            :p_yokisyuuyousuu, :p_yokibangou, :p_ordersikibetu_no, :p_nonyusijibi, :p_nonyujikan,
+                            :p_nonyusijisu, :p_cardkubun, :p_naijikubun, :p_icdenpyo_no, :p_nohinsho_no,
+                            :p_publication_date, :p_publication_time, :p_imp_run_id, :p_active_flag,
+                            :p_created_at, :p_created_user_id, :p_created_pg_id
+                        )"
+            'Dim sql As String = "
+            '            INSERT INTO yamaha_imp_orders_test (
+            '                imp_file_stage_id, hinmoku_gyo_no, order_gyo_no, siyosha, status, customer_item_no, nonyuplat,
+            '                yokisyuuyousuu, yokibangou, ordersikibetu_no, nonyusijibi, nonyujikan,
+            '                nonyusijisu, cardkubun, naijikubun, icdenpyo_no, nohinsho_no,
+            '                publication_date, publication_time
+            '            ) VALUES (
+            '                :p_imp_file_stage_id, :p_hinmoku_gyo_no, :p_order_gyo_no, :p_siyosha, :p_status, :p_customer_item_no, :p_nonyuplat,
+            '                :p_yokisyuuyousuu, :p_yokibangou, :p_ordersikibetu_no, :p_nonyusijibi, :p_nonyujikan,
+            '                :p_nonyusijisu, :p_cardkubun, :p_naijikubun, :p_icdenpyo_no, :p_nohinsho_no,
+            '                :p_publication_date, :p_publication_time
+            '            )"
 
             Using cmd As New OracleCommand(sql, tran.Connection)
                 'cmd.Transaction = tran
@@ -2598,44 +2778,60 @@ Namespace OMS.Data
                 cmd.Parameters.Clear()
 
                 ' 処理高速化のため、ループ外で一度だけ型を定義
-                cmd.Parameters.Add("p_file_id", OracleDbType.Int64)
+                cmd.Parameters.Add("p_imp_file_stage_id", OracleDbType.Int64)
                 cmd.Parameters.Add("p_hinmoku_gyo_no", OracleDbType.Int32)
                 cmd.Parameters.Add("p_order_gyo_no", OracleDbType.Int32)
                 cmd.Parameters.Add("p_siyosha", OracleDbType.Varchar2)
                 cmd.Parameters.Add("p_status", OracleDbType.Varchar2)
-                cmd.Parameters.Add("p_item_no", OracleDbType.Varchar2)
-                cmd.Parameters.Add("p_plat", OracleDbType.Varchar2)
-                cmd.Parameters.Add("p_suu", OracleDbType.Int32)
-                cmd.Parameters.Add("p_ban", OracleDbType.Varchar2)
-                cmd.Parameters.Add("p_shikibetu", OracleDbType.Varchar2)
-                cmd.Parameters.Add("p_jibi", OracleDbType.Varchar2)
-                cmd.Parameters.Add("p_jikan", OracleDbType.Varchar2)
-                cmd.Parameters.Add("p_sijisu", OracleDbType.Int32)
-                cmd.Parameters.Add("p_card", OracleDbType.Varchar2)
-                cmd.Parameters.Add("p_naiji", OracleDbType.Varchar2)
-                cmd.Parameters.Add("p_ic", OracleDbType.Varchar2)
-                cmd.Parameters.Add("p_nohin", OracleDbType.Varchar2)
-                cmd.Parameters.Add("p_created", OracleDbType.Date).Value = nowTime
+                cmd.Parameters.Add("p_customer_item_no", OracleDbType.Varchar2)
+                cmd.Parameters.Add("p_nonyuplat", OracleDbType.Varchar2)
+                cmd.Parameters.Add("p_yokisyuuyousuu", OracleDbType.Int32)
+                cmd.Parameters.Add("p_yokibangou", OracleDbType.Varchar2)
+                cmd.Parameters.Add("p_ordersikibetu_no", OracleDbType.Varchar2)
+                cmd.Parameters.Add("p_nonyusijibi", OracleDbType.Varchar2)
+                cmd.Parameters.Add("p_nonyujikan", OracleDbType.Varchar2)
+                cmd.Parameters.Add("p_nonyusijisu", OracleDbType.Int32)
+                cmd.Parameters.Add("p_cardkubun", OracleDbType.Varchar2)
+                cmd.Parameters.Add("p_naijikubun", OracleDbType.Varchar2)
+                cmd.Parameters.Add("p_icdenpyo_no", OracleDbType.Varchar2)
+                cmd.Parameters.Add("p_nohinsho_no", OracleDbType.Varchar2)
+
+                cmd.Parameters.Add("p_publication_date", OracleDbType.Date)
+                cmd.Parameters.Add("p_publication_time", OracleDbType.Int32)
+                cmd.Parameters.Add("p_imp_run_id", OracleDbType.Long)
+                cmd.Parameters.Add("p_active_flag", OracleDbType.Char, 1)
+                cmd.Parameters.Add("p_created_at", OracleDbType.Date)
+                cmd.Parameters.Add("p_created_user_id", OracleDbType.Varchar2, 9)
+                cmd.Parameters.Add("p_created_pg_id", OracleDbType.Varchar2, 150)
 
                 ' 配列の全要素をループしてインサートを実行
                 For i As Integer = 0 To UBound(impDataList)
-                    cmd.Parameters("p_file_id").Value = impFileStageId
+                    cmd.Parameters("p_imp_file_stage_id").Value = impFileStageId
                     cmd.Parameters("p_hinmoku_gyo_no").Value = impDataList(i).hinmokugyoNo
                     cmd.Parameters("p_order_gyo_no").Value = impDataList(i).ordergyoNo
                     cmd.Parameters("p_siyosha").Value = impDataList(i).siyosha
                     cmd.Parameters("p_status").Value = impDataList(i).status
-                    cmd.Parameters("p_item_no").Value = impDataList(i).customeritemNo
-                    cmd.Parameters("p_plat").Value = impDataList(i).nonyuplat
-                    cmd.Parameters("p_suu").Value = If(String.IsNullOrEmpty(impDataList(i).yokisyuuyousuu), DBNull.Value, Convert.ToInt32(impDataList(i).yokisyuuyousuu))
-                    cmd.Parameters("p_ban").Value = impDataList(i).yokibangou
-                    cmd.Parameters("p_shikibetu").Value = impDataList(i).ordersikibetuNo
-                    cmd.Parameters("p_jibi").Value = impDataList(i).nonyusijibi
-                    cmd.Parameters("p_jikan").Value = impDataList(i).nonyujikan
-                    cmd.Parameters("p_sijisu").Value = If(String.IsNullOrEmpty(impDataList(i).nonyusijisu), DBNull.Value, Convert.ToInt32(impDataList(i).nonyusijisu))
-                    cmd.Parameters("p_card").Value = impDataList(i).cardkubun
-                    cmd.Parameters("p_naiji").Value = impDataList(i).naijikubun
-                    cmd.Parameters("p_ic").Value = impDataList(i).icdenpyoNo
-                    cmd.Parameters("p_nohin").Value = impDataList(i).nohinshoNo
+                    cmd.Parameters("p_customer_item_no").Value = impDataList(i).customeritemNo
+                    cmd.Parameters("p_nonyuplat").Value = impDataList(i).nonyuplat
+                    cmd.Parameters("p_yokisyuuyousuu").Value = If(String.IsNullOrEmpty(impDataList(i).yokisyuuyousuu), DBNull.Value, Convert.ToInt32(impDataList(i).yokisyuuyousuu))
+                    cmd.Parameters("p_yokibangou").Value = impDataList(i).yokibangou
+                    cmd.Parameters("p_ordersikibetu_no").Value = impDataList(i).ordersikibetuNo
+                    cmd.Parameters("p_nonyusijibi").Value = impDataList(i).nonyusijibi
+                    cmd.Parameters("p_nonyujikan").Value = impDataList(i).nonyujikan
+                    cmd.Parameters("p_nonyusijisu").Value = If(String.IsNullOrEmpty(impDataList(i).nonyusijisu), DBNull.Value, Convert.ToInt32(impDataList(i).nonyusijisu))
+                    cmd.Parameters("p_cardkubun").Value = impDataList(i).cardkubun
+                    cmd.Parameters("p_naijikubun").Value = impDataList(i).naijikubun
+                    cmd.Parameters("p_icdenpyo_no").Value = impDataList(i).icdenpyoNo
+                    cmd.Parameters("p_nohinsho_no").Value = impDataList(i).nohinshoNo
+
+                    cmd.Parameters("p_publication_date").Value = Date.ParseExact(impDataList(i).hakkobi, "yyyyMMdd", Nothing)
+                    cmd.Parameters("p_publication_time").Value = impDataList(i).hakkojikan
+                    cmd.Parameters("p_imp_run_id").Value = newId
+                    cmd.Parameters("p_active_flag").Value = "Y"
+                    cmd.Parameters("p_created_at").Value = nowTime
+                    cmd.Parameters("p_created_user_id").Value = SafeVarchar(UserId, 9)
+                    cmd.Parameters("p_created_pg_id").Value = SafeVarchar(pgId, 150)
+
 
                     cmd.ExecuteNonQuery()
                 Next

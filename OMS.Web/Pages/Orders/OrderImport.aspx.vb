@@ -688,6 +688,7 @@ Namespace Pages.Orders
 
                                 '取込ファイルからデータを取得する処理
                                 OMS.Data.OrderStageImport.ParseImportFile(
+                                                            tran,
                                                             customerSettingId,
                                                             customerCode,
                                                             impfilestageId,
