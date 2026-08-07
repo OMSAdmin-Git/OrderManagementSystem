@@ -718,11 +718,16 @@ Namespace Pages.Orders
                                 'ORDERS_STAGEテーブルへ登録処理
                                 '---------------------------------
                                 Dim importResult As OMS.Data.OrderStageImport =
-                                                        OMS.Data.OrderStageImport.Orders_Saved(
+                                                        OMS.Data.OrderStageImport.OrdersStageSaved(
                                                             tran,
                                                             customerSettingId,
+                                                            impfilestageId,
                                                             folderType,
+                                                            reconcileFlag,
+                                                            fcstreconcileFlag,
                                                             blnHandFlag,
+                                                            UserId,
+                                                            pgId,
                                                             rowsForTemp2
                                     )
 
@@ -1124,10 +1129,10 @@ Namespace Pages.Orders
                                             ' 実移動（同一ボリューム/別ボリュームどちらでもOK）
                                             File.Move(srcPath, destPath)
 
-                                            '取込ファイルワークテーブルを削除する
-                                            _impFileStageRepo.DeleteImpFileStageRange(tran, impFileStageId)
+                                            ''取込ファイルワークテーブルを削除する
+                                            '_impFileStageRepo.DeleteImpFileStageRange(tran, impFileStageId)
 
-                                            resultCnt += 1
+                                            'resultCnt += 1
 
                                             'foundInThisCustomer = True
 
@@ -1156,6 +1161,10 @@ Namespace Pages.Orders
 
                                 'resultCnt += 1
 
+                                '取込ファイルワークテーブルを削除する
+                                _impFileStageRepo.DeleteImpFileStageRange(tran, impFileStageId)
+
+                                'resultCnt += 1
 
                                 If ErrFlg = False Then
 
@@ -1165,19 +1174,24 @@ Namespace Pages.Orders
 
                                     'resultCnt += 1
                                     'resultRowCnt += cnt
+
+                                    resultCnt += cnt
+
                                 End If
 
+                                'If tran IsNot Nothing Then
+                                '    If ErrFlg = True Then
+                                '        'ロールバック
+                                '        tran.Rollback()
+                                '    Else
+                                '        'コミット
+                                '        tran.Commit()
 
-                                If tran IsNot Nothing Then
-                                    If ErrFlg = True Then
-                                        'ロールバック
-                                        tran.Rollback()
-                                    Else
-                                        'コミット
-                                        tran.Commit()
-                                        'tran.Rollback()
-                                    End If
-                                End If
+                                '    End If
+                                'End If
+
+                                'コミット
+                                tran.Commit()
 
                             Catch ex As Exception
 
@@ -1210,9 +1224,9 @@ Namespace Pages.Orders
                 'lblSaveResult.Text = "破棄：対象データを破棄しました。"
                 lblImportResult.Text &= $"（IMP_FILES_STAGE 破棄 {resultCnt} 件）"
 
-                'グリッド再描画
-                gvImpFilesStage_Init()
-                gvImportOrder_Init()
+                ''グリッド再描画
+                'gvImpFilesStage_Init()
+                'gvImportOrder_Init()
 
             Else
                 If errors.Count = 0 Then
@@ -1235,8 +1249,8 @@ Namespace Pages.Orders
             End If
 
             'グリッド再描画
-            'gvImpFilesStage_Init()
-            'gvImportOrder_Init()
+            gvImpFilesStage_Init()
+            gvImportOrder_Init()
 
             'lblImportResult.Text = ""
             'lblImportError.Text = ""

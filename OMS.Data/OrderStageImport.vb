@@ -258,16 +258,16 @@ Namespace OMS.Data
         End Function
 
         Public Shared Function ParseImportFileY(ByVal CustomerSettingId As Long,
-                                               ByVal customerCode As String,
-                                               ByRef ErrFlg As Boolean,
-                                               ByRef ErrFileFlg As Boolean,
-                                               ByRef errcnt As Integer,
-                                               ByVal FolderType As Integer,
-                                               ByVal UserId As String,
-                                               ByVal pgId As String,
-                                               ByVal errors As List(Of String),
-                                               ByVal rowsForTemp2 As List(Of OrdersStageRow),
-                                               ByVal mapResult As OrderStageImport.MappingResult) As Boolean
+                                                ByVal customerCode As String,
+                                                ByRef ErrFlg As Boolean,
+                                                ByRef ErrFileFlg As Boolean,
+                                                ByRef errcnt As Integer,
+                                                ByVal FolderType As Integer,
+                                                ByVal UserId As String,
+                                                ByVal pgId As String,
+                                                ByVal errors As List(Of String),
+                                                ByVal rowsForTemp2 As List(Of OrdersStageRow),
+                                                ByVal mapResult As OrderStageImport.MappingResult) As Boolean
 
 
 
@@ -300,7 +300,7 @@ Namespace OMS.Data
         Public Shared Function ParseImportFile(ByVal tran As OracleTransaction,
                                                ByVal CustomerSettingId As Long,
                                                ByVal customerCode As String,
-                                               ByVal impfilestageId As String,
+                                               ByVal impfilestageId As Long,
                                                ByVal strWorkFile As String,
                                                ByVal TorikomiFile As String,
                                                ByRef ErrFlg As Boolean,
@@ -2496,10 +2496,15 @@ Namespace OMS.Data
 
         End Function
 
-        Public Shared Function Orders_Saved(ByVal tran As OracleTransaction,
+        Public Shared Function OrdersStageSaved(ByVal tran As OracleTransaction,
                                             ByVal CustomerSettingId As Long,
+                                            ByVal impfilestageId As Long,
                                             ByVal FolderType As Integer,
+                                            ByVal ReconcileFlag As String,
+                                            ByVal FcstReconcileFlag As String,
                                             ByVal blnHandFlag As Boolean,
+                                            ByVal UserId As String,
+                                            ByVal pgId As String,
                                             ByVal rowsForTemp2 As List(Of OrdersStageRow)) As OrderStageImport
 
             Dim _oderStageRepo As New OrderStageRepository(Utils.GetConnectionString())
@@ -2508,6 +2513,11 @@ Namespace OMS.Data
             Dim result As New OrderStageImport()
 
             Dim cnt As Integer = 0
+
+            Dim ReconcileType As Integer = 1
+            If rowsForTemp2.Count > 0 Then
+                ReconcileType = rowsForTemp2(0).ReconcileType
+            End If
 
             '-----------------
             '受注ワーク削除 ※customerSettingId、folderType単位で削除
@@ -2521,8 +2531,7 @@ Namespace OMS.Data
 
             result.InsertedCount = cnt
 
-            'If cnt > 0 Then
-            If result.InsertedCount > 0 Then
+            If cnt > 0 Then
 
 
                 '-----------------------------------------------
@@ -2537,12 +2546,12 @@ Namespace OMS.Data
 
                 Dim rowsForTemp3 = New List(Of ImpFilesStageRow) From {
                                                         New ImpFilesStageRow With {
-                                                            .ImpFileStageId = result.ImpFileStageId,
+                                                            .ImpFileStageId = impfilestageId,
                                                             .HandFlag = strHandFlag,
                                                             .Status = "PARSED",
                                                             .UpdatedAt = Now,
-                                                            .UpdatedUserId = result.UserId,
-                                                            .UpdatedPgId = result.PgId
+                                                            .UpdatedUserId = UserId,
+                                                            .UpdatedPgId = pgId
                                                             }
                                                         }
 
@@ -2561,10 +2570,10 @@ Namespace OMS.Data
                 'ORDER_STAGEにORDERSのレコード追加
                 rowsForTemp2 = New List(Of OrdersStageRow) From {
                                         New OrdersStageRow With {
-                                            .CustomerSettingId = result.CustomerSettingId
+                                            .CustomerSettingId = CustomerSettingId
                                         }
                                     }
-                _oderStageRepo.InsertStageFromOrders(tran, result.CustomerSettingId)
+                _oderStageRepo.InsertStageFromOrders(tran, CustomerSettingId)
                 '-----------------------------------------------
 
 
@@ -2574,34 +2583,34 @@ Namespace OMS.Data
                 '内示加工
                 '--------
                 '今回取込した内示データの抽出
-                Dim dtNaiji As DataTable = _oderStageRepo.GetNaijiData(tran, result.ImpFileStageId)
+                Dim dtNaiji As DataTable = _oderStageRepo.GetNaijiData(tran, impfilestageId)
 
                 '今回取込した内示データの件数をチェック
                 If dtNaiji.Rows.Count > 0 Then
 
                     '内示洗い替え
-                    _oderStageRepo.ReplaceNaijiRelation(tran, result.ImpFileStageId, result.CustomerSettingId, Now, result.UserId, result.PgId)
+                    _oderStageRepo.ReplaceNaijiRelation(tran, impfilestageId, CustomerSettingId, Now, UserId, pgId)
 
                     'ステータス更新
-                    _oderStageRepo.UpdateNaijiStatusProcessed(tran, result.ImpFileStageId)
+                    _oderStageRepo.UpdateNaijiStatusProcessed(tran, impfilestageId)
 
 
 
                     '2026/05/26 酒井 フェーズ2 受注残対応
                     '受注残加工
                     '消込フラグをチェック
-                    If result.ReconcileFlag = "Y" Then
+                    If ReconcileFlag = "Y" Then
 
                         '--------------------------------
                         '受注残消込
                         '--------------------------------
                         _oderStageRepo.BacklogForecast(tran,
-                                                                            result.CustomerSettingId,
-                                                                            result.ImpFileStageId,
-                                                                            result.ReconcileType,
-                                                                            Now,
-                                                                            result.UserId,
-                                                                            result.PgId)
+                                                       CustomerSettingId,
+                                                       impfilestageId,
+                                                       ReconcileType,
+                                                       Now,
+                                                       UserId,
+                                                       pgId)
 
                     End If
                     '--
@@ -2622,29 +2631,29 @@ Namespace OMS.Data
                 '--------
 
                 '打切処理
-                _oderStageRepo.UpdateClese(tran, result.ImpFileStageId, 2)
+                _oderStageRepo.UpdateClese(tran, impfilestageId, 2)
 
                 '取消処理
-                _oderStageRepo.UpdateCancel(tran, result.ImpFileStageId, 2)
+                _oderStageRepo.UpdateCancel(tran, impfilestageId, 2)
 
 
                 '確定データ無効化
                 _oderStageRepo.ReplaceKakuteiRelation(tran,
-                                                                            result.CustomerSettingId,
-                                                                            result.ImpFileStageId,
-                                                                            Now,
-                                                                            result.UserId,
-                                                                            result.PgId)
+                                                      CustomerSettingId,
+                                                      impfilestageId,
+                                                      Now,
+                                                      UserId,
+                                                      pgId)
 
                 'デバック用
                 'tran.Commit()
                 'Exit Sub
 
                 '消込フラグをチェック
-                If result.ReconcileFlag = "Y" Then
+                If ReconcileFlag = "Y" Then
 
                     '確定の抽出
-                    Dim dtKakutei As DataTable = _oderStageRepo.GetKakuteiData(tran, result.ImpFileStageId)
+                    Dim dtKakutei As DataTable = _oderStageRepo.GetKakuteiData(tran, impfilestageId)
 
                     If dtKakutei.Rows.Count > 0 Then
 
@@ -2652,13 +2661,13 @@ Namespace OMS.Data
                         '確定データで内示消込
                         '--------------------------------
                         _oderStageRepo.ReconcileForecast(tran,
-                                                                                result.CustomerSettingId,
-                                                                                result.ImpFileStageId,
-                                                                                2,
-                                                                                result.ReconcileType,
-                                                                                Now,
-                                                                                result.UserId,
-                                                                                result.PgId)
+                                                         CustomerSettingId,
+                                                         impfilestageId,
+                                                         2,
+                                                         ReconcileType,
+                                                         Now,
+                                                         UserId,
+                                                         pgId)
 
                     End If
 
@@ -2667,7 +2676,7 @@ Namespace OMS.Data
                 '--------------------------------
                 '確定 新規
                 '--------------------------------
-                _oderStageRepo.UpdateKakuteiNewOrders(tran, result.ImpFileStageId)
+                _oderStageRepo.UpdateKakuteiNewOrders(tran, impfilestageId)
 
                 '-----------------------------------------------
 
@@ -2681,13 +2690,13 @@ Namespace OMS.Data
                 '--------
 
                 '打切処理
-                _oderStageRepo.UpdateClese(tran, result.ImpFileStageId, 3)
+                _oderStageRepo.UpdateClese(tran, impfilestageId, 3)
 
                 '取消処理
-                _oderStageRepo.UpdateCancel(tran, result.ImpFileStageId, 3)
+                _oderStageRepo.UpdateCancel(tran, impfilestageId, 3)
 
                 '消込フラグをチェック
-                If result.ReconcileFlag = "Y" Then
+                If ReconcileFlag = "Y" Then
 
 
                     '--------------------------------
@@ -2695,17 +2704,17 @@ Namespace OMS.Data
                     '--------------------------------
                     '受注消込(客先発注No)
                     _oderStageRepo.ExecuteOrderReconciliationByOrderNo(tran,
-                                                                                            result.CustomerSettingId,
-                                                                                            result.ImpFileStageId,
-                                                                                            Now,
-                                                                                            result.UserId,
-                                                                                            result.PgId)
+                                                                       CustomerSettingId,
+                                                                       impfilestageId,
+                                                                       Now,
+                                                                       UserId,
+                                                                       pgId)
 
                     '内示消込フラグをチェック
-                    If result.FcstReconcileFlag = "Y" Then
+                    If FcstReconcileFlag = "Y" Then
 
                         '納入指示注文の抽出
-                        Dim dtNonyuSiji As DataTable = _oderStageRepo.GetNonyuSijiData(tran, result.ImpFileStageId)
+                        Dim dtNonyuSiji As DataTable = _oderStageRepo.GetNonyuSijiData(tran, impfilestageId)
 
                         If dtNonyuSiji.Rows.Count > 0 Then
 
@@ -2717,13 +2726,13 @@ Namespace OMS.Data
                             '納入指示データで内示消込
                             '--------------------------------
                             _oderStageRepo.ReconcileForecast(tran,
-                                                                                    result.CustomerSettingId,
-                                                                                    result.ImpFileStageId,
-                                                                                    3,
-                                                                                    result.ReconcileType,
-                                                                                    Now,
-                                                                                    result.UserId,
-                                                                                    result.PgId)
+                                                             CustomerSettingId,
+                                                             impfilestageId,
+                                                             3,
+                                                             ReconcileType,
+                                                             Now,
+                                                             UserId,
+                                                             pgId)
 
                         End If
 
@@ -2734,7 +2743,7 @@ Namespace OMS.Data
                 '--------------------------------
                 '納入指示 新規
                 '--------------------------------
-                _oderStageRepo.UpdateNonyuSijiNewOrders(tran, result.ImpFileStageId)
+                _oderStageRepo.UpdateNonyuSijiNewOrders(tran, impfilestageId)
 
                 '-----------------------------------------------
 
@@ -2780,13 +2789,39 @@ Namespace OMS.Data
             ' 配列が初期化（0）のままで、かつ有効なデータが1件もセットされていなければスキップ
             If impDataList.Length = 1 AndAlso String.IsNullOrEmpty(impDataList(0).customeritemNo) Then Return
 
-            ''前回の取込データをクリアする
-            'Using delCmd As New OracleCommand("DELETE FROM yamaha_imp_orders_test", tran.Connection)
-            '    'delCmd.Transaction = tran
-            '    delCmd.ExecuteNonQuery()
-            'End Using
-
             Dim nowTime As DateTime = DateTime.Now
+
+            '前回の取込データを一旦すべて無効化する(active_flag = 'N')
+            Dim updateSql As String = "
+                    UPDATE yamaha_imp_orders_test
+                    SET active_flag = 'N'
+                    WHERE active_flag = 'Y'
+                      AND created_at < :p_now_time
+                      AND customer_code = :p_customer_code
+                      AND publication_date = :p_publication_date
+                      AND publication_time = :p_publication_time
+                      AND customer_item_no = :p_customer_item_no"
+
+            Using updCmd As New OracleCommand(updateSql, tran.Connection)
+                updCmd.BindByName = True
+                updCmd.CommandType = CommandType.Text
+
+                updCmd.Parameters.Add("p_now_time", OracleDbType.Date)
+                updCmd.Parameters.Add("p_customer_code", OracleDbType.Varchar2, 25)
+                updCmd.Parameters.Add("p_publication_date", OracleDbType.Date)
+                updCmd.Parameters.Add("p_publication_time", OracleDbType.Int32)
+                updCmd.Parameters.Add("p_customer_item_no", OracleDbType.Varchar2)
+
+                For i As Integer = 0 To UBound(impDataList)
+                    updCmd.Parameters("p_now_time").Value = nowTime
+                    updCmd.Parameters("p_customer_code").Value = SafeVarchar(impDataList(i).customercode, 25)
+                    updCmd.Parameters("p_publication_date").Value = Date.ParseExact(impDataList(i).hakkobi, "yyyyMMdd", Nothing)
+                    updCmd.Parameters("p_publication_time").Value = impDataList(i).hakkojikan
+                    updCmd.Parameters("p_customer_item_no").Value = impDataList(i).customeritemNo
+
+                    updCmd.ExecuteNonQuery()
+                Next
+            End Using
 
             Dim sql As String = "
                         INSERT INTO yamaha_imp_orders_test (
