@@ -1,6 +1,7 @@
 ﻿
 Imports System.ComponentModel
 Imports System.Data
+Imports System.IO
 Imports System.Runtime.Remoting.Metadata.W3cXsd2001
 Imports System.Text
 Imports DocumentFormat.OpenXml.Drawing.Charts
@@ -4582,7 +4583,7 @@ Namespace OMS.Data
         End Function
 
         ''' <summary>
-        ''' Yamaha robotex 内示/確定 ファイル読み込み
+        ''' Yamaha robotex 内示/確定/ASTI 内示 ファイル読み込み
         ''' </summary>
         ''' <param name="filename"></param>
         ''' <returns></returns>
@@ -4601,23 +4602,17 @@ Namespace OMS.Data
             Dim runRepo = impRunRepo.GetImpRun(conn, tran, status:="RUNNING", startedUserId:=userID)
             Dim impRunId = Long.Parse(runRepo.Rows(0).Item("ImpRunId").ToString())
             Dim stardedAt = Date.Parse(runRepo.Rows(0).Item("StartedAt").ToString())
-            ' Yamaha robotex field
-            '                   内示     確定
-            '部品番号           〇       〇
-            '部品名称           〇       〇
-            '納入指示日         〇       〇
-            '納入指示数         〇       〇
-            'オーダーＮｏ       --       〇
-            '納入場所           --       〇
-            '支給先             --       〇
-            'カード発行日       --       〇
-            '発注理由           --       〇
-            '特注管理No         --       〇
-            '長期内示           〇       --
+
+            ' ファイル形式確認
+            Dim ft = YamahaRobotexFileCheck(filename)
+
+            ' ファイル読み込み ASTI 追加内示フォーマット変換
+            Dim dt = CreateNewDataSetFromCsv(filename, ft)
+
             Dim unofficialNoticeCount = 5   ' 内示 Field 数
             Dim confirmedCount = 10         ' 確定 Field 数
             Dim sysDate = DateTime.Now      ' システム日付
-            Dim dt = Utils.ConvertCsvToDataTable(filename)
+            'Dim dt = Utils.ConvertCsvToDataTable(filename)
             Dim ordersStage As New List(Of OrdersStageRow)
             For Each row As DataRow In dt.Rows
                 Dim order = New OrdersStageRow
@@ -4632,6 +4627,10 @@ Namespace OMS.Data
                 Dim orderType As Integer = folderType
                 Dim proratedType As Integer = 1
                 Dim reconciletype As String = ""
+                Dim calType = "00001"
+                Dim dtcvt As DateTime = DateTime.ParseExact(row.ItemArray("希望納期"), "yyyyMMdd", Nothing)
+                Dim FirstWorkingDay = calen.GetFirstWorkingDay(calType, dtcvt)
+
                 ' Field 検索
                 If (GetShipTo(customerCode, deliverycode, shipto, errMsg) = False) Then
                     errors = errors & errMsg & vbCrLf
@@ -4667,7 +4666,7 @@ Namespace OMS.Data
                 order.ProductCode = productCode             '/ PRDSLSODRM.FPRDCD(品目No)
                 order.BillingStandard = "S"                 '/'S' 固定値
                 'order.DeliveryInstrFlag = / 納入指示('Y') 以外('N')
-                order.Remarks = ""
+                'order.Remarks = ""
                 order.DeliveryCode = "0001"                 '/0001 '固定値
                 order.TransportMethod = 2                   '/ 2 固定値
                 order.ImpFileStageId = impfilestageId       'IMP_FILES_STAGE.IMP_FILE_STAGE_ID
@@ -4675,36 +4674,60 @@ Namespace OMS.Data
                 order.ProratedType = proratedType           '/ 日割り(1)
                 order.CustomerInfoType = Nothing            'null
                 order.InfoType = Nothing                    ' null
-                order.SelfFcstDeleteFlag = "N"              '/'N'
+                'order.SelfFcstDeleteFlag = "N"              '/'N'
                 order.ReconcileType = reconciletype         'IMP_RULE_MST.RECONCILE_TYPE
                 order.ImpRunId = impRunId                   'IMP_RUN.IMP_RUN_ID
                 order.CreatedAt = stardedAt                 'IMP_RUN.STARTED_AT
                 order.CreatedUserId = userID                'ログイン情報
                 '-----------------------------------------------
-                'order.Status =/'IMPORTED' 固定値
-                'order.ActiveFlag =/'Y' 固定値
-                'order.CreatedPgId ='OrderImport(Execute)' 固定値
-                'order.UpdatedAt = IMP_RUN.STARTED_AT
-                'order.UpdatedUserId = ログイン情報
-                'order.UpdatedPgId ='OrderImport(Execute)' 固定値
+                'customerCode
+                order.CustomerOrderNo = If(ft = YamahaRobotexType.UnofficialNotice, FirstWorkingDay, row("客先発注No"))
+                'order.OrderDate = DateTime.ParseExact(row("受注日"), "yyyyMMdd", Nothing)
+                order.DueDate = DateTime.ParseExact(row("希望納期"), "yyyyMMdd", Nothing)
+                order.CustomerItemNo = row("製品コード")
+                order.DemandQty = Long.Parse(row("需要数"))
+                'order.CurrencyCode
+                'order.ProductCode
+                'order.DeliveryCode
+                'order.ProratedType
+                'order.OrderType
+                order.Remarks = row("コメント")
+                'order.InfoType
+                order.SelfFcstFlag = row("ASTI追加内示フラグ")
+                order.SelfFcstDeleteFlag = row("ASTI追加内示削除フラグ")
 
+                'order.DemandStatus = 内示('F') 内示以外('O')
+                'order.ShipProcessType = / 内示('O') 確定('E') 以外('K')
+                'order.TotalShipQty = / 内示(なし) 以外(0)
+                order.PreDailyOrderQty = order.DemandQty '3.需要数
+                order.PreDailyDeliveryDate = order.DueDate '2.日付
+
+                order.Status = "IMPORTED" ' 固定値
+                order.ActiveFlag = "Y" '固定値
+                order.CreatedPgId = "OrderImport(Execute)" ' 固定値
+                order.UpdatedAt = stardedAt
+                order.UpdatedUserId = userID
+                order.UpdatedPgId = "OrderImport(Execute)" ' 固定値
+#If False Then
                 ' 内示
                 If (unofficialNoticeCount = dt.Columns.Count) Then
                     '[内示変換後]
                     '0.部品番号
                     '1.部品名称
-                    '2.日付
+                    '2.希望納期
                     '3.需要数
-                    '4.長期受注
+                    '4.ASTI追加内示フラグ
+                    '5.ASTI追加内示削除フラグ
 
                     ' その月の先頭稼働日を取得する
                     Dim calType = "00001"
                     Dim dtcvt As DateTime = DateTime.ParseExact(row.ItemArray(2), "yyyyMMdd", Nothing)
                     Dim FirstWorkingDay = calen.GetFirstWorkingDay(calType, dtcvt)
-                    order.DueDate = FirstWorkingDay         '2.日付
-                    order.CustomerItemNo = row.ItemArray(0) '0.部品番号
-                    order.DemandQty = row.ItemArray(3)      '3.需要数
-                    order.SelfFcstFlag = row.ItemArray(4)   '4.長期受注
+                    order.DueDate = FirstWorkingDay             '2.希望納期
+                    order.CustomerItemNo = row.ItemArray(0)     '0.部品番号
+                    order.DemandQty = row.ItemArray(3)          '3.需要数
+                    order.SelfFcstFlag = row.ItemArray(4)       '4.ASTI追加内示フラグ
+                    order.SelfFcstDeleteFlag = row.ItemArray(5) '5.ASTI追加内示フラグ
                     '---------------------------------------
                     order.CustomerOrderNo = FirstWorkingDay '月 + 先頭稼働日
                     'order.DemandStatus = 内示('F') 内示以外('O')
@@ -4712,7 +4735,7 @@ Namespace OMS.Data
                     'order.TotalShipQty = / 内示(なし) 以外(0)
                     order.PreDailyOrderQty = order.DemandQty '3.需要数
                     order.PreDailyDeliveryDate = order.DueDate '2.日付
-                    ordersStage.Add(order)
+                    ordersStage.A dd(order)
 
                     ' 確定
                 ElseIf (confirmedCount = dt.Columns.Count) Then
@@ -4746,6 +4769,7 @@ Namespace OMS.Data
                 Else
 
                 End If
+#End If
             Next
 
             If (rt = "") Then
@@ -4753,6 +4777,46 @@ Namespace OMS.Data
                 rt = InsertRange(conn, tran, OrdersTable.Orders, ordersStage)
             End If
             Return rt
+        End Function
+
+        ''' <summary>
+        ''' ファイル名（パス）からYamaha robotex 内示ファイルの種類を判定します
+        ''' </summary>
+        ''' <param name="filename"></param>
+        ''' <returns></returns>
+        Private Function YamahaRobotexFileCheck(filename As String) As YamahaRobotexType
+
+            If String.IsNullOrEmpty(filename) OrElse Not File.Exists(filename) Then
+                Return YamahaRobotexType.Unknown
+            End If
+
+            Try
+                ' 先頭行のみを読み込み
+                Dim firstLine As String = ""
+                Using reader As New StreamReader(filename, Encoding.GetEncoding("Shift_JIS"))
+                    firstLine = reader.ReadLine()
+                End Using
+
+                If String.IsNullOrEmpty(firstLine) Then
+                    Return YamahaRobotexType.Unknown
+                End If
+
+                ' 判定処理（1番目は可変のため前方一致で判定）
+                If firstLine.StartsWith("""部品番号"",""部品名称"",,") Then
+                    Return YamahaRobotexType.UnofficialNotice
+                ElseIf firstLine.StartsWith("""部品番号"",""部品名称"",""納入指示日""") Then
+                    Return YamahaRobotexType.Confirmed
+                ElseIf firstLine.StartsWith("""取引先コード"",""客先発注No""") Then
+                    Return YamahaRobotexType.ASTIInternalNotification
+                End If
+
+            Catch ex As Exception
+                ' エラーハンドリング（必要に応じてログ出力など）
+                Return YamahaRobotexType.Unknown
+            End Try
+
+            Return YamahaRobotexType.Unknown
+
         End Function
 
     End Class
