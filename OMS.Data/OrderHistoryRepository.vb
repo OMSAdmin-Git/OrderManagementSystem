@@ -55,50 +55,9 @@ Namespace OMS.Data
             Return name
 
         End Function
-        '''' <summary>
-        '''' OrderRow class を Order History DBに追加する
-        '''' R.sagisaka Add
-        '''' </summary>
-        '''' <param name="row"></param>
-        'Public Sub Insert(row As OrdersRow)
-        '    Dim records = New List(Of OrdersRow)()
-        '    records.Add(row)
-        '    InsertRange(records)
-        'End Sub
-        '''' <summary>
-        '''' OrderRow class を Order History DBに追加する
-        '''' R.sagisaka Add
-        '''' </summary>
-        '''' <param name="conn"></param>
-        '''' <param name="tran"></param>
-        '''' <param name="row"></param>
-        '''' <returns>string: Number:xxxx Errormessage</returns>
-        'Public Function Insert(conn As OracleConnection, tran As OracleTransaction, row As OrdersRow) As String
 
-        '    Dim records = New List(Of OrdersRow)()
-        '    records.Add(row)
-        '    Return InsertRange(conn, tran, records)
-
-        'End Function
-
-        '''' <summary>
-        '''' OrderRow class リストをDBに追加する (元のコード同等呼び出し
-        '''' R.sagisaka Add
-        '''' </summary>
-        '''' <param name="records"></param>
-        'Public Sub InsertRange(records As IEnumerable(Of OrdersRow))
-
-        '    Using conn As New OracleConnection(_connectionString)
-        '        conn.Open()
-        '        Using tran As OracleTransaction = conn.BeginTransaction()
-        '            InsertRange(conn, tran, records)
-        '            tran.Commit()
-        '        End Using
-        '    End Using
-        'End Sub
         ''' <summary>
         ''' Order record 追加
-        ''' R.sagisaka Modified
         ''' </summary>
         ''' <param name="conn"></param>
         ''' <param name="tran"></param>
@@ -111,7 +70,6 @@ Namespace OMS.Data
         End Function
         ''' <summary>
         ''' Order record 追加
-        ''' R.sagisaka Modified
         ''' </summary>
         ''' <param name="conn"></param>
         ''' <param name="tran"></param>
@@ -135,7 +93,14 @@ Namespace OMS.Data
                 sb.AppendLine("  created_at, created_user_id, created_pg_id, ")
                 sb.AppendLine("  updated_at, updated_user_id, updated_pg_id ")
                 If (type = OrdersTable.Orders) Then
-                    sb.AppendLine(",  stra_order_qty, stra_ship_qty, stra_order_backlog ")
+                    ' order_stage
+                    sb.AppendLine(",  stra_order_qty, stra_ship_qty, stra_order_backlog, ")
+                    'Pharse2 Suzuki 
+                    sb.AppendLine(" delivery_time, container_capacity, initial_flag, ")
+                    sb.AppendLine(" target_reference_date_type, target_reference_date, info_type_code ")
+                Else
+                    ' prod_plan_stage
+                    sb.AppendLine(", target_reference_date_type, target_reference_date, info_type_code ")
                 End If
                 sb.AppendLine(" ) VALUES (")
                 sb.AppendLine("  :p_order_id, :p_customer_setting_id, :p_customer_code, :p_billing_to, :p_customer_order_no, :p_demand_status, :p_ship_to, ")
@@ -150,41 +115,16 @@ Namespace OMS.Data
                 sb.AppendLine("  :p_created_at, :p_created_user_id, :p_created_pg_id, ")
                 sb.AppendLine("  :p_updated_at, :p_updated_user_id, :p_updated_pg_id ")
                 If (type = OrdersTable.Orders) Then
-                    sb.AppendLine(",  :p_stra_order_qty, :p_stra_ship_qty, :p_stra_order_backlog ")
+                    sb.AppendLine(",  :p_stra_order_qty, :p_stra_ship_qty, :p_stra_order_backlog, ")
+                    'Pharse2 Suzuki
+                    sb.AppendLine(" :p_delivery_time, :p_container_capacity, :p_initial_flag, ")
+                    sb.AppendLine(" :p_target_reference_date_type, :p_target_reference_date, :p_info_type_code ")
+                Else
+                    ' prod_plan_stage
+                    sb.AppendLine(", :p_target_reference_date_type, :p_target_reference_date, :p_info_type_code ")
                 End If
                 sb.AppendLine(")")
-#If False Then
-                Dim sql As String =
-                    $"INSERT INTO {GetTableName(type)} (" &
-                    $" {GetIdName(type)}, customer_setting_id, customer_code, billing_to, customer_order_no, demand_status, ship_to, " &
-                    "  order_date, due_date, ship_scheduled_date, customer_item_no, item_no, " &
-                    "  demand_qty, demand_unit, currency_code, ship_stock_location, company_id, " &
-                    "  product_code, billing_standard, ship_process_type, delivery_instr_flag, " &
-                    "  order_no, remarks, delivery_code, total_ship_qty, ship_date, " &
-                    "  transport_method, ship_plan_date, customer_order_line_no, " &
-                    "  pre_daily_order_qty, pre_daily_delivery_date, imp_file_id, " &
-                    "  order_type, prorated_type, customer_info_type, info_type, self_fcst_flag, self_fcst_delete_flag, " &
-                    "  reconcile_type, imp_run_id, status, active_flag, " &
-                    "  created_at, created_user_id, created_pg_id, " &
-                    "  updated_at, updated_user_id, updated_pg_id, " &
-                    "  stra_order_qty, stra_ship_qty, stra_order_backlog " &
-                    " ) VALUES (" &
-                    "  :p_order_id, :p_customer_setting_id, :p_customer_code, :p_billing_to, :p_customer_order_no, :p_demand_status, :p_ship_to, " &
-                    "  :p_order_date, :p_due_date, :p_ship_scheduled_date, :p_customer_item_no, :p_item_no, " &
-                    "  :p_demand_qty, :p_demand_unit, :p_currency_code, :p_ship_stock_location, :p_company_id, " &
-                    "  :p_product_code, :p_billing_standard, :p_ship_process_type, :p_delivery_instr_flag, " &
-                    "  :p_order_no, :p_remarks, :p_delivery_code, :p_total_ship_qty, :p_ship_date, " &
-                    "  :p_transport_method, :p_ship_plan_date, :p_customer_order_line_no, " &
-                    "  :p_pre_daily_order_qty, :p_pre_daily_delivery_date, :p_imp_file_id, " &
-                    "  :p_order_type, :p_prorated_type, :p_customer_info_type, :p_info_type, :p_self_fcst_flag, :p_self_fcst_delete_flag, " &
-                    "  :p_reconcile_type, :p_imp_run_id, :p_status, :p_active_flag, " &
-                    "  :p_created_at, :p_created_user_id, :p_created_pg_id, " &
-                    "  :p_updated_at, :p_updated_user_id, :p_updated_pg_id, " &
-                    "  :p_stra_order_qty, :p_stra_ship_qty, :p_stra_order_backlog " &
-                    ")"
-                Using cmd As New OracleCommand(sql, conn)
-#End If
-                Using cmd As New OracleCommand(sb.Tostring(), conn)
+                Using cmd As New OracleCommand(sb.ToString(), conn)
                     cmd.Transaction = tran
                     cmd.BindByName = True
                     cmd.CommandType = CommandType.Text
@@ -264,6 +204,19 @@ Namespace OMS.Data
                             cmd.Parameters.Add(":p_stra_order_qty", OracleDbType.Decimal).Value = r.StraOrderQty
                             cmd.Parameters.Add(":p_stra_ship_qty", OracleDbType.Decimal).Value = r.StraShipQty
                             cmd.Parameters.Add(":p_stra_order_backlog", OracleDbType.Decimal).Value = r.StraOrderBacklog
+
+                            'Pharse2 Suzuki
+                            cmd.Parameters.Add(":p_delivery_time", OracleDbType.Decimal).Value = r.DeliveryTime
+                            cmd.Parameters.Add(":p_container_capacity", OracleDbType.Decimal).Value = r.ContainerCapacity
+                            cmd.Parameters.Add(":p_initial_flag", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.InitialFlag, 45)
+                            cmd.Parameters.Add(":p_target_reference_date_type", OracleDbType.Varchar2, 1).Value = SafeVarchar(r.TargetReferenceDateType, 1)
+                            cmd.Parameters.Add(":p_target_reference_date", OracleDbType.Varchar2, 8).Value = SafeVarchar(r.TargetReferenceDate, 8)
+                            cmd.Parameters.Add(":p_info_type_code", OracleDbType.Varchar2, 4).Value = SafeVarchar(r.InfoTypeCode, 4)
+                        Else
+                            ' prod_plan_stage
+                            cmd.Parameters.Add(":p_delivery_time", OracleDbType.Decimal).Value = r.DeliveryTime
+                            cmd.Parameters.Add(":p_container_capacity", OracleDbType.Decimal).Value = r.ContainerCapacity
+                            cmd.Parameters.Add(":p_initial_flag", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.InitialFlag, 45)
                         End If
 
                         cmd.ExecuteNonQuery()
@@ -356,45 +309,10 @@ Namespace OMS.Data
             End Using
 
             Return dt
-
-            'Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
-            '    cmd.CommandText = "
-            '            SELECT *
-            '            FROM orders
-            '            WHERE status = :p_status 
-            '            AND active_flag    = :p_activeFlag 
-            '            AND customer_Setting_Id    = :p_customerSettingId "
-            '    cmd.Parameters.Add(":p_status", OracleDbType.Varchar2, 20).Value = SafeVarchar(status, 20)
-            '    cmd.Parameters.Add(":p_activeFlag", OracleDbType.Char).Value = activeFlag
-            '    cmd.Parameters.Add(":p_customerSettingId", OracleDbType.Int64).Value = customerSettingId
-
-            '    Using reader As OracleDataReader = cmd.ExecuteReader()
-            '        dt.Load(reader)
-            '    End Using
-            'End Using
-            'Return dt
-
         End Function
-
-        '''' <summary>
-        '''' customerSettingId と prodMgmtUserId で OrderStage レコードを削除する
-        '''' R.sagisaka create
-        '''' </summary>
-        '''' <param name="customerSettingId"></param>
-        '''' <param name="prodMgmtUserId"></param>
-        'Public Sub Delete(customerSettingId As Integer, prodMgmtUserId As String)
-        '    Using conn As New OracleConnection(_connectionString)
-        '        conn.Open()
-        '        Using tran As OracleTransaction = conn.BeginTransaction()
-        '            Delete(customerSettingId, prodMgmtUserId)
-        '            tran.Commit()
-        '        End Using
-        '    End Using
-        'End Sub
 
         ''' <summary>
         ''' customerSettingId と prodMgmtUserId で OrderStage レコードを削除する
-        ''' R.sagisaka create
         ''' </summary>
         ''' <param name="conn"></param>
         ''' <param name="tran"></param>
@@ -410,7 +328,6 @@ Namespace OMS.Data
 
         ''' <summary>
         ''' customerSettingId と prodMgmtUserId で OrderStage レコードを削除する
-        ''' R.sagisaka create
         ''' </summary>
         ''' <param name="conn"></param>
         ''' <param name="tran"></param>
@@ -474,8 +391,7 @@ Namespace OMS.Data
 
             Dim dt As New DataTable()
             Dim sb As New StringBuilder()
-            ' 2026/3/26 版
-#If True Then
+
             ' -- 受注差異取得（内示：order_type = 1）
             sb.AppendLine("WITH ranked_ts AS ( ")
             sb.AppendLine("    SELECT DISTINCT ")
@@ -570,80 +486,6 @@ Namespace OMS.Data
             sb.AppendLine("    NVL(p.item_no,              c.item_no), ")
             sb.AppendLine("    NVL(p.pre_daily_delivery_date, c.pre_daily_delivery_date), ")
             sb.AppendLine("    NVL(p.pre_daily_order_qty,  c.pre_daily_order_qty) ")
-#End If
-
-            ' 2026/3/16 版
-#If False Then
-            sb.AppendLine("WITH ranked_ts AS (  ")
-            sb.AppendLine("   SELECT DISTINCT  ")
-            sb.AppendLine("          created_at,  ")
-            sb.AppendLine("          ROW_NUMBER() OVER (ORDER BY created_at DESC) AS rn  ")
-            sb.AppendLine($"     FROM {GetTableName(type)}  ")
-            sb.AppendLine(" ),  ")
-            sb.AppendLine(" ts AS (  ")
-            sb.AppendLine("   SELECT MAX(CASE WHEN rn = 1 THEN created_at END) AS current_ts,  ")
-            sb.AppendLine("          MAX(CASE WHEN rn = 2 THEN created_at END) AS previous_ts  ")
-            sb.AppendLine("     FROM ranked_ts  ")
-            sb.AppendLine(" ),  ")
-            sb.AppendLine(" prev AS (  ")
-            sb.AppendLine("   SELECT  ")
-            sb.AppendLine("       oh.customer_setting_id,  ")
-            sb.AppendLine("       oh.item_no,  ")
-            sb.AppendLine("       oh.pre_daily_delivery_date,  ")
-            sb.AppendLine("       oh.pre_daily_order_qty,  ")
-            sb.AppendLine("       COUNT(*) AS previous_data  ")
-            sb.AppendLine($"     FROM {GetTableName(type)} oh  ")
-            sb.AppendLine("     CROSS JOIN ts  ")
-            sb.AppendLine("    WHERE ts.previous_ts IS NOT NULL  ")
-            sb.AppendLine("      AND oh.created_at = ts.previous_ts  ")
-            sb.AppendLine("      AND oh.status = 'DUE_SET'  ")
-            sb.AppendLine("      AND oh.order_type = 1   ")
-            sb.AppendLine("      AND oh.customer_setting_id = :p_customer_setting_id  ")
-            sb.AppendLine("    GROUP BY  ")
-            sb.AppendLine("       oh.customer_setting_id,  ")
-            sb.AppendLine("       oh.item_no,  ")
-            sb.AppendLine("       oh.pre_daily_delivery_date,  ")
-            sb.AppendLine("       oh.pre_daily_order_qty  ")
-            sb.AppendLine(" ),  ")
-            sb.AppendLine(" cur AS (  ")
-            sb.AppendLine("   SELECT  ")
-            sb.AppendLine("       oh.customer_setting_id,  ")
-            sb.AppendLine("       oh.item_no,  ")
-            sb.AppendLine("       oh.pre_daily_delivery_date,  ")
-            sb.AppendLine("       oh.pre_daily_order_qty,  ")
-            sb.AppendLine("       COUNT(*) AS current_data  ")
-            sb.AppendLine($"     FROM {GetTableName(type)} oh  ")
-            sb.AppendLine("     CROSS JOIN ts  ")
-            sb.AppendLine("    WHERE oh.created_at = ts.current_ts  ")
-            sb.AppendLine("      AND oh.status = 'DUE_SET'  ")
-            sb.AppendLine("      AND oh.order_type = 1  ")
-            sb.AppendLine("      AND oh.customer_setting_id = :p_customer_setting_id  ")
-            sb.AppendLine("    GROUP BY  ")
-            sb.AppendLine("       oh.customer_setting_id,  ")
-            sb.AppendLine("       oh.item_no,  ")
-            sb.AppendLine("       oh.pre_daily_delivery_date,  ")
-            sb.AppendLine("       oh.pre_daily_order_qty  ")
-            sb.AppendLine(" )  ")
-            sb.AppendLine(" SELECT  ")
-            sb.AppendLine("   NVL(p.customer_setting_id,  c.customer_setting_id)   AS customer_setting_id,  ")
-            sb.AppendLine("   NVL(p.item_no,              c.item_no) AS item_no,  ")
-            sb.AppendLine("   NVL(p.pre_daily_delivery_date, c.pre_daily_delivery_date) AS pre_daily_delivery_date,  ")
-            sb.AppendLine("   NVL(p.pre_daily_order_qty,  c.pre_daily_order_qty)   AS pre_daily_order_qty,  ")
-            sb.AppendLine("   NVL(p.previous_data, 0)  AS previous_data,  ")
-            sb.AppendLine("   NVL(c.current_data,  0) AS current_data,  ")
-            sb.AppendLine("   NVL(c.current_data,  0) - NVL(p.previous_data, 0)    AS diff_from_prev  ")
-            sb.AppendLine(" FROM prev p  ")
-            sb.AppendLine(" FULL OUTER JOIN cur c  ")
-            sb.AppendLine("   ON  p.customer_setting_id      = c.customer_setting_id  ")
-            sb.AppendLine("   And p.item_no    = c.item_no  ")
-            sb.AppendLine("   AND p.pre_daily_delivery_date  = c.pre_daily_delivery_date  ")
-            sb.AppendLine("   AND p.pre_daily_order_qty      = c.pre_daily_order_qty  ")
-            sb.AppendLine(" ORDER BY  ")
-            sb.AppendLine("   NVL(p.customer_setting_id,  c.customer_setting_id),  ")
-            sb.AppendLine("   NVL(p.item_no,              c.item_no),  ")
-            sb.AppendLine("   NVL(p.pre_daily_delivery_date, c.pre_daily_delivery_date),  ")
-            sb.AppendLine("   NVL(p.pre_daily_order_qty,  c.pre_daily_order_qty) ")
-#End If
             Try
                 Using cmd As New OracleCommand(sb.ToString(), conn)
                     cmd.Transaction = tran
@@ -684,8 +526,6 @@ Namespace OMS.Data
 
             Dim dt As New DataTable()
             Dim sb As New StringBuilder()
-            ' 2026/3/26 版
-#If True Then
             '-- 受注差異取得（確定/納入指示：order_type <> 1）
             sb.AppendLine("WITH ranked_ts AS ( ")
             sb.AppendLine("    SELECT DISTINCT ")
@@ -787,86 +627,6 @@ Namespace OMS.Data
             sb.AppendLine("    NVL(p.customer_order_no,  c.customer_order_no), ")
             sb.AppendLine("    NVL(p.pre_daily_delivery_date, c.pre_daily_delivery_date), ")
             sb.AppendLine("    NVL(p.pre_daily_order_qty,  c.pre_daily_order_qty); ")
-#End If
-            ' 2026/3/16 版
-#If False Then
-            sb.AppendLine(" WITH ranked_ts AS ( ")
-            sb.AppendLine("   SELECT DISTINCT ")
-            sb.AppendLine("          created_at, ")
-            sb.AppendLine("          ROW_NUMBER() OVER (ORDER BY created_at DESC) AS rn ")
-            sb.AppendLine($"     FROM {GetTableName(type)} ")
-            sb.AppendLine(" ), ")
-            sb.AppendLine(" ts AS ( ")
-            sb.AppendLine("   SELECT MAX(CASE WHEN rn = 1 THEN created_at END) AS current_ts, ")
-            sb.AppendLine("          MAX(CASE WHEN rn = 2 THEN created_at END) AS previous_ts ")
-            sb.AppendLine("     FROM ranked_ts ")
-            sb.AppendLine(" ), ")
-            sb.AppendLine(" prev AS ( ")
-            sb.AppendLine("   SELECT ")
-            sb.AppendLine("       oh.customer_setting_id, ")
-            sb.AppendLine("       oh.item_no, ")
-            sb.AppendLine("       oh.customer_order_no, ")
-            sb.AppendLine("       oh.pre_daily_delivery_date, ")
-            sb.AppendLine("       oh.pre_daily_order_qty, ")
-            sb.AppendLine("       COUNT(*) AS previous_data ")
-            sb.AppendLine($"     FROM {GetTableName(type)} oh ")
-            sb.AppendLine("     CROSS JOIN ts ")
-            sb.AppendLine("    WHERE ts.previous_ts IS NOT NULL ")
-            sb.AppendLine("      AND oh.created_at = ts.previous_ts ")
-            sb.AppendLine("      AND oh.status = 'DUE_SET' ")
-            sb.AppendLine("      AND oh.order_type <> 1 ")
-            sb.AppendLine("      AND oh.customer_setting_id = :p_customer_setting_id ")
-            sb.AppendLine("    GROUP BY ")
-            sb.AppendLine("       oh.customer_setting_id, ")
-            sb.AppendLine("       oh.item_no, ")
-            sb.AppendLine("       oh.customer_order_no, ")
-            sb.AppendLine("       oh.pre_daily_delivery_date, ")
-            sb.AppendLine("       oh.pre_daily_order_qty ")
-            sb.AppendLine(" ), ")
-            sb.AppendLine(" cur AS ( ")
-            sb.AppendLine("   SELECT ")
-            sb.AppendLine("       oh.customer_setting_id, ")
-            sb.AppendLine("       oh.item_no, ")
-            sb.AppendLine("       oh.customer_order_no, ")
-            sb.AppendLine("       oh.pre_daily_delivery_date, ")
-            sb.AppendLine("       oh.pre_daily_order_qty, ")
-            sb.AppendLine("       COUNT(*) AS current_data ")
-            sb.AppendLine($"     FROM {GetTableName(type)} oh ")
-            sb.AppendLine("     CROSS JOIN ts ")
-            sb.AppendLine("    WHERE oh.created_at = ts.current_ts ")
-            sb.AppendLine("      AND oh.status = 'DUE_SET' ")
-            sb.AppendLine("      AND oh.order_type <> 1 ")
-            sb.AppendLine("      AND oh.customer_setting_id = :p_customer_setting_id ")
-            sb.AppendLine("    GROUP BY ")
-            sb.AppendLine("       oh.customer_setting_id, ")
-            sb.AppendLine("       oh.item_no, ")
-            sb.AppendLine("       oh.customer_order_no, ")
-            sb.AppendLine("       oh.pre_daily_delivery_date, ")
-            sb.AppendLine("       oh.pre_daily_order_qty ")
-            sb.AppendLine(" ) ")
-            sb.AppendLine(" SELECT ")
-            sb.AppendLine("   NVL(p.customer_setting_id,  c.customer_setting_id)        AS customer_setting_id, ")
-            sb.AppendLine("   NVL(p.item_no,              c.item_no)                    AS item_no, ")
-            sb.AppendLine("   NVL(p.customer_order_no,    c.customer_order_no)          AS customer_order_no, ")
-            sb.AppendLine("   NVL(p.pre_daily_delivery_date, c.pre_daily_delivery_date) AS pre_daily_delivery_date, ")
-            sb.AppendLine("   NVL(p.pre_daily_order_qty,  c.pre_daily_order_qty)        AS pre_daily_order_qty, ")
-            sb.AppendLine("   NVL(p.previous_data, 0)                                   AS previous_data, ")
-            sb.AppendLine("   NVL(c.current_data,  0)                                   AS current_data, ")
-            sb.AppendLine("   NVL(c.current_data,  0) - NVL(p.previous_data, 0)         AS diff_from_prev ")
-            sb.AppendLine(" FROM prev p ")
-            sb.AppendLine(" FULL OUTER JOIN cur c ")
-            sb.AppendLine("   ON  p.customer_setting_id      = c.customer_setting_id ")
-            sb.AppendLine("   AND p.item_no                  = c.item_no ")
-            sb.AppendLine("   AND p.customer_order_no        = c.customer_order_no ")
-            sb.AppendLine("   AND p.pre_daily_delivery_date  = c.pre_daily_delivery_date ")
-            sb.AppendLine("   AND p.pre_daily_order_qty      = c.pre_daily_order_qty ")
-            sb.AppendLine(" ORDER BY ")
-            sb.AppendLine("   NVL(p.customer_setting_id,  c.customer_setting_id), ")
-            sb.AppendLine("   NVL(p.item_no,              c.item_no), ")
-            sb.AppendLine("   NVL(p.customer_order_no,    c.customer_order_no), ")
-            sb.AppendLine("   NVL(p.pre_daily_delivery_date, c.pre_daily_delivery_date), ")
-            sb.AppendLine("   NVL(p.pre_daily_order_qty,  c.pre_daily_order_qty) ")
-#End If
 
             Try
                 Using cmd As New OracleCommand(sb.ToString(), conn)
@@ -909,9 +669,6 @@ Namespace OMS.Data
 
             Dim dt As New DataTable()
             Dim sb As New StringBuilder()
-
-            ' 2026/3/26 版
-#If True Then
             '-- 生産計画差異取得（内示：order_type = 1） ")
             sb.AppendLine("WITH ranked_ts AS ( ")
             sb.AppendLine("    SELECT DISTINCT ")
@@ -1004,79 +761,6 @@ Namespace OMS.Data
             sb.AppendLine("    NVL(p.item_no,              c.item_no), ")
             sb.AppendLine("    NVL(p.due_date,             c.due_date), ")
             sb.AppendLine("    NVL(p.demand_qty,           c.demand_qty) ")
-#End If
-            ' 2026/3/16 版
-#If False Then
-            sb.AppendLine("WITH ranked_ts AS (  ")
-            sb.AppendLine("   SELECT DISTINCT  ")
-            sb.AppendLine("          created_at,  ")
-            sb.AppendLine("          ROW_NUMBER() OVER (ORDER BY created_at DESC) AS rn  ")
-            sb.AppendLine($"     FROM {GetTableName(type)}  ")
-            sb.AppendLine(" ),  ")
-            sb.AppendLine(" ts AS (  ")
-            sb.AppendLine("   SELECT MAX(CASE WHEN rn = 1 THEN created_at END) AS current_ts,  ")
-            sb.AppendLine("          MAX(CASE WHEN rn = 2 THEN created_at END) AS previous_ts  ")
-            sb.AppendLine("     FROM ranked_ts  ")
-            sb.AppendLine(" ),  ")
-            sb.AppendLine(" prev AS (  ")
-            sb.AppendLine("   SELECT  ")
-            sb.AppendLine("       oh.customer_setting_id,  ")
-            sb.AppendLine("       oh.item_no,  ")
-            sb.AppendLine("       oh.due_date,  ")
-            sb.AppendLine("       oh.demand_qty,  ")
-            sb.AppendLine("       COUNT(*) AS previous_data  ")
-            sb.AppendLine($"     FROM {GetTableName(type)} oh  ")
-            sb.AppendLine("     CROSS JOIN ts  ")
-            sb.AppendLine("    WHERE ts.previous_ts IS NOT NULL  ")
-            sb.AppendLine("      AND oh.created_at = ts.previous_ts  ")
-            sb.AppendLine("      AND oh.status = 'DUE_SET'  ")
-            sb.AppendLine("      AND oh.order_type = 1   ")
-            sb.AppendLine("      AND oh.customer_setting_id = :p_customer_setting_id  ")
-            sb.AppendLine("    GROUP BY  ")
-            sb.AppendLine("       oh.customer_setting_id,  ")
-            sb.AppendLine("       oh.item_no,  ")
-            sb.AppendLine("       oh.due_date,  ")
-            sb.AppendLine("       oh.demand_qty  ")
-            sb.AppendLine(" ),  ")
-            sb.AppendLine(" cur AS (  ")
-            sb.AppendLine("   SELECT  ")
-            sb.AppendLine("       oh.customer_setting_id,  ")
-            sb.AppendLine("       oh.item_no,  ")
-            sb.AppendLine("       oh.due_date,  ")
-            sb.AppendLine("       oh.demand_qty,  ")
-            sb.AppendLine("       COUNT(*) AS current_data  ")
-            sb.AppendLine($"     FROM {GetTableName(type)} oh  ")
-            sb.AppendLine("     CROSS JOIN ts  ")
-            sb.AppendLine("    WHERE oh.created_at = ts.current_ts  ")
-            sb.AppendLine("      AND oh.status = 'DUE_SET'  ")
-            sb.AppendLine("      AND oh.order_type = 1  ")
-            sb.AppendLine("      AND oh.customer_setting_id = :p_customer_setting_id  ")
-            sb.AppendLine("    GROUP BY  ")
-            sb.AppendLine("       oh.customer_setting_id,  ")
-            sb.AppendLine("       oh.item_no,  ")
-            sb.AppendLine("       oh.due_date,  ")
-            sb.AppendLine("       oh.demand_qty  ")
-            sb.AppendLine(" )  ")
-            sb.AppendLine(" SELECT  ")
-            sb.AppendLine("   NVL(p.customer_setting_id,  c.customer_setting_id)   AS customer_setting_id,  ")  ' 取引先設定ID
-            sb.AppendLine("   NVL(p.item_no,              c.item_no) AS item_no,  ")                            ' 品目No
-            sb.AppendLine("   NVL(p.due_date,             c.due_date) AS due_date,  ")                          ' 希望納期
-            sb.AppendLine("   NVL(p.demand_qty,  c.demand_qty)   AS demand_qty,  ")                             ' 数量
-            sb.AppendLine("   NVL(p.previous_data, 0)  AS previous_data,  ")                                    ' 前回_件数
-            sb.AppendLine("   NVL(c.current_data,  0) AS current_data,  ")                                      ' 今回_件数
-            sb.AppendLine("   NVL(c.current_data,  0) - NVL(p.previous_data, 0)    AS diff_from_prev  ")        ' 前回比
-            sb.AppendLine(" FROM prev p  ")
-            sb.AppendLine(" FULL OUTER JOIN cur c  ")
-            sb.AppendLine("   ON  p.customer_setting_id      = c.customer_setting_id  ")
-            sb.AppendLine("   And p.item_no    = c.item_no  ")
-            sb.AppendLine("   AND p.due_date  = c.due_date  ")
-            sb.AppendLine("   AND p.demand_qty      = c.demand_qty  ")
-            sb.AppendLine(" ORDER BY  ")
-            sb.AppendLine("   NVL(p.customer_setting_id,  c.customer_setting_id),  ")
-            sb.AppendLine("   NVL(p.item_no,              c.item_no),  ")
-            sb.AppendLine("   NVL(p.due_date, c.due_date),  ")
-            sb.AppendLine("   NVL(p.demand_qty,  c.demand_qty) ")
-#End If
             Try
                 Using cmd As New OracleCommand(sb.ToString(), conn)
                     cmd.Transaction = tran
@@ -1116,7 +800,6 @@ Namespace OMS.Data
 
             Dim dt As New DataTable()
             Dim sb As New StringBuilder()
-            ' 2026/3/26 版
             '-- 生産計画差異取得（確定・納入指示：order_type <> 1） ")
             sb.AppendLine("WITH ranked_ts AS ( ")
             sb.AppendLine("    SELECT DISTINCT ")
@@ -1216,86 +899,6 @@ Namespace OMS.Data
             sb.AppendLine("    NVL(p.customer_order_no,  c.customer_order_no), ")
             sb.AppendLine("    NVL(p.due_date,             c.due_date), ")
             sb.AppendLine("    NVL(p.demand_qty,           c.demand_qty) ")
-
-            ' 2026/3/16 版
-#If False Then
-            sb.AppendLine(" WITH ranked_ts AS ( ")
-            sb.AppendLine("   SELECT DISTINCT ")
-            sb.AppendLine("          created_at, ")
-            sb.AppendLine("          ROW_NUMBER() OVER (ORDER BY created_at DESC) AS rn ")
-            sb.AppendLine($"     FROM {GetTableName(type)} ")
-            sb.AppendLine(" ), ")
-            sb.AppendLine(" ts AS ( ")
-            sb.AppendLine("   SELECT MAX(CASE WHEN rn = 1 THEN created_at END) AS current_ts, ")
-            sb.AppendLine("          MAX(CASE WHEN rn = 2 THEN created_at END) AS previous_ts ")
-            sb.AppendLine("     FROM ranked_ts ")
-            sb.AppendLine(" ), ")
-            sb.AppendLine(" prev AS ( ")
-            sb.AppendLine("   SELECT ")
-            sb.AppendLine("       oh.customer_setting_id, ")
-            sb.AppendLine("       oh.item_no, ")
-            sb.AppendLine("       oh.customer_order_no, ")
-            sb.AppendLine("       oh.due_date, ")
-            sb.AppendLine("       oh.demand_qty, ")
-            sb.AppendLine("       COUNT(*) AS previous_data ")
-            sb.AppendLine($"     FROM {GetTableName(type)} oh ")
-            sb.AppendLine("     CROSS JOIN ts ")
-            sb.AppendLine("    WHERE ts.previous_ts IS NOT NULL ")
-            sb.AppendLine("      AND oh.created_at = ts.previous_ts ")
-            sb.AppendLine("      AND oh.status = 'DUE_SET' ")
-            sb.AppendLine("      AND oh.order_type <> 1 ")
-            sb.AppendLine("      AND oh.customer_setting_id = :p_customer_setting_id ")
-            sb.AppendLine("    GROUP BY ")
-            sb.AppendLine("       oh.customer_setting_id, ")
-            sb.AppendLine("       oh.item_no, ")
-            sb.AppendLine("       oh.customer_order_no, ")
-            sb.AppendLine("       oh.due_date, ")
-            sb.AppendLine("       oh.demand_qty ")
-            sb.AppendLine(" ), ")
-            sb.AppendLine(" cur AS ( ")
-            sb.AppendLine("   SELECT ")
-            sb.AppendLine("       oh.customer_setting_id, ")
-            sb.AppendLine("       oh.item_no, ")
-            sb.AppendLine("       oh.customer_order_no, ")
-            sb.AppendLine("       oh.due_date, ")
-            sb.AppendLine("       oh.demand_qty, ")
-            sb.AppendLine("       COUNT(*) AS current_data ")
-            sb.AppendLine($"     FROM {GetTableName(type)} oh ")
-            sb.AppendLine("     CROSS JOIN ts ")
-            sb.AppendLine("    WHERE oh.created_at = ts.current_ts ")
-            sb.AppendLine("      AND oh.status = 'DUE_SET' ")
-            sb.AppendLine("      AND oh.order_type <> 1 ")
-            sb.AppendLine("      AND oh.customer_setting_id = :p_customer_setting_id ")
-            sb.AppendLine("    GROUP BY ")
-            sb.AppendLine("       oh.customer_setting_id, ")
-            sb.AppendLine("       oh.item_no, ")
-            sb.AppendLine("       oh.customer_order_no, ")
-            sb.AppendLine("       oh.due_date, ")
-            sb.AppendLine("       oh.demand_qty ")
-            sb.AppendLine(" ) ")
-            sb.AppendLine(" SELECT ")
-            sb.AppendLine("   NVL(p.customer_setting_id,  c.customer_setting_id)        AS customer_setting_id, ")  '取引先設定ID
-            sb.AppendLine("   NVL(p.item_no,              c.item_no)                    AS item_no, ")              '品目No
-            sb.AppendLine("   NVL(p.customer_order_no,    c.customer_order_no)          AS customer_order_no, ")    '客先発注No
-            sb.AppendLine("   NVL(p.due_date, c.due_date)                               AS due_date, ")             '希望納期
-            sb.AppendLine("   NVL(p.demand_qty,  c.demand_qty)                          AS demand_qty, ")           '数量
-            sb.AppendLine("   NVL(p.previous_data, 0)                                   AS previous_data, ")        '前回_件数
-            sb.AppendLine("   NVL(c.current_data,  0)                                   AS current_data, ")         '今回_件数
-            sb.AppendLine("   NVL(c.current_data,  0) - NVL(p.previous_data, 0)         AS diff_from_prev ")        '前回比
-            sb.AppendLine(" FROM prev p ")
-            sb.AppendLine(" FULL OUTER JOIN cur c ")
-            sb.AppendLine("   ON  p.customer_setting_id      = c.customer_setting_id ")
-            sb.AppendLine("   AND p.item_no                  = c.item_no ")
-            sb.AppendLine("   AND p.customer_order_no        = c.customer_order_no ")
-            sb.AppendLine("   AND p.due_date  = c.due_date ")
-            sb.AppendLine("   AND p.demand_qty      = c.demand_qty ")
-            sb.AppendLine(" ORDER BY ")
-            sb.AppendLine("   NVL(p.customer_setting_id,  c.customer_setting_id), ")
-            sb.AppendLine("   NVL(p.item_no,              c.item_no), ")
-            sb.AppendLine("   NVL(p.customer_order_no,    c.customer_order_no), ")
-            sb.AppendLine("   NVL(p.due_date, c.due_date), ")
-            sb.AppendLine("   NVL(p.demand_qty,  c.demand_qty) ")
-#End If
             Try
                 Using cmd As New OracleCommand(sb.ToString(), conn)
                     cmd.Transaction = tran
@@ -1391,6 +994,10 @@ Namespace OMS.Data
             osr.HistoryId = If(dt.Field(Of Long?)("stage_id"), 0)
             'osr.HistoryId = dt.Field(Of Long?)("stage_id")
 
+
+
+
+
             Return osr
 
         End Function
@@ -1409,80 +1016,6 @@ Namespace OMS.Data
 
             Return osrs
         End Function
-
-
-        '''' <summary>
-        '''' 受注差異取得 差異リスト 内示 DataRow to class
-        '''' </summary>
-        '''' <param name="dt"></param>
-        '''' <returns></returns>
-        'Public Function AfterOrderUnNoticeDifferenceToClass(dt As DataTable) As List(Of AfterOrderUnNoticeDifferenceRow)
-
-        '    Dim osrs = New List(Of AfterOrderUnNoticeDifferenceRow)()
-
-        '    For Each dtRow In dt.Rows
-        '        osrs.Add(AfterOrderUnNoticeDifferenceToClass(dtRow))
-        '    Next
-
-        '    Return osrs
-
-        'End Function
-
-        '''' <summary>
-        '''' 受注差異取得 差異リスト  確定納入指示 DataRow to class
-        '''' </summary>
-        '''' <param name="dt"></param>
-        '''' <returns></returns>
-        'Public Function AfterOrderInstructionDifferenceToClass(dt As DataTable) As List(Of AfterOrderInstructionDifferenceRow)
-
-        '    Dim osrs = New List(Of AfterOrderInstructionDifferenceRow)()
-
-        '    For Each dtRow In dt.Rows
-        '        osrs.Add(AfterOrderInstructionDifferenceToClass(dtRow))
-        '    Next
-        '    Return osrs
-
-        'End Function
-
-
-        '''' <summary>
-        '''' 差異 内示 DataRow to class
-        '''' </summary>
-        '''' <param name="dt"></param>
-        '''' <returns></returns>
-        'Public Function AfterOrderUnNoticeDifferenceToClass(dt As DataRow) As AfterOrderUnNoticeDifferenceRow
-
-        '    Dim osr = New AfterOrderUnNoticeDifferenceRow()
-        '    osr.CustomerCode = dt.Field(Of String)("取引先コード")
-        '    osr.ProfitCenter = dt.Field(Of String)("PC")
-        '    osr.CustomerUnitName = dt.Field(Of String)("注文工場/ 担当者名")
-        '    osr.PreDailyDeliveryDate = dt.Field(Of Date?)("希望納期")
-        '    osr.PreDailyOrderQty = dt.Field(Of Long?)("数量")
-        '    osr.PreviousData = dt.Field(Of Long?)("前回件数")
-        '    osr.CurrentData = dt.Field(Of Long?)("今回件数")
-        '    osr.DiffFromPrev = dt.Field(Of Long?)("前回比")
-        '    Return osr
-        'End Function
-
-        '''' <summary>
-        '''' 差異 内示 DataRow to class
-        '''' </summary>
-        '''' <param name="dt"></param>
-        '''' <returns></returns>
-        'Public Function AfterOrderInstructionDifferenceToClass(dt As DataRow) As AfterOrderInstructionDifferenceRow
-
-        '    Dim osr = New AfterOrderInstructionDifferenceRow()
-        '    osr.CustomerSettingId = dt.Field(Of String)("customer_setting_id")
-        '    osr.ItemNo = dt.Field(Of String)("item_no")
-        '    osr.CustomerOrderNo = dt.Field(Of String)("customer_order_no")
-        '    osr.PreDailyDeliveryDate = dt.Field(Of Date?)("pre_daily_delivery_date")
-        '    osr.PreDailyOrderQty = dt.Field(Of Long?)("pre_daily_order_qty")
-        '    osr.PreviousData = dt.Field(Of Long?)("previous_data")
-        '    osr.CurrentData = dt.Field(Of Long?)("current_data")
-        '    osr.DiffFromPrev = dt.Field(Of Long?)("diff_from_prev")
-        '    Return osr
-
-        'End Function
 
         ''' <summary>
         ''' 差異リスト 内示 DataRow to class
@@ -1561,63 +1094,6 @@ Namespace OMS.Data
 
         End Function
     End Class
-#If False Then
-    '受注差異取得-内示
-    Public Class AfterOrderUnNoticeDifferenceRow
-        Public Property CustomerCode As String          '取引先コード		
-        Public Property ProfitCenter As String          'PC					
-        Public Property CustomerUnitName As String      '注文工場／担当者名	
-        Public Property ItemNo As String                '品目No				
-        Public Property PreDailyDeliveryDate As Date?   '希望納期			
-        Public Property PreDailyOrderQty As Long?       '数量				
-        Public Property PreviousData As Long?           '前回件数
-        Public Property CurrentData As Long?            '今回件数			
-        Public Property DiffFromPrev As Long?           '前回比				
-
-        Public Sub New()
-
-        End Sub
-
-        Public Sub New(src As AfterOrderUnNoticeDifferenceRow)
-            CustomerCode = src.CustomerCode
-            ProfitCenter = src.ProfitCenter
-            CustomerUnitName = src.CustomerUnitName
-            ItemNo = src.ItemNo
-            PreDailyDeliveryDate = src.PreDailyDeliveryDate
-            PreDailyOrderQty = src.PreDailyOrderQty
-            PreviousData = src.PreviousData
-            CurrentData = src.CurrentData
-            DiffFromPrev = src.DiffFromPrev
-        End Sub
-
-    End Class
-    '受注差異取得-確定・納入指示
-    Public Class AfterOrderInstructionDifferenceRow
-        Public Property CustomerSettingId As Long?      '取引先設定ID		
-        Public Property ItemNo As String                '品目No
-        Public Property CustomerOrderNo As String       '客先発注No
-        Public Property PreDailyDeliveryDate As Date?   '希望納期			
-        Public Property PreDailyOrderQty As Long?       '数量				
-        Public Property PreviousData As Long?           '前回件数
-        Public Property CurrentData As Long?            '今回件数			
-        Public Property DiffFromPrev As Long?           '前回比				
-
-        Public Sub New()
-
-        End Sub
-
-        Public Sub New(src As AfterOrderInstructionDifferenceRow)
-            CustomerSettingId = src.CustomerSettingId
-            ItemNo = src.ItemNo
-            CustomerOrderNo = src.CustomerOrderNo
-            PreDailyDeliveryDate = src.PreDailyDeliveryDate
-            PreDailyOrderQty = src.PreDailyOrderQty
-            PreviousData = src.PreviousData
-            CurrentData = src.CurrentData
-            DiffFromPrev = src.DiffFromPrev
-        End Sub
-    End Class
-#End If
 
     '差異取得-内示
     Public Class UnNoticeDifferenceRow
@@ -1742,16 +1218,24 @@ Namespace OMS.Data
         Public Property PreDailyDeliveryDate As Date           ' PRE_DAILY_DELIVERY_DATE DATE
 
         ' 監査系
-        Public Property CreatedAt As DateTime           ' CREATED_AT
-        Public Property CreatedUserId As String         ' CREATED_USER_ID
-        Public Property CreatedPgId As String           ' CREATED_PG_ID
-        Public Property UpdatedAt As DateTime           ' UPDATED_AT
-        Public Property UpdatedUserId As String         ' UPDATED_USER_ID
-        Public Property UpdatedPgId As String           ' UPDATED_PG_ID
+        Public Property CreatedAt As DateTime                   ' CREATED_AT
+        Public Property CreatedUserId As String                 ' CREATED_USER_ID
+        Public Property CreatedPgId As String                   ' CREATED_PG_ID
+        Public Property UpdatedAt As DateTime                   ' UPDATED_AT
+        Public Property UpdatedUserId As String                 ' UPDATED_USER_ID
+        Public Property UpdatedPgId As String                   ' UPDATED_PG_ID
 
         ' History
         ' ====== 主キー／識別系 ======
-        Public Property HistoryId As Long?              ' HISTORY_ID
+        Public Property HistoryId As Long?                      ' HISTORY_ID
+
+        'Pharse2 Suzuki
+        Public Property DeliveryTime As Decimal?                '納入時間        NUMBER      18,6
+        Public Property ContainerCapacity As Decimal?           '容器収容数      NUMBER      18,6
+        Public Property InitialFlag As String                   '初品区分        VARCHAR2    45
+        Public Property TargetReferenceDateType As String       '対象基準日区分  VARCHAR2    1 CHAR
+        Public Property TargetReferenceDate As String           '対象基準日      VARCHAR2    8 CHAR
+        Public Property InfoTypeCode As String                  '情報区分コード  VARCHAR2    4 CHAR
 
     End Class
 

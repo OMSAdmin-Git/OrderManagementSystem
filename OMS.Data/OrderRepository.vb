@@ -153,149 +153,6 @@ Namespace OMS.Data
                 End Using
             End Using
         End Sub
-#If False Then
-        ''' <summary>
-        ''' OrderRow class リストをDBに追加する
-        ''' </summary>
-        ''' <param name="records"></param>
-        Public Sub InsertRange(records As IEnumerable(Of OrdersRow))
-            If records Is Nothing Then Return
-
-            Using conn As New OracleConnection(_connectionString)
-                conn.Open()
-                Using tran As OracleTransaction = conn.BeginTransaction()
-                    Const sql As String =
-                        "INSERT INTO orders (" &
-                        "  customer_setting_id, customer_code, billing_to, customer_order_no, demand_status, ship_to, " &
-                        "  order_date, due_date, ship_scheduled_date, customer_item_no, item_no, " &
-                        "  demand_qty, demand_unit, currency_code, ship_stock_location, company_id, " &
-                        "  product_code, billing_standard, ship_process_type, delivery_instr_flag, " &
-                        "  order_no, remarks, delivery_code, order_time, sales_unit_price, delivery_time, " &
-                        "  usage_location, total_ship_qty, production_category, char_2, container_no, " &
-                        "  char_3, char_4, char_4_2, char_5, char_5_2, char_6, " &
-                        "  order_reason, container_capacity, customer_lot_no, initial_flag, ship_date, " &
-                        "  char_50, transport_method, ship_plan_date, customer_order_line_no, " &
-                        "  pre_daily_order_qty, pre_daily_delivery_date, imp_file_id, " &
-                        "  order_type, prorated_type, customer_info_type, info_type, self_fcst_flag, self_fcst_delete_flag, " &
-                        "  reconcile_type, imp_run_id, status, active_flag, " &
-                        "  created_at, created_user_id, created_pg_id, " &
-                        "  updated_at, updated_user_id, updated_pg_id" &
-                        ") VALUES (" &
-                        "  :p_customer_setting_id, :p_customer_code, :p_billing_to, :p_customer_order_no, :p_demand_status, :p_ship_to, " &
-                        "  :p_order_date, :p_due_date, :p_ship_scheduled_date, :p_customer_item_no, :p_item_no, " &
-                        "  :p_demand_qty, :p_demand_unit, :p_currency_code, :p_ship_stock_location, :p_company_id, " &
-                        "  :p_product_code, :p_billing_standard, :p_ship_process_type, :p_delivery_instr_flag, " &
-                        "  :p_order_no, :p_remarks, :p_delivery_code, :p_order_time, :p_sales_unit_price, :p_delivery_time, " &
-                        "  :p_usage_location, :p_total_ship_qty, :p_production_category, :p_char_2, :p_container_no, " &
-                        "  :p_char_3, :p_char_4, :p_char_4_2, :p_char_5, :p_char_5_2, :p_char_6, " &
-                        "  :p_order_reason, :p_container_capacity, :p_customer_lot_no, :p_initial_flag, :p_ship_date, " &
-                        "  :p_char_50, :p_transport_method, :p_ship_plan_date, :p_customer_order_line_no, " &
-                        "  :p_pre_daily_order_qty, :p_pre_daily_delivery_date, :p_imp_file_id, " &
-                        "  :p_order_type, :p_prorated_type, :p_customer_info_type, :p_info_type, :p_self_fcst_flag, :p_self_fcst_delete_flag, " &
-                        "  :p_reconcile_type, :p_imp_run_id, :p_status, :p_active_flag, " &
-                        "  :p_created_at, :p_created_user_id, :p_created_pg_id, " &
-                        "  :p_updated_at, :p_updated_user_id, :p_updated_pg_id" &
-                        ")"
-
-                    Using cmd As New OracleCommand(sql, conn)
-                        cmd.Transaction = tran
-                        cmd.BindByName = True
-                        cmd.CommandType = CommandType.Text
-
-                        For Each r In records
-                            cmd.Parameters.Clear()
-
-                            ' 例：文字列は SafeVarchar で桁超を丸め（定義長に合わせる）
-                            cmd.Parameters.Add(":p_customer_setting_id", OracleDbType.Varchar2, 25).Value = SafeVarchar(r.CustomerSettingId, 25)
-                            cmd.Parameters.Add(":p_customer_code", OracleDbType.Varchar2, 25).Value = SafeVarchar(r.CustomerCode, 25)
-                            cmd.Parameters.Add(":p_billing_to", OracleDbType.Varchar2, 25).Value = SafeVarchar(r.BillingTo, 25)
-                            cmd.Parameters.Add(":p_customer_order_no", OracleDbType.Varchar2, 40).Value = SafeVarchar(r.CustomerOrderNo, 40)
-                            cmd.Parameters.Add(":p_demand_status", OracleDbType.Char, 1).Value = NormalizeYN(r.DemandStatus) ' 1桁記号想定
-                            cmd.Parameters.Add(":p_ship_to", OracleDbType.Varchar2, 25).Value = SafeVarchar(r.ShipTo, 25)
-
-                            cmd.Parameters.Add(":p_order_date", OracleDbType.Date).Value = r.OrderDate
-                            cmd.Parameters.Add(":p_due_date", OracleDbType.Date).Value = r.DueDate
-                            cmd.Parameters.Add(":p_ship_scheduled_date", OracleDbType.Date).Value = r.ShipScheduledDate
-
-                            cmd.Parameters.Add(":p_customer_item_no", OracleDbType.Varchar2, 20).Value = SafeVarchar(r.CustomerItemNo, 20)
-                            cmd.Parameters.Add(":p_item_no", OracleDbType.Varchar2, 20).Value = SafeVarchar(r.ItemNo, 20)
-
-                            cmd.Parameters.Add(":p_demand_qty", OracleDbType.Int64).Value = r.DemandQty ' NUMBER(10,0)
-                            cmd.Parameters.Add(":p_demand_unit", OracleDbType.Varchar2, 4).Value = SafeVarchar(r.DemandUnit, 4)
-                            cmd.Parameters.Add(":p_currency_code", OracleDbType.Varchar2, 3).Value = SafeVarchar(r.CurrencyCode, 3)
-                            cmd.Parameters.Add(":p_ship_stock_location", OracleDbType.Varchar2, 25).Value = SafeVarchar(r.ShipStockLocation, 25)
-                            cmd.Parameters.Add(":p_company_id", OracleDbType.Varchar2, 25).Value = SafeVarchar(r.CompanyId, 25)
-
-                            cmd.Parameters.Add(":p_product_code", OracleDbType.Varchar2, 20).Value = SafeVarchar(r.ProductCode, 20)
-                            cmd.Parameters.Add(":p_billing_standard", OracleDbType.Varchar2, 3).Value = SafeVarchar(r.BillingStandard, 3)
-                            cmd.Parameters.Add(":p_ship_process_type", OracleDbType.Char, 1).Value = NormalizeYN(r.ShipProcessType)
-                            cmd.Parameters.Add(":p_delivery_instr_flag", OracleDbType.Char, 1).Value = NormalizeYN(r.DeliveryInstrFlag)
-
-                            cmd.Parameters.Add(":p_order_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.OrderNo, 45)
-                            cmd.Parameters.Add(":p_remarks", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.Remarks, 45)
-                            cmd.Parameters.Add(":p_delivery_code", OracleDbType.Varchar2, 20).Value = SafeVarchar(r.DeliveryCode, 20)
-
-                            cmd.Parameters.Add(":p_order_time", OracleDbType.Decimal).Value = r.OrderTime       ' NUMBER(18,6)
-                            cmd.Parameters.Add(":p_sales_unit_price", OracleDbType.Decimal).Value = r.SalesUnitPrice  ' NUMBER(18,6)
-                            cmd.Parameters.Add(":p_delivery_time", OracleDbType.Decimal).Value = r.DeliveryTime    ' NUMBER(18,6)
-
-                            cmd.Parameters.Add(":p_usage_location", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.UsageLocation, 45)
-                            cmd.Parameters.Add(":p_total_ship_qty", OracleDbType.Decimal).Value = r.TotalShipQty
-                            cmd.Parameters.Add(":p_production_category", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.ProductionCategory, 45)
-                            cmd.Parameters.Add(":p_char_2", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.Char2, 45)
-                            cmd.Parameters.Add(":p_container_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.ContainerNo, 45)
-
-                            cmd.Parameters.Add(":p_char_3", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.Char3, 45)
-                            cmd.Parameters.Add(":p_char_4", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.Char4, 45)
-                            cmd.Parameters.Add(":p_char_4_2", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.Char4_2, 45)
-                            cmd.Parameters.Add(":p_char_5", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.Char5, 45)
-                            cmd.Parameters.Add(":p_char_5_2", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.Char5_2, 45)
-                            cmd.Parameters.Add(":p_char_6", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.Char6, 45)
-
-                            cmd.Parameters.Add(":p_order_reason", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.OrderReason, 45)
-                            cmd.Parameters.Add(":p_container_capacity", OracleDbType.Decimal).Value = r.ContainerCapacity
-                            cmd.Parameters.Add(":p_customer_lot_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.CustomerLotNo, 45)
-                            cmd.Parameters.Add(":p_initial_flag", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.InitialFlag, 45)
-
-                            cmd.Parameters.Add(":p_ship_date", OracleDbType.Date).Value = r.ShipDate
-                            cmd.Parameters.Add(":p_char_50", OracleDbType.Varchar2, 60).Value = SafeVarchar(r.Char50, 60)
-                            cmd.Parameters.Add(":p_transport_method", OracleDbType.Varchar2, 3).Value = SafeVarchar(r.TransportMethod, 3)
-                            cmd.Parameters.Add(":p_ship_plan_date", OracleDbType.Date).Value = r.ShipPlanDate
-                            cmd.Parameters.Add(":p_customer_order_line_no", OracleDbType.Varchar2, 2).Value = SafeVarchar(r.CustomerOrderLineNo, 2)
-
-                            cmd.Parameters.Add(":p_pre_daily_order_qty", OracleDbType.Decimal).Value = r.PreDailyOrderQty
-                            cmd.Parameters.Add(":p_pre_daily_delivery_date", OracleDbType.Date).Value = r.PreDailyDeliveryDate
-                            cmd.Parameters.Add(":p_imp_file_id", OracleDbType.Int64).Value = r.ImpFileId ' NUMBER(10,0)
-
-                            cmd.Parameters.Add(":p_order_type", OracleDbType.Int16).Value = r.OrderType       ' NUMBER(1,0)
-                            cmd.Parameters.Add(":p_prorated_type", OracleDbType.Int16).Value = r.ProratedType    ' NUMBER(1,0)
-                            cmd.Parameters.Add(":p_customer_info_type", OracleDbType.Varchar2, 50).Value = SafeVarchar(r.CustomerInfoType, 50)
-                            cmd.Parameters.Add(":p_info_type", OracleDbType.Char, 1).Value = SafeVarchar(r.InfoType, 1)
-                            cmd.Parameters.Add(":p_self_fcst_flag", OracleDbType.Char, 1).Value = NormalizeYN(r.SelfFcstFlag)
-                            cmd.Parameters.Add(":p_self_fcst_delete_flag", OracleDbType.Char, 1).Value = NormalizeYN(r.SelfFcstDeleteFlag)
-
-                            cmd.Parameters.Add(":p_reconcile_type", OracleDbType.Int16).Value = r.ReconcileType   ' NUMBER(1,0)
-                            cmd.Parameters.Add(":p_imp_run_id", OracleDbType.Varchar2, 36).Value = SafeVarchar(r.ImpRunId, 36)
-                            cmd.Parameters.Add(":p_status", OracleDbType.Varchar2, 20).Value = SafeVarchar(r.Status, 20)
-                            cmd.Parameters.Add(":p_active_flag", OracleDbType.Char, 1).Value = NormalizeYN(r.ActiveFlag)
-
-                            ' 監査
-                            cmd.Parameters.Add(":p_created_at", OracleDbType.Date).Value = r.CreatedAt
-                            cmd.Parameters.Add(":p_created_user_id", OracleDbType.Varchar2, 9).Value = SafeVarchar(r.CreatedUserId, 9)
-                            cmd.Parameters.Add(":p_created_pg_id", OracleDbType.Varchar2, 150).Value = SafeVarchar(r.CreatedPgId, 150)
-                            cmd.Parameters.Add(":p_updated_at", OracleDbType.Date).Value = r.UpdatedAt
-                            cmd.Parameters.Add(":p_updated_user_id", OracleDbType.Varchar2, 9).Value = SafeVarchar(r.UpdatedUserId, 9)
-                            cmd.Parameters.Add(":p_updated_pg_id", OracleDbType.Varchar2, 150).Value = SafeVarchar(r.UpdatedPgId, 150)
-
-                            cmd.ExecuteNonQuery()
-                        Next
-
-                        tran.Commit()
-                    End Using
-                End Using
-            End Using
-        End Sub
-#Else
         ''' <summary>
         ''' Order record 追加
         ''' R.sagisaka Modified
@@ -311,7 +168,6 @@ Namespace OMS.Data
         End Function
         ''' <summary>
         ''' Order record 追加
-        ''' R.sagisaka Modified
         ''' </summary>
         ''' <param name="conn"></param>
         ''' <param name="tran"></param>
@@ -338,8 +194,11 @@ Namespace OMS.Data
                 sb.AppendLine("  created_at, created_user_id, created_pg_id, ")
                 sb.AppendLine("  updated_at, updated_user_id, updated_pg_id ")
                 If (type = OrdersTable.Orders) Then
-                    sb.AppendLine(",  stra_order_qty, stra_ship_qty, stra_order_backlog ")
+                    sb.AppendLine(",  stra_order_qty, stra_ship_qty, stra_order_backlog, ")
+                    sb.AppendLine(" target_reference_dateType, target_reference_date, info_type_code ")
                 End If
+
+
                 sb.AppendLine(") VALUES (")
                 sb.AppendLine("  :p_customer_setting_id, :p_customer_code, :p_billing_to, :p_customer_order_no, :p_demand_status, :p_ship_to, ")
                 sb.AppendLine("  :p_order_date, :p_due_date, :p_ship_scheduled_date, :p_customer_item_no, :p_item_no, ")
@@ -356,46 +215,10 @@ Namespace OMS.Data
                 sb.AppendLine("  :p_created_at, :p_created_user_id, :p_created_pg_id, ")
                 sb.AppendLine("  :p_updated_at, :p_updated_user_id, :p_updated_pg_id ")
                 If (type = OrdersTable.Orders) Then
-                    sb.AppendLine(",  :p_stra_order_qty, :p_stra_ship_qty, :p_stra_order_backlog ")
+                    sb.AppendLine(",  :p_stra_order_qty, :p_stra_ship_qty, :p_stra_order_backlog, ")
+                    sb.AppendLine(" :p_target_reference_dateType, :p_target_reference_date, :p_info_type_code ")
                 End If
                 sb.AppendLine(")")
-#If False Then
-                Dim sql As String =
-                $"INSERT INTO {GetTableName(type)} (" &
-                "  customer_setting_id, customer_code, billing_to, customer_order_no, demand_status, ship_to, " &
-                "  order_date, due_date, ship_scheduled_date, customer_item_no, item_no, " &
-                "  demand_qty, demand_unit, currency_code, ship_stock_location, company_id, " &
-                "  product_code, billing_standard, ship_process_type, delivery_instr_flag, " &
-                "  order_no, remarks, delivery_code, order_time, sales_unit_price, delivery_time, " &
-                "  usage_location, total_ship_qty, production_category, char_2, container_no, " &
-                "  char_3, char_4, char_4_2, char_5, char_5_2, char_6, " &
-                "  order_reason, container_capacity, customer_lot_no, initial_flag, ship_date, " &
-                "  char_50, transport_method, ship_plan_date, customer_order_line_no, " &
-                "  pre_daily_order_qty, pre_daily_delivery_date, imp_file_id, " &
-                "  order_type, prorated_type, customer_info_type, info_type, self_fcst_flag, self_fcst_delete_flag, " &
-                "  reconcile_type, imp_run_id, status, active_flag, " &
-                "  created_at, created_user_id, created_pg_id, " &
-                "  updated_at, updated_user_id, updated_pg_id, " &
-                "  stra_order_qty, stra_ship_qty, stra_order_backlog " &
-                ") VALUES (" &
-                "  :p_customer_setting_id, :p_customer_code, :p_billing_to, :p_customer_order_no, :p_demand_status, :p_ship_to, " &
-                "  :p_order_date, :p_due_date, :p_ship_scheduled_date, :p_customer_item_no, :p_item_no, " &
-                "  :p_demand_qty, :p_demand_unit, :p_currency_code, :p_ship_stock_location, :p_company_id, " &
-                "  :p_product_code, :p_billing_standard, :p_ship_process_type, :p_delivery_instr_flag, " &
-                "  :p_order_no, :p_remarks, :p_delivery_code, :p_order_time, :p_sales_unit_price, :p_delivery_time, " &
-                "  :p_usage_location, :p_total_ship_qty, :p_production_category, :p_char_2, :p_container_no, " &
-                "  :p_char_3, :p_char_4, :p_char_4_2, :p_char_5, :p_char_5_2, :p_char_6, " &
-                "  :p_order_reason, :p_container_capacity, :p_customer_lot_no, :p_initial_flag, :p_ship_date, " &
-                "  :p_char_50, :p_transport_method, :p_ship_plan_date, :p_customer_order_line_no, " &
-                "  :p_pre_daily_order_qty, :p_pre_daily_delivery_date, :p_imp_file_id, " &
-                "  :p_order_type, :p_prorated_type, :p_customer_info_type, :p_info_type, :p_self_fcst_flag, :p_self_fcst_delete_flag," &
-                "  :p_reconcile_type, :p_imp_run_id, :p_status, :p_active_flag, " &
-                "  :p_created_at, :p_created_user_id, :p_created_pg_id, " &
-                "  :p_updated_at, :p_updated_user_id, :p_updated_pg_id, " &
-                "  :p_stra_order_qty, :p_stra_ship_qty, :p_stra_order_backlog " &
-                ")"
-                Using cmd As New OracleCommand(sql, conn)
-#End If
                 Using cmd As New OracleCommand(sb.ToString(), conn)
                     cmd.Transaction = tran
                     cmd.BindByName = True
@@ -491,6 +314,10 @@ Namespace OMS.Data
                             cmd.Parameters.Add(":p_stra_order_qty", OracleDbType.Decimal).Value = r.StraOrderQty
                             cmd.Parameters.Add(":p_stra_ship_qty", OracleDbType.Decimal).Value = r.StraShipQty
                             cmd.Parameters.Add(":p_stra_order_backlog", OracleDbType.Decimal).Value = r.StraOrderBacklog
+
+                            cmd.Parameters.Add(":p_target_reference_dateType", OracleDbType.Varchar2, 1).Value = r.TargetReferenceDateType
+                            cmd.Parameters.Add(":p_target_reference_date", OracleDbType.Varchar2, 8).Value = r.TargetReferenceDate
+                            cmd.Parameters.Add(":p_info_type_code", OracleDbType.Varchar2, 4).Value = r.InfoTypeCode
                         End If
                         cmd.ExecuteNonQuery()
                     Next
@@ -503,58 +330,6 @@ Namespace OMS.Data
             Return errorMessage
 
         End Function
-#End If
-        ' 受注一覧取得
-        ' 2026/02/16 R.Sagisaka
-        'Public Function GetOrders(
-        '    Optional ByVal customerCode As String = Nothing,
-        '    Optional ByVal customerName As String = Nothing,
-        '    Optional ByVal profitCenter As String = Nothing,
-        '    Optional ByVal customerUnitName As String = Nothing,
-        '    Optional ByVal status As String = Nothing,
-        '    Optional ByVal prodMgmtUserId As String = Nothing,
-        '    Optional ByVal activeFlag As String = Nothing
-        ') As DataTable
-
-        '    Return GetOrders(customerCode, customerName, profitCenter, customerUnitName, status, prodMgmtUserId, activeFlag, Nothing)
-
-        'End Function
-
-        '''' <summary>
-        '''' orderId から Record 取得
-        '''' </summary>
-        '''' <param name="conn"></param>
-        '''' <param name="tran"></param>
-        '''' <param name="orderId"></param>
-        '''' <returns></returns>
-        'Public Function GetOrder(conn As OracleConnection, tran As OracleTransaction, orderId As Long) As DataRow
-        '    Dim errorMessage = ""
-        '    Dim dt As New DataTable()
-        '    Try
-        '        Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
-        '            cmd.CommandText = "
-        '                SELECT *
-        '                FROM orders 
-        '                WHERE oder_id = :p_oder_id "
-        '            AddVarchar(cmd, ":p_oder_id", orderId)
-        '            Using reader As OracleDataReader = cmd.ExecuteReader()
-        '                dt.Load(reader)
-        '            End Using
-        '        End Using
-        '    Catch e As OracleException
-        '        errorMessage = "Number: " & e.Number & vbCrLf & "Message: " & e.Message
-        '    Finally
-        '    End Try
-
-        '    If dt.Rows.Count = 1 Then
-        '        Return dt.Rows(0)
-        '    Else
-        '        Return Nothing
-        '    End If
-
-        'End Function
-
-
         ''' <summary>
         ''' Orders Table から 条件でレコード抽出
         ''' </summary>
@@ -745,6 +520,11 @@ Namespace OMS.Data
             sb.AppendLine("  stra_order_qty             AS ""StraOrderQty"" ")
             sb.AppendLine("  stra_ship_qty              AS ""StraShipQty"" ")
             sb.AppendLine("  stra_order_backlog         AS ""StraOrderBacklog"" ")
+
+            'Pharse2 Suzuki
+            sb.AppendLine("  target_reference_date_type AS ""TargetReferenceDateType"" ")
+            sb.AppendLine("  target_reference_date      AS ""TargetReferenceDate"" ")
+            sb.AppendLine("  info_type_code             AS ""InfoTypeCode"" ")
 
             sb.AppendLine("FROM orders_view ")
             sb.AppendLine("WHERE 1=1 ")
@@ -1131,28 +911,6 @@ Namespace OMS.Data
                     prm.Add(New OracleParameter(":p_orderid", OracleDbType.Int64) With {.Value = orderId})
                 End If
 
-#If False Then
-                Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
-                    cmd.CommandText = $"
-                        UPDATE {GetTableName(type)} 
-                         SET 
-                              ship_scheduled_date = :p_ship_scheduled_date, 
-                              ship_date           = :p_ship_date, 
-                              status              = :p_status, 
-                              updated_at          = :p_updated_at, 
-                              updated_user_id     = :p_updated_user_id, 
-                              updated_pg_id       = :p_updated_pg_id 
-                          WHERE {GetIdName(type)} = :p_orderid 
-                    "
-                    AddDate(cmd, ":p_ship_scheduled_date", shipScheduledDate)
-                    AddDate(cmd, ":p_ship_date", shipDate)
-                    AddVarchar(cmd, ":p_status", status)
-                    AddDate(cmd, ":p_updated_at", updatedAt)
-                    AddVarchar(cmd, ":p_updated_user_id", updatedUserId)
-                    AddVarchar(cmd, ":p_updated_pg_id", updatedPgId)
-                    AddIntOrNull(cmd, ":p_orderid", orderId)
-                    cmd.ExecuteNonQuery()
-#End If
                 Using cmd As New OracleCommand(sb.ToString(), conn)
                     cmd.BindByName = True
                     cmd.CommandType = CommandType.Text
@@ -1166,164 +924,6 @@ Namespace OMS.Data
             Return errorMessage
         End Function
 
-#If False Then
-        ''' <summary>
-        ''' 納期設定
-        ''' OrderStage の id より
-        ''' R.sagisaka create
-        ''' </summary>
-        ''' <param name="stageId"></param>
-        ''' <param name="due"></param>
-        ''' <returns></returns>
-        Public Function UpdateDeadline(conn As OracleConnection, tran As OracleTransaction, type As OrdersTable,
-                                        stageId As Integer,
-                                        shipScheduledDate As Date,
-                                        shipDate As Date,
-                                        status As Integer,
-                                        updateAt As Date,
-                                        updatedUserId As String,
-                                        updatedPgId As String,
-                                        due As Boolean) As String
-
-            ' SHIP_SCHEDULED_DATE(出荷予定日)
-            ' SHIP_DATE(出荷日)
-            ' STATUS(ステータス)
-            ' UPDATED_AT(更新日時)
-            ' UPDATED_USER_ID(更新ユーザーID)
-            ' UPDATED_PG_ID(更新プログラムID)
-            ' CUSTOMER_SETTING_ID(取引先設定ID)
-            Dim errorMessage = ""
-            Try
-                Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
-                    cmd.CommandText = $"
-                        UPDATE {GetTableName(type)} 
-                         SET ship_scheduled_date = :p_ship_scheduled_date,
-                              ship_date          = :p_ship_date,
-                              status             = :p_status,
-                              updated_at         = :p_update_at,
-                              updated_user_id    = :p_updated_user_id,
-                              updated_pg_id      = :p_updated_pg_id,
-                          WHERE stage_id         = :p_stageid
-                    "
-                    AddDate(cmd, ":p_ship_scheduled_date", shipScheduledDate)
-                    AddDate(cmd, ":p_ship_date", shipDate)
-                    AddVarchar(cmd, ":p_status", status)
-                    AddDate(cmd, ":p_updated_at", updateAt)
-                    AddVarchar(cmd, ":p_updated_user_id", updatedUserId)
-                    AddVarchar(cmd, ":p_updated_pg_id", updatedPgId)
-                    AddIntOrNull(cmd, ":p_stageid", stageId)
-                    cmd.ExecuteNonQuery()
-                End Using
-            Catch e As OracleException
-                errorMessage = "Number: " & e.Number & vbCrLf & "Message: " & e.Message
-            Finally
-            End Try
-            Return errorMessage
-        End Function
-        ''' <summary>
-        ''' 納期設定
-        ''' Order の id より
-        ''' R.sagisaka create
-        ''' </summary>
-        ''' <param name="conn"></param>
-        ''' <param name="tran"></param>
-        ''' <param name="orderId"></param>
-        ''' <param name="shipScheduledDate"></param>
-        ''' <param name="shipDate"></param>
-        ''' <param name="status"></param>
-        ''' <param name="updateAt"></param>
-        ''' <param name="updatedUserId"></param>
-        ''' <param name="updatedPgId"></param>
-        ''' <returns></returns>
-        Public Function UpdateDeadline(conn As OracleConnection, tran As OracleTransaction, type As OrdersTable,
-                                        orderId As Integer,
-                                        shipScheduledDate As Date,
-                                        shipDate As Date,
-                                        status As String,
-                                        updateAt As Date,
-                                        updatedUserId As String,
-                                        updatedPgId As String
-                                        ) As String
-
-            ' SHIP_SCHEDULED_DATE(出荷予定日)
-            ' SHIP_DATE(出荷日)
-            ' STATUS(ステータス)
-            ' UPDATED_AT(更新日時)
-            ' UPDATED_USER_ID(更新ユーザーID)
-            ' UPDATED_PG_ID(更新プログラムID)
-            ' CUSTOMER_SETTING_ID(取引先設定ID)
-            Dim errorMessage = ""
-            Try
-                Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
-                    cmd.CommandText = $"
-                        UPDATE {GetTableName(type)} 
-                         SET ship_scheduled_date = :p_ship_scheduled_date,
-                              ship_date          = :p_ship_date,
-                              status             = :p_status,
-                              updated_at         = :p_update_at,
-                              updated_user_id    = :p_updated_user_id,
-                              updated_pg_id      = :p_updated_pg_id,
-                          WHERE order_id         = :p_orderid
-                    "
-                    AddDate(cmd, ":p_ship_scheduled_date", shipScheduledDate)
-                    AddDate(cmd, ":p_ship_date", shipDate)
-                    AddVarchar(cmd, ":p_status", status)
-                    AddDate(cmd, ":p_updated_at", updateAt)
-                    AddVarchar(cmd, ":p_updated_user_id", updatedUserId)
-                    AddVarchar(cmd, ":p_updated_pg_id", updatedPgId)
-                    AddIntOrNull(cmd, ":p_orderid", orderId)
-                    cmd.ExecuteNonQuery()
-                End Using
-            Catch e As OracleException
-                errorMessage = "Number: " & e.Number & vbCrLf & "Message: " & e.Message
-            Finally
-            End Try
-            Return errorMessage
-        End Function
-        ''' <summary>
-        ''' 登録済みの Orders レコードを OrdersStage のstatus から検索し該当レコードを返す
-        ''' ORDERS_STAGE（受注ワークテーブル）のSTATUS（ステータス）が[PLAN_SET]で登録されているレコードの
-        ''' CUSTOMER_SETTING_ID（取引先設定ID）で結合し、ORDERS（受注テーブル）のSTATUS（ステータス）が[DUE_SET]で登録されているレコード
-        ''' </summary>
-        ''' <param name="conn"></param>
-        ''' <param name="tran"></param>
-        ''' <returns></returns>
-        Public Function GetRegisteredOrders(conn As OracleConnection, tran As OracleTransaction, type As OrdersTable) As DataTable
-
-            Dim errorMessage = ""
-            Dim dt As New DataTable()
-            Try
-                Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
-                    cmd.CommandText = $"
-                            SELECT 
-                                o.* 
-                            FROM 
-                                {GetTableName(type)} o 
-                            INNER JOIN 
-                                order_stage os 
-                            ON 
-                                o.customer_setting_id = OS.customer_setting_id 
-                            WHERE 
-                                os.status = 'PLAN_SET' 
-                                And o.status = 'DUE_SET'; 
-                             "
-                    Using reader As OracleDataReader = cmd.ExecuteReader()
-                        dt.Load(reader)
-                    End Using
-                End Using
-            Catch e As OracleException
-                errorMessage = "Number: " & e.Number & vbCrLf & "Message: " & e.Message
-            Finally
-            End Try
-
-            If dt.Rows.Count > 1 Then
-                Return dt
-            Else
-                Return Nothing
-            End If
-
-        End Function
-#End If
         ''' <summary>
         ''' customerSettingId と status で OrderStage レコードを削除する
         ''' R.sagisaka create
@@ -1615,6 +1215,11 @@ Namespace OMS.Data
             osr.CreatedPgId = dt.Field(Of String)("created_pg_id")
             osr.UpdatedUserId = dt.Field(Of String)("updated_user_id")
             osr.UpdatedPgId = dt.Field(Of String)("updated_pg_id")
+
+            'Pharse2 Suzuki
+            osr.TargetReferenceDateType = dt.Field(Of String)("target_reference_date_type")
+            osr.TargetReferenceDate = dt.Field(Of String)("target_reference_date")
+            osr.InfoTypeCode = dt.Field(Of String)("info_type_code")
 
             Return osr
 
@@ -2319,6 +1924,11 @@ Namespace OMS.Data
         Public Property UpdatedUserId As String                 ' UPDATED_USER_ID
         Public Property UpdatedPgId As String                   ' UPDATED_PG_ID
 
+        'Pharse2 Suzuki
+        Public Property TargetReferenceDateType As String       '対象基準日区分  VARCHAR2    1 CHAR
+        Public Property TargetReferenceDate As String           '対象基準日      VARCHAR2    8 CHAR
+        Public Property InfoTypeCode As String                  '情報区分コード  VARCHAR2    4 CHAR
+
         Public Function IsCorrect() As Boolean
 
             'CUSTOMER_SETTING_ID（取引先設定ID）
@@ -2490,6 +2100,12 @@ Namespace OMS.Data
             dst.UpdatedAt = src.UpdatedAt
             dst.UpdatedUserId = src.UpdatedUserId
             dst.UpdatedPgId = src.UpdatedPgId
+
+            'Pharse2 Suzuki
+            dst.TargetReferenceDateType = src.TargetReferenceDateType
+            dst.TargetReferenceDate = src.TargetReferenceDate
+            dst.InfoTypeCode = src.InfoTypeCode
+
             Return dst
 
         End Function

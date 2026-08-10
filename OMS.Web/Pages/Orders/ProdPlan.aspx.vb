@@ -205,6 +205,12 @@ Namespace Pages.Orders
                             ' Customer Setting ID リストに追加
                             idList.Add(customerSettingId)
 
+                            '' ++++++++++++++++++++++ DEBUG
+                            '' DEBUG Data
+                            'customerCode = "7158"
+                            'customerSettingId = 24
+                            '' ++++++++++++++++++++++ DEBUG
+
                             ' 生産計画ワーク削除
                             ' ①	CUSTOMER_SETTING_ID = 処理中のCUSTOMER_SETTING_ID（取引先設定ID） 	
                             errors.Add(reps.Delete(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, customerSettingId:=customerSettingId))
@@ -380,6 +386,15 @@ Namespace Pages.Orders
                             csidObj = keys("ProfitCenter")
                             Dim profitCenter As String = csidObj.ToString()
 
+                            '' ++++++++++++++++++++++ DEBUG
+                            '' DEBUG Data
+                            'customerCode = "7158"
+                            'customerSettingId = 24
+                            '' ++++++++++++++++++++++ DEBUG
+
+
+
+
                             ' Customer Setting ID リストに追加
                             idList.Add(customerSettingId)
 
@@ -484,9 +499,9 @@ Namespace Pages.Orders
                                             '' 搬送LT: 0
                                             '' 納期設定後 出荷予定日: 2026/8/27
 
-                                            'splitMethodType = 3 '1(日割り) 2(4分割) 3(3分割) 4(2分割) 5(週まるめ) 6(分割なし)    
+                                            'splitMethodType = 4 '1(日割り) 2(4分割) 3(3分割) 4(2分割) 5(週まるめ) 6(分割なし)    
                                             'splitStartType = 3  '1(月初) 2(前月第4週) 3(納期の4週前)
-                                            'shipScheduledDate = New Date(2026, 8, 27)
+                                            'shipScheduledDate = New Date(2026, 8, 26)
 
                                             ''Dim shproutm = New ShproutmRepository(Utils.GetConnectionString())
                                             '''FUSRDEC1 ((A)品揃リードタイム)
