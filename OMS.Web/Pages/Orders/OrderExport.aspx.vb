@@ -302,18 +302,34 @@ Namespace Pages.Orders
                             '                            ' #### DEBUG
                             '#End If
 
+                            ' SQL で過去日チェックする場合
+                            ' (customerSettingId 考慮無し)
+                            'errors.Add(reps.UpdateProdPlanStage(conn, tran, updatedAt, loginUserId))
+                            'If (CheckError(errors)) Then
+                            '    ' エラー DB更新無効
+                            '    DBError(tran)
+                            '    Continue For
+                            'End If
                         End If
                     End If
                 Next
 
-                '出荷状況エラーリスト出力	
-                'PROD_PLAN_STAGE_VIEW（生産計画出力一覧）をExcel出力する。	
+                '--------------------------
+                'リスト出力
+                '--------------------------
+                ''出荷状況エラーリスト出力	
+                ''PROD_PLAN_STAGE_VIEW（生産計画出力一覧）をExcel出力する。	
+                'Dim repos = New OrderStraRepository(Utils.GetConnectionString())
+                'Dim ErrorRows = repos.GetOrderStage(conn, tran, status:="POST_PLAN_DUE_SET", activeFlag:="N")
+                'errors.Add(OrderProductionPlanExcelFile.ShippingStatusErrorExcelOut(strPath, FileDate, repos.ToClass(ErrorRows)))
+                'If (CheckError(errors)) Then
+                '    ' エラー
+                'End If
+
+                ' 2026/08/17 更新
                 Dim repos = New OrderStraRepository(Utils.GetConnectionString())
-                Dim ErrorRows = repos.GetOrderStage(conn, tran, status:="POST_PLAN_DUE_SET", activeFlag:="N")
-                errors.Add(OrderProductionPlanExcelFile.ShippingStatusErrorExcelOut(strPath, FileDate, repos.ToClass(ErrorRows)))
-                If (CheckError(errors)) Then
-                    ' エラー
-                End If
+                Dim errorRows = repos.GetOrderStage(conn, tran, status:="POST_PLAN_DUE_SET", activeFlag:="N", additionalConditions:=" AND ship_scheduled_date >=  order_date  AND order_type > 1 ")
+                errors.Add(OrderProductionPlanExcelFile.ShippingStatusErrorExcelOut(strPath, FileDate, repos.ToClass(errorRows)))
                 '#If DEBUG Then
                 '                ' #### DEBUG
                 '                tran.Commit()
@@ -321,7 +337,18 @@ Namespace Pages.Orders
                 '                ' #### DEBUG
                 '#End If
                 Dim trfilename = OrderProductionPlanExcelFile.GetErrorListExcelFilename(strPath, FileDate)
-                'Utils.FileTransfer(Response, Server, trfilename)
+                fileList.Add(trfilename)
+
+                '過去日エラーリスト出力
+                Dim pastErrorRows = repos.GetOrderStage(conn, tran, status:="POST_PLAN_DUE_SET", activeFlag:="N", additionalConditions:=" AND ship_scheduled_date <  order_date ")
+                errors.Add(OrderProductionPlanExcelFile.PastDateErrorExcelOut(strPath, FileDate, repos.ToClass(errorRows)))
+                '#If DEBUG Then
+                '                ' #### DEBUG
+                '                tran.Commit()
+                '                tran = conn.BeginTransaction()
+                '                ' #### DEBUG
+                '#End If
+                trfilename = OrderProductionPlanExcelFile.GetPastDateListExcelFilename(strPath, FileDate)
                 fileList.Add(trfilename)
 
                 ' 処理数を 集計する

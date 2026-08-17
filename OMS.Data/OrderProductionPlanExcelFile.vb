@@ -210,7 +210,20 @@ Namespace OMS.Data
         Public Shared Function ShippingStatusErrorExcelOut(strPath As String, updateDate As Date, rows As List(Of OrderStageViewRow)) As String
 
             Dim excel = New OrderProductionPlanExcelFile()
-            Return excel.OrdersExcelFile(GetErrorListExcelFilename(strPath, updateDate), rows)
+            Return excel.OrdersExcelFile(GetErrorListExcelFilename(strPath, updateDate), rows, True)
+
+        End Function
+
+        ''' <summary>
+        ''' 過去日エラーリスト出力 の excel 出力
+        ''' </summary>
+        ''' <param name="updateDate"></param>
+        ''' <param name="rows"></param>
+        ''' <returns></returns>
+        Public Shared Function PastDateErrorExcelOut(strPath As String, updateDate As Date, rows As List(Of OrderStageViewRow)) As String
+
+            Dim excel = New OrderProductionPlanExcelFile()
+            Return excel.OrdersExcelFile(GetPastDateListExcelFilename(strPath, updateDate), rows, False)
 
         End Function
 
@@ -228,6 +241,18 @@ Namespace OMS.Data
 
         End Function
 
+        ''' <summary>
+        ''' 過去日 Error list filename取得
+        ''' </summary>
+        ''' <param name="fileDate"></param>
+        ''' <returns></returns>
+        Public Shared Function GetPastDateListExcelFilename(strPath As String, fileDate As DateTime) As String
+            ' Server 側の File 保存Folder
+            'Dim strPath = GetWorkPath()
+            Dim filename = IO.Path.Combine(strPath, $"A-R-COEDI-F_Past_{fileDate.ToString("yyyyMMssHHmmss")}.xlsx")
+            Return filename
+
+        End Function
 
         ''' <summary>
         ''' 生産計画 Excel ファイル出力
@@ -629,13 +654,13 @@ Namespace OMS.Data
         ''' <param name="filename"></param>
         ''' <param name="ordersRow"></param>
         ''' <returns></returns>
-        Public Function OrdersExcelFile(filename As String, ordersRow As List(Of OrderStageViewRow)) As String
+        Public Function OrdersExcelFile(filename As String, ordersRow As List(Of OrderStageViewRow), flag As Boolean) As String
             Dim rt = ""
 
             Try
                 'ワークブックを作成
                 Using objWBook As New XLWorkbook
-                    Dim objSheet1 As IXLWorksheet = objWBook.Worksheets.Add("出荷状況エラー")
+                    Dim objSheet1 As IXLWorksheet = objWBook.Worksheets.Add(If(flag, "出荷状況エラー", "過去日エラー"))
 
                     For Each itemp In ErrorListExcelTitle
                         objSheet1.Column(itemp.index).Width = itemp.width

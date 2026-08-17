@@ -171,7 +171,10 @@ Namespace OMS.Data
                                         Optional ByVal customerSettingId As Long? = Nothing,
                                         Optional ByVal demandStatus As String = Nothing,
                                         Optional ByVal status As String = Nothing,
-                                        Optional ByVal activeFlag As String = Nothing) As DataTable
+                                        Optional ByVal activeFlag As String = Nothing,
+                                        Optional ByVal orderDate As Date? = Nothing,
+                                        Optional ByVal orderType As Integer? = Nothing,
+                                        Optional ByVal additionalConditions As String = Nothing) As DataTable
 
             Dim dt As New DataTable()
             Dim sb As New StringBuilder()
@@ -198,6 +201,20 @@ Namespace OMS.Data
             If Not String.IsNullOrEmpty(activeFlag) Then
                 sb.AppendLine("AND UPPER(active_flag) = :p_active ")
                 prm.Add(New OracleParameter(":p_active", OracleDbType.Char) With {.Value = activeFlag})
+            End If
+
+            If Not String.IsNullOrEmpty(orderDate) Then
+                sb.AppendLine("order_date >= :p_orderDate ")
+                prm.Add(New OracleParameter(":p_orderDate", OracleDbType.Date) With {.Value = orderDate})
+            End If
+
+            If Not String.IsNullOrEmpty(orderType) Then
+                sb.AppendLine("order_type >= :p_orderType ")
+                prm.Add(New OracleParameter(":p_orderType", OracleDbType.Date) With {.Value = orderType})
+            End If
+
+            If Not String.IsNullOrEmpty(additionalConditions) Then
+                sb.AppendLine(additionalConditions)
             End If
 
             Using cmd As New OracleCommand(sb.ToString(), conn)

@@ -4210,6 +4210,60 @@ Namespace OMS.Data
 
         End Function
 
+        ''' <summary>
+        ''' 受注ファイル出力 過去日チェック をSQL で実行する場合
+        ''' </summary>
+        ''' <param name="conn"></param>
+        ''' <param name="tran"></param>
+        ''' <param name="updatedAt"></param>
+        ''' <param name="loginUserId"></param>
+        ''' <returns></returns>
+        Public Function UpdateProdPlanStage(conn As OracleConnection, tran As OracleTransaction, ByVal updatedAt As DateTime, ByVal loginUserId As String) As String
+
+            Dim rt = ""
+            ' 1. 実行するSQL文の定義
+            Dim sql As String = "UPDATE PROD_PLAN_STAGE " &
+                                "SET ACTIVE_FLAG = 'N', " &
+                                "    UPDATED_AT = :updatedAt, " &
+                                "    UPDATED_USER_ID = :loginUserId, " &
+                                "    UPDATED_PG_ID = 'OrderExport' " &
+                                "WHERE SHIP_SCHEDULED_DATE < ORDER_DATE " &
+                                "  AND STATUS = 'POST_PLAN_DUE_SET' " &
+                                "  AND ACTIVE_FLAG = 'Y'"
+
+            ' 2. 接続とコマンドの生成（Using句で確実にリソースを解放）
+            'Using conn As New OracleConnection(connectionString)
+            Using cmd As New OracleCommand(sql, conn)
+
+                    ' ODP.NETではデフォルトでパラメータが位置順（名前ではなく）でバインドされるため、
+                    ' 名前で一致させる設定を True にしておくと安全です。
+                    cmd.BindByName = True
+
+                    ' 3. 外部からの変数をパラメータとして追加
+                    ' OracleDbType.Date や OracleDbType.Varchar2 を明示的に指定します
+                    cmd.Parameters.Add(New OracleParameter("updatedAt", OracleDbType.Date)).Value = updatedAt
+                    cmd.Parameters.Add(New OracleParameter("loginUserId", OracleDbType.Varchar2, 9)).Value = loginUserId
+
+                    Try
+                    ' 4. データベース接続の開始とSQLの実行
+                    'conn.Open()
+                    Dim rowsAffected As Integer = cmd.ExecuteNonQuery()
+
+                        Console.WriteLine($"{rowsAffected} 件のレコードを更新しました。")
+
+                    Catch ex As OracleException
+                        ' エラーハンドリング
+                        rt = ($"Oracle エラーが発生しました: {ex.Message}")
+                        Throw
+                    Catch ex As Exception
+                        rt = ($"予期せぬエラーが発生しました: {ex.Message}")
+                        Throw
+                    End Try
+                End Using
+            'End Using
+            Return rt
+        End Function
+
     End Class
 
     ''' <summary>
