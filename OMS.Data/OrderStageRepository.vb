@@ -233,7 +233,10 @@ Namespace OMS.Data
                 sb.AppendLine("  order_type, prorated_type, customer_info_type, info_type, self_fcst_flag, self_fcst_delete_flag, ")
                 sb.AppendLine("  reconcile_type, imp_run_id, status, active_flag, ")
                 sb.AppendLine("  created_at, created_user_id, created_pg_id, ")
-                sb.AppendLine("  updated_at, updated_user_id, updated_pg_id ")
+                sb.AppendLine("  updated_at, updated_user_id, updated_pg_id, ")
+                sb.AppendLine("  order_time, sales_unit_price, usage_location, production_category, ")
+                sb.AppendLine("  container_no, order_reason, customer_lot_no ")
+
                 If (type = OrdersTable.Orders) Then
                     sb.AppendLine(",  stra_order_qty, stra_ship_qty, stra_order_backlog, ")
 
@@ -253,7 +256,9 @@ Namespace OMS.Data
                 sb.AppendLine("  :p_order_type, :p_prorated_type, :p_customer_info_type, :p_info_type, :p_self_fcst_flag, :p_self_fcst_delete_flag,")
                 sb.AppendLine("  :p_reconcile_type, :p_imp_run_id, :p_status, :p_active_flag, ")
                 sb.AppendLine("  :p_created_at, :p_created_user_id, :p_created_pg_id, ")
-                sb.AppendLine("  :p_updated_at, :p_updated_user_id, :p_updated_pg_id ")
+                sb.AppendLine("  :p_updated_at, :p_updated_user_id, :p_updated_pg_id, ")
+                sb.AppendLine("  :p_order_time, :p_sales_unit_price, :p_usage_location, :p_production_category, ")
+                sb.AppendLine("  :p_container_no, :p_order_reason, :p_customer_lot_no ")
                 If (type = OrdersTable.Orders) Then
                     sb.AppendLine(",  :p_stra_order_qty, :p_stra_ship_qty, :p_stra_order_backlog, ")
 
@@ -344,6 +349,14 @@ Namespace OMS.Data
                             cmd.Parameters.Add(":p_target_reference_date", OracleDbType.Varchar2, 8).Value = SafeVarchar(r.TargetReferenceDate, 8)
                             cmd.Parameters.Add(":p_info_type_code", OracleDbType.Varchar2, 4).Value = SafeVarchar(r.InfoTypeCode, 4)
                         End If
+                        'Phase2
+                        cmd.Parameters.Add(":p_order_time", OracleDbType.Decimal).Value = r.OrderTime
+                        cmd.Parameters.Add(":p_sales_unit_price", OracleDbType.Decimal).Value = r.SalesUnitPrice
+                        cmd.Parameters.Add(":p_usage_location", OracleDbType.Varchar2, 8).Value = SafeVarchar(r.UsageLocation, 45)
+                        cmd.Parameters.Add(":p_production_category", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.ProductionCategory, 45)
+                        cmd.Parameters.Add(":p_container_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.ContainerNo, 45)
+                        cmd.Parameters.Add(":p_order_reason", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.OrderReason, 45)
+                        cmd.Parameters.Add(":p_customer_lot_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.CustomerLotNo, 45)
                         cmd.ExecuteNonQuery()
                     Next
 
@@ -1017,7 +1030,14 @@ Namespace OMS.Data
             osr.ContainerCapacity = If(dt.Field(Of Decimal?)("container_capacity"), 0)
             osr.InitialFlag = dt.Field(Of String)("initial_flag")
 
-
+            'Phase2
+            osr.OrderTime = If(dt.Field(Of Decimal?)("order_time"), 0)
+            osr.SalesUnitPrice = If(dt.Field(Of Decimal?)("sales_unit_price"), 0)
+            osr.UsageLocation = dt.Field(Of String)("usage_location")
+            osr.ProductionCategory = dt.Field(Of String)("production_category")
+            osr.ContainerNo = dt.Field(Of String)("container_no")
+            osr.OrderReason = dt.Field(Of String)("order_reason")
+            osr.CustomerLotNo = dt.Field(Of String)("customer_lot_no")
             ' ====== 日付系 ======
             osr.OrderDate = dt.Field(Of Date?)("order_date")
             osr.DueDate = dt.Field(Of Date?)("due_date")
@@ -1996,7 +2016,9 @@ Namespace OMS.Data
                         "  updated_at, updated_user_id, updated_pg_id, " &
                         "  stra_order_qty, stra_ship_qty, stra_order_backlog, " &
                         "  delivery_time, container_capacity, initial_flag, " &
-                        "  target_reference_date_type, target_reference_date, info_type_code " &
+                        "  target_reference_date_type, target_reference_date, info_type_code, " &
+                        "  order_time, sales_unit_price, usage_location, production_category, " &
+                        "  container_no, order_reason, customer_lot_no " &
                         ") VALUES (" &
                         "  :p_customer_setting_id, :p_customer_code, :p_billing_to, :p_customer_order_no, :p_demand_status, :p_ship_to, " &
                         "  :p_order_date, :p_due_date, :p_ship_scheduled_date, :p_customer_item_no, :p_item_no, " &
@@ -2013,7 +2035,9 @@ Namespace OMS.Data
                         "  :p_updated_at, :p_updated_user_id, :p_updated_pg_id, " &
                         "  :p_stra_order_qty, :p_stra_ship_qty, :p_stra_order_backlog, " &
                         "  :p_delivery_time, :p_container_capacity, :p_initial_flag, " &
-                        "  :p_target_reference_date_type, :p_target_reference_date, :p_info_type_code " &
+                        "  :p_target_reference_date_type, :p_target_reference_date, :p_info_type_code, " &
+                        "  :p_order_time, :p_sales_unit_price, :p_usage_location, :p_production_category, " &
+                        "  :p_container_no, :p_order_reason, :p_customer_lot_no " &
                         ")"
 
             Using cmd As New OracleCommand(sql, tran.Connection)
@@ -2103,6 +2127,15 @@ Namespace OMS.Data
                     cmd.Parameters.Add(":p_target_reference_date_type", OracleDbType.Varchar2, 1).Value = SafeVarchar(r.TargetReferenceDateType, 1)
                     cmd.Parameters.Add(":p_target_reference_date", OracleDbType.Varchar2, 8).Value = SafeVarchar(r.TargetReferenceDate, 8)
                     cmd.Parameters.Add(":p_info_type_code", OracleDbType.Varchar2, 4).Value = SafeVarchar(r.UpdatedUserId, 4)
+
+                    'Phase2
+                    cmd.Parameters.Add(":p_order_time", OracleDbType.Decimal).Value = r.OrderTime
+                    cmd.Parameters.Add(":p_sales_unit_price", OracleDbType.Decimal).Value = r.SalesUnitPrice
+                    cmd.Parameters.Add(":p_usage_location", OracleDbType.Varchar2, 8).Value = SafeVarchar(r.UsageLocation, 45)
+                    cmd.Parameters.Add(":p_production_category", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.ProductionCategory, 45)
+                    cmd.Parameters.Add(":p_container_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.ContainerNo, 45)
+                    cmd.Parameters.Add(":p_order_reason", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.OrderReason, 45)
+                    cmd.Parameters.Add(":p_customer_lot_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.CustomerLotNo, 45)
 
                     cmd.ExecuteNonQuery()
                 Next
@@ -4349,6 +4382,14 @@ Namespace OMS.Data
         Public Property TargetReferenceDate As String           '対象基準日      VARCHAR2    8 CHAR
         Public Property InfoTypeCode As String                  '情報区分コード  VARCHAR2    4 CHAR
 
+        ' Phase2 2026/08/17 追加
+        Public Property OrderTime As Decimal?                   '受注時刻		NUMBER		18,6
+        Public Property SalesUnitPrice As Decimal?              '売上単価		NUMBER		18,6
+        Public Property UsageLocation As String                 '使用先			VARCHAR2	45 CHAR
+        Public Property ProductionCategory As String            '生産区分		VARCHAR2	45 CHAR
+        Public Property ContainerNo As String                   '容器番号		VARCHAR2	45 CHAR
+        Public Property OrderReason As String                   '発注理由		VARCHAR2	45 CHAR
+        Public Property CustomerLotNo As String                 '得意先 ﾛｯﾄNO	VARCHAR2	45 CHAR
 
         Sub New()
 
@@ -4422,6 +4463,15 @@ Namespace OMS.Data
             TargetReferenceDate = org.TargetReferenceDate
             InfoTypeCode = org.InfoTypeCode
 
+            ' Phase2 2026/08/17 追加
+            OrderTime = org.OrderTime
+            SalesUnitPrice = org.SalesUnitPrice
+            UsageLocation = org.UsageLocation
+            ProductionCategory = org.ProductionCategory
+            ContainerNo = org.ContainerNo
+            OrderReason = org.OrderReason
+            CustomerLotNo = org.CustomerLotNo
+
         End Sub
         ''' <summary>
         ''' Copy constructor OrdersRow -> OrdersStageRow
@@ -4485,6 +4535,16 @@ Namespace OMS.Data
             TargetReferenceDateType = org.TargetReferenceDateType
             TargetReferenceDate = org.TargetReferenceDate
             InfoTypeCode = org.InfoTypeCode
+
+            ' Phase2 2026/08/17 追加
+            OrderTime = org.OrderTime
+            SalesUnitPrice = org.SalesUnitPrice
+            UsageLocation = org.UsageLocation
+            ProductionCategory = org.ProductionCategory
+            ContainerNo = org.ContainerNo
+            OrderReason = org.OrderReason
+            CustomerLotNo = org.CustomerLotNo
+
         End Sub
 
         ''' <summary>
@@ -4585,6 +4645,14 @@ Namespace OMS.Data
             dst.TargetReferenceDateType = src.TargetReferenceDateType
             dst.TargetReferenceDate = src.TargetReferenceDate
             dst.InfoTypeCode = src.InfoTypeCode
+            ' Phase2 2026/08/17 追加
+            dst.OrderTime = src.OrderTime
+            dst.SalesUnitPrice = src.SalesUnitPrice
+            dst.UsageLocation = src.UsageLocation
+            dst.ProductionCategory = src.ProductionCategory
+            dst.ContainerNo = src.ContainerNo
+            dst.OrderReason = src.OrderReason
+            dst.CustomerLotNo = src.CustomerLotNo
 
             Return dst
         End Function

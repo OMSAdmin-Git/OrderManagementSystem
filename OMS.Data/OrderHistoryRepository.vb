@@ -91,7 +91,9 @@ Namespace OMS.Data
                 sb.AppendLine("  order_type, prorated_type, customer_info_type, info_type, self_fcst_flag, self_fcst_delete_flag, ")
                 sb.AppendLine("  reconcile_type, imp_run_id, status, active_flag, ")
                 sb.AppendLine("  created_at, created_user_id, created_pg_id, ")
-                sb.AppendLine("  updated_at, updated_user_id, updated_pg_id ")
+                sb.AppendLine("  updated_at, updated_user_id, updated_pg_id, ")
+                sb.AppendLine("  order_time, sales_unit_price, usage_location, production_category, ")
+                sb.AppendLine("  container_no, order_reason, customer_lot_no ")
                 If (type = OrdersTable.Orders) Then
                     ' order_stage
                     sb.AppendLine(",  stra_order_qty, stra_ship_qty, stra_order_backlog, ")
@@ -113,7 +115,9 @@ Namespace OMS.Data
                 sb.AppendLine("  :p_order_type, :p_prorated_type, :p_customer_info_type, :p_info_type, :p_self_fcst_flag, :p_self_fcst_delete_flag, ")
                 sb.AppendLine("  :p_reconcile_type, :p_imp_run_id, :p_status, :p_active_flag, ")
                 sb.AppendLine("  :p_created_at, :p_created_user_id, :p_created_pg_id, ")
-                sb.AppendLine("  :p_updated_at, :p_updated_user_id, :p_updated_pg_id ")
+                sb.AppendLine("  :p_updated_at, :p_updated_user_id, :p_updated_pg_id, ")
+                sb.AppendLine("  :p_order_time, :p_sales_unit_price, :p_usage_location, :p_production_category, ")
+                sb.AppendLine("  :p_container_no, :p_order_reason, :p_customer_lot_no ")
                 If (type = OrdersTable.Orders) Then
                     sb.AppendLine(",  :p_stra_order_qty, :p_stra_ship_qty, :p_stra_order_backlog, ")
                     'Pharse2 Suzuki
@@ -218,6 +222,14 @@ Namespace OMS.Data
                             cmd.Parameters.Add(":p_container_capacity", OracleDbType.Decimal).Value = r.ContainerCapacity
                             cmd.Parameters.Add(":p_initial_flag", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.InitialFlag, 45)
                         End If
+                        'Phase2
+                        cmd.Parameters.Add(":p_order_time", OracleDbType.Decimal).Value = r.OrderTime
+                        cmd.Parameters.Add(":p_sales_unit_price", OracleDbType.Decimal).Value = r.SalesUnitPrice
+                        cmd.Parameters.Add(":p_usage_location", OracleDbType.Varchar2, 8).Value = SafeVarchar(r.UsageLocation, 45)
+                        cmd.Parameters.Add(":p_production_category", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.ProductionCategory, 45)
+                        cmd.Parameters.Add(":p_container_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.ContainerNo, 45)
+                        cmd.Parameters.Add(":p_order_reason", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.OrderReason, 45)
+                        cmd.Parameters.Add(":p_customer_lot_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.CustomerLotNo, 45)
 
                         cmd.ExecuteNonQuery()
                     Next
@@ -993,10 +1005,14 @@ Namespace OMS.Data
             ' Stage 固有
             osr.HistoryId = If(dt.Field(Of Long?)("stage_id"), 0)
             'osr.HistoryId = dt.Field(Of Long?)("stage_id")
-
-
-
-
+            'Phase2
+            osr.OrderTime = If(dt.Field(Of Decimal?)("order_time"), 0)
+            osr.SalesUnitPrice = If(dt.Field(Of Decimal?)("sales_unit_price"), 0)
+            osr.UsageLocation = dt.Field(Of String)("usage_location")
+            osr.ProductionCategory = dt.Field(Of String)("production_category")
+            osr.ContainerNo = dt.Field(Of String)("container_no")
+            osr.OrderReason = dt.Field(Of String)("order_reason")
+            osr.CustomerLotNo = dt.Field(Of String)("customer_lot_no")
 
             Return osr
 
@@ -1236,6 +1252,14 @@ Namespace OMS.Data
         Public Property TargetReferenceDateType As String       '対象基準日区分  VARCHAR2    1 CHAR
         Public Property TargetReferenceDate As String           '対象基準日      VARCHAR2    8 CHAR
         Public Property InfoTypeCode As String                  '情報区分コード  VARCHAR2    4 CHAR
+        ' Phase2 2026/08/17 追加
+        Public Property OrderTime As Decimal?                   '受注時刻		NUMBER		18,6
+        Public Property SalesUnitPrice As Decimal?              '売上単価		NUMBER		18,6
+        Public Property UsageLocation As String                 '使用先			VARCHAR2	45 CHAR
+        Public Property ProductionCategory As String            '生産区分		VARCHAR2	45 CHAR
+        Public Property ContainerNo As String                   '容器番号		VARCHAR2	45 CHAR
+        Public Property OrderReason As String                   '発注理由		VARCHAR2	45 CHAR
+        Public Property CustomerLotNo As String                 '得意先 ﾛｯﾄNO	VARCHAR2	45 CHAR
 
     End Class
 
