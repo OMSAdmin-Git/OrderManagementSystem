@@ -284,12 +284,12 @@ Namespace Pages.Orders
                             'SHIP_SCHEDULED_DATE(出荷予定日) < ORDER_DATE(受注日)
                             'STATUS(ステータス)                 'POST_PLAN_DUE_SET'
                             'CTIVE_FLAG(有効フラグ)             'Y'
-                            Dim orderso = reps.GetOrders(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, customerSettingId:=customerSettingId, status:="POST_PLAN_DUE_SET", activeFlag:="Y", additionalConditions:="AND ship_scheduled_date <  order_date ")
+                            Dim orderso = reps.ToClass(reps.GetOrders(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, customerSettingId:=customerSettingId, status:="POST_PLAN_DUE_SET", activeFlag:="Y", additionalConditions:="AND ship_scheduled_date <  order_date "))
                             'ACTIVE_FLAG(有効フラグ)           'N'
                             'UPDATED_AT(更新日時)              [処理開始日時]
                             'UPDATED_USER_ID(更新ユーザーID)   [ログインユーザーID]
                             'UPDATED_PG_ID(更新プログラムID)   'OrderExport'
-                            errors.Add(reps.UpdateByOrderId(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, updatedRows, activeFlag:="N", updatedPgId:="OrderExport", updatedUserId:=loginUserId, updatedAt:=updatedAt))
+                            errors.Add(reps.UpdateByOrderId(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, orderso, activeFlag:="N", updatedPgId:="OrderExport", updatedUserId:=loginUserId, updatedAt:=updatedAt))
                             If (CheckError(errors)) Then
                                 ' エラー DB更新無効
                                 DBError(tran)
@@ -303,6 +303,7 @@ Namespace Pages.Orders
                             '#End If
 
                         End If
+                    End If
                 Next
 
                 '出荷状況エラーリスト出力	
