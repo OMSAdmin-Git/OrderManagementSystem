@@ -226,7 +226,9 @@ Namespace Pages.Orders
                             '以下項目をキーとしてPROD_PLAN_HISTORY（生産計画履歴）とPROD_PLAN_STAGE（生産計画ワークテーブル）を比較し、
                             '該当するPROD_PLAN_STAGEのレコードを更新する。
 
+                            '-----------------------------
                             ' 出荷状況チェック 
+                            '-----------------------------
 #If False Then
                             ' SQL の場合
                             'customerOrderNo
@@ -250,9 +252,9 @@ Namespace Pages.Orders
                             'ITEM_NO（品目No）
                             Dim updatedRows = reps.ToClass((From rowT In orderss.AsEnumerable()
                                                             Join rowH In ordersh.AsEnumerable()
-                                                           On rowT.Field(Of Long)("customer_setting_id") Equals rowH.Field(Of Long)("customer_setting_id") And
-                                                                  rowT.Field(Of String)("customer_order_no") Equals rowH.Field(Of String)("customer_order_no") And
-                                                                  rowT.Field(Of String)("item_no") Equals rowH.Field(Of String)("item_no")
+                                                            On rowT.Field(Of Long)("customer_setting_id") Equals rowH.Field(Of Long)("customer_setting_id") And
+                                                               rowT.Field(Of String)("customer_order_no") Equals rowH.Field(Of String)("customer_order_no") And
+                                                               rowT.Field(Of String)("item_no") Equals rowH.Field(Of String)("item_no")
                                                             Select rowT).
                                                             GroupBy(Function(r) r.Field(Of Long)("stage_id")).
                                                             Select(Function(g) g.First()))
@@ -273,8 +275,34 @@ Namespace Pages.Orders
                             '                            tran = conn.BeginTransaction()
                             '                            ' #### DEBUG
                             '#End If
+
+                            '-----------------------------
+                            ' 過去日チェック 2026/08/06
+                            '-----------------------------
+                            '[PROD_PLAN_STAGE]
+                            '書式・条件（PROD_PLAN_STAGE）処理中のCUSTOMER_SETTING_ID
+                            'SHIP_SCHEDULED_DATE(出荷予定日) < ORDER_DATE(受注日)
+                            'STATUS(ステータス)                 'POST_PLAN_DUE_SET'
+                            'CTIVE_FLAG(有効フラグ)             'Y'
+                            Dim orderso = reps.GetOrders(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, customerSettingId:=customerSettingId, status:="POST_PLAN_DUE_SET", activeFlag:="Y", additionalConditions:="AND ship_scheduled_date <  order_date ")
+                            'ACTIVE_FLAG(有効フラグ)           'N'
+                            'UPDATED_AT(更新日時)              [処理開始日時]
+                            'UPDATED_USER_ID(更新ユーザーID)   [ログインユーザーID]
+                            'UPDATED_PG_ID(更新プログラムID)   'OrderExport'
+                            errors.Add(reps.UpdateByOrderId(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, updatedRows, activeFlag:="N", updatedPgId:="OrderExport", updatedUserId:=loginUserId, updatedAt:=updatedAt))
+                            If (CheckError(errors)) Then
+                                ' エラー DB更新無効
+                                DBError(tran)
+                                Continue For
+                            End If
+                            '#If DEBUG Then
+                            '                            ' #### DEBUG
+                            '                            tran.Commit()
+                            '                            tran = conn.BeginTransaction()
+                            '                            ' #### DEBUG
+                            '#End If
+
                         End If
-                    End If
                 Next
 
                 '出荷状況エラーリスト出力	
