@@ -137,6 +137,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Calender.vb" />
+    <Compile Include="SuzukiSpiritsConversionRepository.vb" />
     <Compile Include="CustomerUnitRepository.vb" />
     <Compile Include="CustomerRepository.vb" />
     <Compile Include="ImpFilesRepository.vb" />

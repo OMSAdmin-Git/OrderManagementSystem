@@ -247,6 +247,9 @@
     <Content Include="Pages\Masters\ProdPlanRule\ProdPlanRuleList.aspx" />
     <Content Include="Pages\Masters\ProdPlanRule\ProdPlanRuleSetting.aspx" />
     <Content Include="Pages\Masters\ProdPlanRule\ProdPlanRuleSettingCreate.aspx" />
+    <Content Include="Pages\Masters\SuzukiSpiritsConversion\SuzukiSpiritsConversionList.aspx" />
+    <Content Include="Pages\Masters\SuzukiSpiritsConversion\SuzukiSpiritsConversionSetting.aspx" />
+    <Content Include="Pages\Masters\SuzukiSpiritsConversion\SuzukiSpiritsConversionSettingCreate.aspx" />
     <Content Include="Pages\Masters\User\UserList.aspx" />
     <Content Include="Pages\Orders\DueDateSettingFromProdPlan.aspx" />
     <Content Include="Pages\Orders\DueDateSettingFromImport.aspx" />
@@ -562,6 +565,27 @@
     </Compile>
     <Compile Include="Pages\Masters\ProdPlanRule\ProdPlanRuleSettingCreate.aspx.vb">
       <DependentUpon>ProdPlanRuleSettingCreate.aspx</DependentUpon>
+      <SubType>ASPXCodebehind</SubType>
+    </Compile>
+    <Compile Include="Pages\Masters\SuzukiSpiritsConversion\SuzukiSpiritsConversionList.aspx.designer.vb">
+      <DependentUpon>SuzukiSpiritsConversionList.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Pages\Masters\SuzukiSpiritsConversion\SuzukiSpiritsConversionList.aspx.vb">
+      <DependentUpon>SuzukiSpiritsConversionList.aspx</DependentUpon>
+      <SubType>ASPXCodebehind</SubType>
+    </Compile>
+    <Compile Include="Pages\Masters\SuzukiSpiritsConversion\SuzukiSpiritsConversionSetting.aspx.designer.vb">
+      <DependentUpon>SuzukiSpiritsConversionSetting.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Pages\Masters\SuzukiSpiritsConversion\SuzukiSpiritsConversionSetting.aspx.vb">
+      <DependentUpon>SuzukiSpiritsConversionSetting.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Pages\Masters\SuzukiSpiritsConversion\SuzukiSpiritsConversionSettingCreate.aspx.designer.vb">
+      <DependentUpon>SuzukiSpiritsConversionSettingCreate.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Pages\Masters\SuzukiSpiritsConversion\SuzukiSpiritsConversionSettingCreate.aspx.vb">
+      <DependentUpon>SuzukiSpiritsConversionSettingCreate.aspx</DependentUpon>
       <SubType>ASPXCodebehind</SubType>
     </Compile>
     <Compile Include="Pages\Orders\DownloadProcess.ashx.vb">
