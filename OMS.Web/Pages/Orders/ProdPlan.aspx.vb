@@ -875,7 +875,7 @@ Namespace Pages.Orders
                                                 Dim thisRecord = ordersStage.Find(Function(x) x.ShipScheduledDate = ProcessingStartDate)
                                                 ' 
                                                 If (thisRecord Is Nothing) Then
-                                                    ' 昇順先頭レコードを先頭レコードをもとに作成
+                                                    ' 昇順先頭レコードを先頭レコードをもとに作成 CopyConstructor 内で 詳細仕様書(96) Suzuki 対応 2026/08/18
                                                     thisRecord = New OrdersStageRow(oldOrderOrder(0))
                                                     thisRecord.ShipScheduledDate = ProcessingStartDate
                                                     ordersStage.Add(thisRecord)
@@ -901,7 +901,7 @@ Namespace Pages.Orders
                                             End If
 
                                             For Each tg In ordersStage
-                                                ' OrdersStage 更新
+                                                'Prod_Plan_Stage 更新
                                                 errors.Add(reps.Update(conn, tran, OrderStageRepository.OrdersTable.ProductPlan,
                                                                         kOrderStageId:=tg.StageId,
                                                                         kOrderId:=tg.OrderId,

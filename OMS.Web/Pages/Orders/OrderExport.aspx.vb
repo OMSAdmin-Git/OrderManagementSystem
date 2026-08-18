@@ -341,7 +341,7 @@ Namespace Pages.Orders
 
                 '過去日エラーリスト出力
                 Dim pastErrorRows = repos.GetOrderStage(conn, tran, status:="POST_PLAN_DUE_SET", activeFlag:="N", additionalConditions:=" AND ship_scheduled_date <  order_date ")
-                errors.Add(OrderProductionPlanExcelFile.PastDateErrorExcelOut(strPath, FileDate, repos.ToClass(errorRows)))
+                errors.Add(OrderProductionPlanExcelFile.PastDateErrorExcelOut(strPath, FileDate, repos.ToClass(pastErrorRows)))
                 '#If DEBUG Then
                 '                ' #### DEBUG
                 '                tran.Commit()
