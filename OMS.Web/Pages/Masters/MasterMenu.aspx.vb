@@ -65,9 +65,15 @@ Namespace Pages.Masters
         Protected Sub btnProdPlanRuleList_ServerClick(sender As Object, e As EventArgs)
             Navigate("ProdPlanRule/ProdPlanRuleList.aspx")
         End Sub
+
         ' ユーザー一覧
         Protected Sub btnUserList_ServerClick(sender As Object, e As EventArgs)
             Navigate("User/UserList.aspx")
+        End Sub
+
+        ' スズキSPIRITS納入ホーム変換マスタ一覧
+        Protected Sub btnSuzukiSpiritsConversionList_ServerClick(sender As Object, e As EventArgs)
+            Navigate("SuzukiSpiritsConversion/SuzukiSpiritsConversionList.aspx")
         End Sub
 #End Region
 

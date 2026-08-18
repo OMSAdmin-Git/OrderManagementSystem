@@ -10,9 +10,9 @@
 Option Strict On
 Option Explicit On
 
-Namespace Pages.Masters
+Namespace Pages.Masters.SuzukiSpiritsConversion
 
-    Partial Public Class MasterMenu
+    Partial Public Class SuzukiSpiritsConversionList
 
         '''<summary>
         '''form1 コントロール。
@@ -33,102 +33,93 @@ Namespace Pages.Masters
         Protected WithEvents lblUser As Global.System.Web.UI.WebControls.Label
 
         '''<summary>
-        '''btnTopMenu コントロール。
+        '''btnMasterMenu コントロール。
         '''</summary>
         '''<remarks>
         '''自動生成されたフィールド。
         '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
         '''</remarks>
-        Protected WithEvents btnTopMenu As Global.System.Web.UI.WebControls.Button
+        Protected WithEvents btnMasterMenu As Global.System.Web.UI.WebControls.Button
 
         '''<summary>
-        '''btnCustomerList コントロール。
+        '''txtSearchDeliveryCodeOrder コントロール。
         '''</summary>
         '''<remarks>
         '''自動生成されたフィールド。
         '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
         '''</remarks>
-        Protected WithEvents btnCustomerList As Global.System.Web.UI.HtmlControls.HtmlButton
+        Protected WithEvents txtSearchDeliveryCodeOrder As Global.System.Web.UI.HtmlControls.HtmlInputText
 
         '''<summary>
-        '''btnCustomerUnitList コントロール。
+        '''lstSearchDeliveryCodeOrder コントロール。
         '''</summary>
         '''<remarks>
         '''自動生成されたフィールド。
         '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
         '''</remarks>
-        Protected WithEvents btnCustomerUnitList As Global.System.Web.UI.HtmlControls.HtmlButton
+        Protected WithEvents lstSearchDeliveryCodeOrder As Global.System.Web.UI.HtmlControls.HtmlGenericControl
 
         '''<summary>
-        '''btnFolderList コントロール。
+        '''txtSearchDeliveryCodePlan コントロール。
         '''</summary>
         '''<remarks>
         '''自動生成されたフィールド。
         '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
         '''</remarks>
-        Protected WithEvents btnFolderList As Global.System.Web.UI.HtmlControls.HtmlButton
+        Protected WithEvents txtSearchDeliveryCodePlan As Global.System.Web.UI.HtmlControls.HtmlInputText
 
         '''<summary>
-        '''btnFileList コントロール。
+        '''lstSearchDeliveryCodePlan コントロール。
         '''</summary>
         '''<remarks>
         '''自動生成されたフィールド。
         '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
         '''</remarks>
-        Protected WithEvents btnFileList As Global.System.Web.UI.HtmlControls.HtmlButton
+        Protected WithEvents lstSearchDeliveryCodePlan As Global.System.Web.UI.HtmlControls.HtmlGenericControl
 
         '''<summary>
-        '''btnInfoTypeList コントロール。
+        '''chkSearchActiveOnly コントロール。
         '''</summary>
         '''<remarks>
         '''自動生成されたフィールド。
         '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
         '''</remarks>
-        Protected WithEvents btnInfoTypeList As Global.System.Web.UI.HtmlControls.HtmlButton
+        Protected WithEvents chkSearchActiveOnly As Global.System.Web.UI.HtmlControls.HtmlInputCheckBox
 
         '''<summary>
-        '''btnMappingList コントロール。
+        '''btnSearchGv コントロール。
         '''</summary>
         '''<remarks>
         '''自動生成されたフィールド。
         '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
         '''</remarks>
-        Protected WithEvents btnMappingList As Global.System.Web.UI.HtmlControls.HtmlButton
+        Protected WithEvents btnSearchGv As Global.System.Web.UI.HtmlControls.HtmlButton
 
         '''<summary>
-        '''btnImpRuleList コントロール。
+        '''btnDefaultGv コントロール。
         '''</summary>
         '''<remarks>
         '''自動生成されたフィールド。
         '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
         '''</remarks>
-        Protected WithEvents btnImpRuleList As Global.System.Web.UI.HtmlControls.HtmlButton
+        Protected WithEvents btnDefaultGv As Global.System.Web.UI.HtmlControls.HtmlButton
 
         '''<summary>
-        '''btnProdPlanRuleList コントロール。
+        '''gvSuzukiSpiritsConversionList コントロール。
         '''</summary>
         '''<remarks>
         '''自動生成されたフィールド。
         '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
         '''</remarks>
-        Protected WithEvents btnProdPlanRuleList As Global.System.Web.UI.HtmlControls.HtmlButton
+        Protected WithEvents gvSuzukiSpiritsConversionList As Global.System.Web.UI.WebControls.GridView
 
         '''<summary>
-        '''btnUserList コントロール。
+        '''btnSuzukiSpiritsConversionSettingCreate コントロール。
         '''</summary>
         '''<remarks>
         '''自動生成されたフィールド。
         '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
         '''</remarks>
-        Protected WithEvents btnUserList As Global.System.Web.UI.HtmlControls.HtmlButton
-
-        '''<summary>
-        '''btnSuzukiSpiritsConversionList コントロール。
-        '''</summary>
-        '''<remarks>
-        '''自動生成されたフィールド。
-        '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
-        '''</remarks>
-        Protected WithEvents btnSuzukiSpiritsConversionList As Global.System.Web.UI.HtmlControls.HtmlButton
+        Protected WithEvents btnSuzukiSpiritsConversionSettingCreate As Global.System.Web.UI.WebControls.Button
     End Class
 End Namespace

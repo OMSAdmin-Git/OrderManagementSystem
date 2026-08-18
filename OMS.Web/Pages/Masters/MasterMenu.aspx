@@ -57,6 +57,10 @@
                     <div class="tile-title">ユーザーマスタ</div>
                     <div class="tile-desc">マスタデータ編集</div>
                 </button>
+                <button id="btnSuzukiSpiritsConversionList" runat="server" class="menu-tile btn-asti" onserverclick="btnSuzukiSpiritsConversionList_ServerClick">
+                    <div class="tile-title">スズキSPIRITS納入ホーム変換マスタ</div>
+                    <div class="tile-desc">マスタデータ登録・編集</div>
+                </button>
             </div>
         </div>
     </form>
