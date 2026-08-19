@@ -1,5 +1,8 @@
-﻿Imports OMS.Common
+﻿Imports DocumentFormat.OpenXml.Vml.Wordprocessing
+Imports DocumentFormat.OpenXml.Wordprocessing
+Imports OMS.Common
 Imports OMS.Data
+Imports OMS.Web.Pages.Masters.CustomerSetting
 
 Namespace Pages.Masters.SuzukiSpiritsConversion
     Public Class SuzukiSpiritsConversionSettingCreate
@@ -26,6 +29,47 @@ Namespace Pages.Masters.SuzukiSpiritsConversion
             lblResult.Text = ""
 
             Try
+                '入力取得
+                Dim deliveryCodeOrder As String = (If(txtDeliveryCodeOrder.Value, "")).Trim()
+                Dim deliveryCodePlan As String = (If(txtDeliveryCodePlan.Value, "")).Trim()
+
+                ' ログイン情報
+                Dim loginUserId As String = PageHelpers.GetUserId(Me)
+                Dim programId As String = "FolderSetting(Update)"
+
+
+                ' 必須チェック
+                ' JSで処理しているためなし。必要なら追加。
+
+                Dim Deli As New SuzukiSpiritsConversionRepository(Utils.GetConnectionString())
+
+                ' 重複チェック（NULL セーフ一致）
+                Dim existsOther As Boolean = Deli.ExistsSuzukiSpiritsConversion(
+                deliveryCodeOrder:=deliveryCodeOrder,
+                    excludeConversionId:=0 '新規のため除外なし
+                )
+
+                If existsOther = True Then
+                    lblError.Text = "同一（納入指示納入先コード）の登録が見つかりました。"
+                    Return
+                End If
+
+                Dim activeflag As String = "Y"
+                Dim newId As Long = Deli.InsertSuzukiSpiritsConversionNullable(
+                    deliveryCodeOrder:=deliveryCodeOrder,
+                    deliveryCodePlan:=deliveryCodePlan,
+                    activeFlag:=activeflag,
+                    loginUserId:=loginUserId,
+                    programId:=programId
+                )
+
+                If newId <= 0 Then
+                    Throw New ApplicationException("入力情報の登録に失敗しました。")
+                End If
+
+                ' 完了メッセージ
+                lblResult.Text = "入力情報を登録しました。"
+
 
             Catch ex As ApplicationException
                 lblError.Text = Server.HtmlEncode(ex.Message)

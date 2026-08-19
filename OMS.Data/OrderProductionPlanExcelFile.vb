@@ -249,7 +249,7 @@ Namespace OMS.Data
         Public Shared Function GetPastDateListExcelFilename(strPath As String, fileDate As DateTime) As String
             ' Server 側の File 保存Folder
             'Dim strPath = GetWorkPath()
-            Dim filename = IO.Path.Combine(strPath, $"A-R-COEDI-F_Past_{fileDate.ToString("yyyyMMssHHmmss")}.xlsx")
+            Dim filename = IO.Path.Combine(strPath, $"PastDayErrorList_{fileDate.ToString("yyyyMMssHHmmss")}.xlsx")
             Return filename
 
         End Function

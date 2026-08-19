@@ -1,4 +1,6 @@
-﻿Imports OMS.Common
+﻿Imports System.Net.Mail
+Imports DocumentFormat.OpenXml
+Imports OMS.Common
 Imports OMS.Data
 
 Namespace Pages.Masters.SuzukiSpiritsConversion
@@ -77,6 +79,45 @@ Namespace Pages.Masters.SuzukiSpiritsConversion
             lblResult.Text = ""
 
             Try
+
+                If ConversionId <= 0 Then
+                    lblError.Text = "対象IDが不正です。再度ページを開き直してください。"
+                    Return
+                End If
+
+                '入力取得
+                Dim deliveryCodeOrder As String = (If(txtDeliveryCodeOrder.Text, "")).Trim()
+                Dim deliveryCodePlan As String = (If(txtDeliveryCodePlan.Text, "")).Trim()
+                Dim activeflag As String = ddlActiveFlag.SelectedValue
+
+                ' ログイン情報
+                Dim loginUserId As String = PageHelpers.GetUserId(Me)
+                Dim programId As String = "FolderSetting(Update)"
+
+                ' 必須チェック
+                ' JSで処理しているためなし。必要なら追加。
+
+                Dim Deli As New SuzukiSpiritsConversionRepository(Utils.GetConnectionString())
+
+                Dim affected As Integer = Deli.UpdateSuzukiSpiritsConversionNullable(
+                    conversionId:=ConversionId,
+                    deliveryCodePlan:=deliveryCodePlan,
+                    deliveryCodeOrder:=deliveryCodeOrder,
+                    activeFlag:=activeflag,
+                    loginUserId:=loginUserId,
+                    programId:=programId
+                    )
+
+                If affected = -1 Then
+                    lblError.Text = "対象データが見つかりませんでした。"
+                    Return
+                ElseIf affected = 0 Then
+                    lblError.Text = "他のユーザーにより更新されています。再読み込みしてからやり直してください。"
+                    Return
+                End If
+
+                lblResult.Text = "登録情報を更新しました。"
+                LoadSuzukiSpiritsConversionHeader(ConversionId)
 
             Catch ex As ApplicationException
                 lblError.Text = Server.HtmlEncode(ex.Message)
