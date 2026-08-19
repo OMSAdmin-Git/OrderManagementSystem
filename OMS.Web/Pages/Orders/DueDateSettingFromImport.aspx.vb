@@ -309,7 +309,7 @@ Namespace Pages.Orders
                             '    ' (受注ワークテーブル.希望納期 - 出荷ルートマスター.輸送L/T - ユーザー定義マスタ.(A)品揃リードタイム)
                             '    Dim shipPlanDate = cal.AddWorkingDays(conn, tran, calType, dueDate.Value, -(transferLeadTime + assortLeadTime))
 
-                            '    ' UPDATE(受注)
+                            '    ' UPDATE(受注ワーク)
                             '    Dim status = "DUE_SET"
                             '    Dim updateAt = ProcessingStartDate
                             '    Dim updateUserId = PageHelpers.GetUserId(Me)
