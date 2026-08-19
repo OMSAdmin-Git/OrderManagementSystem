@@ -63,7 +63,7 @@
                         BackColor="White"
                         BorderColor="#CCCCCC" BorderStyle="None" BorderWidth="1px"
                         CellPadding="4" ForeColor="Black" GridLines="Both"
-                        DataKeyNames="ImpFileStageId, CustomerSettingId, CustomerCode, FolderType, FolderPath, FileName, StagedFolderPath, StagedFileName, ReconcileFlag, FcstReconcileFlag,ProfitCenter,CustomerUnitName">
+                        DataKeyNames="ImpFileStageId, CustomerSettingId, CustomerCode, FolderType, FolderPath, FileName, StagedFolderPath, StagedFileName, ReconcileFlag, FcstReconcileFlag,ProfitCenter,CustomerUnitName, SpProcessType">
                         <Columns>
                             <asp:BoundField DataField="ImpFileStageId" HeaderText="一時取込ファイルID" Visible="false" />
                             <asp:BoundField DataField="CustomerSettingId" HeaderText="取引先設定ID" Visible="false" />
@@ -77,6 +77,7 @@
                                     <%# OMS.Common.Utils.ToFolderTypeNameSafe(Eval("FolderType")) %>
                                 </ItemTemplate>
                             </asp:TemplateField>
+                            <asp:BoundField DataField="SpProcessType" HeaderText="特殊加工区分(Debug用)"  />
                             <asp:BoundField DataField="FolderPath" HeaderText="フォルダパス" Visible="false" />
                             <asp:BoundField DataField="FileName" HeaderText="ファイル名" />
                             <asp:BoundField DataField="StagedFolderPath" HeaderText="WORKフォルダパス" Visible="false" />
