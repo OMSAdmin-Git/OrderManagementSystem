@@ -4069,13 +4069,12 @@ Namespace OMS.Data
         ''' </summary>
         ''' <param name="conn"></param>
         ''' <param name="tran"></param>
-        ''' <param name="connectionString"></param>
         ''' <param name="customerCode"></param>
         ''' <param name="profitCenter"></param>
         ''' <param name="customerSettingId"></param>
         ''' <param name="processingStartDate"></param>
         ''' <returns>error  "DBxxx エラー" + VbCrLf + "DBxxx エラー" </returns>
-        Public Function DeliveryDateSetting(conn As OracleConnection, tran As OracleTransaction, connectionString As String, customerCode As String, profitCenter As String, customerSettingId As Long, processingStartDate As Date, updateUserId As String) As String
+        Public Function DeliveryDateSetting(conn As OracleConnection, tran As OracleTransaction, customerCode As String, profitCenter As String, customerSettingId As Long, processingStartDate As Date, updateUserId As String) As String
 
             ' 受注ワーク追加 (次の条件レコードを Orders から Orders_Stage にコピーする)
             ' ①	CUSTOMER_SETTING_ID = 処理中のCUSTOMER_SETTING_ID（取引先設定ID） 
@@ -4095,10 +4094,10 @@ Namespace OMS.Data
             ' 納期設定値を上書きする
 
             Dim errors As New List(Of String)()
-            Dim repo As New OrderRepository(Utils.GetConnectionString())
-            Dim reps As New OrderStageRepository(Utils.GetConnectionString())
-            Dim reph As New OrderHistoryRepository(Utils.GetConnectionString())
-            Dim shproutm = New ShproutmRepository(Utils.GetConnectionString())
+            Dim repo As New OrderRepository(_connectionString)
+            Dim reps As New OrderStageRepository(_connectionString)
+            Dim reph As New OrderHistoryRepository(_connectionString)
+            Dim shproutm = New ShproutmRepository(_connectionString)
 
             ' 受注ワーク追加
             ' ①	CUSTOMER_SETTING_ID = 処理中のCUSTOMER_SETTING_ID（取引先設定ID） 
@@ -4111,7 +4110,6 @@ Namespace OMS.Data
             If (dberror = "") Then
                 errors.Add(dberror)
             End If
-            'errors.Add(reps.InsertRange(conn, tran, orderRows))
 
             For Each orderRow In orderRows
                 ' STRAMMIC DB チェック  
@@ -4132,7 +4130,7 @@ Namespace OMS.Data
                 Dim dueDate = orderRow.DueDate
                 ' Calender ID 固定値
                 Dim calType = "00001"
-                Dim cal = New CalenderRepository(Utils.GetConnectionString())
+                Dim cal = New CalenderRepository(_connectionString)
                 ' (受注ワークテーブル.希望納期 - 出荷ルートマスター.輸送L/T - ユーザー定義マスタ.(A)品揃リードタイム)
                 Dim shipScaduleDate = cal.AddWorkingDays(conn, tran, calType, dueDate.Value, -(transferLeadTime + assortLeadTime))
                 ' (受注ワークテーブル.希望納期 - 出荷ルートマスター.輸送L/T)
