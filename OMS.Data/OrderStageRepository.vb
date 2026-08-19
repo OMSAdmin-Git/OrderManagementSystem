@@ -4149,6 +4149,7 @@ Namespace OMS.Data
                     Continue For
                 End If
             Next
+            ' 正規データ更新 受注データ
             ' 2026/06/03 SQL 更新に変更
             dberror = repo.OrderUpdate(conn, tran, customerSettingId)
             If (dberror = "") Then
