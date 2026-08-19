@@ -73,7 +73,7 @@
                             <asp:BoundField DataField="ProfitCenter" HeaderText="PC" />
                             <asp:BoundField DataField="CustomerUnitId" HeaderText="注文工場／担当者ID" Visible="false" />
                             <asp:BoundField DataField="CustomerUnitName" HeaderText="注文工場／担当者名" />
-                            <asp:BoundField DataField="SpProcessType" HeaderText="特殊加工区分"  Visible="false" />
+                            <asp:BoundField DataField="SpProcessType" HeaderText="特殊加工区分(Debug用)"  />
                             <asp:TemplateField HeaderText="消込処理" ItemStyle-HorizontalAlign="Center">
                                 <ItemTemplate>
                                     <asp:DropDownList ID="ddlReconcileFlag"
