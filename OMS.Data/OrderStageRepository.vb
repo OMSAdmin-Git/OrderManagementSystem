@@ -4097,6 +4097,7 @@ Namespace OMS.Data
             Dim errors As New List(Of String)()
             Dim repo As New OrderRepository(Utils.GetConnectionString())
             Dim reps As New OrderStageRepository(Utils.GetConnectionString())
+            Dim reph As New OrderHistoryRepository(Utils.GetConnectionString())
             Dim shproutm = New ShproutmRepository(Utils.GetConnectionString())
 
             ' 受注ワーク追加
@@ -4150,6 +4151,22 @@ Namespace OMS.Data
                     Continue For
                 End If
             Next
+            ' 2026/06/03 SQL 更新に変更
+            dberror = repo.OrderUpdate(conn, tran, customerSettingId)
+            If (dberror = "") Then
+                errors.Add(dberror)
+                tran.Rollback()
+            End If
+            ' 受注履歴追加
+            ' 受注データ取得
+            ' CUSTOMER_SETTING_ID(取引先設定ID)
+            ' STATUS(ステータス) 'DUE_SET'
+            orders = repo.GetOrders(conn, tran, status:="DUE_SET", customerSettingId:=customerSettingId)
+            dberror = reph.InsertRange(conn, tran, repo.ToClass(orders))
+            If (dberror = "") Then
+                errors.Add(dberror)
+                tran.Rollback()
+            End If
 
             Return String.Join(Environment.NewLine, errors)
 
