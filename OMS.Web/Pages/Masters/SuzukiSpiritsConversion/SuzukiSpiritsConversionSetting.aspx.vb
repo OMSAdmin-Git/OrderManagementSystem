@@ -88,7 +88,7 @@ Namespace Pages.Masters.SuzukiSpiritsConversion
                 '入力取得
                 Dim deliveryCodeOrder As String = (If(txtDeliveryCodeOrder.Text, "")).Trim()
                 Dim deliveryCodePlan As String = (If(txtDeliveryCodePlan.Text, "")).Trim()
-                Dim activeflag As String = "Y"
+                Dim activeflag As String = ddlActiveFlag.SelectedValue
 
                 ' ログイン情報
                 Dim loginUserId As String = PageHelpers.GetUserId(Me)
