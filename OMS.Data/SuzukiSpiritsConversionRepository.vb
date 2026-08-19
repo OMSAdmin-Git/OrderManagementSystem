@@ -122,7 +122,8 @@ Namespace OMS.Data
 
         Public Function ExistsSuzukiSpiritsConversion(
             deliveryCodeOrder As String,
-            Optional excludeConversionId As Long = 0) As Boolean
+            Optional excludeConversionId As Long = 0
+        ) As Boolean
 
             Dim sql As String = "
                 SELECT 1
