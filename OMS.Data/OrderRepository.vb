@@ -1664,21 +1664,51 @@ Namespace OMS.Data
             Dim sb As New StringBuilder()
             Dim errors = ""
 
+            'sb.AppendLine("MERGE INTO Orders o ")
+            'sb.AppendLine("USING ( ")
+            '' -- 条件で絞り込んだステージテーブルのレコードのみを抽出 
+            'sb.AppendLine("  SELECT  ")
+            'sb.AppendLine("    ORDER_ID,  ")
+            'sb.AppendLine("    SHIP_SCHEDULED_DATE,  ")
+            'sb.AppendLine("    SHIP_DATE,  ")
+            'sb.AppendLine("    SHIP_PLAN_DATE,  ")
+            'sb.AppendLine("    STATUS,  ")
+            'sb.AppendLine("    UPDATED_AT,  ")
+            'sb.AppendLine("    UPDATED_USER_ID,  ")
+            'sb.AppendLine("    UPDATED_PG_ID ")
+            'sb.AppendLine("  FROM Orders_stage ")
+            'sb.AppendLine("  WHERE CUSTOMER_SETTING_ID = :p_customer_setting_id  ")
+            'sb.AppendLine("    AND STATUS = 'DUE_SET' ")
+            'sb.AppendLine(") s ")
+            'sb.AppendLine("ON (o.ORDER_ID = s.ORDER_ID) ")
+            'sb.AppendLine("WHEN MATCHED THEN ")
+            'sb.AppendLine("  UPDATE SET ")
+            'sb.AppendLine("    o.SHIP_SCHEDULED_DATE = s.SHIP_SCHEDULED_DATE, ")
+            'sb.AppendLine("    o.SHIP_DATE           = s.SHIP_DATE, ")
+            'sb.AppendLine("    o.SHIP_PLAN_DATE      = s.SHIP_PLAN_DATE, ")
+            'sb.AppendLine("    o.STATUS              = s.STATUS, ")
+            'sb.AppendLine("    o.UPDATED_AT          = s.UPDATED_AT, ")
+            'sb.AppendLine("    o.UPDATED_USER_ID     = s.UPDATED_USER_ID, ")
+            'sb.AppendLine("    o.UPDATED_PG_ID       = s.UPDATED_PG_ID ")
+
             sb.AppendLine("MERGE INTO Orders o ")
             sb.AppendLine("USING ( ")
-            ' -- 条件で絞り込んだステージテーブルのレコードのみを抽出 
-            sb.AppendLine("  SELECT  ")
-            sb.AppendLine("    ORDER_ID,  ")
-            sb.AppendLine("    SHIP_SCHEDULED_DATE,  ")
-            sb.AppendLine("    SHIP_DATE,  ")
-            sb.AppendLine("    SHIP_PLAN_DATE,  ")
-            sb.AppendLine("    STATUS,  ")
-            sb.AppendLine("    UPDATED_AT,  ")
-            sb.AppendLine("    UPDATED_USER_ID,  ")
-            sb.AppendLine("    UPDATED_PG_ID ")
-            sb.AppendLine("  FROM Orders_stage ")
-            sb.AppendLine("  WHERE CUSTOMER_SETTING_ID = :p_customer_setting_id  ")
-            sb.AppendLine("    AND STATUS = 'DUE_SET' ")
+            sb.AppendLine("  SELECT * FROM ( ")
+            sb.AppendLine("    SELECT  ")
+            sb.AppendLine("      ORDER_ID,  ")
+            sb.AppendLine("      SHIP_SCHEDULED_DATE,  ")
+            sb.AppendLine("      SHIP_DATE,  ")
+            sb.AppendLine("      SHIP_PLAN_DATE,  ")
+            sb.AppendLine("      STATUS,  ")
+            sb.AppendLine("      UPDATED_AT,  ")
+            sb.AppendLine("      UPDATED_USER_ID,  ")
+            sb.AppendLine("      UPDATED_PG_ID, ")
+            ' -- ORDER_ID ごとに UPDATED_AT が新しい順に連番を振る
+            sb.AppendLine("      ROW_NUMBER() OVER (PARTITION BY ORDER_ID ORDER BY UPDATED_AT DESC) as rn ")
+            sb.AppendLine("    FROM Orders_stage ")
+            sb.AppendLine("    WHERE CUSTOMER_SETTING_ID = :p_customer_setting_id  ")
+            sb.AppendLine("      AND STATUS = 'DUE_SET' ")
+            sb.AppendLine("  ) WHERE rn = 1 ") ' -- 1件のみに絞り込む
             sb.AppendLine(") s ")
             sb.AppendLine("ON (o.ORDER_ID = s.ORDER_ID) ")
             sb.AppendLine("WHEN MATCHED THEN ")
@@ -1690,6 +1720,7 @@ Namespace OMS.Data
             sb.AppendLine("    o.UPDATED_AT          = s.UPDATED_AT, ")
             sb.AppendLine("    o.UPDATED_USER_ID     = s.UPDATED_USER_ID, ")
             sb.AppendLine("    o.UPDATED_PG_ID       = s.UPDATED_PG_ID ")
+
             Try
                 'Using conn As New OracleConnection(_connectionString)
                 Using cmd As New OracleCommand(sb.ToString(), conn)
@@ -1803,7 +1834,7 @@ Namespace OMS.Data
         Public Function GetOrdersRecordNumber(conn As OracleConnection, tran As OracleTransaction, customerSettingId As Long) As Integer
             ' 接続文字列とクエリの定義
             'Dim connString As String = "Your_Connection_String"
-            Dim sql As String = "SELECT COUNT(*) FROM Orders WHERE status = 'PROCESSED' AND activeFlag = 'Y' AND customerSettingId = :customerSettingId"
+            Dim sql As String = "SELECT COUNT(*) FROM Orders WHERE status = 'PROCESSED' AND active_flag = 'Y' AND customer_setting_id = :p_customerSettingId"
 
             ' 外部から与えられる変数（例）
             'Dim targetCustomerId As Integer = 12345
@@ -1815,7 +1846,7 @@ Namespace OMS.Data
                 cmd.Parameters.Add(New OracleParameter(":p_customerSettingId", OracleDbType.Int64)).Value = customerSettingId
 
                 Try
-                    conn.Open()
+                    'conn.Open()
                     ' 単一の値（カウント数）を取得するため ExecuteScalar を使用
                     recordCount = Convert.ToInt32(cmd.ExecuteScalar())
 
