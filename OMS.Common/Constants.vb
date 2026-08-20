@@ -79,7 +79,8 @@ Namespace OMS.Common
                 {"PRORATED_TYPE", "分割区分"},
                 {"CUSTOMER_INFO_TYPE", "取引先情報区分"},
                 {"SELF_FCST_FLAG", "自社予測フラグ"},
-                {"SELF_FCST_DELETE_FLAG", "自社予測削除フラグ"}
+                {"SELF_FCST_DELETE_FLAG", "自社予測削除フラグ"},
+                {"INFO_TYPE_CODE", "スズキ情報区分コード"}
             }
 
         Public ReadOnly RowSelectorTypeMap As IReadOnlyDictionary(Of String, String) =
