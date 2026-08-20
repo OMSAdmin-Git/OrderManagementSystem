@@ -4063,6 +4063,114 @@ Namespace OMS.Data
 
         End Function
 
+
+        ''' <summary>
+        ''' 納期設定 (受注取り込み後) 受注ワーク ORDERS_STAGE 更新    
+        ''' </summary>
+        ''' <param name="conn"></param>
+        ''' <param name="tran"></param>
+        ''' <param name="customerCode"></param>
+        ''' <param name="profitCenter"></param>
+        ''' <param name="customerSettingId"></param>
+        ''' <param name="processingStartDate"></param>
+        ''' <returns>error  "DBxxx エラー" + VbCrLf + "DBxxx エラー" </returns>
+        Public Function DeliveryDateSetting(conn As OracleConnection, tran As OracleTransaction, customerCode As String, profitCenter As String, customerSettingId As Long, processingStartDate As Date, updateUserId As String) As String
+
+            ' 受注ワーク追加 (次の条件レコードを Orders から Orders_Stage にコピーする)
+            ' ①	CUSTOMER_SETTING_ID = 処理中のCUSTOMER_SETTING_ID（取引先設定ID） 
+            ' ②	STATUS（ステータス） = 'PROCESSED'
+            ' ③	ACTIVE_FLAG（有効フラグ）= 'Y'
+
+            ' 受注ワーク STRA 納期設定 (Orders_Stage の納期値を更新する)
+            ' 1. SHIP_SCHEDULED_DATE(出荷予定日) ORDERS_STAGE.DUE_DATE - SHPROUTM.FTRANLT- USRDEFFLDF.FUSRDEC1
+            ' 2. SHIP_DATE(出荷日) ORDERS_STAGE.DUE_DATE - SHPROUTM.FTRANLT
+            ' 3. SHIP_PLAN_DATE  ORDERS_STAGE.DUE_DATE - SHPROUTM.FTRANLT - USRDEFFLDF.FUSRDEC1
+            ' 4. STATUS(ステータス) 'DUE_SET'
+            ' 5. UPDATED_AT(更新日時)
+            ' 6. UPDATED_USER_ID(更新ユーザーID)
+            ' 7. UPDATED_PG_ID(更新プログラムID)
+            ' 8. CUSTOMER_SETTING_ID(取引先設定ID)
+            ' 対象の受注データテーブルorders の受注ID(ORDER_ID)を 受注ワークから探して
+            ' 納期設定値を上書きする
+
+            Dim errors As New List(Of String)()
+            Dim repo As New OrderRepository(_connectionString)
+            Dim reps As New OrderStageRepository(_connectionString)
+            Dim reph As New OrderHistoryRepository(_connectionString)
+            Dim shproutm = New ShproutmRepository(_connectionString)
+
+            ' 受注ワーク追加
+            ' ①	CUSTOMER_SETTING_ID = 処理中のCUSTOMER_SETTING_ID（取引先設定ID） 
+            ' ②	STATUS（ステータス） = 'PROCESSED'
+            ' ③	ACTIVE_FLAG（有効フラグ）= 'Y'
+            Dim orders = repo.GetOrders(conn, tran, status:="PROCESSED", activeFlag:="Y", customerSettingId:=customerSettingId)
+            Dim orderRows = repo.ToClass(orders)
+
+            Dim dberror = reps.InsertRange(conn, tran, orderRows)
+            If (dberror <> "") Then
+                errors.Add(dberror)
+            End If
+
+            For Each orderRow In orderRows
+                ' STRAMMIC DB チェック  
+                Dim deliveryCode = orderRow.DeliveryCode
+                dberror = shproutm.CheckShippingDestination(conn, tran, customerCode, deliveryCode)
+                If (dberror <> "") Then
+                    errors.Add(dberror)
+                    tran.Rollback()
+                    Continue For
+                End If
+
+                Dim itemNo = orderRow.ItemNo
+                'FUSRDEC1 ((A)品揃リードタイム)
+                Dim assortLeadTime = shproutm.GetAssortmentLeadTime(customerCode, profitCenter, itemNo)
+                'FTRANLT(輸送L/T)
+                Dim transferLeadTime = shproutm.GetTransferLeadTime(orderRow.ShipTo, orderRow.ShipStockLocation)
+                Dim orderid = orderRow.OrderId
+                Dim dueDate = orderRow.DueDate
+                ' Calender ID 固定値
+                Dim calType = "00001"
+                Dim cal = New CalenderRepository(_connectionString)
+                ' (受注ワークテーブル.希望納期 - 出荷ルートマスター.輸送L/T - ユーザー定義マスタ.(A)品揃リードタイム)
+                Dim shipScaduleDate = cal.AddWorkingDays(conn, tran, calType, dueDate.Value, -(transferLeadTime + assortLeadTime))
+                ' (受注ワークテーブル.希望納期 - 出荷ルートマスター.輸送L/T)
+                Dim shipdate = cal.AddWorkingDays(conn, tran, calType, dueDate.Value, -transferLeadTime)
+                ' (受注ワークテーブル.希望納期 - 出荷ルートマスター.輸送L/T - ユーザー定義マスタ.(A)品揃リードタイム)
+                Dim shipPlanDate = cal.AddWorkingDays(conn, tran, calType, dueDate.Value, -(transferLeadTime + assortLeadTime))
+
+                ' UPDATE(受注) 受注ワーク
+                Dim status = "DUE_SET"
+                Dim updateAt = processingStartDate
+                Dim updatePgId = "DueDateSetting(Order)"
+                dberror = reps.UpdateDeadline(conn, tran, orderId:=orderid, shipScheduledDate:=shipScaduleDate, shipDate:=shipdate, shipPlanDate:=shipPlanDate, status:=status, updatedAt:=updateAt, updatedUserId:=updateUserId, updatedPgId:=updatePgId)
+                If (dberror <> "") Then
+                    errors.Add(dberror)
+                    tran.Rollback()
+                    Continue For
+                End If
+            Next
+            ' 正規データ更新 受注データ
+            ' 2026/06/03 SQL 更新に変更
+            dberror = repo.OrderUpdate(conn, tran, customerSettingId)
+            If (dberror <> "") Then
+                errors.Add(dberror)
+                tran.Rollback()
+            End If
+            ' 受注履歴追加
+            ' 受注データ取得
+            ' CUSTOMER_SETTING_ID(取引先設定ID)
+            ' STATUS(ステータス) 'DUE_SET'
+            orders = repo.GetOrders(conn, tran, status:="DUE_SET", customerSettingId:=customerSettingId)
+            dberror = reph.InsertRange(conn, tran, repo.ToClass(orders))
+            If (dberror <> "") Then
+                errors.Add(dberror)
+                tran.Rollback()
+            End If
+
+            Return String.Join(Environment.NewLine, errors)
+
+        End Function
+
         ''' <summary>
         ''' Yamaha robotex 内示/確定/ASTI 内示 ファイル読み込み
         ''' </summary>

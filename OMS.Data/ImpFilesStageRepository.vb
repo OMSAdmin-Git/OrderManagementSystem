@@ -133,8 +133,13 @@ Namespace OMS.Data
             sb.AppendLine("  updated_at            AS ""UpdatedAt"", ")
             sb.AppendLine("  updated_user_id       AS ""UpdatedUserId"", ")
             sb.AppendLine("  updated_pg_id         AS ""UpdatedPgId"",")
-            sb.AppendLine("  prod_mgmt_user_id     AS ""ProdMgmtUserId"" ")
-            sb.AppendLine("FROM imp_files_stage_view ")
+            '20260819 Yamaha Phase2
+            'sb.AppendLine("  prod_mgmt_user_id     AS ""ProdMgmtUserId"" ")
+            sb.AppendLine("  prod_mgmt_user_id     AS ""ProdMgmtUserId"", ")
+            sb.AppendLine("  sp_process_type       AS ""SpProcessType""")
+            '--
+            'sb.AppendLine("FROM imp_files_stage_view ")
+            sb.AppendLine("FROM imp_files_stage_view2 ")
             sb.AppendLine("WHERE 1=1 ")
 
             Dim prm As New List(Of OracleParameter)()
