@@ -90,6 +90,9 @@ Namespace Pages.Masters.SuzukiSpiritsConversion
                 Dim deliveryCodePlan As String = (If(txtDeliveryCodePlan.Text, "")).Trim()
                 Dim activeflag As String = ddlActiveFlag.SelectedValue
 
+
+
+
                 ' ログイン情報
                 Dim loginUserId As String = PageHelpers.GetUserId(Me)
                 Dim programId As String = "FolderSetting(Update)"

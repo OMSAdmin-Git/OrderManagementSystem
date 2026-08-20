@@ -56,8 +56,8 @@ Namespace Pages.Masters.SuzukiSpiritsConversion
 
                 Dim activeflag As String = "Y"
                 Dim newId As Long = Deli.InsertSuzukiSpiritsConversionNullable(
-                    deliveryCodeOrder:=deliveryCodeOrder,
                     deliveryCodePlan:=deliveryCodePlan,
+                    deliveryCodeOrder:=deliveryCodeOrder,
                     activeFlag:=activeflag,
                     loginUserId:=loginUserId,
                     programId:=programId
