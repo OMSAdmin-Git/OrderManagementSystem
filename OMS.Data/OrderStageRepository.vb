@@ -4120,7 +4120,7 @@ Namespace OMS.Data
             Dim orderRows = repo.ToClass(orders)
 
             Dim dberror = reps.InsertRange(conn, tran, orderRows)
-            If (dberror = "") Then
+            If (dberror <> "") Then
                 errors.Add(dberror)
             End If
 
@@ -4128,7 +4128,7 @@ Namespace OMS.Data
                 ' STRAMMIC DB チェック  
                 Dim deliveryCode = orderRow.DeliveryCode
                 dberror = shproutm.CheckShippingDestination(conn, tran, customerCode, deliveryCode)
-                If (dberror = "") Then
+                If (dberror <> "") Then
                     errors.Add(dberror)
                     tran.Rollback()
                     Continue For
@@ -4156,7 +4156,7 @@ Namespace OMS.Data
                 Dim updateAt = processingStartDate
                 Dim updatePgId = "DueDateSetting(Order)"
                 dberror = reps.UpdateDeadline(conn, tran, orderId:=orderid, shipScheduledDate:=shipScaduleDate, shipDate:=shipdate, shipPlanDate:=shipPlanDate, status:=status, updatedAt:=updateAt, updatedUserId:=updateUserId, updatedPgId:=updatePgId)
-                If (dberror = "") Then
+                If (dberror <> "") Then
                     errors.Add(dberror)
                     tran.Rollback()
                     Continue For
@@ -4165,7 +4165,7 @@ Namespace OMS.Data
             ' 正規データ更新 受注データ
             ' 2026/06/03 SQL 更新に変更
             dberror = repo.OrderUpdate(conn, tran, customerSettingId)
-            If (dberror = "") Then
+            If (dberror <> "") Then
                 errors.Add(dberror)
                 tran.Rollback()
             End If
@@ -4175,7 +4175,7 @@ Namespace OMS.Data
             ' STATUS(ステータス) 'DUE_SET'
             orders = repo.GetOrders(conn, tran, status:="DUE_SET", customerSettingId:=customerSettingId)
             dberror = reph.InsertRange(conn, tran, repo.ToClass(orders))
-            If (dberror = "") Then
+            If (dberror <> "") Then
                 errors.Add(dberror)
                 tran.Rollback()
             End If

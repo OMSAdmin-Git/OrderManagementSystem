@@ -102,7 +102,7 @@ Namespace OMS.Data
                     sb.AppendLine(" target_reference_date_type, target_reference_date, info_type_code ")
                 Else
                     ' prod_plan_stage
-                    sb.AppendLine(", target_reference_date_type, target_reference_date, info_type_code ")
+                    'sb.AppendLine(", target_reference_date_type, target_reference_date, info_type_code ")
                 End If
                 sb.AppendLine(" ) VALUES (")
                 sb.AppendLine("  :p_order_id, :p_customer_setting_id, :p_customer_code, :p_billing_to, :p_customer_order_no, :p_demand_status, :p_ship_to, ")
@@ -125,7 +125,7 @@ Namespace OMS.Data
                     sb.AppendLine(" :p_target_reference_date_type, :p_target_reference_date, :p_info_type_code ")
                 Else
                     ' prod_plan_stage
-                    sb.AppendLine(", :p_target_reference_date_type, :p_target_reference_date, :p_info_type_code ")
+                    'sb.AppendLine(", :p_target_reference_date_type, :p_target_reference_date, :p_info_type_code ")
                 End If
                 sb.AppendLine(")")
                 Using cmd As New OracleCommand(sb.ToString(), conn)
@@ -221,6 +221,9 @@ Namespace OMS.Data
                             cmd.Parameters.Add(":p_delivery_time", OracleDbType.Decimal).Value = r.DeliveryTime
                             cmd.Parameters.Add(":p_container_capacity", OracleDbType.Decimal).Value = r.ContainerCapacity
                             cmd.Parameters.Add(":p_initial_flag", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.InitialFlag, 45)
+                            'cmd.Parameters.Add(":p_target_reference_date_type", OracleDbType.Varchar2, 1).Value = SafeVarchar(r.TargetReferenceDateType, 1)
+                            'cmd.Parameters.Add(":p_target_reference_date", OracleDbType.Varchar2, 8).Value = SafeVarchar(r.TargetReferenceDate, 8)
+                            'cmd.Parameters.Add(":p_info_type_code", OracleDbType.Varchar2, 4).Value = SafeVarchar(r.InfoTypeCode, 4)
                         End If
                         'Phase2
                         cmd.Parameters.Add(":p_order_time", OracleDbType.Decimal).Value = r.OrderTime

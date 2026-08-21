@@ -31,9 +31,10 @@
                 <asp:TextBox ID="txtDeliveryCodeOrder" runat="server" Enabled="False" />
             </div>
             <br />
-            <div>
-                <span class="label-title">内示納入先コード*</span>
-                <asp:TextBox ID="txtDeliveryCodePlan" runat="server" />
+             <div>
+                 <span class="label-title">内示納入先コード*</span>
+                 <input type="text" id="txtDeliveryCodePlan" list="lstDeliveryCodePlan" runat="server" class="field-required" required="required" />
+                 <datalist id="lstDeliveryCodePlan" runat="server"></datalist>
             </div>
             
             <br />

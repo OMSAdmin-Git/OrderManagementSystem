@@ -35,7 +35,7 @@ Namespace Pages.Masters.SuzukiSpiritsConversion
 
                 ' ログイン情報
                 Dim loginUserId As String = PageHelpers.GetUserId(Me)
-                Dim programId As String = "FolderSetting(Update)"
+                Dim programId As String = "SuzukiSpiritsConversionSettingCreate(Insert)"
 
 
                 ' 必須チェック
@@ -56,8 +56,8 @@ Namespace Pages.Masters.SuzukiSpiritsConversion
 
                 Dim activeflag As String = "Y"
                 Dim newId As Long = Deli.InsertSuzukiSpiritsConversionNullable(
-                    deliveryCodeOrder:=deliveryCodeOrder,
                     deliveryCodePlan:=deliveryCodePlan,
+                    deliveryCodeOrder:=deliveryCodeOrder,
                     activeFlag:=activeflag,
                     loginUserId:=loginUserId,
                     programId:=programId
