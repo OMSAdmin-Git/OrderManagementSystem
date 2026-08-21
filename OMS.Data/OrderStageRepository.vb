@@ -4187,9 +4187,15 @@ Namespace OMS.Data
         ''' <summary>
         ''' Yamaha robotex 内示/確定/ASTI 内示 ファイル読み込み Orders_stage テーブルに追加する
         ''' </summary>
+        ''' <param name="conn"></param>
+        ''' <param name="tran"></param>
         ''' <param name="filename"></param>
+        ''' <param name="userID"></param>
+        ''' <param name="impfilestageId"></param>
+        ''' <param name="customerSettingId"></param>
+        ''' <param name="folderType"></param>
         ''' <returns></returns>
-        Public Function YamahaRobotexOrdersStageImport(conn As OracleConnection, tran As OracleTransaction, filename As String, userID As String, impfilestageId As Long, customerSettingId As Long, folderType As Integer) As String
+        Public Function YamahaRobotexOrdersStageImport(conn As OracleConnection, tran As OracleTransaction, filename As String, userID As String, impfilestageId As Long, customerSettingId As Long, folderType As Integer, ByRef ErrFlg As Boolean, ByRef ErrFileFlg As Boolean, ByRef errcnt As Integer, ByRef errorsList As List(Of String), ByRef rowsForTemp2 As List(Of OrdersStageRow)) As String
             Dim calen = New CalenderRepository(_connectionString)
             Dim customerSetting = New CustomerRepository(_connectionString)
             Dim impRunRepo = New ImpRunRepository(_connectionString)
