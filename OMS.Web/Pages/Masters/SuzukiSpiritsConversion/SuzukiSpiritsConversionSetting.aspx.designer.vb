@@ -48,7 +48,16 @@ Namespace Pages.Masters.SuzukiSpiritsConversion
         '''自動生成されたフィールド。
         '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
         '''</remarks>
-        Protected WithEvents txtDeliveryCodePlan As Global.System.Web.UI.WebControls.TextBox
+        Protected WithEvents txtDeliveryCodePlan As Global.System.Web.UI.HtmlControls.HtmlInputText
+
+        '''<summary>
+        '''lstDeliveryCodePlan コントロール。
+        '''</summary>
+        '''<remarks>
+        '''自動生成されたフィールド。
+        '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
+        '''</remarks>
+        Protected WithEvents lstDeliveryCodePlan As Global.System.Web.UI.HtmlControls.HtmlGenericControl
 
         '''<summary>
         '''ddlActiveFlag コントロール。

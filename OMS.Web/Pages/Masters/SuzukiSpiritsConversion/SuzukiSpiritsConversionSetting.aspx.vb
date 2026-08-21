@@ -1,7 +1,13 @@
-﻿Imports System.Net.Mail
+﻿Imports System.Data
+Imports System.Text
+Imports System.Web.Script.Services
+Imports System.Web.Services
+Imports System.Net.Mail
 Imports DocumentFormat.OpenXml
 Imports OMS.Common
 Imports OMS.Data
+Imports Oracle.ManagedDataAccess.Client
+
 
 Namespace Pages.Masters.SuzukiSpiritsConversion
     Public Class SuzukiSpiritsConversionSetting
@@ -55,7 +61,7 @@ Namespace Pages.Masters.SuzukiSpiritsConversion
         Private Sub SetHeaderControls(r As DataRow)
 
             txtDeliveryCodeOrder.Text = If(GetStr(r, "deliveryCodeOrder"), "")
-            txtDeliveryCodePlan.Text = If(GetStr(r, "deliveryCodePlan"), "")
+            txtDeliveryCodePlan.Value = If(GetStr(r, "deliveryCodePlan"), "")
             ddlActiveFlag.SelectedValue = If(GetStr(r, "ActiveFlag"), "")
             txtUpdatedAt.Text = If(GetStr(r, "UpdatedAt"), "")
             txtUpdatedUserName.Text = If(GetStr(r, "UpdatedUserId"), "")
@@ -87,7 +93,7 @@ Namespace Pages.Masters.SuzukiSpiritsConversion
 
                 '入力取得
                 Dim deliveryCodeOrder As String = (If(txtDeliveryCodeOrder.Text, "")).Trim()
-                Dim deliveryCodePlan As String = (If(txtDeliveryCodePlan.Text, "")).Trim()
+                Dim deliveryCodePlan As String = (If(txtDeliveryCodePlan.Value, "")).Trim()
                 Dim activeflag As String = ddlActiveFlag.SelectedValue
 
 
@@ -95,7 +101,7 @@ Namespace Pages.Masters.SuzukiSpiritsConversion
 
                 ' ログイン情報
                 Dim loginUserId As String = PageHelpers.GetUserId(Me)
-                Dim programId As String = "FolderSetting(Update)"
+                Dim programId As String = "SuzukiSpiritsConversionSetting(Update)"
 
                 ' 必須チェック
                 ' JSで処理しているためなし。必要なら追加。

@@ -63,7 +63,7 @@
                         BackColor="White"
                         BorderColor="#CCCCCC" BorderStyle="None" BorderWidth="1px"
                         CellPadding="4" ForeColor="Black" GridLines="Both"
-                        DataKeyNames="ImpFileStageId, CustomerSettingId, CustomerCode, FolderType, FolderPath, FileName, StagedFolderPath, StagedFileName, ReconcileFlag, FcstReconcileFlag,ProfitCenter,CustomerUnitName, SpProcessType">
+                        DataKeyNames="ImpFileStageId, CustomerSettingId, CustomerCode, FolderType, FolderPath, FileName, StagedFolderPath, StagedFileName, ReconcileFlag, FcstReconcileFlag,ProfitCenter,CustomerUnitName,SpProcessType">
                         <Columns>
                             <asp:BoundField DataField="ImpFileStageId" HeaderText="一時取込ファイルID" Visible="false" />
                             <asp:BoundField DataField="CustomerSettingId" HeaderText="取引先設定ID" Visible="false" />
