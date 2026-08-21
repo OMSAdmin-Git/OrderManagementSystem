@@ -419,6 +419,8 @@ Namespace Pages.Orders
                         Dim impfilestageId As Long
                         Dim folderType As Integer
                         'Dim customerCode As Integer
+                        Dim spprocesstype As Integer
+
 
                         Dim cnt As Integer = 0
                         Dim errcnt As Integer = 0
@@ -484,6 +486,17 @@ Namespace Pages.Orders
                                 errors.Add($"Row {idx}：CustomerCodeが不正")
                                 Continue For
                             End If
+
+                            '20260819 yamaha Phase2
+                            spprocesstype = 0
+                            csidObj = keys("SpProcessType")
+                            If csidObj Is Nothing OrElse Not Integer.TryParse(csidObj.ToString(), spprocesstype) Then
+                                errors.Add($"Row {idx}：SpProcessTypeが不正")
+                                Continue For
+                            End If
+                            '--
+
+
 
                             '消込フラグ
                             Dim reconcileFlag As String = ""
@@ -680,30 +693,78 @@ Namespace Pages.Orders
                                 Dim mapError As String = ""
                                 Dim mapResult As OMS.Data.OrderStageImport.MappingResult = OMS.Data.OrderStageImport.ResolveMapping(_mappingRepo, customerSettingId, folderType, errors)
 
-                                If mapResult Is Nothing Then
-                                    errors.Add($"顧客設定ID:{customerSettingId} - {mapError}")
+                                'Phase2対応 spprocesstype=1or2or3はマッピングマスタを使用しない
+                                'If mapResult Is Nothing Then
+                                'If mapResult Is Nothing And spprocesstype = 0 Then
+                                '    '特殊加工なし
+                                '    errors.Add($"顧客設定ID:{customerSettingId} - {mapError}")
+                                '    Continue For
+                                'ElseIf mapResult Is Nothing And spprocesstype = 1 And folderType <> 4 Then
+                                '    '特殊加工:スズキ フォルダ区分:混合以外
+                                '    errors.Add($"顧客設定ID:{customerSettingId} - {mapError}")
+                                '    Continue For
+                                'ElseIf mapResult Is Nothing And spprocesstype = 2 And folderType <> 4 Then
+                                '    '特殊加工:ヤマハ フォルダ区分:混合以外
+                                '    errors.Add($"顧客設定ID:{customerSettingId} - {mapError}")
+                                '    Continue For
+                                'End If
+
+                                If mapResult IsNot Nothing Then
+
+                                    '取込ファイルからデータを取得する処理
+                                    OMS.Data.OrderStageImport.ParseImportFile(
+                                                                tran,
+                                                                customerSettingId,
+                                                                customerCode,
+                                                                impfilestageId,
+                                                                spprocesstype,
+                                                                strWorkFile,
+                                                                TorikomiFile,
+                                                                ErrFlg,
+                                                                ErrFileFlg,
+                                                                errcnt,
+                                                                folderType,
+                                                                newId,
+                                                                UserId,
+                                                                pgId,
+                                                                errors,
+                                                                rowsForTemp2,
+                                                                mapResult)
+
+                                ElseIf mapResult Is Nothing And spprocesstype = 1 And folderType = 4 Then
+                                    '特殊加工:スズキ フォルダ区分:混合
+
+                                ElseIf mapResult Is Nothing And spprocesstype = 2 And folderType = 4 Then
+                                    '特殊加工:ヤマハ フォルダ区分:混合
+
+                                    '取込ファイルからデータを取得する処理
+                                    OMS.Data.OrderStageImport.ParseImportFileY(
+                                                                tran,
+                                                                customerSettingId,
+                                                                customerCode,
+                                                                impfilestageId,
+                                                                spprocesstype,
+                                                                strWorkFile,
+                                                                TorikomiFile,
+                                                                ErrFlg,
+                                                                ErrFileFlg,
+                                                                errcnt,
+                                                                folderType,
+                                                                newId,
+                                                                UserId,
+                                                                pgId,
+                                                                errors,
+                                                                rowsForTemp2)
+
+                                Else
+
+                                    'errors.Add($"顧客設定ID:{customerSettingId} - {mapError}")
+                                    errors.Add($"顧客設定ID:{customerSettingId}:MAPPINNG_PROFILE_MSTに未登録")
                                     Continue For
+
                                 End If
 
 
-                                '取込ファイルからデータを取得する処理
-                                OMS.Data.OrderStageImport.ParseImportFile(
-                                                            tran,
-                                                            customerSettingId,
-                                                            customerCode,
-                                                            impfilestageId,
-                                                            strWorkFile,
-                                                            TorikomiFile,
-                                                            ErrFlg,
-                                                            ErrFileFlg,
-                                                            errcnt,
-                                                            folderType,
-                                                            newId,
-                                                            UserId,
-                                                            pgId,
-                                                            errors,
-                                                            rowsForTemp2,
-                                                            mapResult)
 
 
                                 'ハンドフラグの状態を取得

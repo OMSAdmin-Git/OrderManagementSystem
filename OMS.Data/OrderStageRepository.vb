@@ -1530,14 +1530,27 @@ Namespace OMS.Data
         ''' </summary>
         ''' <param name="CustomerCode">処理中の取引先コード</param>
         ''' <param name="CustomerItemNo">処理中の客先品目No</param>
-        ''' <param name="PatternList">整形パターンのリスト（例: {"3-5-2", "5-5"}）</param>
         ''' <param name="Status">ステータス 2=試作品</param>
         ''' <param name="itemNo">取得内容</param>
         ''' <param name="errorMessage">エラーメッセージ</param>
-        Public Function GetProductCode2(ByVal CustomerCode As String, ByRef CustomerItemNo As String, ByVal patternList As List(Of String), ByVal Status As String, ByRef itemNo As String, ByRef errorMessage As String) As Boolean
+        Public Function GetProductCode2(ByVal CustomerCode As String, ByRef CustomerItemNo As String, ByVal Status As String, ByRef itemNo As String, ByRef errorMessage As String) As Boolean
 
             Dim pCustomerCode As String = If(String.IsNullOrWhiteSpace(CustomerCode), Nothing, CustomerCode.Trim())
             Dim pCustomerItemNo As String = If(String.IsNullOrWhiteSpace(CustomerItemNo), Nothing, CustomerItemNo.Trim())
+
+            Dim PatternList As New List(Of String)()
+
+            Select Case CustomerCode
+                Case "5384"
+                    ' YMPC(ヤマハモーターパワープロダクツ)
+                    PatternList.AddRange({"3-5-2", "5-5"})
+                Case "5952"
+                    ' YEJP(ヤマハ発動機 遠州森町工場)
+                    PatternList.AddRange({"3-5-2", "5-5-2-2", "4-5-2", "3-5-5", "3-11", "5-5"})
+                Case "5977"
+                    ' YMC(ヤマハ発動機)
+                    PatternList.AddRange({"3-5-2", "5-5"})
+            End Select
 
             'Code = Nothing
             itemNo = ""

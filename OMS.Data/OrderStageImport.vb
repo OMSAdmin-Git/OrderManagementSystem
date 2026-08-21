@@ -122,7 +122,7 @@ Namespace OMS.Data
             Dim result As New MappingResult()
 
             If mappingInfos Is Nothing OrElse mappingInfos.Count = 0 Then
-                errors.Add($"{customerSettingId}:MAPPINNG_PROFILE_MSTに未登録")
+                'errors.Add($"{customerSettingId}:MAPPINNG_PROFILE_MSTに未登録")
                 Return Nothing
             End If
 
@@ -257,42 +257,773 @@ Namespace OMS.Data
 
         End Function
 
-        Public Shared Function ParseImportFileY(ByVal CustomerSettingId As Long,
-                                                ByVal customerCode As String,
-                                                ByRef ErrFlg As Boolean,
-                                                ByRef ErrFileFlg As Boolean,
-                                                ByRef errcnt As Integer,
-                                                ByVal FolderType As Integer,
-                                                ByVal UserId As String,
-                                                ByVal pgId As String,
-                                                ByVal errors As List(Of String),
-                                                ByVal rowsForTemp2 As List(Of OrdersStageRow),
-                                                ByVal mapResult As OrderStageImport.MappingResult) As Boolean
+        Public Shared Function ParseImportFileY(ByVal tran As OracleTransaction,
+                                               ByVal CustomerSettingId As Long,
+                                               ByVal customerCode As String,
+                                               ByVal impfilestageId As Long,
+                                               ByVal spprocessType As Integer,
+                                               ByVal strWorkFile As String,
+                                               ByVal TorikomiFile As String,
+                                               ByRef ErrFlg As Boolean,
+                                               ByRef ErrFileFlg As Boolean,
+                                               ByRef errcnt As Integer,
+                                               ByVal FolderType As Integer,
+                                               ByVal newId As Integer,
+                                               ByVal UserId As String,
+                                               ByVal pgId As String,
+                                               ByVal errors As List(Of String),
+                                               ByVal rowsForTemp2 As List(Of OrdersStageRow)) As Boolean
+
+            Dim _oderStageRepo As New OrderStageRepository(Utils.GetConnectionString())
+
+            Dim strTempDate As String  '日付検証用
+            Dim strQtyValue As String  '数値検証用
+
+            '日付検証用
+            Dim formats As String() = {
+                                                "yyyy/MM/dd", "yyyy-MM-dd", "yyyyMMdd",
+                                                "yy/MM/dd", "yy-MM-dd", "yyMMdd",
+                                                "yyyy/M/d", "yyyy-M-d",
+                                                "yyyy/MM/dd HH:mm:ss", "yyyy-MM-dd HH:mm:ss",
+                                                "yyyy/MM/dd H:mm:ss", "yyyy-MM-dd H:mm:ss"
+                                            }
+
+            Dim customerorderNo As String
+            Dim orderDate As Date
+            Dim dueDate As Date
+            Dim customeritemNo As String
+            Dim demandqty As Decimal?
+            Dim demandunit As String
+            Dim currencycode As String
+            Dim productcode As String
+            Dim remarks As String
+            Dim deliverycode As String
+            Dim predailyorderqty As Decimal?
+            Dim predailydeliveryDate As Date
+            Dim ordertype As Integer
+            Dim proratedtype As Integer
+            Dim customerinfotype As String
+            Dim selffcstflag As String
+            Dim selffcstdeleteflag As String
+            Dim shipto As String
+            Dim billingto As String
+            Dim itemNo As String
+            Dim demandstatus As String
+            Dim shipprocesstype As String
+            Dim deliveryinstrflag As String
+            Dim totalshipqty As Decimal?
+            Dim shipstocklocation As String
+            Dim infotype As String
+            Dim reconciletype As Integer
+            Dim profitcenter As String
+            Dim profitcenterCSM As String
+            Dim errMsg As String
+
+            Dim isTruncated As Boolean = False
+
+            ' 戻り値となる受注データリストの初期化
+            Dim rows As New List(Of OrdersStageRow)()
+
+            'ファイル内の行インデックス
+            Dim fileidx As Integer = 0
 
 
 
-            '実行管理
-            'IMP_RUNの新しいIDを取得
-            Dim newId As Integer = 0
-            'newId += 1
-            'IMP_RUNに新規レコード追加
-            Dim now As DateTime = DateTime.Now
-            'Dim userId As String = (If(Context?.User?.Identity?.Name, "")).Trim()
+
+            '許可する拡張子のリスト（小文字で定義）
+            Dim allowedExtensions As New List(Of String) From {".txt"}
+
+            'ファイルパスから拡張子を取得
+            Dim fileExtension As String = Path.GetExtension(strWorkFile).ToLower()
+
+            '拡張子チェック
+            If Not allowedExtensions.Contains(fileExtension) Then
+                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　許可されていないファイル形式です。")
+                Return False
+            End If
+
+            Using StmRdr As New IO.StreamReader(strWorkFile, MapEncoding("UTF8"))
+
+                'ヤマハ取込データ保存配列　初期化
+                'Dim m_ImpData(0) As ImportDataType
+                ReDim m_ImpData(0)
+
+                Dim isFirstRow As Boolean = True ' 初回の要素追加判定用
+
+                ' ヘッダ情報をループ内で保持するための退避用変数
+                Dim currentHakkobi As String = ""
+                Dim currentHakkojikan As String = ""
+                Dim currentCostomercode As String = ""
+
+                ' 品目情報をループ内で保持するための退避用変数
+                Dim currentYokibangou As String = ""
+                Dim currentYokisyuuyousuu As String = ""
+                Dim currentCustomeritemNo As String = ""
+                Dim currentStatus As String = ""
+                Dim currentNonyuplat As String = ""
+                Dim currentSiyosha As String = ""
+                Dim currentHinmokugyoNo As String = ""
+
+                fileidx = 0
+
+                '文字開始位置、文字数を指定する場合
+                While Not StmRdr.EndOfStream
+
+                    Dim StrLine As String = StmRdr.ReadLine()
+                    fileidx += 1
+
+                    If Left(StrLine, 4) = "HEAD" Then
+                        'ヘッダ情報
+
+                        'ヘッダ情報を取込データから取得
+                        currentHakkobi = StrLine.Substring(5 - 1, 8).Trim()           '発行日
+                        currentHakkojikan = StrLine.Substring(13 - 1, 4).Trim()       '発行時刻
+                        currentCostomercode = customerCode                            '得意先コード
+
+                    ElseIf Left(StrLine, 4) = "TRAL" Then
+                        'EOF情報
+
+                    ElseIf Left(StrLine, 4) = "LE01" Then
+                        '品目情報
+
+                        '品目情報を取込データから取得
+                        currentSiyosha = StrLine.Substring(20 - 1, 4).Trim()          '使用者
+                        currentStatus = StrLine.Substring(24 - 1, 1).Trim()           '品目ステータス
+                        currentCustomeritemNo = StrLine.Substring(55 - 1, 14).Trim()  '旧体系部品番号(客先品目No)
+                        currentNonyuplat = StrLine.Substring(78 - 1, 4).Trim()        '納入プラットフォーム
+                        currentYokisyuuyousuu = StrLine.Substring(87 - 1, 5).Trim()   '容器収容数
+                        currentYokibangou = StrLine.Substring(92 - 1, 5).Trim()       '容器番号
+                        currentHinmokugyoNo = fileidx
+
+                        '品目情報の2行目は今のところ使用しない予定
+                        If Not StmRdr.EndOfStream Then
+                            StmRdr.ReadLine()
+                            fileidx += 1 ' 行数カウントの整合性を保つためにインクリメント
+                        End If
+
+                    Else
+                        'オーダ情報（1行の中にデータ1とデータ2が最大2つ格納されている）
+
+                        ' --------------------------------------------------
+                        ' 1つ目のオーダ情報データの処理
+                        ' --------------------------------------------------
+                        ' 変更区分1（データ1のキー項目など）が空でないか確認
+                        Dim HenkouKubun1 As String = StrLine.Substring(1 - 1, 1).Trim()
+
+                        If HenkouKubun1 <> "" Then
+
+                            ' 初回のみ ReDim m_ImpData(0) をそのまま使い、2回目以降は配列を拡張する
+                            If isFirstRow Then
+                                isFirstRow = False
+                            Else
+                                ReDim Preserve m_ImpData(UBound(m_ImpData) + 1)
+                            End If
+
+                            'ヘッダ情報をセット
+                            m_ImpData(UBound(m_ImpData)).hakkobi = currentHakkobi                                   '発行日
+                            m_ImpData(UBound(m_ImpData)).hakkojikan = currentHakkojikan                             '発行時間
+                            m_ImpData(UBound(m_ImpData)).customercode = currentCostomercode                         '得意先コード
+
+                            '品目情報をセット
+                            m_ImpData(UBound(m_ImpData)).siyosha = currentSiyosha                                   '使用者
+                            m_ImpData(UBound(m_ImpData)).status = currentStatus                                     '品目ステータス
+                            m_ImpData(UBound(m_ImpData)).customeritemNo = currentCustomeritemNo                     '旧体系部品番号(客先品目No)
+                            m_ImpData(UBound(m_ImpData)).nonyuplat = currentNonyuplat                               '納入プラットフォーム
+                            m_ImpData(UBound(m_ImpData)).yokisyuuyousuu = currentYokisyuuyousuu                     '容器収容数
+                            m_ImpData(UBound(m_ImpData)).yokibangou = currentYokibangou                             '容器番号
+
+                            'オーダ情報を取込データから取得
+                            m_ImpData(UBound(m_ImpData)).ordersikibetuNo = StrLine.Substring(3 - 1, 5).Trim()      'オーダー識別番号1
+                            m_ImpData(UBound(m_ImpData)).nonyusijibi = StrLine.Substring(10 - 1, 8).Trim()         '納入指示日1
+                            m_ImpData(UBound(m_ImpData)).nonyujikan = StrLine.Substring(18 - 1, 4).Trim()      '納入時間1
+                            m_ImpData(UBound(m_ImpData)).nonyusijisu = StrLine.Substring(22 - 1, 6).Trim()         '納入指示数1
+                            m_ImpData(UBound(m_ImpData)).cardkubun = StrLine.Substring(29 - 1, 1).Trim()           'カード区分1
+                            m_ImpData(UBound(m_ImpData)).naijikubun = StrLine.Substring(30 - 1, 1).Trim()          '内示区分1
+                            m_ImpData(UBound(m_ImpData)).icdenpyoNo = StrLine.Substring(33 - 1, 5).Trim()          'IC伝票No1
+                            m_ImpData(UBound(m_ImpData)).nohinshoNo = StrLine.Substring(60 - 1, 15).Trim()         '納品書番号1
+
+                            m_ImpData(UBound(m_ImpData)).hinmokugyoNo = currentHinmokugyoNo                        '品目情報行番号
+                            m_ImpData(UBound(m_ImpData)).ordergyoNo = fileidx                                      'オーダー情報行番号
+
+                        End If
+
+                        ' --------------------------------------------------
+                        ' 2つ目のオーダデータの処理（データが存在する場合のみ格納）
+                        ' --------------------------------------------------
+                        ' 変更区分2が空文字でない、かつSubstringできる長さがあるか確認
+                        Dim HenkouKubun2 As String = ""
+                        If StrLine.Length >= 88 Then ' Substring(87 - 1, 1)がエラーにならない長さチェック
+                            HenkouKubun2 = StrLine.Substring(87 - 1, 1).Trim()
+                        End If
+
+                        If HenkouKubun2 <> "" Then
+
+                            ' データ2用に必ず配列を新しく1枠拡張する
+                            If isFirstRow Then
+                                isFirstRow = False
+                            Else
+                                ReDim Preserve m_ImpData(UBound(m_ImpData) + 1)
+                            End If
+
+                            'ヘッダ情報をセット
+                            m_ImpData(UBound(m_ImpData)).hakkobi = currentHakkobi                                   '発行日
+                            m_ImpData(UBound(m_ImpData)).hakkojikan = currentHakkojikan                             '発行時間
+                            m_ImpData(UBound(m_ImpData)).customercode = currentCostomercode                         '得意先コード
+
+                            '品目情報をセット
+                            m_ImpData(UBound(m_ImpData)).siyosha = currentSiyosha                                   '使用者
+                            m_ImpData(UBound(m_ImpData)).status = currentStatus                                     '品目ステータス
+                            m_ImpData(UBound(m_ImpData)).customeritemNo = currentCustomeritemNo                     '旧体系部品番号(客先品目No)
+                            m_ImpData(UBound(m_ImpData)).nonyuplat = currentNonyuplat                               '納入プラットフォーム
+                            m_ImpData(UBound(m_ImpData)).yokisyuuyousuu = currentYokisyuuyousuu                     '容器収容数
+                            m_ImpData(UBound(m_ImpData)).yokibangou = currentYokibangou                             '容器番号
+
+                            m_ImpData(UBound(m_ImpData)).ordersikibetuNo = StrLine.Substring(89 - 1, 5).Trim()     'オーダー識別番号2
+                            m_ImpData(UBound(m_ImpData)).nonyusijibi = StrLine.Substring(96 - 1, 8).Trim()         '納入指示日2
+                            m_ImpData(UBound(m_ImpData)).nonyujikan = StrLine.Substring(104 - 1, 4).Trim()     '納入時間2
+                            m_ImpData(UBound(m_ImpData)).nonyusijisu = StrLine.Substring(108 - 1, 6).Trim()        '納入指示数2
+                            m_ImpData(UBound(m_ImpData)).cardkubun = StrLine.Substring(115 - 1, 1).Trim()          'カード区分2
+                            m_ImpData(UBound(m_ImpData)).naijikubun = StrLine.Substring(116 - 1, 1).Trim()         '内示区分2
+                            m_ImpData(UBound(m_ImpData)).icdenpyoNo = StrLine.Substring(119 - 1, 5).Trim()         'IC伝票No2
+                            m_ImpData(UBound(m_ImpData)).nohinshoNo = StrLine.Substring(146 - 1, 15).Trim()        '納品書番号2
+
+                            m_ImpData(UBound(m_ImpData)).hinmokugyoNo = currentHinmokugyoNo                        '品目情報行番号
+                            m_ImpData(UBound(m_ImpData)).ordergyoNo = fileidx                                      'オーダー情報行番号
+
+                        End If
 
 
-            Dim rowsForTemp As New List(Of ImpRunRow) From {
-                New ImpRunRow With {
-                    .StartedAt = now,
-                    .Status = "RUNNING",
-                    .StartedUserId = UserId,
-                    .StartedPgId = pgId,
-                    .FileCount = 0,
-                    .RowCount = 0,
-                    .ErrorCount = 0
-                }
-            }
 
 
+                    End If
+
+                End While
+
+            End Using
+
+            'デバック用に取込したデータをワークテーブルに保存
+            SaveImportDataToWorkTable(tran, m_ImpData, impfilestageId, newId, UserId, pgId)
+
+
+
+
+            '-----------------
+            '取込データを加工
+            '-----------------
+
+            fileidx = 1
+
+
+
+            For IntDataCnt As Integer = 0 To UBound(m_ImpData)
+
+                ''テスト用に変数宣言
+                Dim seisankubun As String = ""      'JU0580(生産区分)
+                Dim syohinkubun As String = ""      'JU0920(初品区分)
+                Dim siyosaki As String = ""         'JU0240(使用先)
+
+                '初期化
+                strTempDate = ""  '日付検証用
+                strQtyValue = ""  '数値検証用
+                customerorderNo = ""
+                orderDate = Nothing
+                dueDate = Nothing
+                customeritemNo = ""
+                demandqty = 0
+                demandunit = ""
+                currencycode = ""
+                productcode = ""
+                remarks = ""
+                deliverycode = ""
+                predailyorderqty = 0
+                predailydeliveryDate = Nothing
+                ordertype = 0
+                proratedtype = 1
+                customerinfotype = ""
+                selffcstflag = ""
+                selffcstdeleteflag = ""
+                shipto = ""
+                billingto = ""
+                itemNo = ""
+                demandstatus = ""
+                shipprocesstype = ""
+                deliveryinstrflag = ""
+                totalshipqty = 0
+                shipstocklocation = ""
+                infotype = ""
+                reconciletype = 1
+                profitcenterCSM = ""
+                profitcenter = ""
+
+                errMsg = ""
+
+                ErrFlg = False
+
+
+
+                '取引先設定IDのPC   （必須）
+                'CUSTOMER_SETTING_MSTより取得
+                profitcenterCSM = ""
+                errMsg = ""
+                If _oderStageRepo.GetProfitCenterFromCSM(CustomerSettingId, profitcenterCSM, errMsg) = False Then
+                    'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：{errMsg}")
+                    'ErrFlg = True
+                End If
+
+                '客先品目No　品目No検索 (客先品目Noにハイフォンをつけて検索)
+                'STRAMMIC.PRDSLSODRMより取得
+                customeritemNo = m_ImpData(IntDataCnt).customeritemNo
+                itemNo = ""
+                errMsg = ""
+                If _oderStageRepo.GetProductCode2(customerCode, customeritemNo, m_ImpData(IntDataCnt).status, itemNo, errMsg) = False Then
+                    errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：{errMsg}")
+                    'ErrFlg = True
+                    fileidx += 1
+                    Continue For
+                End If
+
+                '品目NoのPC   （必須）
+                'STRAMMIC.USRDEFFLDFより取得
+                profitcenter = ""
+                errMsg = ""
+                If _oderStageRepo.GetProfitCenter(itemNo, profitcenter, errMsg) = False Then
+                    'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：{errMsg}")
+                    'ErrFlg = True
+                End If
+
+                '取引先設定IDのPCと同じPCのみ取込対象とする
+                If String.IsNullOrEmpty(profitcenterCSM) OrElse String.IsNullOrEmpty(profitcenter) OrElse profitcenterCSM <> profitcenter Then
+                    'PCが違う場合は取込しない、エラーメッセージなし、ファイル移動もなし
+                    fileidx += 1
+                    Continue For
+                End If
+
+
+
+                'フォルダタイプで処理分岐
+                If FolderType = 4 Then
+
+                    '受注区分   (混在フォルダの場合は必須)
+                    'strQtyValue = If(nJutyuKubun > 0, xlRow.Cell(nJutyuKubun).GetValue(Of String)().Trim(), "")
+                    strQtyValue = m_ImpData(IntDataCnt).naijikubun
+                    If String.IsNullOrEmpty(strQtyValue) Then
+                        '必須チェック
+                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).ordergyoNo}：受注区分が空です。")
+                        ErrFlg = True
+                    ElseIf Not Decimal.TryParse(strQtyValue, ordertype) Then
+                        '数値チェック
+                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).ordergyoNo}：受注区分が不正な値です。")
+                        ErrFlg = True
+
+                    End If
+
+                    '受注区分 及び 分割区分 
+                    If ordertype = 4 Then
+                        '内示
+                        '4(内示日別)だった場合、天方システム側の1(内示)、1(日割)にする)
+                        ordertype = 1       '1(内示)
+                        proratedtype = 1    '1(日割)
+
+                    ElseIf ordertype = 1 Then
+                        '確定
+                        '1(確定)だった場合、天方システム側の2(確定)、2(日割以外)にする)
+                        ordertype = 2       '2(確定)
+                        proratedtype = 2    '2(日割以外)
+
+                    End If
+
+                Else
+
+                    '受注区分   (任意)
+                    ordertype = FolderType
+
+                    '分割区分   (任意)
+                    'IMP_RULE_MSTより取得
+                    proratedtype = 1
+                    errMsg = ""
+                    If _oderStageRepo.GetProratedType(CustomerSettingId, FolderType, proratedtype, errMsg) = False Then
+                        'errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：客先発注番号が空です。")
+                        'ErrFlg = True
+                    End If
+
+                End If
+
+                '客先発注番号   (ordertype = 1:内示は任意、2:確定と3：納入指示は必須)
+                customerorderNo = m_ImpData(IntDataCnt).ordersikibetuNo
+                If ordertype = 2 OrElse ordertype = 3 Then
+                    'ordertype = 1:内示は任意、2:確定と3：納入指示は必須
+                    If String.IsNullOrEmpty(customerorderNo) Then
+                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).ordergyoNo}：客先発注番号が空です。")
+                        ErrFlg = True
+                    End If
+                End If
+
+                '受注日
+                'orderDate = DateTime.Now
+                orderDate = DateTime.Today  'Todayにすることで当日の日付のみ、時刻は省かれる
+
+                '希望納期
+                strTempDate = m_ImpData(IntDataCnt).nonyusijibi
+                Dim parsedDate As Date
+                If DateTime.TryParseExact(strTempDate, "yyyyMMdd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, parsedDate) Then
+                    ' 変換成功
+                    dueDate = parsedDate
+                Else
+                    ' 変換に失敗した場合（空文字や不正な値など）のデフォルト値
+                    dueDate = CDate("1900/01/01")
+                End If
+
+                '日割前納期 ※希望納期をセット （希望納期が必須）
+                predailydeliveryDate = dueDate
+
+                '2026/06/29 日割前納期に希望納期をセットした後に希望納期の稼働日チェック
+                Dim cal = New CalenderRepository(Utils.GetConnectionString())
+                Dim tdt = New Date
+                tdt = dueDate
+                dueDate = cal.AddWorkingDays2("00001", tdt, 0)
+                '--
+
+                '需要数   (必須)
+                strQtyValue = m_ImpData(IntDataCnt).nonyusijisu
+                If String.IsNullOrEmpty(strQtyValue) Then
+                    '必須チェック
+                    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).ordergyoNo}：需要数が空です。")
+                    ErrFlg = True
+                ElseIf Not Decimal.TryParse(strQtyValue, demandqty) Then
+                    '数値チェック
+                    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).ordergyoNo}：需要数が不正な値です")
+                    ErrFlg = True
+                End If
+
+                '日割前受注数 ※需要数をセット　（需要数が必須）
+                predailyorderqty = demandqty
+
+                '自社予測フラグ
+                selffcstflag = "N"
+
+                '自社予測削除フラグ
+                selffcstdeleteflag = "N"
+
+                '需要ステイタス    （固定値）
+                demandstatus = If(ordertype = 1, "F", "O")
+
+                '累計出荷数      （固定値）
+                If ordertype = 1 Then
+                    totalshipqty = Nothing
+                Else
+                    totalshipqty = 0
+                End If
+
+                '出荷プロセスタイプ  （固定値）
+                Select Case ordertype
+                    Case 1
+                        shipprocesstype = "O"
+                    Case 2
+                        shipprocesstype = "E"
+                    Case 3
+                        shipprocesstype = "K"
+                End Select
+
+                '納入指示フラグ    （固定値）
+                deliveryinstrflag = If(ordertype = 3, "Y", "N")
+
+                '通貨コード  （任意）
+                'STRAMMIC.SECTMより取得
+                currencycode = ""
+                errMsg = ""
+                If _oderStageRepo.GetCurrencyCode(customerCode, currencycode, errMsg) = False Then
+                    'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                    'ErrFlg = True
+                End If
+
+
+                '客先品目No　品目No検索 (客先品目Noにハイフォンをつけて検索)
+                'STRAMMIC.PRDSLSODRMより取得
+                customeritemNo = m_ImpData(IntDataCnt).customeritemNo
+                itemNo = ""
+                errMsg = ""
+                If _oderStageRepo.GetProductCode2(customerCode, customeritemNo, m_ImpData(IntDataCnt).status, itemNo, errMsg) = False Then
+                    errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：{errMsg}")
+                    ErrFlg = True
+                End If
+
+                '製品コード
+                productcode = itemNo
+
+                '需要単位   （任意）
+                'STRAMMIC.ITEMMより取得
+                demandunit = ""
+                errMsg = ""
+                If _oderStageRepo.GetDemandUnit(productcode, demandunit, errMsg) = False Then
+                    'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                    'ErrFlg = True
+                End If
+
+                'コメント   （任意）
+                remarks = ""
+
+                '納入先コード
+                If m_ImpData(IntDataCnt).nonyuplat <> "" Then
+                    deliverycode = m_ImpData(IntDataCnt).nonyuplat
+                Else
+                    deliverycode = m_ImpData(IntDataCnt).siyosha
+                End If
+
+                '出荷在庫場所 （任意）
+                'STRAMMIC.ITEMMより取得
+                shipstocklocation = ""
+                errMsg = ""
+                If _oderStageRepo.GetShipStockLocation(productcode, shipstocklocation, errMsg) = False Then
+                    'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                    'ErrFlg = True
+                End If
+
+
+
+                '取引先情報区分
+                customerinfotype = ""
+
+                '情報区分
+                'INFO_TYPE_MSTより取得
+                infotype = ""
+                errMsg = ""
+                If _oderStageRepo.GetInfoType(CustomerSettingId, customerinfotype, infotype, errMsg) = False Then
+                    'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                    'ErrFlg = True
+                End If
+
+                '消込条件区分 ※順次/同月まで/同月内のみ
+                'IMP_RULE_MSTより取得
+                reconciletype = 1
+                errMsg = ""
+                If _oderStageRepo.GetReconcileType(CustomerSettingId, FolderType, reconciletype, errMsg) = False Then
+                    'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                    'ErrFlg = True
+                End If
+
+
+                '出荷先　   （必須）
+                'STRAMMIC.SECTMより取得
+                shipto = ""
+                errMsg = ""
+                If _oderStageRepo.GetShipTo(customerCode, deliverycode, shipto, errMsg) = False Then
+                    errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：{errMsg}")
+                    ErrFlg = True
+                End If
+
+                '請求先    (任意）
+                'STRAMMIC.SECTMより取得
+                billingto = ""
+                errMsg = ""
+                If _oderStageRepo.GetBillingTo(customerCode, billingto, errMsg) = False Then
+                    'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                    'ErrFlg = True
+                End If
+
+                '生産区分　初品区分
+                If m_ImpData(IntDataCnt).status = "2" Then
+                    seisankubun = "1"
+                    syohinkubun = "1"
+                ElseIf m_ImpData(IntDataCnt).status = "3" Then
+                    seisankubun = "2"
+                    syohinkubun = "0"
+                Else
+                    seisankubun = Nothing
+                    syohinkubun = "1"
+                End If
+
+                ''品目NoのPCを取得
+                ''STRAMMIC.USRDEFFLDF(FTABLEID='ITEMM')より取得
+                'Dim pc As String = ""
+                ''If _oderStageRepo.GetItemNoPc(itemNo, pc, errMsg) = False Then
+                'If _oderStageRepo.GetProfitCenter(itemNo, pc, errMsg) = False Then
+                '    errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                '    ErrFlg = True
+                'End If
+
+                'Select Case pc
+                '    Case "E1", "E5", "E6", "E7", "E8", "E9"
+                '        siyosaki = "F999"
+                '    Case Else
+                '        siyosaki = ""
+                'End Select
+
+
+
+                '-----------------
+                '桁チェック
+                '-----------------
+                '受注区分
+                ordertype = SafeVarcharLength(ordertype, 1, isTruncated)
+                If isTruncated = True Then
+                    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).ordergyoNo}：受注区分が桁数超過のためトリミングされました。")
+                End If
+                '分割区分
+                proratedtype = SafeVarcharLength(proratedtype, 1, isTruncated)
+                If isTruncated = True Then
+                    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).ordergyoNo}：分割区分が桁数超過のためトリミングされました。")
+                End If
+                '客先発注番号
+                customerorderNo = SafeVarcharLength(customerorderNo, 40, isTruncated)
+                If isTruncated = True Then
+                    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).ordergyoNo}：客先発注番号が桁数超過のためトリミングされました。")
+                End If
+                '需要数
+                demandqty = Convert.ToDecimal(SafeVarcharLength(demandqty.ToString(), 10, isTruncated))
+                If isTruncated = True Then
+                    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).ordergyoNo}：需要数が桁数超過のためトリミングされました。")
+                End If
+                '自社予測フラグ
+                selffcstflag = SafeVarcharLength(selffcstflag, 1, isTruncated)
+                If isTruncated = True Then
+                    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：自社予測フラグが桁数超過のためトリミングされました。")
+                End If
+                '自社予測削除フラグ
+                selffcstdeleteflag = SafeVarcharLength(selffcstdeleteflag, 1, isTruncated)
+                If isTruncated = True Then
+                    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：自社予測削除フラグが桁数超過のためトリミングされました。")
+                End If
+                '通貨コード
+                currencycode = SafeVarcharLength(currencycode, 3, isTruncated)
+                If isTruncated = True Then
+                    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：通貨コードが桁数超過のためトリミングされました。")
+                End If
+                '客先品目No
+                customeritemNo = SafeVarcharLength(customeritemNo, 45, isTruncated)
+                If isTruncated = True Then
+                    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：客先品目Noが桁数超過のためトリミングされました。")
+                End If
+                '製品コード
+                productcode = SafeVarcharLength(productcode, 45, isTruncated)
+                If isTruncated = True Then
+                    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：製品コードが桁数超過のためトリミングされました。")
+                End If
+                '品目No
+                itemNo = SafeVarcharLength(itemNo, 45, isTruncated)
+                If isTruncated = True Then
+                    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：品目Noが桁数超過のためトリミングされました。")
+                End If
+                '需要単位
+                demandunit = SafeVarcharLength(demandunit, 4, isTruncated)
+                If isTruncated = True Then
+                    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：需要単位が桁数超過のためトリミングされました。")
+                End If
+                'コメント
+                remarks = SafeVarcharLength(remarks, 45, isTruncated)
+                If isTruncated = True Then
+                    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：コメントが桁数超過のためトリミングされました。")
+                End If
+                '納入先コード
+                deliverycode = SafeVarcharLength(deliverycode, 25, isTruncated)
+                If isTruncated = True Then
+                    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：納入先コードが桁数超過のためトリミングされました。")
+                End If
+                '出荷在庫場所
+                shipstocklocation = SafeVarcharLength(shipstocklocation, 25, isTruncated)
+                If isTruncated = True Then
+                    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：出荷在庫場所が桁数超過のためトリミングされました。")
+                End If
+                '取引先情報区分
+                customerinfotype = SafeVarcharLength(customerinfotype, 50, isTruncated)
+                If isTruncated = True Then
+                    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：取引先情報区分が桁数超過のためトリミングされました。")
+                End If
+                '情報区分
+                infotype = SafeVarcharLength(infotype, 1, isTruncated)
+                If isTruncated = True Then
+                    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：情報区分が桁数超過のためトリミングされました。")
+                End If
+                '消込条件区分
+                reconciletype = SafeVarcharLength(reconciletype, 1, isTruncated)
+                If isTruncated = True Then
+                    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：消込条件区分が桁数超過のためトリミングされました。")
+                End If
+                '出荷先
+                shipto = SafeVarcharLength(shipto, 25, isTruncated)
+                If isTruncated = True Then
+                    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：出荷先が桁数超過のためトリミングされました。")
+                End If
+                '請求先
+                billingto = SafeVarcharLength(billingto, 25, isTruncated)
+                If isTruncated = True Then
+                    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：請求先が桁数超過のためトリミングされました。")
+                End If
+                '-----------------
+
+
+                If ErrFlg = True Then
+
+                    'ErrCustomerCode = customerCode
+                    'ErrTorikomiFile = TorikomiFile
+
+                    fileidx += 1
+                    errcnt += 1
+                    ErrFileFlg = True
+                    Continue For
+                End If
+
+
+
+
+
+                '受注ワーク登録用リストへ格納
+                rowsForTemp2.Add(New OrdersStageRow With {
+                            .CustomerSettingId = CustomerSettingId,
+                            .CustomerCode = customerCode,
+                            .BillingTo = billingto,
+                            .CustomerOrderNo = customerorderNo,
+                            .DemandStatus = demandstatus,
+                            .ShipTo = shipto,
+                            .OrderDate = orderDate,
+                            .DueDate = FormatDate(dueDate),
+                            .CustomerItemNo = customeritemNo,
+                            .ItemNo = itemNo,
+                            .DemandQty = demandqty,
+                            .DemandUnit = demandunit,
+                            .CurrencyCode = currencycode,
+                            .ShipStockLocation = shipstocklocation,
+                            .CompanyId = "1000",
+                            .ProductCode = productcode,
+                            .BillingStandard = "S",
+                            .ShipProcessType = shipprocesstype,
+                            .DeliveryInstrFlag = deliveryinstrflag,
+                            .Remarks = remarks,
+                            .DeliveryCode = deliverycode,
+                            .TotalShipQty = totalshipqty,
+                            .TransportMethod = "2",
+                            .PreDailyOrderQty = predailyorderqty,
+                            .PreDailyDeliveryDate = predailydeliveryDate,
+                            .ImpFileStageId = impfilestageId,
+                            .OrderType = ordertype,
+                            .ProratedType = proratedtype,
+                            .CustomerInfoType = customerinfotype,
+                            .InfoType = infotype,
+                            .SelfFcstFlag = selffcstflag,
+                            .SelfFcstDeleteFlag = selffcstdeleteflag,
+                            .ReconcileType = reconciletype,
+                            .ImpRunId = newId,
+                            .Status = "IMPORTED",
+                            .ActiveFlag = "Y",
+                            .CreatedAt = Now,
+                            .CreatedUserId = UserId,
+                            .CreatedPgId = pgId,
+                            .UpdatedAt = Now,
+                            .UpdatedUserId = UserId,
+                            .UpdatedPgId = pgId
+                        })
+
+                fileidx += 1
+
+
+            Next
+
+
+
+
+
+
+
+            Return True
 
         End Function
 
@@ -301,6 +1032,7 @@ Namespace OMS.Data
                                                ByVal CustomerSettingId As Long,
                                                ByVal customerCode As String,
                                                ByVal impfilestageId As Long,
+                                               ByVal spprocessType As Integer,
                                                ByVal strWorkFile As String,
                                                ByVal TorikomiFile As String,
                                                ByRef ErrFlg As Boolean,
@@ -369,7 +1101,6 @@ Namespace OMS.Data
 
 
             'ファイル読み込み
-            'Select Case FileType
             Select Case mapResult.FileType
                 Case "CSV", "TSV"
                     'CSV(カンマ区切り) TSV(タブ区切り) 
@@ -481,6 +1212,7 @@ Namespace OMS.Data
                                 'STRAMMIC.PRDSLSODRMより取得
                                 itemNo = ""
                                 errMsg = ""
+
                                 If _oderStageRepo.GetProductCode(customerCode, customeritemNo, productcode, itemNo, errMsg) = False Then
                                     'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
                                     'ErrFlg = True
@@ -563,9 +1295,9 @@ Namespace OMS.Data
                                 Else
                                     ' 日付変換を試みる（yyyy/MM/dd形式）
                                     If Not DateTime.TryParseExact(strTempDate, formats,
-                                        System.Globalization.CultureInfo.InvariantCulture,
-                                        System.Globalization.DateTimeStyles.None,
-                                        orderDate) Then
+                                            System.Globalization.CultureInfo.InvariantCulture,
+                                            System.Globalization.DateTimeStyles.None,
+                                            orderDate) Then
                                         ' 変換に失敗した場合（空文字や不正な値など）のデフォルト値
                                         orderDate = CDate("1900/01/01")
                                         errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：受注日が不正な値です。")
@@ -582,9 +1314,9 @@ Namespace OMS.Data
                                     ErrFlg = True
                                 Else
                                     If Not DateTime.TryParseExact(strTempDate, formats,
-                                        System.Globalization.CultureInfo.InvariantCulture,
-                                        System.Globalization.DateTimeStyles.None,
-                                        dueDate) Then
+                                            System.Globalization.CultureInfo.InvariantCulture,
+                                            System.Globalization.DateTimeStyles.None,
+                                            dueDate) Then
                                         ' 変換に失敗した場合（空文字や不正な値など）のデフォルト値
                                         dueDate = CDate("1900/01/01")
                                         errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：希望納期が不正な値です。")
@@ -777,11 +1509,6 @@ Namespace OMS.Data
                                 If isTruncated = True Then
                                     errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：需要数が桁数超過のためトリミングされました。")
                                 End If
-                                ''日割前受注数
-                                'predailyorderqty = Convert.ToDecimal(SafeVarcharLength(predailyorderqty.ToString(), 10, isTruncated))
-                                'If isTruncated = True Then
-                                '    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：日割前受注数が桁数超過のためトリミングされました。")
-                                'End If
                                 '自社予測フラグ
                                 selffcstflag = SafeVarcharLength(selffcstflag, 1, isTruncated)
                                 If isTruncated = True Then
@@ -873,49 +1600,49 @@ Namespace OMS.Data
 
                                 '受注ワーク登録用リストへ格納
                                 rowsForTemp2.Add(New OrdersStageRow With {
-                                    .CustomerSettingId = CustomerSettingId,
-                                    .CustomerCode = customerCode,
-                                    .BillingTo = billingto,
-                                    .CustomerOrderNo = customerorderNo,
-                                    .DemandStatus = demandstatus,
-                                    .ShipTo = shipto,
-                                    .OrderDate = orderDate,
-                                    .DueDate = FormatDate(dueDate),
-                                    .CustomerItemNo = customeritemNo,
-                                    .ItemNo = itemNo,
-                                    .DemandQty = demandqty,
-                                    .DemandUnit = demandunit,
-                                    .CurrencyCode = currencycode,
-                                    .ShipStockLocation = shipstocklocation,
-                                    .CompanyId = "1000",
-                                    .ProductCode = productcode,
-                                    .BillingStandard = "S",
-                                    .ShipProcessType = shipprocesstype,
-                                    .DeliveryInstrFlag = deliveryinstrflag,
-                                    .Remarks = remarks,
-                                    .DeliveryCode = deliverycode,
-                                    .TotalShipQty = totalshipqty,
-                                    .TransportMethod = "2",
-                                    .PreDailyOrderQty = predailyorderqty,
-                                    .PreDailyDeliveryDate = predailydeliveryDate,
-                                    .ImpFileStageId = impfilestageId,
-                                    .OrderType = ordertype,
-                                    .ProratedType = proratedtype,
-                                    .CustomerInfoType = customerinfotype,
-                                    .InfoType = infotype,
-                                    .SelfFcstFlag = selffcstflag,
-                                    .SelfFcstDeleteFlag = selffcstdeleteflag,
-                                    .ReconcileType = reconciletype,
-                                    .ImpRunId = newId,
-                                    .Status = "IMPORTED",
-                                    .ActiveFlag = "Y",
-                                    .CreatedAt = Now,
-                                    .CreatedUserId = UserId,
-                                    .CreatedPgId = pgId,
-                                    .UpdatedAt = Now,
-                                    .UpdatedUserId = UserId,
-                                    .UpdatedPgId = pgId
-                                })
+                                        .CustomerSettingId = CustomerSettingId,
+                                        .CustomerCode = customerCode,
+                                        .BillingTo = billingto,
+                                        .CustomerOrderNo = customerorderNo,
+                                        .DemandStatus = demandstatus,
+                                        .ShipTo = shipto,
+                                        .OrderDate = orderDate,
+                                        .DueDate = FormatDate(dueDate),
+                                        .CustomerItemNo = customeritemNo,
+                                        .ItemNo = itemNo,
+                                        .DemandQty = demandqty,
+                                        .DemandUnit = demandunit,
+                                        .CurrencyCode = currencycode,
+                                        .ShipStockLocation = shipstocklocation,
+                                        .CompanyId = "1000",
+                                        .ProductCode = productcode,
+                                        .BillingStandard = "S",
+                                        .ShipProcessType = shipprocesstype,
+                                        .DeliveryInstrFlag = deliveryinstrflag,
+                                        .Remarks = remarks,
+                                        .DeliveryCode = deliverycode,
+                                        .TotalShipQty = totalshipqty,
+                                        .TransportMethod = "2",
+                                        .PreDailyOrderQty = predailyorderqty,
+                                        .PreDailyDeliveryDate = predailydeliveryDate,
+                                        .ImpFileStageId = impfilestageId,
+                                        .OrderType = ordertype,
+                                        .ProratedType = proratedtype,
+                                        .CustomerInfoType = customerinfotype,
+                                        .InfoType = infotype,
+                                        .SelfFcstFlag = selffcstflag,
+                                        .SelfFcstDeleteFlag = selffcstdeleteflag,
+                                        .ReconcileType = reconciletype,
+                                        .ImpRunId = newId,
+                                        .Status = "IMPORTED",
+                                        .ActiveFlag = "Y",
+                                        .CreatedAt = Now,
+                                        .CreatedUserId = UserId,
+                                        .CreatedPgId = pgId,
+                                        .UpdatedAt = Now,
+                                        .UpdatedUserId = UserId,
+                                        .UpdatedPgId = pgId
+                                    })
 
                                 fileidx += 1
 
@@ -941,715 +1668,6 @@ Namespace OMS.Data
                         errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　許可されていないファイル形式です。")
                         Return False
                     End If
-
-                    Using StmRdr As New IO.StreamReader(strWorkFile, MapEncoding(mapResult.CharSet))
-
-                        'ヤマハ取込データ保存配列　初期化
-                        'Dim m_ImpData(0) As ImportDataType
-                        ReDim m_ImpData(0)
-
-                        Dim isFirstRow As Boolean = True ' 初回の要素追加判定用
-
-                        ' ヘッダ情報をループ内で保持するための退避用変数
-                        Dim currentHakkobi As String = ""
-                        Dim currentHakkojikan As String = ""
-                        Dim currentCostomercode As String = ""
-
-                        ' 品目情報をループ内で保持するための退避用変数
-                        Dim currentYokibangou As String = ""
-                        Dim currentYokisyuuyousuu As String = ""
-                        Dim currentCustomeritemNo As String = ""
-                        Dim currentStatus As String = ""
-                        Dim currentNonyuplat As String = ""
-                        Dim currentSiyosha As String = ""
-                        Dim currentHinmokugyoNo As String = ""
-
-                        fileidx = 0
-
-                        '文字開始位置、文字数を指定する場合
-                        While Not StmRdr.EndOfStream
-
-                            Dim StrLine As String = StmRdr.ReadLine()
-                            fileidx += 1
-
-                            If Left(StrLine, 4) = "HEAD" Then
-                                'ヘッダ情報
-
-                                'ヘッダ情報を取込データから取得
-                                currentHakkobi = StrLine.Substring(5 - 1, 8).Trim()           '発行日
-                                currentHakkojikan = StrLine.Substring(13 - 1, 4).Trim()       '発行時刻
-                                currentCostomercode = customerCode                            '得意先コード
-
-                            ElseIf Left(StrLine, 4) = "TRAL" Then
-                                'EOF情報
-
-                            ElseIf Left(StrLine, 4) = "LE01" Then
-                                '品目情報
-
-                                '品目情報を取込データから取得
-                                currentSiyosha = StrLine.Substring(20 - 1, 4).Trim()          '使用者
-                                currentStatus = StrLine.Substring(24 - 1, 1).Trim()           '品目ステータス
-                                currentCustomeritemNo = StrLine.Substring(55 - 1, 14).Trim()  '旧体系部品番号(客先品目No)
-                                currentNonyuplat = StrLine.Substring(78 - 1, 4).Trim()        '納入プラットフォーム
-                                currentYokisyuuyousuu = StrLine.Substring(87 - 1, 5).Trim()   '容器収容数
-                                currentYokibangou = StrLine.Substring(92 - 1, 5).Trim()       '容器番号
-                                currentHinmokugyoNo = fileidx
-
-                                '品目情報の2行目は今のところ使用しない予定
-                                If Not StmRdr.EndOfStream Then
-                                    StmRdr.ReadLine()
-                                    fileidx += 1 ' 行数カウントの整合性を保つためにインクリメント
-                                End If
-
-                            Else
-                                'オーダ情報（1行の中にデータ1とデータ2が最大2つ格納されている）
-
-                                ' --------------------------------------------------
-                                ' 1つ目のオーダ情報データの処理
-                                ' --------------------------------------------------
-                                ' 変更区分1（データ1のキー項目など）が空でないか確認
-                                Dim HenkouKubun1 As String = StrLine.Substring(1 - 1, 1).Trim()
-
-                                If HenkouKubun1 <> "" Then
-
-                                    ' 初回のみ ReDim m_ImpData(0) をそのまま使い、2回目以降は配列を拡張する
-                                    If isFirstRow Then
-                                        isFirstRow = False
-                                    Else
-                                        ReDim Preserve m_ImpData(UBound(m_ImpData) + 1)
-                                    End If
-
-                                    'ヘッダ情報をセット
-                                    m_ImpData(UBound(m_ImpData)).hakkobi = currentHakkobi                                   '発行日
-                                    m_ImpData(UBound(m_ImpData)).hakkojikan = currentHakkojikan                             '発行時間
-                                    m_ImpData(UBound(m_ImpData)).customercode = currentCostomercode                         '得意先コード
-
-                                    '品目情報をセット
-                                    m_ImpData(UBound(m_ImpData)).siyosha = currentSiyosha                                   '使用者
-                                    m_ImpData(UBound(m_ImpData)).status = currentStatus                                     '品目ステータス
-                                    m_ImpData(UBound(m_ImpData)).customeritemNo = currentCustomeritemNo                     '旧体系部品番号(客先品目No)
-                                    m_ImpData(UBound(m_ImpData)).nonyuplat = currentNonyuplat                               '納入プラットフォーム
-                                    m_ImpData(UBound(m_ImpData)).yokisyuuyousuu = currentYokisyuuyousuu                     '容器収容数
-                                    m_ImpData(UBound(m_ImpData)).yokibangou = currentYokibangou                             '容器番号
-
-                                    'オーダ情報を取込データから取得
-                                    m_ImpData(UBound(m_ImpData)).ordersikibetuNo = StrLine.Substring(3 - 1, 5).Trim()      'オーダー識別番号1
-                                    m_ImpData(UBound(m_ImpData)).nonyusijibi = StrLine.Substring(10 - 1, 8).Trim()         '納入指示日1
-                                    m_ImpData(UBound(m_ImpData)).nonyujikan = StrLine.Substring(18 - 1, 4).Trim()      '納入時間1
-                                    m_ImpData(UBound(m_ImpData)).nonyusijisu = StrLine.Substring(22 - 1, 6).Trim()         '納入指示数1
-                                    m_ImpData(UBound(m_ImpData)).cardkubun = StrLine.Substring(29 - 1, 1).Trim()           'カード区分1
-                                    m_ImpData(UBound(m_ImpData)).naijikubun = StrLine.Substring(30 - 1, 1).Trim()          '内示区分1
-                                    m_ImpData(UBound(m_ImpData)).icdenpyoNo = StrLine.Substring(33 - 1, 5).Trim()          'IC伝票No1
-                                    m_ImpData(UBound(m_ImpData)).nohinshoNo = StrLine.Substring(60 - 1, 15).Trim()         '納品書番号1
-
-                                    m_ImpData(UBound(m_ImpData)).hinmokugyoNo = currentHinmokugyoNo                        '品目情報行番号
-                                    m_ImpData(UBound(m_ImpData)).ordergyoNo = fileidx                                      'オーダー情報行番号
-
-                                End If
-
-                                ' --------------------------------------------------
-                                ' 2つ目のオーダデータの処理（データが存在する場合のみ格納）
-                                ' --------------------------------------------------
-                                ' 変更区分2が空文字でない、かつSubstringできる長さがあるか確認
-                                Dim HenkouKubun2 As String = ""
-                                If StrLine.Length >= 88 Then ' Substring(87 - 1, 1)がエラーにならない長さチェック
-                                    HenkouKubun2 = StrLine.Substring(87 - 1, 1).Trim()
-                                End If
-
-                                If HenkouKubun2 <> "" Then
-
-                                    ' データ2用に必ず配列を新しく1枠拡張する
-                                    If isFirstRow Then
-                                        isFirstRow = False
-                                    Else
-                                        ReDim Preserve m_ImpData(UBound(m_ImpData) + 1)
-                                    End If
-
-                                    'ヘッダ情報をセット
-                                    m_ImpData(UBound(m_ImpData)).hakkobi = currentHakkobi                                   '発行日
-                                    m_ImpData(UBound(m_ImpData)).hakkojikan = currentHakkojikan                             '発行時間
-                                    m_ImpData(UBound(m_ImpData)).customercode = currentCostomercode                         '得意先コード
-
-                                    '品目情報をセット
-                                    m_ImpData(UBound(m_ImpData)).siyosha = currentSiyosha                                   '使用者
-                                    m_ImpData(UBound(m_ImpData)).status = currentStatus                                     '品目ステータス
-                                    m_ImpData(UBound(m_ImpData)).customeritemNo = currentCustomeritemNo                     '旧体系部品番号(客先品目No)
-                                    m_ImpData(UBound(m_ImpData)).nonyuplat = currentNonyuplat                               '納入プラットフォーム
-                                    m_ImpData(UBound(m_ImpData)).yokisyuuyousuu = currentYokisyuuyousuu                     '容器収容数
-                                    m_ImpData(UBound(m_ImpData)).yokibangou = currentYokibangou                             '容器番号
-
-                                    m_ImpData(UBound(m_ImpData)).ordersikibetuNo = StrLine.Substring(89 - 1, 5).Trim()     'オーダー識別番号2
-                                    m_ImpData(UBound(m_ImpData)).nonyusijibi = StrLine.Substring(96 - 1, 8).Trim()         '納入指示日2
-                                    m_ImpData(UBound(m_ImpData)).nonyujikan = StrLine.Substring(104 - 1, 4).Trim()     '納入時間2
-                                    m_ImpData(UBound(m_ImpData)).nonyusijisu = StrLine.Substring(108 - 1, 6).Trim()        '納入指示数2
-                                    m_ImpData(UBound(m_ImpData)).cardkubun = StrLine.Substring(115 - 1, 1).Trim()          'カード区分2
-                                    m_ImpData(UBound(m_ImpData)).naijikubun = StrLine.Substring(116 - 1, 1).Trim()         '内示区分2
-                                    m_ImpData(UBound(m_ImpData)).icdenpyoNo = StrLine.Substring(119 - 1, 5).Trim()         'IC伝票No2
-                                    m_ImpData(UBound(m_ImpData)).nohinshoNo = StrLine.Substring(146 - 1, 15).Trim()        '納品書番号2
-
-                                    m_ImpData(UBound(m_ImpData)).hinmokugyoNo = currentHinmokugyoNo                        '品目情報行番号
-                                    m_ImpData(UBound(m_ImpData)).ordergyoNo = fileidx                                      'オーダー情報行番号
-
-                                End If
-
-
-
-
-                            End If
-
-                        End While
-
-                    End Using
-
-                    'デバック用に取込したデータをワークテーブルに保存
-                    SaveImportDataToWorkTable(tran, m_ImpData, impfilestageId, newId, UserId, pgId)
-
-
-
-
-                    '-----------------
-                    '取込データを加工
-                    '-----------------
-
-                    fileidx = 1
-
-
-
-                    For IntDataCnt As Integer = 0 To UBound(m_ImpData)
-
-                        ''テスト用に変数宣言
-                        Dim seisankubun As String = ""      'JU0580(生産区分)
-                        Dim syohinkubun As String = ""      'JU0920(初品区分)
-                        Dim siyosaki As String = ""         'JU0240(使用先)
-
-                        '初期化
-                        strTempDate = ""  '日付検証用
-                        strQtyValue = ""  '数値検証用
-                        customerorderNo = ""
-                        orderDate = Nothing
-                        dueDate = Nothing
-                        customeritemNo = ""
-                        demandqty = 0
-                        demandunit = ""
-                        currencycode = ""
-                        productcode = ""
-                        remarks = ""
-                        deliverycode = ""
-                        predailyorderqty = 0
-                        predailydeliveryDate = Nothing
-                        ordertype = 0
-                        proratedtype = 1
-                        customerinfotype = ""
-                        selffcstflag = ""
-                        selffcstdeleteflag = ""
-                        shipto = ""
-                        billingto = ""
-                        itemNo = ""
-                        demandstatus = ""
-                        shipprocesstype = ""
-                        deliveryinstrflag = ""
-                        totalshipqty = 0
-                        shipstocklocation = ""
-                        infotype = ""
-                        reconciletype = 1
-                        profitcenterCSM = ""
-                        profitcenter = ""
-
-                        errMsg = ""
-
-                        ErrFlg = False
-
-
-
-                        '取引先設定IDのPC   （必須）
-                        'CUSTOMER_SETTING_MSTより取得
-                        profitcenterCSM = ""
-                        errMsg = ""
-                        If _oderStageRepo.GetProfitCenterFromCSM(CustomerSettingId, profitcenterCSM, errMsg) = False Then
-                            'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：{errMsg}")
-                            'ErrFlg = True
-                        End If
-
-                        '客先品目No　品目No検索 (客先品目Noにハイフォンをつけて検索)
-                        'STRAMMIC.PRDSLSODRMより取得
-                        'Dim Patterns As New List(Of String) From {"3-5-2", "5-5"}
-                        Dim Patterns As New List(Of String)()
-
-                        Select Case customerCode
-                            Case "5384"
-                                ' YMPC(ヤマハモーターパワープロダクツ)
-                                Patterns.AddRange({"3-5-2", "5-5"})
-                            Case "5952"
-                                ' YEJP(ヤマハ発動機 遠州森町工場)
-                                Patterns.AddRange({"3-5-2", "5-5-2-2", "4-5-2", "3-5-5", "3-11", "5-5"})
-                            Case "5977"
-                                ' YMC(ヤマハ発動機)
-                                Patterns.AddRange({"3-5-2", "5-5"})
-                        End Select
-
-                        customeritemNo = m_ImpData(IntDataCnt).customeritemNo
-                        itemNo = ""
-                        errMsg = ""
-                        ''デバック用
-                        'If m_ImpData(IntDataCnt).status = 2 Then
-                        '    Dim test As String
-                        '    test = "test"
-                        'End If
-                        If _oderStageRepo.GetProductCode2(customerCode, customeritemNo, Patterns, m_ImpData(IntDataCnt).status, itemNo, errMsg) = False Then
-                            errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：{errMsg}")
-                            'ErrFlg = True
-                            fileidx += 1
-                            Continue For
-                        End If
-
-                        '品目NoのPC   （必須）
-                        'STRAMMIC.USRDEFFLDFより取得
-                        profitcenter = ""
-                        errMsg = ""
-                        If _oderStageRepo.GetProfitCenter(itemNo, profitcenter, errMsg) = False Then
-                            'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：{errMsg}")
-                            'ErrFlg = True
-                        End If
-
-                        '取引先設定IDのPCと同じPCのみ取込対象とする
-                        If String.IsNullOrEmpty(profitcenterCSM) OrElse String.IsNullOrEmpty(profitcenter) OrElse profitcenterCSM <> profitcenter Then
-                            'PCが違う場合は取込しない、エラーメッセージなし、ファイル移動もなし
-                            fileidx += 1
-                            Continue For
-                        End If
-
-
-
-                        'フォルダタイプで処理分岐
-                        If FolderType = 4 Then
-
-                            '受注区分   (混在フォルダの場合は必須)
-                            'strQtyValue = If(nJutyuKubun > 0, xlRow.Cell(nJutyuKubun).GetValue(Of String)().Trim(), "")
-                            strQtyValue = m_ImpData(IntDataCnt).naijikubun
-                            If String.IsNullOrEmpty(strQtyValue) Then
-                                '必須チェック
-                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).ordergyoNo}：受注区分が空です。")
-                                ErrFlg = True
-                            ElseIf Not Decimal.TryParse(strQtyValue, ordertype) Then
-                                '数値チェック
-                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).ordergyoNo}：受注区分が不正な値です。")
-                                ErrFlg = True
-
-                            End If
-
-                            '受注区分 及び 分割区分 
-                            If ordertype = 4 Then
-                                '内示
-                                '4(内示日別)だった場合、天方システム側の1(内示)、1(日割)にする)
-                                ordertype = 1       '1(内示)
-                                proratedtype = 1    '1(日割)
-
-                            ElseIf ordertype = 1 Then
-                                '確定
-                                '1(確定)だった場合、天方システム側の2(確定)、2(日割以外)にする)
-                                ordertype = 2       '2(確定)
-                                proratedtype = 2    '2(日割以外)
-
-                            End If
-
-                        Else
-
-                            '受注区分   (任意)
-                            ordertype = FolderType
-
-                            '分割区分   (任意)
-                            'IMP_RULE_MSTより取得
-                            proratedtype = 1
-                            errMsg = ""
-                            If _oderStageRepo.GetProratedType(CustomerSettingId, FolderType, proratedtype, errMsg) = False Then
-                                'errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：客先発注番号が空です。")
-                                'ErrFlg = True
-                            End If
-
-                        End If
-
-                        '客先発注番号   (ordertype = 1:内示は任意、2:確定と3：納入指示は必須)
-                        customerorderNo = m_ImpData(IntDataCnt).ordersikibetuNo
-                        If ordertype = 2 OrElse ordertype = 3 Then
-                            'ordertype = 1:内示は任意、2:確定と3：納入指示は必須
-                            If String.IsNullOrEmpty(customerorderNo) Then
-                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).ordergyoNo}：客先発注番号が空です。")
-                                ErrFlg = True
-                            End If
-                        End If
-
-                        '受注日
-                        'orderDate = DateTime.Now
-                        orderDate = DateTime.Today  'Todayにすることで当日の日付のみ、時刻は省かれる
-
-                        '希望納期
-                        strTempDate = m_ImpData(IntDataCnt).nonyusijibi
-                        Dim parsedDate As Date
-                        If DateTime.TryParseExact(strTempDate, "yyyyMMdd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, parsedDate) Then
-                            ' 変換成功
-                            dueDate = parsedDate
-                        Else
-                            ' 変換に失敗した場合（空文字や不正な値など）のデフォルト値
-                            dueDate = CDate("1900/01/01")
-                        End If
-
-                        '日割前納期 ※希望納期をセット （希望納期が必須）
-                        predailydeliveryDate = dueDate
-
-                        '2026/06/29 日割前納期に希望納期をセットした後に希望納期の稼働日チェック
-                        Dim cal = New CalenderRepository(Utils.GetConnectionString())
-                        Dim tdt = New Date
-                        tdt = dueDate
-                        dueDate = cal.AddWorkingDays2("00001", tdt, 0)
-                        '--
-
-                        '需要数   (必須)
-                        strQtyValue = m_ImpData(IntDataCnt).nonyusijisu
-                        If String.IsNullOrEmpty(strQtyValue) Then
-                            '必須チェック
-                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).ordergyoNo}：需要数が空です。")
-                            ErrFlg = True
-                        ElseIf Not Decimal.TryParse(strQtyValue, demandqty) Then
-                            '数値チェック
-                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).ordergyoNo}：需要数が不正な値です")
-                            ErrFlg = True
-                        End If
-
-                        '日割前受注数 ※需要数をセット　（需要数が必須）
-                        predailyorderqty = demandqty
-
-                        '自社予測フラグ
-                        selffcstflag = "N"
-
-                        '自社予測削除フラグ
-                        selffcstdeleteflag = "N"
-
-                        '需要ステイタス    （固定値）
-                        demandstatus = If(ordertype = 1, "F", "O")
-
-                        '累計出荷数      （固定値）
-                        If ordertype = 1 Then
-                            totalshipqty = Nothing
-                        Else
-                            totalshipqty = 0
-                        End If
-
-                        '出荷プロセスタイプ  （固定値）
-                        Select Case ordertype
-                            Case 1
-                                shipprocesstype = "O"
-                            Case 2
-                                shipprocesstype = "E"
-                            Case 3
-                                shipprocesstype = "K"
-                        End Select
-
-                        '納入指示フラグ    （固定値）
-                        deliveryinstrflag = If(ordertype = 3, "Y", "N")
-
-                        '通貨コード  （任意）
-                        'STRAMMIC.SECTMより取得
-                        currencycode = ""
-                        errMsg = ""
-                        If _oderStageRepo.GetCurrencyCode(customerCode, currencycode, errMsg) = False Then
-                            'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
-                            'ErrFlg = True
-                        End If
-
-
-                        '客先品目No　品目No検索 (客先品目Noにハイフォンをつけて検索)
-                        'STRAMMIC.PRDSLSODRMより取得
-                        'Dim Patterns As New List(Of String) From {"3-5-2", "5-5"}
-                        customeritemNo = m_ImpData(IntDataCnt).customeritemNo
-                        itemNo = ""
-                        errMsg = ""
-                        If _oderStageRepo.GetProductCode2(customerCode, customeritemNo, Patterns, m_ImpData(IntDataCnt).status, itemNo, errMsg) = False Then
-                            errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：{errMsg}")
-                            ErrFlg = True
-                        End If
-
-                        '製品コード
-                        productcode = itemNo
-
-                        '需要単位   （任意）
-                        'STRAMMIC.ITEMMより取得
-                        demandunit = ""
-                        errMsg = ""
-                        If _oderStageRepo.GetDemandUnit(productcode, demandunit, errMsg) = False Then
-                            'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
-                            'ErrFlg = True
-                        End If
-
-                        'コメント   （任意）
-                        remarks = ""
-
-                        '納入先コード
-                        If m_ImpData(IntDataCnt).nonyuplat <> "" Then
-                            deliverycode = m_ImpData(IntDataCnt).nonyuplat
-                        Else
-                            deliverycode = m_ImpData(IntDataCnt).siyosha
-                        End If
-
-                        '出荷在庫場所 （任意）
-                        'STRAMMIC.ITEMMより取得
-                        shipstocklocation = ""
-                        errMsg = ""
-                        If _oderStageRepo.GetShipStockLocation(productcode, shipstocklocation, errMsg) = False Then
-                            'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
-                            'ErrFlg = True
-                        End If
-
-
-
-                        '取引先情報区分
-                        customerinfotype = ""
-
-                        '情報区分
-                        'INFO_TYPE_MSTより取得
-                        infotype = ""
-                        errMsg = ""
-                        If _oderStageRepo.GetInfoType(CustomerSettingId, customerinfotype, infotype, errMsg) = False Then
-                            'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
-                            'ErrFlg = True
-                        End If
-
-                        '消込条件区分 ※順次/同月まで/同月内のみ
-                        'IMP_RULE_MSTより取得
-                        reconciletype = 1
-                        errMsg = ""
-                        If _oderStageRepo.GetReconcileType(CustomerSettingId, FolderType, reconciletype, errMsg) = False Then
-                            'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
-                            'ErrFlg = True
-                        End If
-
-
-                        '出荷先　   （必須）
-                        'STRAMMIC.SECTMより取得
-                        shipto = ""
-                        errMsg = ""
-                        If _oderStageRepo.GetShipTo(customerCode, deliverycode, shipto, errMsg) = False Then
-                            errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：{errMsg}")
-                            ErrFlg = True
-                        End If
-
-                        '請求先    (任意）
-                        'STRAMMIC.SECTMより取得
-                        billingto = ""
-                        errMsg = ""
-                        If _oderStageRepo.GetBillingTo(customerCode, billingto, errMsg) = False Then
-                            'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
-                            'ErrFlg = True
-                        End If
-
-                        '生産区分　初品区分
-                        If m_ImpData(IntDataCnt).status = "2" Then
-                            seisankubun = "1"
-                            syohinkubun = "1"
-                        ElseIf m_ImpData(IntDataCnt).status = "3" Then
-                            seisankubun = "2"
-                            syohinkubun = "0"
-                        Else
-                            seisankubun = Nothing
-                            syohinkubun = "1"
-                        End If
-
-                        ''品目NoのPCを取得
-                        ''STRAMMIC.USRDEFFLDF(FTABLEID='ITEMM')より取得
-                        'Dim pc As String = ""
-                        ''If _oderStageRepo.GetItemNoPc(itemNo, pc, errMsg) = False Then
-                        'If _oderStageRepo.GetProfitCenter(itemNo, pc, errMsg) = False Then
-                        '    errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
-                        '    ErrFlg = True
-                        'End If
-
-                        'Select Case pc
-                        '    Case "E1", "E5", "E6", "E7", "E8", "E9"
-                        '        siyosaki = "F999"
-                        '    Case Else
-                        '        siyosaki = ""
-                        'End Select
-
-
-
-
-
-
-
-
-                        '-----------------
-                        '桁チェック
-                        '-----------------
-                        '受注区分
-                        ordertype = SafeVarcharLength(ordertype, 1, isTruncated)
-                        If isTruncated = True Then
-                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).ordergyoNo}：受注区分が桁数超過のためトリミングされました。")
-                        End If
-                        '分割区分
-                        proratedtype = SafeVarcharLength(proratedtype, 1, isTruncated)
-                        If isTruncated = True Then
-                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).ordergyoNo}：分割区分が桁数超過のためトリミングされました。")
-                        End If
-                        '客先発注番号
-                        customerorderNo = SafeVarcharLength(customerorderNo, 40, isTruncated)
-                        If isTruncated = True Then
-                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).ordergyoNo}：客先発注番号が桁数超過のためトリミングされました。")
-                        End If
-                        '需要数
-                        demandqty = Convert.ToDecimal(SafeVarcharLength(demandqty.ToString(), 10, isTruncated))
-                        If isTruncated = True Then
-                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).ordergyoNo}：需要数が桁数超過のためトリミングされました。")
-                        End If
-                        ''日割前受注数
-                        'predailyorderqty = Convert.ToDecimal(SafeVarcharLength(predailyorderqty.ToString(), 10, isTruncated))
-                        'If isTruncated = True Then
-                        '    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：日割前受注数が桁数超過のためトリミングされました。")
-                        'End If
-                        '自社予測フラグ
-                        selffcstflag = SafeVarcharLength(selffcstflag, 1, isTruncated)
-                        If isTruncated = True Then
-                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：自社予測フラグが桁数超過のためトリミングされました。")
-                        End If
-                        '自社予測削除フラグ
-                        selffcstdeleteflag = SafeVarcharLength(selffcstdeleteflag, 1, isTruncated)
-                        If isTruncated = True Then
-                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：自社予測削除フラグが桁数超過のためトリミングされました。")
-                        End If
-                        '通貨コード
-                        currencycode = SafeVarcharLength(currencycode, 3, isTruncated)
-                        If isTruncated = True Then
-                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：通貨コードが桁数超過のためトリミングされました。")
-                        End If
-                        '客先品目No
-                        customeritemNo = SafeVarcharLength(customeritemNo, 45, isTruncated)
-                        If isTruncated = True Then
-                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：客先品目Noが桁数超過のためトリミングされました。")
-                        End If
-                        '製品コード
-                        productcode = SafeVarcharLength(productcode, 45, isTruncated)
-                        If isTruncated = True Then
-                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：製品コードが桁数超過のためトリミングされました。")
-                        End If
-                        '品目No
-                        itemNo = SafeVarcharLength(itemNo, 45, isTruncated)
-                        If isTruncated = True Then
-                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：品目Noが桁数超過のためトリミングされました。")
-                        End If
-                        '需要単位
-                        demandunit = SafeVarcharLength(demandunit, 4, isTruncated)
-                        If isTruncated = True Then
-                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：需要単位が桁数超過のためトリミングされました。")
-                        End If
-                        'コメント
-                        remarks = SafeVarcharLength(remarks, 45, isTruncated)
-                        If isTruncated = True Then
-                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：コメントが桁数超過のためトリミングされました。")
-                        End If
-                        '納入先コード
-                        deliverycode = SafeVarcharLength(deliverycode, 25, isTruncated)
-                        If isTruncated = True Then
-                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：納入先コードが桁数超過のためトリミングされました。")
-                        End If
-                        '出荷在庫場所
-                        shipstocklocation = SafeVarcharLength(shipstocklocation, 25, isTruncated)
-                        If isTruncated = True Then
-                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：出荷在庫場所が桁数超過のためトリミングされました。")
-                        End If
-                        '取引先情報区分
-                        customerinfotype = SafeVarcharLength(customerinfotype, 50, isTruncated)
-                        If isTruncated = True Then
-                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：取引先情報区分が桁数超過のためトリミングされました。")
-                        End If
-                        '情報区分
-                        infotype = SafeVarcharLength(infotype, 1, isTruncated)
-                        If isTruncated = True Then
-                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：情報区分が桁数超過のためトリミングされました。")
-                        End If
-                        '消込条件区分
-                        reconciletype = SafeVarcharLength(reconciletype, 1, isTruncated)
-                        If isTruncated = True Then
-                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：消込条件区分が桁数超過のためトリミングされました。")
-                        End If
-                        '出荷先
-                        shipto = SafeVarcharLength(shipto, 25, isTruncated)
-                        If isTruncated = True Then
-                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：出荷先が桁数超過のためトリミングされました。")
-                        End If
-                        '請求先
-                        billingto = SafeVarcharLength(billingto, 25, isTruncated)
-                        If isTruncated = True Then
-                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：請求先が桁数超過のためトリミングされました。")
-                        End If
-                        '-----------------
-
-
-                        If ErrFlg = True Then
-
-                            'ErrCustomerCode = customerCode
-                            'ErrTorikomiFile = TorikomiFile
-
-                            fileidx += 1
-                            errcnt += 1
-                            ErrFileFlg = True
-                            Continue For
-                        End If
-
-
-
-
-
-                        '受注ワーク登録用リストへ格納
-                        rowsForTemp2.Add(New OrdersStageRow With {
-                            .CustomerSettingId = CustomerSettingId,
-                            .CustomerCode = customerCode,
-                            .BillingTo = billingto,
-                            .CustomerOrderNo = customerorderNo,
-                            .DemandStatus = demandstatus,
-                            .ShipTo = shipto,
-                            .OrderDate = orderDate,
-                            .DueDate = FormatDate(dueDate),
-                            .CustomerItemNo = customeritemNo,
-                            .ItemNo = itemNo,
-                            .DemandQty = demandqty,
-                            .DemandUnit = demandunit,
-                            .CurrencyCode = currencycode,
-                            .ShipStockLocation = shipstocklocation,
-                            .CompanyId = "1000",
-                            .ProductCode = productcode,
-                            .BillingStandard = "S",
-                            .ShipProcessType = shipprocesstype,
-                            .DeliveryInstrFlag = deliveryinstrflag,
-                            .Remarks = remarks,
-                            .DeliveryCode = deliverycode,
-                            .TotalShipQty = totalshipqty,
-                            .TransportMethod = "2",
-                            .PreDailyOrderQty = predailyorderqty,
-                            .PreDailyDeliveryDate = predailydeliveryDate,
-                            .ImpFileStageId = impfilestageId,
-                            .OrderType = ordertype,
-                            .ProratedType = proratedtype,
-                            .CustomerInfoType = customerinfotype,
-                            .InfoType = infotype,
-                            .SelfFcstFlag = selffcstflag,
-                            .SelfFcstDeleteFlag = selffcstdeleteflag,
-                            .ReconcileType = reconciletype,
-                            .ImpRunId = newId,
-                            .Status = "IMPORTED",
-                            .ActiveFlag = "Y",
-                            .CreatedAt = Now,
-                            .CreatedUserId = UserId,
-                            .CreatedPgId = pgId,
-                            .UpdatedAt = Now,
-                            .UpdatedUserId = UserId,
-                            .UpdatedPgId = pgId
-                        })
-
-                        fileidx += 1
-
-
-                    Next
-
-
-
 
 
                 Case "EXCEL"
@@ -1839,9 +1857,9 @@ Namespace OMS.Data
                                 Else
                                     ' 日付変換を試みる（yyyy/MM/dd形式）
                                     If Not DateTime.TryParseExact(strTempDate, formats,
-                                            System.Globalization.CultureInfo.InvariantCulture,
-                                            System.Globalization.DateTimeStyles.None,
-                                            orderDate) Then
+                                                System.Globalization.CultureInfo.InvariantCulture,
+                                                System.Globalization.DateTimeStyles.None,
+                                                orderDate) Then
                                         ' 変換に失敗した場合（空文字や不正な値など）のデフォルト値
                                         orderDate = CDate("1900/01/01")
                                         errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：受注日が不正な値です。")
@@ -1858,9 +1876,9 @@ Namespace OMS.Data
                                     ErrFlg = True
                                 Else
                                     If Not DateTime.TryParseExact(strTempDate, formats,
-                                        System.Globalization.CultureInfo.InvariantCulture,
-                                        System.Globalization.DateTimeStyles.None,
-                                        dueDate) Then
+                                            System.Globalization.CultureInfo.InvariantCulture,
+                                            System.Globalization.DateTimeStyles.None,
+                                            dueDate) Then
                                         ' 変換に失敗した場合（空文字や不正な値など）のデフォルト値
                                         dueDate = CDate("1900/01/01")
                                         errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：希望納期が不正な値です。")
@@ -2055,11 +2073,6 @@ Namespace OMS.Data
                                 If isTruncated = True Then
                                     errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：需要数が桁数超過のためトリミングされました。")
                                 End If
-                                ''日割前受注数
-                                'predailyorderqty = Convert.ToDecimal(SafeVarcharLength(predailyorderqty.ToString(), 10, isTruncated))
-                                'If isTruncated = True Then
-                                '    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：日割前受注数が桁数超過のためトリミングされました。")
-                                'End If
                                 '自社予測フラグ
                                 selffcstflag = SafeVarcharLength(selffcstflag, 1, isTruncated)
                                 If isTruncated = True Then
@@ -2153,49 +2166,49 @@ Namespace OMS.Data
 
                                 '受注ワーク登録用リストへ格納
                                 rowsForTemp2.Add(New OrdersStageRow With {
-                                    .CustomerSettingId = CustomerSettingId,
-                                    .CustomerCode = customerCode,
-                                    .BillingTo = billingto,
-                                    .CustomerOrderNo = customerorderNo,
-                                    .DemandStatus = demandstatus,
-                                    .ShipTo = shipto,
-                                    .OrderDate = orderDate,
-                                    .DueDate = FormatDate(dueDate),
-                                    .CustomerItemNo = customeritemNo,
-                                    .ItemNo = itemNo,
-                                    .DemandQty = demandqty,
-                                    .DemandUnit = demandunit,
-                                    .CurrencyCode = currencycode,
-                                    .ShipStockLocation = shipstocklocation,
-                                    .CompanyId = "1000",
-                                    .ProductCode = productcode,
-                                    .BillingStandard = "S",
-                                    .ShipProcessType = shipprocesstype,
-                                    .DeliveryInstrFlag = deliveryinstrflag,
-                                    .Remarks = remarks,
-                                    .DeliveryCode = deliverycode,
-                                    .TotalShipQty = totalshipqty,
-                                    .TransportMethod = "2",
-                                    .PreDailyOrderQty = predailyorderqty,
-                                    .PreDailyDeliveryDate = predailydeliveryDate,
-                                    .ImpFileStageId = impfilestageId,
-                                    .OrderType = ordertype,
-                                    .ProratedType = proratedtype,
-                                    .CustomerInfoType = customerinfotype,
-                                    .InfoType = infotype,
-                                    .SelfFcstFlag = selffcstflag,
-                                    .SelfFcstDeleteFlag = selffcstdeleteflag,
-                                    .ReconcileType = reconciletype,
-                                    .ImpRunId = newId,
-                                    .Status = "IMPORTED",
-                                    .ActiveFlag = "Y",
-                                    .CreatedAt = Now,
-                                    .CreatedUserId = UserId,
-                                    .CreatedPgId = pgId,
-                                    .UpdatedAt = Now,
-                                    .UpdatedUserId = UserId,
-                                    .UpdatedPgId = pgId
-                                })
+                                        .CustomerSettingId = CustomerSettingId,
+                                        .CustomerCode = customerCode,
+                                        .BillingTo = billingto,
+                                        .CustomerOrderNo = customerorderNo,
+                                        .DemandStatus = demandstatus,
+                                        .ShipTo = shipto,
+                                        .OrderDate = orderDate,
+                                        .DueDate = FormatDate(dueDate),
+                                        .CustomerItemNo = customeritemNo,
+                                        .ItemNo = itemNo,
+                                        .DemandQty = demandqty,
+                                        .DemandUnit = demandunit,
+                                        .CurrencyCode = currencycode,
+                                        .ShipStockLocation = shipstocklocation,
+                                        .CompanyId = "1000",
+                                        .ProductCode = productcode,
+                                        .BillingStandard = "S",
+                                        .ShipProcessType = shipprocesstype,
+                                        .DeliveryInstrFlag = deliveryinstrflag,
+                                        .Remarks = remarks,
+                                        .DeliveryCode = deliverycode,
+                                        .TotalShipQty = totalshipqty,
+                                        .TransportMethod = "2",
+                                        .PreDailyOrderQty = predailyorderqty,
+                                        .PreDailyDeliveryDate = predailydeliveryDate,
+                                        .ImpFileStageId = impfilestageId,
+                                        .OrderType = ordertype,
+                                        .ProratedType = proratedtype,
+                                        .CustomerInfoType = customerinfotype,
+                                        .InfoType = infotype,
+                                        .SelfFcstFlag = selffcstflag,
+                                        .SelfFcstDeleteFlag = selffcstdeleteflag,
+                                        .ReconcileType = reconciletype,
+                                        .ImpRunId = newId,
+                                        .Status = "IMPORTED",
+                                        .ActiveFlag = "Y",
+                                        .CreatedAt = Now,
+                                        .CreatedUserId = UserId,
+                                        .CreatedPgId = pgId,
+                                        .UpdatedAt = Now,
+                                        .UpdatedUserId = UserId,
+                                        .UpdatedPgId = pgId
+                                    })
 
                                 fileidx += 1
 
@@ -2243,9 +2256,9 @@ Namespace OMS.Data
                             Else
                                 ' 日付変換を試みる（yyyy/MM/dd形式）
                                 If Not DateTime.TryParseExact(strTempDate, formats,
-                                        System.Globalization.CultureInfo.InvariantCulture,
-                                        System.Globalization.DateTimeStyles.None,
-                                        orderDate) Then
+                                            System.Globalization.CultureInfo.InvariantCulture,
+                                            System.Globalization.DateTimeStyles.None,
+                                            orderDate) Then
                                     ' 変換に失敗した場合（空文字や不正な値など）のデフォルト値
                                     orderDate = CDate("1900/01/01") ' または特定の既定値
                                     'errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {objSheet.Cell(mKibouNouki).Address.ColumnLetter & (objSheet.Cell(mKibouNouki).Address.RowNumber - 1)} ：受注日が不正な値です。")
@@ -2518,11 +2531,6 @@ Namespace OMS.Data
                                     If isTruncated = True Then
                                         errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：需要数が桁数超過のためトリミングされました。")
                                     End If
-                                    ''日割前受注数
-                                    'predailyorderqty = Convert.ToDecimal(SafeVarcharLength(predailyorderqty.ToString(), 10, isTruncated))
-                                    'If isTruncated = True Then
-                                    '    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：日割前受注数が桁数超過のためトリミングされました。")
-                                    'End If
                                     '-----------------
 
                                     'フォルダタイプで処理分岐
@@ -2668,9 +2676,9 @@ Namespace OMS.Data
                                         ErrFlg = True
                                     Else
                                         If Not DateTime.TryParseExact(strTempDate, formats,
-                                        System.Globalization.CultureInfo.InvariantCulture,
-                                        System.Globalization.DateTimeStyles.None,
-                                        dueDate) Then
+                                            System.Globalization.CultureInfo.InvariantCulture,
+                                            System.Globalization.DateTimeStyles.None,
+                                            dueDate) Then
                                             ' 変換に失敗した場合（空文字や不正な値など）のデフォルト値
                                             dueDate = CDate("1900/01/01")
                                             errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：希望納期が不正な値です。")
@@ -2935,49 +2943,49 @@ Namespace OMS.Data
 
                                     '受注ワーク登録用リストへ格納
                                     rowsForTemp2.Add(New OrdersStageRow With {
-                                        .CustomerSettingId = CustomerSettingId,
-                                        .CustomerCode = customerCode,
-                                        .BillingTo = billingto,
-                                        .CustomerOrderNo = customerorderNo,
-                                        .DemandStatus = demandstatus,
-                                        .ShipTo = shipto,
-                                        .OrderDate = orderDate,
-                                        .DueDate = FormatDate(dueDate),
-                                        .CustomerItemNo = customeritemNo,
-                                        .ItemNo = itemNo,
-                                        .DemandQty = demandqty,
-                                        .DemandUnit = demandunit,
-                                        .CurrencyCode = currencycode,
-                                        .ShipStockLocation = shipstocklocation,
-                                        .CompanyId = "1000",
-                                        .ProductCode = productcode,
-                                        .BillingStandard = "S",
-                                        .ShipProcessType = shipprocesstype,
-                                        .DeliveryInstrFlag = deliveryinstrflag,
-                                        .Remarks = remarks,
-                                        .DeliveryCode = deliverycode,
-                                        .TotalShipQty = totalshipqty,
-                                        .TransportMethod = "2",
-                                        .PreDailyOrderQty = predailyorderqty,
-                                        .PreDailyDeliveryDate = predailydeliveryDate,
-                                        .ImpFileStageId = impfilestageId,
-                                        .OrderType = ordertype,
-                                        .ProratedType = proratedtype,
-                                        .CustomerInfoType = customerinfotype,
-                                        .InfoType = infotype,
-                                        .SelfFcstFlag = selffcstflag,
-                                        .SelfFcstDeleteFlag = selffcstdeleteflag,
-                                        .ReconcileType = reconciletype,
-                                        .ImpRunId = newId,
-                                        .Status = "IMPORTED",
-                                        .ActiveFlag = "Y",
-                                        .CreatedAt = Now,
-                                        .CreatedUserId = UserId,
-                                        .CreatedPgId = pgId,
-                                        .UpdatedAt = Now,
-                                        .UpdatedUserId = UserId,
-                                        .UpdatedPgId = pgId
-                                    })
+                                            .CustomerSettingId = CustomerSettingId,
+                                            .CustomerCode = customerCode,
+                                            .BillingTo = billingto,
+                                            .CustomerOrderNo = customerorderNo,
+                                            .DemandStatus = demandstatus,
+                                            .ShipTo = shipto,
+                                            .OrderDate = orderDate,
+                                            .DueDate = FormatDate(dueDate),
+                                            .CustomerItemNo = customeritemNo,
+                                            .ItemNo = itemNo,
+                                            .DemandQty = demandqty,
+                                            .DemandUnit = demandunit,
+                                            .CurrencyCode = currencycode,
+                                            .ShipStockLocation = shipstocklocation,
+                                            .CompanyId = "1000",
+                                            .ProductCode = productcode,
+                                            .BillingStandard = "S",
+                                            .ShipProcessType = shipprocesstype,
+                                            .DeliveryInstrFlag = deliveryinstrflag,
+                                            .Remarks = remarks,
+                                            .DeliveryCode = deliverycode,
+                                            .TotalShipQty = totalshipqty,
+                                            .TransportMethod = "2",
+                                            .PreDailyOrderQty = predailyorderqty,
+                                            .PreDailyDeliveryDate = predailydeliveryDate,
+                                            .ImpFileStageId = impfilestageId,
+                                            .OrderType = ordertype,
+                                            .ProratedType = proratedtype,
+                                            .CustomerInfoType = customerinfotype,
+                                            .InfoType = infotype,
+                                            .SelfFcstFlag = selffcstflag,
+                                            .SelfFcstDeleteFlag = selffcstdeleteflag,
+                                            .ReconcileType = reconciletype,
+                                            .ImpRunId = newId,
+                                            .Status = "IMPORTED",
+                                            .ActiveFlag = "Y",
+                                            .CreatedAt = Now,
+                                            .CreatedUserId = UserId,
+                                            .CreatedPgId = pgId,
+                                            .UpdatedAt = Now,
+                                            .UpdatedUserId = UserId,
+                                            .UpdatedPgId = pgId
+                                        })
 
                                     fileidx += 1
 
@@ -3294,7 +3302,7 @@ Namespace OMS.Data
 
             '前回の取込データを一旦すべて無効化する(active_flag = 'N')
             Dim updateSql As String = "
-                    UPDATE yamaha_imp_orders_test
+                    UPDATE yamaha_imp_orders
                     SET active_flag = 'N'
                     WHERE active_flag = 'Y'
                       AND created_at < :p_now_time
@@ -3325,7 +3333,7 @@ Namespace OMS.Data
             End Using
 
             Dim sql As String = "
-                        INSERT INTO yamaha_imp_orders_test (
+                        INSERT INTO yamaha_imp_orders (
                             imp_file_stage_id, hinmoku_gyo_no, order_gyo_no, customer_code, siyosha, status, customer_item_no, nonyuplat,
                             yokisyuuyousuu, yokibangou, ordersikibetu_no, nonyusijibi, nonyujikan,
                             nonyusijisu, cardkubun, naijikubun, icdenpyo_no, nohinsho_no,
