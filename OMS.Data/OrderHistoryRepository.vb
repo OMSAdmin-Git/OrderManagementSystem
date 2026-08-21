@@ -911,7 +911,7 @@ Namespace OMS.Data
             sb.AppendLine("ORDER BY ")
             sb.AppendLine("    NVL(p.customer_setting_id,  c.customer_setting_id), ")
             sb.AppendLine("    NVL(p.item_no,              c.item_no), ")
-            sb.AppendLine("    NVL(p.customer_order_no,  c.customer_order_no), ")
+            sb.AppendLine("    NVL(p.customer_order_no,    c.customer_order_no), ")
             sb.AppendLine("    NVL(p.due_date,             c.due_date), ")
             sb.AppendLine("    NVL(p.demand_qty,           c.demand_qty) ")
             Try

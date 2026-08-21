@@ -500,9 +500,9 @@ Namespace Pages.Orders
                                             'shipScheduledDate = New Date(2026, 6, 1)
 
                                             ''Dim shproutm = New ShproutmRepository(Utils.GetConnectionString())
-                                            '''FUSRDEC1 ((A)品揃リードタイム)
+                                            ''FUSRDEC1 ((A)品揃リードタイム)
                                             ''Dim assortLeadTime = shproutm.GetAssortmentLeadTime(customerCode, profitCenter, "MDSNSS0161MZ")
-                                            '''FTRANLT(輸送L/T)
+                                            ''FTRANLT(輸送L/T)
                                             ''Dim transferLeadTime = shproutm.GetTransferLeadTime("71587158", "M999")
                                             '' ++++++++++++++++++++++ DEBUG
 

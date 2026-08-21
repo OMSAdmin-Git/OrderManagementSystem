@@ -354,10 +354,10 @@ Namespace Pages.Orders
                             '' STATUS(ステータス) 'DUE_SET'
                             'Dim orders = repo.GetOrders(conn, tran, status:="DUE_SET", customerSettingId:=customerSettingId)
                             'errors.Add(reph.InsertRange(conn, tran, repo.ToClass(orders)))
-                            ''' #### DEBUG
+                            '' #### DEBUG
                             ''tran.Commit()
                             ''tran = conn.BeginTransaction()
-                            ''' #### DEBUG
+                            '' #### DEBUG
                             'If (CheckError(errors)) Then
                             '    ' エラー DB更新無効
                             '    DBError(tran)
