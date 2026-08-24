@@ -17,6 +17,8 @@ Imports CsvHelper
 Imports CsvHelper.Configuration
 Imports System.Globalization
 Imports System.Runtime.InteropServices
+Imports DocumentFormat.OpenXml.Drawing.Diagrams
+Imports DocumentFormat.OpenXml.Presentation
 
 Namespace OMS.Data
     Public Class OrderStageImport
@@ -3004,6 +3006,247 @@ Namespace OMS.Data
             Return True
 
         End Function
+
+        ''' <summary>
+        ''' Yamaha robotex 内示/確定/ASTI 内示 ファイル読み込み Orders_stage テーブルに追加する
+        ''' </summary>
+        ''' <param name="tran"></param>
+        ''' <param name="CustomerSettingId"></param>
+        ''' <param name="customerCode"></param>
+        ''' <param name="impfilestageId"></param>
+        ''' <param name="spprocessType"></param>
+        ''' <param name="strWorkFile"></param>
+        ''' <param name="TorikomiFile"></param>
+        ''' <param name="ErrFlg"></param>
+        ''' <param name="ErrFileFlg"></param>
+        ''' <param name="errcnt"></param>
+        ''' <param name="FolderType"></param>
+        ''' <param name="newId"></param>
+        ''' <param name="UserId"></param>
+        ''' <param name="pgId"></param>
+        ''' <param name="errors"></param>
+        ''' <param name="rowsForTemp2"></param>
+        ''' <returns></returns>
+        Public Shared Function YamahaRobotexOrdersStageImport(ByVal tran As OracleTransaction,
+                                                       ByVal CustomerSettingId As Long,
+                                                       ByVal customerCode As String,
+                                                       ByVal impfilestageId As Long,
+                                                       ByVal spprocessType As Integer,
+                                                       ByVal strWorkFile As String,
+                                                       ByVal TorikomiFile As String,
+                                                       ByRef ErrFlg As Boolean,
+                                                       ByRef ErrFileFlg As Boolean,
+                                                       ByRef errcnt As Integer,
+                                                       ByVal FolderType As Integer,
+                                                       ByVal newId As Integer,
+                                                       ByVal UserId As String,
+                                                       ByVal pgId As String,
+                                                       ByVal errors As List(Of String),
+                                                       ByVal rowsForTemp2 As List(Of OrdersStageRow)) As Boolean
+
+            Dim calen = New CalenderRepository(Utils.GetConnectionString())
+            Dim customerSetting = New CustomerRepository(Utils.GetConnectionString())
+            Dim impRunRepo = New ImpRunRepository(Utils.GetConnectionString())
+            Dim reps = New OrderStageRepository(Utils.GetConnectionString())
+
+            Dim rt As String = ""
+            Dim errorStr As String = ""
+            ' 内示 は データ変換後の csv ファイルを読み込む
+            ' マトリックス設定は 使用せずに 直値 固定値で読み込む
+            ' 受注ワーク(orders_stage)に追加する    
+            'Dim customer = customerSetting.GetCustomerSetting(CustomerSettingId)
+            'Dim customerCode = customer.Rows(0).Item("CustomerCode").ToString()
+            Dim deliverycode = "0001"
+            Dim runRepo = impRunRepo.GetImpRun(tran.Connection, tran, status:="RUNNING", startedUserId:=UserId)
+            Dim impRunId = Long.Parse(runRepo.Rows(0).Item("imp_run_id").ToString())
+            Dim stardedAt = Date.Parse(runRepo.Rows(0).Item("started_at").ToString())
+
+            Try
+                ' ファイル形式確認
+                Dim ft = YamahaRobotexFileCheck(strWorkFile)
+
+                If (ft = YamahaRobotexType.Unknown) Then
+                    Throw New ApplicationException($"ファイル{Path.GetFileName(strWorkFile)}が Yamaha robotex 内示/確定/ASTI内示 フォーマットではありません。")
+                End If
+
+                ' ファイル読み込み ASTI 追加内示フォーマット変換
+                Dim dt = YamahaRobotexCreateNewDataSetFromCsv(strWorkFile, ft)
+
+                Dim unofficialNoticeCount = 5   ' 内示 Field 数
+                Dim confirmedCount = 10         ' 確定 Field 数
+                Dim sysDate = DateTime.Now      ' システム日付
+                'Dim dt = Utils.ConvertCsvToDataTable(filename)
+                Dim ordersStage As New List(Of OrdersStageRow)
+                For Each row As DataRow In dt.Rows
+                    Dim orderStageRow = New OrdersStageRow
+                    Dim shipto = ""
+                    Dim customerItemNo As String = row("客先品目No")
+                    Dim productCode As String = ""
+                    Dim itemNo As String = ""
+                    Dim errMsg As String = ""
+                    Dim demandunit As String = ""
+                    Dim currencycode As String = ""
+                    Dim shipstocklocation As String = ""
+                    Dim orderType As Integer = FolderType
+                    Dim proratedType As Integer = 1
+                    Dim reconciletype As Integer = 0
+                    Dim calType = "00001"
+                    Dim dtcvt As DateTime = DateTime.ParseExact(row("希望納期"), "yyyyMMdd", Nothing)
+                    Dim FirstWorkingDay = calen.GetFirstWorkingDay(calType, dtcvt)
+
+
+                    Dim pcDummy = reps.GetProductCode(customerItemNo)
+                    productCode = pcDummy
+
+                    ' Field 検索
+                    If (reps.GetShipTo(customerCode, deliverycode, shipto, errMsg) = False) Then
+                        'errorStr = errorStr & errMsg & vbCrLf
+                        errors.Add(errMsg)
+                    End If
+
+                    If (reps.GetProductCode(customerCode, customerItemNo, productCode, itemNo, errMsg) = False) Then
+                        'errorStr = errorStr & errMsg & vbCrLf
+                        errors.Add(errMsg)
+                    End If
+                    If (reps.GetDemandUnit(productCode, demandunit, errMsg) = False) Then
+                        'errorStr = errorStr & errMsg & vbCrLf
+                        errors.Add(errMsg)
+                    End If
+                    If (reps.GetCurrencyCode(customerCode, currencycode, errMsg) = False) Then
+                        'errorStr = errorStr & errMsg & vbCrLf
+                        errors.Add(errMsg)
+                    End If
+                    If (reps.GetShipStockLocation(productCode, shipstocklocation, errMsg) = False) Then
+                        'errorStr = errorStr & errMsg & vbCrLf
+                        errors.Add(errMsg)
+                    End If
+                    If (reps.GetProratedType(CustomerSettingId, FolderType, proratedType, errMsg) = False) Then
+                        'errorStr = errorStr & errMsg & vbCrLf
+                        errors.Add(errMsg)
+                    End If
+                    If (reps.GetReconcileType(CustomerSettingId, FolderType, reconciletype, errMsg) = False) Then
+                        'errorStr = errorStr & errMsg & vbCrLf
+                        errors.Add(errMsg)
+                    End If
+                    ' Yamaha Data set
+                    orderStageRow.CustomerSettingId = CustomerSettingId '/IMP_FILES_STAGE.CUSTOMER_SETTING_ID
+                    orderStageRow.CustomerCode = customerCode           '/CUSTOMER_SETTING_MST.CUSTOMER_CODE
+                    orderStageRow.ShipTo = customerCode & customerCode  '/'SECTD.FSECTCD + CUSTOMER_CODE
+                    orderStageRow.OrderDate = sysDate
+                    orderStageRow.ItemNo = itemNo                       '(品目No) ASTI 品番
+                    orderStageRow.DemandUnit = demandunit               '/ ITEMM.FUNIT
+                    orderStageRow.CurrencyCode = currencycode           '/ Sectm.FCURR
+                    orderStageRow.ShipStockLocation = shipstocklocation '/'SHPROUTM.FSHPWHCD
+                    orderStageRow.CompanyId = "1000"                    ' 固定値
+                    orderStageRow.ProductCode = productCode             '/ PRDSLSODRM.FPRDCD(品目No)
+                    orderStageRow.BillingStandard = "S"                 '/'S' 固定値
+                    'orderStageRow.DeliveryInstrFlag = / 納入指示('Y') 以外('N')
+                    'orderStageRow.Remarks = ""
+                    orderStageRow.DeliveryCode = "0001"                 '/0001 '固定値
+                    orderStageRow.TransportMethod = 2                   '/ 2 固定値
+                    orderStageRow.ImpFileStageId = impfilestageId       'IMP_FILES_STAGE.IMP_FILE_STAGE_ID
+                    orderStageRow.OrderType = orderType                 '/内示(1) 確定(2)
+                    orderStageRow.ProratedType = proratedType           '/ 日割り(1)
+                    orderStageRow.CustomerInfoType = ""            'null
+                    orderStageRow.InfoType = ""                    ' null
+                    'orderStageRow.SelfFcstDeleteFlag = "N"              '/'N'
+                    orderStageRow.ReconcileType = reconciletype         'IMP_RULE_MST.RECONCILE_TYPE
+                    orderStageRow.ImpRunId = impRunId                   'IMP_RUN.IMP_RUN_ID
+                    orderStageRow.CreatedAt = stardedAt                 'IMP_RUN.STARTED_AT
+                    orderStageRow.CreatedUserId = UserId                'ログイン情報
+                    '-----------------------------------------------
+                    'customerCode
+                    orderStageRow.CustomerOrderNo = If(ft = YamahaRobotexType.UnofficialNotice, FirstWorkingDay, row("客先発注No"))
+                    'orderStageRow.OrderDate = DateTime.ParseExact(row("受注日"), "yyyyMMdd", Nothing)
+                    orderStageRow.DueDate = DateTime.ParseExact(row("希望納期"), "yyyyMMdd", Nothing)
+                    orderStageRow.CustomerItemNo = customerItemNo
+                    orderStageRow.DemandQty = Long.Parse(row("需要数"))
+                    'orderStageRow.CurrencyCode
+                    'orderStageRow.ProductCode
+                    'orderStageRow.DeliveryCode
+                    'orderStageRow.ProratedType
+                    'orderStageRow.OrderType
+                    orderStageRow.Remarks = row("コメント")
+                    'orderStageRow.InfoType
+                    orderStageRow.SelfFcstFlag = row("ASTI追加内示フラグ")
+                    orderStageRow.SelfFcstDeleteFlag = row("ASTI追加内示削除フラグ")
+
+                    'orderStageRow.DemandStatus = 内示('F') 内示以外('O')
+                    'orderStageRow.ShipProcessType = / 内示('O') 確定('E') 以外('K')
+                    'orderStageRow.TotalShipQty = / 内示(なし) 以外(0)
+                    orderStageRow.PreDailyOrderQty = orderStageRow.DemandQty '3.需要数
+                    orderStageRow.PreDailyDeliveryDate = orderStageRow.DueDate '2.日付
+
+                    orderStageRow.Status = "IMPORTED" ' 固定値
+                    orderStageRow.ActiveFlag = "Y" '固定値
+                    orderStageRow.CreatedPgId = "OrderImport(Execute)" ' 固定値
+                    orderStageRow.UpdatedAt = stardedAt
+                    orderStageRow.UpdatedUserId = UserId
+                    orderStageRow.UpdatedPgId = "OrderImport(Execute)" ' 固定値
+
+                    ordersStage.Add(orderStageRow)
+                Next
+
+                If (rt = "") Then
+                    '' OrderStage 追加
+                    'rt = reps.InsertRange(conn, tran, OrderStageRepository.OrdersTable.Orders, ordersStage)
+                    For Each osr In ordersStage
+                        rowsForTemp2.Add(osr)
+                    Next
+                End If
+
+                If (errorStr <> "") Then
+                    'rt = errorStr & rt
+                    errors.Add(rt)
+                End If
+            Catch ex As Exception
+                errors.Add(ex.Message)
+            End Try
+
+            Return errors.Count = 0
+
+        End Function
+
+        ''' <summary>
+        ''' ファイル名（パス）からYamaha robotex 内示ファイルの種類を判定します
+        ''' </summary>
+        ''' <param name="filename"></param>
+        ''' <returns></returns>
+        Private Shared Function YamahaRobotexFileCheck(filename As String) As YamahaRobotexType
+
+            If String.IsNullOrEmpty(filename) OrElse Not File.Exists(filename) Then
+                Return YamahaRobotexType.Unknown
+            End If
+
+            Try
+                ' 先頭行のみを読み込み
+                Dim firstLine As String = ""
+                Using reader As New StreamReader(filename, Encoding.GetEncoding("Shift_JIS"))
+                    firstLine = reader.ReadLine()
+                End Using
+
+                If String.IsNullOrEmpty(firstLine) Then
+                    Return YamahaRobotexType.Unknown
+                End If
+
+                ' 判定処理（1番目は可変のため前方一致で判定）
+                If firstLine.StartsWith("""部品番号"",""部品名称"",,") Then
+                    Return YamahaRobotexType.UnofficialNotice
+                ElseIf firstLine.StartsWith("""部品番号"",""部品名称"",""納入指示日""") Then
+                    Return YamahaRobotexType.Confirmed
+                ElseIf firstLine.StartsWith("""取引先コード"",""客先発注No""") Then
+                    Return YamahaRobotexType.ASTIInternalNotification
+                End If
+
+            Catch ex As Exception
+                ' エラーハンドリング（必要に応じてログ出力など）
+                Return YamahaRobotexType.Unknown
+            End Try
+
+            Return YamahaRobotexType.Unknown
+
+        End Function
+
 
         Public Shared Function OrdersStageSaved(ByVal tran As OracleTransaction,
                                             ByVal CustomerSettingId As Long,
