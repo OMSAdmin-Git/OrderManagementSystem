@@ -1,4 +1,4 @@
-﻿Imports System
+Imports System
 Imports System.Data
 Imports System.IO
 Imports System.Configuration
@@ -7,6 +7,7 @@ Imports System.Web.UI
 Imports System.Web.UI.WebControls
 Imports OMS.Common
 Imports OMS.Data
+Imports OMS.Business.Services
 
 Namespace Pages.Orders
     Public Class OrderImportStage
@@ -183,6 +184,7 @@ Namespace Pages.Orders
             lblResult.Text = ""
             lblError.Text = ""
 
+            Dim loginUserId As String = PageHelpers.GetUserId(Me)
             Dim results As New List(Of ImpFilesStageResult)()
             Dim anyFound As Boolean = False
             Dim errors As New List(Of String)()
@@ -250,31 +252,23 @@ Namespace Pages.Orders
                             Continue For
                         End If
 
-                        ' WORKサブフォルダ作成
-                        Dim destFolder As String = Path.Combine(_workUserRoot, customerCode, info.FolderType.ToString())
-                        Utils.EnsureDirectory(destFolder)
+                        If spprocesstype = "1" Then
+                            ' --- スズキ (SPIRITS) 特殊取込前処理 ---
+                            Dim suzukiErrors As New List(Of String)()
+                            Dim suzukiSvc As New SuzukiPreImportService()
+                            Dim importedCount As Integer = suzukiSvc.ExecuteImport(
+                                folderPath:=sourceFolder,
+                                customerSettingId:=customerSettingId,
+                                folderType:=info.FolderType,
+                                userId:=loginUserId,
+                                isBatch:=False,
+                                reconcileFlag:=reconcileVal,
+                                fcstReconcileFlag:=fcstReconcileVal,
+                                webErrors:=suzukiErrors
+                            )
 
-                        Dim files = Directory.EnumerateFiles(sourceFolder, "*.csv", SearchOption.TopDirectoryOnly) _
-                            .Concat(Directory.EnumerateFiles(sourceFolder, "*.xlsx", SearchOption.TopDirectoryOnly)) _
-                            .Concat(Directory.EnumerateFiles(sourceFolder, "*.txt", SearchOption.TopDirectoryOnly))
-
-                        For Each src In files
-                            Dim fileName = Path.GetFileName(src)
-                            Dim destPath = Path.Combine(destFolder, fileName)
-
-                            ' 衝突回避：同名が既にある場合はタイムスタンプを付ける
-                            If File.Exists(destPath) Then
-                                Dim nameNoExt = Path.GetFileNameWithoutExtension(fileName)
-                                Dim ext = Path.GetExtension(fileName)
-                                destPath = Path.Combine(destFolder, $"{nameNoExt}_{DateTime.Now:yyyyMMddHHmmssfff}{ext}")
-                            End If
-
-                            Try
-                                ' 実移動（同一ボリューム/別ボリュームどちらでもOK）
-                                File.Move(src, destPath)
-
-                                ' 移動成功→結果に追加（画面表示用）
-                                Dim lw = File.GetLastWriteTime(destPath)
+                            If importedCount > 0 Then
+                                foundInThisCustomer = True
                                 results.Add(New ImpFilesStageResult With {
                                     .CustomerSettingId = customerSettingId,
                                     .CustomerCode = customerCode,
@@ -284,28 +278,81 @@ Namespace Pages.Orders
                                     .CustomerUnitName = customerUnitName,
                                     .FolderType = info.FolderType,
                                     .FolderPath = sourceFolder,
-                                    .FileName = fileName,
-                                    .StagedFolderPath = destFolder,
-                                    .StagedFilePath = destPath,
-                                    .StagedFileName = Path.GetFileName(destPath),
+                                    .FileName = $"スズキ取込準備完了 ({importedCount}件処理)",
+                                    .StagedFolderPath = sourceFolder,
+                                    .StagedFilePath = sourceFolder,
+                                    .StagedFileName = "SPIRITS_BATCH",
                                     .Status = "DISCOVERED",
-                                    .LastWriteTime = lw,
+                                    .LastWriteTime = DateTime.Now,
                                     .ReconcileFlag = reconcileVal,
                                     .FcstReconcileFlag = fcstReconcileVal,
                                     .HandFlag = "N",
                                     .SpProcessType = spprocesstype
                                 })
+                            End If
 
-                                foundInThisCustomer = True
+                            If suzukiErrors.Count > 0 Then
+                                errors.AddRange(suzukiErrors)
+                            End If
+                        Else
+                            ' --- 標準／その他 取込前処理 ---
+                            ' WORKサブフォルダ作成
+                            Dim destFolder As String = Path.Combine(_workUserRoot, customerCode, info.FolderType.ToString())
+                            Utils.EnsureDirectory(destFolder)
 
-                            Catch ex As UnauthorizedAccessException
-                                errors.Add($"{customerCode}：{fileName} の移動に失敗（アクセス権限不足：{ex.Message}）")
-                            Catch ex As IOException
-                                errors.Add($"{customerCode}：{fileName} の移動に失敗（I/O：{ex.Message}）")
-                            Catch ex As Exception
-                                errors.Add($"{customerCode}：{fileName} の移動に失敗（{ex.Message}）")
-                            End Try
-                        Next
+                            Dim files = Directory.EnumerateFiles(sourceFolder, "*.csv", SearchOption.TopDirectoryOnly) _
+                                .Concat(Directory.EnumerateFiles(sourceFolder, "*.xlsx", SearchOption.TopDirectoryOnly)) _
+                                .Concat(Directory.EnumerateFiles(sourceFolder, "*.txt", SearchOption.TopDirectoryOnly))
+
+                            For Each src In files
+                                Dim fileName = Path.GetFileName(src)
+                                Dim destPath = Path.Combine(destFolder, fileName)
+
+                                ' 衝突回避：同名が既にある場合はタイムスタンプを付ける
+                                If File.Exists(destPath) Then
+                                    Dim nameNoExt = Path.GetFileNameWithoutExtension(fileName)
+                                    Dim ext = Path.GetExtension(fileName)
+                                    destPath = Path.Combine(destFolder, $"{nameNoExt}_{DateTime.Now:yyyyMMddHHmmssfff}{ext}")
+                                End If
+
+                                Try
+                                    ' 実移動（同一ボリューム/別ボリュームどちらでもOK）
+                                    File.Move(src, destPath)
+
+                                    ' 移動成功→結果に追加（画面表示用）
+                                    Dim lw = File.GetLastWriteTime(destPath)
+                                    results.Add(New ImpFilesStageResult With {
+                                        .CustomerSettingId = customerSettingId,
+                                        .CustomerCode = customerCode,
+                                        .CustomerName = customerName,
+                                        .ProfitCenter = profitCenter,
+                                        .CustomerUnitId = customerUnitId,
+                                        .CustomerUnitName = customerUnitName,
+                                        .FolderType = info.FolderType,
+                                        .FolderPath = sourceFolder,
+                                        .FileName = fileName,
+                                        .StagedFolderPath = destFolder,
+                                        .StagedFilePath = destPath,
+                                        .StagedFileName = Path.GetFileName(destPath),
+                                        .Status = "DISCOVERED",
+                                        .LastWriteTime = lw,
+                                        .ReconcileFlag = reconcileVal,
+                                        .FcstReconcileFlag = fcstReconcileVal,
+                                        .HandFlag = "N",
+                                        .SpProcessType = spprocesstype
+                                    })
+
+                                    foundInThisCustomer = True
+
+                                Catch ex As UnauthorizedAccessException
+                                    errors.Add($"{customerCode}：{fileName} の移動に失敗（アクセス権限不足：{ex.Message}）")
+                                Catch ex As IOException
+                                    errors.Add($"{customerCode}：{fileName} の移動に失敗（I/O：{ex.Message}）")
+                                Catch ex As Exception
+                                    errors.Add($"{customerCode}：{fileName} の移動に失敗（{ex.Message}）")
+                                End Try
+                            Next
+                        End If
                     Next
 
                     If foundInThisCustomer Then
@@ -336,14 +383,6 @@ Namespace Pages.Orders
 
             ' GridViewの選択状態（DropDownList）を読み取り、IMP_FILES_STAGE へ登録（Y/N管理）
             Dim now As DateTime = DateTime.Now
-            'Dim userId As String = (If(Context?.User?.Identity?.Name, "")).Trim()
-            'If String.IsNullOrWhiteSpace(userId) Then
-            '    userId = "AMAGATA"
-            'End If
-            'If userId.Length > 9 Then
-            '    userId = userId.Substring(0, 9)
-            'End If
-            Dim loginUserId As String = PageHelpers.GetUserId(Me)
             Dim pgId As String = "OrderImport(Stage)"
 
             Dim rowsForTemp As New List(Of ImpFilesStageRow)()
@@ -415,6 +454,16 @@ Namespace Pages.Orders
                 Else
                     lblError.Text = alreadyText & "<br/>" & addText
                 End If
+
+                ' エラーポップアップ用 GridView へのバインド & モーダル表示
+                Dim errDt As New DataTable()
+                errDt.Columns.Add("ErrorMessage", GetType(String))
+                For Each errItem In errors
+                    errDt.Rows.Add(errItem)
+                Next
+                gvErrorList.DataSource = errDt
+                gvErrorList.DataBind()
+                ScriptManager.RegisterStartupScript(Me, Me.GetType(), "ShowErrorModalScript", "showErrorModal();", True)
             End If
 
         End Sub

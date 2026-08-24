@@ -1,4 +1,4 @@
-﻿<%@ Page Language="vb" AutoEventWireup="false" CodeBehind="OrderImportStage.aspx.vb" Inherits="OMS.Web.Pages.Orders.OrderImportStage" MaintainScrollPositionOnPostback="true" %>
+<%@ Page Language="vb" AutoEventWireup="false" CodeBehind="OrderImportStage.aspx.vb" Inherits="OMS.Web.Pages.Orders.OrderImportStage" MaintainScrollPositionOnPostback="true" %>
 
 <!DOCTYPE html>
 
@@ -12,6 +12,83 @@
     <script type="text/javascript" src="<%= ResolveUrl("~/Scripts/Custom/PreventEnterSubmit.js") %>"></script>
     <script type="text/javascript" src="<%= ResolveUrl("~/Scripts/Custom/GridCheckAll.js") %>"></script>
     <script type="text/javascript" src="<%= ResolveUrl("~/Scripts/Custom/DropDownColor.js") %>"></script>
+    <style type="text/css">
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-dialog-custom {
+            background-color: #fff;
+            width: 85%;
+            max-width: 950px;
+            max-height: 85vh;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            animation: modalFadeIn 0.2s ease-out;
+        }
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .modal-header-custom {
+            background-color: #c9302c;
+            color: white;
+            padding: 14px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-header-custom h2 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .modal-close-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 26px;
+            cursor: pointer;
+            line-height: 1;
+            padding: 0;
+        }
+        .modal-close-btn:hover {
+            opacity: 0.8;
+        }
+        .modal-body-custom {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        .modal-footer-custom {
+            padding: 12px 20px;
+            border-top: 1px solid #e5e5e5;
+            display: flex;
+            justify-content: flex-end;
+            background-color: #f9f9f9;
+        }
+    </style>
+    <script type="text/javascript">
+        function showErrorModal() {
+            var modal = document.getElementById('<%= errorModalOverlay.ClientID %>');
+            if (modal) modal.style.display = 'flex';
+        }
+        function closeErrorModal() {
+            var modal = document.getElementById('<%= errorModalOverlay.ClientID %>');
+            if (modal) modal.style.display = 'none';
+        }
+    </script>
 
 </head>
 <body>
@@ -131,6 +208,44 @@
                 <br />
                 <asp:Label ID="lblResult" runat="server" ForeColor="Green" /><br />
                 <asp:Label ID="lblError" runat="server" ForeColor="Red" />
+            </div>
+
+            <!-- エラー表示用ポップアップ (Modal Dialog) -->
+            <div id="errorModalOverlay" class="modal-overlay" runat="server">
+                <div class="modal-dialog-custom">
+                    <div class="modal-header-custom">
+                        <h2>取込エラー一覧</h2>
+                        <button type="button" class="modal-close-btn" onclick="closeErrorModal();">&times;</button>
+                    </div>
+                    <div class="modal-body-custom">
+                        <p style="color: #c9302c; font-weight: bold; margin-top: 0; margin-bottom: 15px;">
+                            取込前処理中にエラーが発生しました。詳細は下記および各フォルダの「エラーリスト」フォルダ内のCSVをご確認ください。
+                        </p>
+                        <div style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd;">
+                            <asp:GridView ID="gvErrorList" runat="server"
+                                AutoGenerateColumns="False"
+                                CssClass="data-grid"
+                                BackColor="White"
+                                BorderColor="#CCCCCC" BorderStyle="None" BorderWidth="1px"
+                                CellPadding="6" ForeColor="Black" GridLines="Both" Width="100%">
+                                <Columns>
+                                    <asp:TemplateField HeaderText="No" ItemStyle-Width="50px" ItemStyle-HorizontalAlign="Center">
+                                        <ItemTemplate>
+                                            <%# Container.DataItemIndex + 1 %>
+                                        </ItemTemplate>
+                                    </asp:TemplateField>
+                                    <asp:BoundField DataField="ErrorMessage" HeaderText="エラー内容" />
+                                </Columns>
+                                <HeaderStyle BackColor="#333333" Font-Bold="True" ForeColor="White" />
+                                <RowStyle BackColor="#F7F7F7" />
+                                <AlternatingRowStyle BackColor="White" />
+                            </asp:GridView>
+                        </div>
+                    </div>
+                    <div class="modal-footer-custom">
+                        <button type="button" class="btn-asti btn-asti-process" onclick="closeErrorModal();">閉じる</button>
+                    </div>
+                </div>
             </div>
         </div>
     </form>

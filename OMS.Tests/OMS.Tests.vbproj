@@ -18,7 +18,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\OMS.Business\OMS.Business.vbproj" />
     <ProjectReference Include="..\OMS.Common\OMS.Common.vbproj" />
+    <ProjectReference Include="..\OMS.Data\OMS.Data.vbproj" />
     <ProjectReference Include="..\OMS.Web\OMS.Web.vbproj" />
   </ItemGroup>
 

@@ -1,4 +1,4 @@
-﻿Imports System.Collections.Generic
+Imports System.Collections.Generic
 Imports System.Linq
 Imports System.Web
 Imports System.Web.Optimization
@@ -41,6 +41,7 @@ Public Class BundleConfig
             .CdnDebugPath = "http://ajax.aspnetcdn.com/ajax/jQuery/jquery-3.7.0.js"
         End With
 
+        ScriptManager.ScriptResourceMapping.AddDefinition("jquery", jQueryScriptResourceDefinition)
         ScriptManager.ScriptResourceMapping.AddDefinition("jquery.js", jQueryScriptResourceDefinition)
     End Sub
 End Class

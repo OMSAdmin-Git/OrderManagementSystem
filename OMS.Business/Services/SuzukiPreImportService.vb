@@ -27,7 +27,7 @@ Namespace Services
         ''' <summary>
         ''' 取込処理メインエントリ
         ''' </summary>
-        Public Function ExecuteImport(folderPath As String, customerSettingId As Long, folderType As Integer, Optional userId As String = "SUZUKI-AT", Optional isBatch As Boolean = True, Optional reconcileFlag As String = "", Optional fcstReconcileFlag As String = "") As Integer
+        Public Function ExecuteImport(folderPath As String, customerSettingId As Long, folderType As Integer, Optional userId As String = "SUZUKI-AT", Optional isBatch As Boolean = True, Optional reconcileFlag As String = "", Optional fcstReconcileFlag As String = "", Optional ByRef webErrors As List(Of String) = Nothing) As Integer
             Dim loggerPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "app.log")
             Dim logger As New Logger(loggerPath)
 
@@ -148,7 +148,7 @@ Namespace Services
                                 Dim errorRows = FindPartMatchingErrors(conn, tran, infoCode, workFilePath)
                                 If errorRows.Count > 0 Then
                                     logger.Write($"[SUZUKI_IMPORT] Found {errorRows.Count} part matching errors in {fileName}")
-                                    ExportErrorsToCsv(folderPath, fileName, errorRows, isBatch)
+                                    ExportErrorsToCsv(folderPath, fileName, errorRows, isBatch, webErrors)
                                     MoveBackErrorFile(workFilePath, folderPath, fileName, userId)
                                     DeleteErrorRows(conn, tran, infoCode)
                                 End If
@@ -179,7 +179,7 @@ Namespace Services
                                 logger.Write($"[SUZUKI_IMPORT] DB Error processing {fileName}: {ex.Message}")
                                 Dim errList As New List(Of String)()
                                 errList.Add($"処理エラー: {ex.Message}")
-                                ExportErrorsToCsv(folderPath, fileName, errList, isBatch)
+                                ExportErrorsToCsv(folderPath, fileName, errList, isBatch, webErrors)
                                 MoveBackErrorFile(workFilePath, folderPath, fileName, userId)
                                 If File.Exists(workFilePath) Then
                                     Try
@@ -543,8 +543,15 @@ Namespace Services
             Return result
         End Function
 
-        Private Sub ExportErrorsToCsv(sourceFolder As String, originalFileName As String, errors As List(Of String), isBatch As Boolean)
+        Private Sub ExportErrorsToCsv(sourceFolder As String, originalFileName As String, errors As List(Of String), isBatch As Boolean, Optional ByRef webErrors As List(Of String) = Nothing)
             Try
+                ' Add to webErrors list if passed from Web UI caller
+                If webErrors IsNot Nothing AndAlso errors IsNot Nothing Then
+                    For Each errItem In errors
+                        webErrors.Add($"{originalFileName}: {errItem}")
+                    Next
+                End If
+
                 Dim errorDir = Path.Combine(sourceFolder, "エラーリスト")
                 Utils.EnsureDirectory(errorDir)
 
