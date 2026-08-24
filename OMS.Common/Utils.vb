@@ -949,7 +949,7 @@ Namespace OMS.Common
                         newRow("部品名称") = row("部品名称")
                         Dim dd As Date
                         Date.TryParse(row("納入指示日").ToString(), dd)
-                        newRow("希望納期") = dd.ToString("yyyyMMdd")
+                        newRow("納入指示日") = dd.ToString("yyyyMMdd")
                         Dim qty As Integer = 0
                         Integer.TryParse(row("納入指示数").ToString(), qty)
                         newRow("納入指示数") = qty
@@ -968,9 +968,9 @@ Namespace OMS.Common
                         Dim astiRowDt As DataRow = astiN.NewRow()
                         astiRowDt("客先品目No") = row("部品番号")
                         astiRowDt("コメント") = row("部品名称")
-                        astiRowDt("希望納期") = row("希望納期")
-                        astiRowDt("需要数") = row("需要数")
-                        astiRowDt("オーダーＮｏ") = row("オーダーＮｏ")
+                        astiRowDt("希望納期") = row("納入指示日")
+                        astiRowDt("需要数") = row("納入指示数")
+                        astiRowDt("客先発注No") = row("オーダーＮｏ")
                         astiRowDt("ASTI追加内示フラグ") = "N"
                         astiRowDt("ASTI追加内示削除フラグ") = "N"
 
