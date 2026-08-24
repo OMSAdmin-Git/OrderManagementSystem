@@ -798,11 +798,13 @@ Namespace OMS.Common
             ASTIInternalNotification = 2    ' ASTI追加内示ファイル  
         End Enum
         ''' <summary>
-        ''' 横並びのCSVデータテーブルを、4列の縦並びデータテーブルに展開・変換します。
+        ''' Yamaha robotex 受注ファイル を読み ASTI追加内示形式のデータ構成に変換する
+        ''' 
+        ''' 内示の場合 横並びのCSVデータテーブルを、4列の縦並びデータテーブルに展開・変換します。
         ''' </summary>
         ''' <param name="filename">Yamaha robotex 内示受注データファイル</param>
         ''' <returns>部品番号、部品名称、日付、需要数 の4列で構成された新しいDataTable</returns>
-        Public Function CreateNewDataSetFromCsv(filename As String, type As YamahaRobotexType) As DataTable
+        Public Function YamahaRobotexCreateNewDataSetFromCsv(filename As String, type As YamahaRobotexType) As DataTable
 
             ' CSVをDataTableに変換
             Dim dt = ConvertCsvToDataTable(filename)

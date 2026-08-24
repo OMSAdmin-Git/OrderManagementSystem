@@ -756,12 +756,11 @@ Namespace Pages.Orders
                                                                 errors,
                                                                 rowsForTemp2)
 
+                                ElseIf mapResult Is Nothing And spprocesstype = 3 And folderType <> 4 Then
+                                    ' Yamaha robotex 内示/確定/ASTI内示取得
 
-
-                                ElseIf mapResult Is Nothing And spprocesstype = 3 Then
-                                    '特殊加工:ヤマハ(IM)
-
-
+                                    Dim reps = New OrderStageRepository(Utils.GetConnectionString())
+                                    Dim erm = reps.YamahaRobotexOrdersStageImport(conn, tran, TorikomiFile, UserId, impfilestageId, customerSettingId, folderType, ErrFlg, ErrFileFlg, errcnt, errors, rowsForTemp2)
                                 Else
 
                                     'errors.Add($"顧客設定ID:{customerSettingId} - {mapError}")
