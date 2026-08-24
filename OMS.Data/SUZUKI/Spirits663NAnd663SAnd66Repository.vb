@@ -1,4 +1,4 @@
-﻿Imports System.Data
+Imports System.Data
 Imports System.Text
 Imports OMS.Common
 Imports Oracle.ManagedDataAccess.Client
@@ -55,16 +55,16 @@ Namespace OMS.Data.SUZUKI
             If records Is Nothing Then Return "OrdersRow InsertRange no record data."
             Try
                 Dim sb As New StringBuilder()
-                sb.AppendLine($"INSERT INTO SUZUKI_SPIRITS_663NAND663SAND66 (")
-                sb.AppendLine("  info_type_id, info_type_code, doc_title_type, payment_method_word_type, client_code, ")
+                sb.AppendLine($"INSERT INTO SUZUKI_SPIRITS_663NAND663SAND664T (")
+                sb.AppendLine("  info_type_code, doc_title_type, payment_method_word_type, client_code, ")
                 sb.AppendLine("  contractor_code, contractor_office_code, publication_date, target_reference_date_type, target_reference_date, ")
                 sb.AppendLine("  supplier_code, delivery_form_type, customer_item_no, item_no, process_type, ")
                 sb.AppendLine("  customer_item_no_process_no1, customer_order_no, pickup_instructions_times, old_delivery_date, delivery_date, ")
                 sb.AppendLine("  old_order_qty, order_qty, cahnge_reason, reserve, imp_file_id, ")
                 sb.AppendLine("  imp_run_id, status, active_flag, created_at, created_user_id, ")
-                sb.AppendLine("  created_pg_id, updated_at, updated_user_id, updated_pg_id, ")
+                sb.AppendLine("  created_pg_id, updated_at, updated_user_id, updated_pg_id ")
                 sb.AppendLine(") VALUES (")
-                sb.AppendLine(" :p_info_type_id, :p_info_type_code, :p_doc_title_type, :p_payment_method_word_type, :p_client_code, ")
+                sb.AppendLine(" :p_info_type_code, :p_doc_title_type, :p_payment_method_word_type, :p_client_code, ")
                 sb.AppendLine(" :p_contractor_code, :p_contractor_office_code, :p_publication_date, :p_target_reference_date_type, :p_target_reference_date, ")
                 sb.AppendLine(" :p_supplier_code, :p_delivery_form_type, :p_customer_item_no, :p_item_no, :p_process_type, ")
                 sb.AppendLine(" :p_customer_item_no_process_no1, :p_customer_order_no, :p_pickup_instructions_times, :p_old_delivery_date, :p_delivery_date, ")
@@ -80,9 +80,6 @@ Namespace OMS.Data.SUZUKI
 
                     For Each r In records
                         cmd.Parameters.Clear()
-
-
-                        cmd.Parameters.Add(":p_info_type_id", OracleDbType.Int64).Value = r.InfoTypeId
                         cmd.Parameters.Add(":p_info_type_code", OracleDbType.Varchar2, 4).Value = SafeVarchar(r.InfoTypeCode, 4)
                         cmd.Parameters.Add(":p_doc_title_type", OracleDbType.Varchar2, 2).Value = SafeVarchar(r.DocTitleType, 2)
                         cmd.Parameters.Add(":p_payment_method_word_type", OracleDbType.Varchar2, 2).Value = SafeVarchar(r.PaymentMethodWordType, 2)
@@ -90,9 +87,9 @@ Namespace OMS.Data.SUZUKI
 
                         cmd.Parameters.Add(":p_contractor_code", OracleDbType.Varchar2, 12).Value = SafeVarchar(r.ContractorCode, 12)
                         cmd.Parameters.Add(":p_contractor_office_code", OracleDbType.Varchar2, 4).Value = SafeVarchar(r.ContractorOfficeCode, 4)
-                        cmd.Parameters.Add(":p_publication_date", OracleDbType.Date).Value = r.PublicationDate
+                        cmd.Parameters.Add(":p_publication_date", OracleDbType.Date).Value = SafeNullable(r.PublicationDate)
                         cmd.Parameters.Add(":p_target_reference_date_type", OracleDbType.Varchar2, 1).Value = SafeVarchar(r.TargetReferenceDateType, 1)
-                        cmd.Parameters.Add(":p_target_reference_date", OracleDbType.Date).Value = r.TargetReferenceDate
+                        cmd.Parameters.Add(":p_target_reference_date", OracleDbType.Varchar2, 8).Value = SafeVarchar(r.TargetReferenceDate, 8)
 
                         cmd.Parameters.Add(":p_supplier_code", OracleDbType.Varchar2, 12).Value = SafeVarchar(r.SupplierCode, 12)
                         cmd.Parameters.Add(":p_delivery_form_type", OracleDbType.Varchar2, 1).Value = SafeVarchar(r.DeliveryFormType, 1)
@@ -103,23 +100,23 @@ Namespace OMS.Data.SUZUKI
                         cmd.Parameters.Add(":p_customer_item_no_process_no1", OracleDbType.Varchar2, 2).Value = SafeVarchar(r.CustomerItemNoProcessNo1, 2)
                         cmd.Parameters.Add(":p_customer_order_no", OracleDbType.Varchar2, 13).Value = SafeVarchar(r.CustomerOrderNo, 13)
                         cmd.Parameters.Add(":p_pickup_instructions_times", OracleDbType.Varchar2, 1).Value = SafeVarchar(r.PickupInstructionsTimes, 1)
-                        cmd.Parameters.Add(":p_old_delivery_date", OracleDbType.Date).Value = r.OldDeliveryDate
-                        cmd.Parameters.Add(":p_delivery_date", OracleDbType.Date).Value = r.DeliveryDate
+                        cmd.Parameters.Add(":p_old_delivery_date", OracleDbType.Date).Value = SafeNullable(r.OldDeliveryDate)
+                        cmd.Parameters.Add(":p_delivery_date", OracleDbType.Date).Value = SafeNullable(r.DeliveryDate)
 
-                        cmd.Parameters.Add(":p_old_order_qty", OracleDbType.Int64).Value = r.OldOrderQty
-                        cmd.Parameters.Add(":p_order_qty", OracleDbType.Int64).Value = r.OrderQty
+                        cmd.Parameters.Add(":p_old_order_qty", OracleDbType.Int64).Value = SafeNullable(r.OldOrderQty)
+                        cmd.Parameters.Add(":p_order_qty", OracleDbType.Int64).Value = SafeNullable(r.OrderQty)
                         cmd.Parameters.Add(":p_cahnge_reason", OracleDbType.Varchar2, 2).Value = SafeVarchar(r.CahngeReason, 2)
                         cmd.Parameters.Add(":p_reserve", OracleDbType.Varchar2, 20).Value = SafeVarchar(r.Reserve, 20)
-                        cmd.Parameters.Add(":p_imp_file_id", OracleDbType.Int64).Value = r.ImpFileId
+                        cmd.Parameters.Add(":p_imp_file_id", OracleDbType.Int64).Value = SafeNullable(r.ImpFileId)
 
-                        cmd.Parameters.Add(":p_imp_run_id", OracleDbType.Int64).Value = r.ImpRunId
+                        cmd.Parameters.Add(":p_imp_run_id", OracleDbType.Int64).Value = SafeNullable(r.ImpRunId)
                         cmd.Parameters.Add(":p_status", OracleDbType.Varchar2, 20).Value = SafeVarchar(r.Status, 20)
                         cmd.Parameters.Add(":p_active_flag", OracleDbType.Char, 1).Value = SafeVarchar(r.ActiveFlag, 1)
-                        cmd.Parameters.Add(":p_created_at", OracleDbType.Date).Value = r.CreatedAt
+                        cmd.Parameters.Add(":p_created_at", OracleDbType.Date).Value = SafeNullable(r.CreatedAt)
                         cmd.Parameters.Add(":p_created_user_id", OracleDbType.Varchar2, 9).Value = SafeVarchar(r.CreatedUserId, 9)
 
                         cmd.Parameters.Add(":p_created_pg_id", OracleDbType.Varchar2, 150).Value = SafeVarchar(r.CreatedPgId, 150)
-                        cmd.Parameters.Add(":p_updated_at", OracleDbType.Date).Value = r.UpdatedAt
+                        cmd.Parameters.Add(":p_updated_at", OracleDbType.Date).Value = SafeNullable(r.UpdatedAt)
                         cmd.Parameters.Add(":p_updated_user_id", OracleDbType.Varchar2, 9).Value = SafeVarchar(r.UpdatedUserId, 9)
                         cmd.Parameters.Add(":p_updated_pg_id", OracleDbType.Varchar2, 150).Value = SafeVarchar(r.UpdatedPgId, 150)
 
