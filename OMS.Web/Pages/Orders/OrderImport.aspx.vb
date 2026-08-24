@@ -735,7 +735,7 @@ Namespace Pages.Orders
                                     '特殊加工:スズキ フォルダ区分:混合
 
                                 ElseIf mapResult Is Nothing And spprocesstype = 2 And folderType = 4 Then
-                                    '特殊加工:ヤマハ フォルダ区分:混合
+                                    '特殊加工:ヤマハ(IM以外) フォルダ区分:混合
 
                                     '取込ファイルからデータを取得する処理
                                     OMS.Data.OrderStageImport.ParseImportFileY(
