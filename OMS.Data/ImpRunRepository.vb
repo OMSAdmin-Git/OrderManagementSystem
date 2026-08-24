@@ -466,7 +466,7 @@ Namespace OMS.Data
 
             Dim dt As New DataTable()
             Dim sb As New StringBuilder()
-            sb.AppendLine("SELECT ")
+            sb.AppendLine("SELECT * ")
             sb.AppendLine("FROM imp_run ")
             sb.AppendLine("WHERE 1=1 ")
 
@@ -478,12 +478,12 @@ Namespace OMS.Data
             Dim pStartedAt = startedAt
 
             If pStatus IsNot Nothing Then
-                sb.AppendLine("AND UPPER(pStatus) LIKE UPPER(:p_status) ESCAPE '\' ")
+                sb.AppendLine("AND UPPER(status) LIKE UPPER(:p_status) ESCAPE '\' ")
                 prm.Add(New OracleParameter(":p_status", OracleDbType.Varchar2) With {.Value = pStatus})
             End If
 
             If pStartedUserId IsNot Nothing Then
-                sb.AppendLine("AND UPPER(pStartedUserId) LIKE UPPER(:p_startedUserId) ESCAPE '\' ")
+                sb.AppendLine("AND UPPER(started_user_id) LIKE UPPER(:p_startedUserId) ESCAPE '\' ")
                 prm.Add(New OracleParameter(":p_startedUserId", OracleDbType.Varchar2) With {.Value = pStartedUserId})
             End If
 

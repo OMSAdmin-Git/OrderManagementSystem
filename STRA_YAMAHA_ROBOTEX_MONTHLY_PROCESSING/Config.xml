@@ -3,7 +3,7 @@
 	<!--天方環境-->
 	<!--<UserId>User Id=OMSDB;Password=Amagata001;Data Source=//192.168.10.15:1521/OMSDB;</UserId>-->
 	<!--アスカ環境-->
-	<!--<UserId>User Id=OMSDB;Password=Amagata001;Data Source=//192.168.100.126:1521/orcl;</UserId>-->
+	<!--<UserId>User Id=OMSDB;Password=Amagata001;Data Source=//192.168.99.126:1521/orcl;</UserId>-->
 	<!--本番環境-->
 	<!--<UserId>User Id=OMSDB;Password=Amagata001;Data Source=//192.168.70.225:1521/OMSDB;</UserId>-->
 	<!--検証環境-->
