@@ -65,6 +65,9 @@ Namespace OMS.Data
             Public Property nTorihikisakiJohoKubun As Integer = -1
             Public Property nJishaYosokuFlag As Integer = -1
             Public Property nJishaYosokuDelFlag As Integer = -1
+            'Phase2対応 
+            Public Property nSuzukiInfoTypeCode As Integer = -1
+            Public Property nYamahaItemStatus As Integer = -1
 
             ' セルアドレス(MATRIX用)
             Public Property mKyakusakiHattyuNo As String = ""
@@ -88,18 +91,18 @@ Namespace OMS.Data
         '/// ヤマハ取込データ保存配列
         Private Structure ImportDataType
             Dim hakkobi As String           '発行日
-            Dim hakkojikan As String        '発光時間
+            Dim hakkojikan As String        '発行時間
             Dim siyosha As String           '使用者
             Dim status As String            '品目ステータス
             Dim customeritemNo As String    '旧体系部品番号(客先品目No)
             Dim nonyuplat As String         '納入プラットフォーム
             Dim yokisyuuyousuu As String    '容器収容数
             Dim yokibangou As String        '容器番号
-            Dim henkoukubun As String        '変更区分
-            Dim datakubun As String          'データ区分
+            Dim henkoukubun As String       '変更区分
+            Dim datakubun As String         'データ区分
             Dim ordersikibetuNo As String   'オーダー識別番号
             Dim nonyusijibi As String       '納入指示日
-            Dim nonyujikan As String    '納入時間
+            Dim nonyujikan As String        '納入時間
             Dim nonyusijisu As String       '納入指示数
             Dim cardkubun As String         'カード区分
             Dim naijikubun As String        '内示区分
@@ -197,6 +200,9 @@ Namespace OMS.Data
                         result.nTorihikisakiJohoKubun = -1
                         result.nJishaYosokuFlag = -1
                         result.nJishaYosokuDelFlag = -1
+                        'Phase2対応
+                        result.nSuzukiInfoTypeCode = -1
+                        result.nYamahaItemStatus = -1
 
                         FstFlg = False
 
@@ -250,6 +256,14 @@ Namespace OMS.Data
                     Case "SELF_FCST_DELETE_FLAG"
                         result.nJishaYosokuDelFlag = SourceColumnIndex
                         result.mJishaYosokuDelFlag = info.source_cell_address
+                        'Phase2対応
+                    Case "INFO_TYPE_CODE"
+                        result.nSuzukiInfoTypeCode = SourceColumnIndex
+                        'result.mJishaYosokuDelFlag = info.source_cell_address
+                    Case "ITEM_STATUS"
+                        result.nYamahaItemStatus = SourceColumnIndex
+                        'result.mJishaYosokuDelFlag = info.source_cell_address
+
                 End Select
             Next
 
@@ -391,8 +405,8 @@ Namespace OMS.Data
                         currentStatus = StrLine.Substring(24 - 1, 1).Trim()           '品目ステータス
                         currentCustomeritemNo = StrLine.Substring(55 - 1, 14).Trim()  '旧体系部品番号(客先品目No)
                         currentNonyuplat = StrLine.Substring(78 - 1, 4).Trim()        '納入プラットフォーム
-                        currentYokisyuuyousuu = StrLine.Substring(87 - 1, 5).Trim()   '容器収容数
-                        currentYokibangou = StrLine.Substring(92 - 1, 5).Trim()       '容器番号
+                        currentYokisyuuyousuu = StrLine.Substring(87 - 1, 5).Trim()   '荷姿収容数
+                        currentYokibangou = StrLine.Substring(92 - 1, 5).Trim()       '荷姿コード
                         currentHinmokugyoNo = fileidx
 
                         '品目情報の2行目は今のところ使用しない予定
@@ -429,13 +443,13 @@ Namespace OMS.Data
                             m_ImpData(UBound(m_ImpData)).status = currentStatus                                     '品目ステータス
                             m_ImpData(UBound(m_ImpData)).customeritemNo = currentCustomeritemNo                     '旧体系部品番号(客先品目No)
                             m_ImpData(UBound(m_ImpData)).nonyuplat = currentNonyuplat                               '納入プラットフォーム
-                            m_ImpData(UBound(m_ImpData)).yokisyuuyousuu = currentYokisyuuyousuu                     '容器収容数
-                            m_ImpData(UBound(m_ImpData)).yokibangou = currentYokibangou                             '容器番号
+                            m_ImpData(UBound(m_ImpData)).yokisyuuyousuu = currentYokisyuuyousuu                     '荷姿収容数
+                            m_ImpData(UBound(m_ImpData)).yokibangou = currentYokibangou                             '荷姿コード
 
                             'オーダ情報を取込データから取得
                             m_ImpData(UBound(m_ImpData)).ordersikibetuNo = StrLine.Substring(3 - 1, 5).Trim()      'オーダー識別番号1
                             m_ImpData(UBound(m_ImpData)).nonyusijibi = StrLine.Substring(10 - 1, 8).Trim()         '納入指示日1
-                            m_ImpData(UBound(m_ImpData)).nonyujikan = StrLine.Substring(18 - 1, 4).Trim()      '納入時間1
+                            m_ImpData(UBound(m_ImpData)).nonyujikan = StrLine.Substring(18 - 1, 4).Trim()          '納入時間1
                             m_ImpData(UBound(m_ImpData)).nonyusijisu = StrLine.Substring(22 - 1, 6).Trim()         '納入指示数1
                             m_ImpData(UBound(m_ImpData)).cardkubun = StrLine.Substring(29 - 1, 1).Trim()           'カード区分1
                             m_ImpData(UBound(m_ImpData)).naijikubun = StrLine.Substring(30 - 1, 1).Trim()          '内示区分1
@@ -475,12 +489,13 @@ Namespace OMS.Data
                             m_ImpData(UBound(m_ImpData)).status = currentStatus                                     '品目ステータス
                             m_ImpData(UBound(m_ImpData)).customeritemNo = currentCustomeritemNo                     '旧体系部品番号(客先品目No)
                             m_ImpData(UBound(m_ImpData)).nonyuplat = currentNonyuplat                               '納入プラットフォーム
-                            m_ImpData(UBound(m_ImpData)).yokisyuuyousuu = currentYokisyuuyousuu                     '容器収容数
-                            m_ImpData(UBound(m_ImpData)).yokibangou = currentYokibangou                             '容器番号
+                            m_ImpData(UBound(m_ImpData)).yokisyuuyousuu = currentYokisyuuyousuu                     '荷姿収容数
+                            m_ImpData(UBound(m_ImpData)).yokibangou = currentYokibangou                             '荷姿コード
 
+                            'オーダ情報を取込データから取得
                             m_ImpData(UBound(m_ImpData)).ordersikibetuNo = StrLine.Substring(89 - 1, 5).Trim()     'オーダー識別番号2
                             m_ImpData(UBound(m_ImpData)).nonyusijibi = StrLine.Substring(96 - 1, 8).Trim()         '納入指示日2
-                            m_ImpData(UBound(m_ImpData)).nonyujikan = StrLine.Substring(104 - 1, 4).Trim()     '納入時間2
+                            m_ImpData(UBound(m_ImpData)).nonyujikan = StrLine.Substring(104 - 1, 4).Trim()         '納入時間2
                             m_ImpData(UBound(m_ImpData)).nonyusijisu = StrLine.Substring(108 - 1, 6).Trim()        '納入指示数2
                             m_ImpData(UBound(m_ImpData)).cardkubun = StrLine.Substring(115 - 1, 1).Trim()          'カード区分2
                             m_ImpData(UBound(m_ImpData)).naijikubun = StrLine.Substring(116 - 1, 1).Trim()         '内示区分2
@@ -491,9 +506,6 @@ Namespace OMS.Data
                             m_ImpData(UBound(m_ImpData)).ordergyoNo = fileidx                                      'オーダー情報行番号
 
                         End If
-
-
-
 
                     End If
 
@@ -1091,6 +1103,8 @@ Namespace OMS.Data
             Dim profitcenterCSM As String
             Dim errMsg As String
 
+            Dim itemstatus As Integer
+
             Dim isTruncated As Boolean = False
 
             ' 戻り値となる受注データリストの初期化
@@ -1183,6 +1197,7 @@ Namespace OMS.Data
                                 reconciletype = 1
                                 profitcenterCSM = ""
                                 profitcenter = ""
+                                itemstatus = 0
 
                                 errMsg = ""
 
@@ -1213,10 +1228,25 @@ Namespace OMS.Data
                                 itemNo = ""
                                 errMsg = ""
 
-                                If _oderStageRepo.GetProductCode(customerCode, customeritemNo, productcode, itemNo, errMsg) = False Then
-                                    'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
-                                    'ErrFlg = True
+                                'Phase2対応
+                                If spprocessType <> 2 Then
+                                    If _oderStageRepo.GetProductCode(customerCode, customeritemNo, productcode, itemNo, errMsg) = False Then
+                                        'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                                        'ErrFlg = True
+                                    End If
+                                Else
+                                    '特殊加工=2は、ヤマハ(IM以外)
+                                    '品目ステータスを取得
+                                    If mapResult.nYamahaItemStatus > -1 Then
+                                        itemstatus = If(csv.ColumnCount > mapResult.nYamahaItemStatus AndAlso mapResult.nYamahaItemStatus > -1, csv.GetField(mapResult.nYamahaItemStatus).Trim(), "")
+                                    End If
+
+                                    If _oderStageRepo.GetProductCode2(customerCode, customeritemNo, itemstatus, itemNo, errMsg) = False Then
+                                        'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                                        'ErrFlg = True
+                                    End If
                                 End If
+
 
                                 '品目NoのPC   （必須）
                                 'STRAMMIC.USRDEFFLDFより取得
@@ -1411,10 +1441,25 @@ Namespace OMS.Data
                                 'STRAMMIC.PRDSLSODRMより取得
                                 itemNo = ""
                                 errMsg = ""
-                                If _oderStageRepo.GetProductCode(customerCode, customeritemNo, productcode, itemNo, errMsg) = False Then
-                                    errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
-                                    ErrFlg = True
+
+                                'Phase2対応
+                                If spprocessType <> 2 Then
+                                    If _oderStageRepo.GetProductCode(customerCode, customeritemNo, productcode, itemNo, errMsg) = False Then
+                                        errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                                        ErrFlg = True
+                                    End If
+                                Else
+                                    '特殊加工=2は、ヤマハ(IM以外)
+                                    '品目ステータスを取得
+                                    If mapResult.nYamahaItemStatus > -1 Then
+                                        itemstatus = If(csv.ColumnCount > mapResult.nYamahaItemStatus AndAlso mapResult.nYamahaItemStatus > -1, csv.GetField(mapResult.nYamahaItemStatus).Trim(), "")
+                                    End If
+                                    If _oderStageRepo.GetProductCode2(customerCode, customeritemNo, itemstatus, itemNo, errMsg) = False Then
+                                        errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                                        ErrFlg = True
+                                    End If
                                 End If
+
 
                                 '需要単位   （任意）
                                 'STRAMMIC.ITEMMより取得
@@ -1743,6 +1788,8 @@ Namespace OMS.Data
                                 reconciletype = 1
                                 profitcenterCSM = ""
                                 profitcenter = ""
+                                itemstatus = 0
+
                                 errMsg = ""
 
                                 ErrFlg = False
@@ -1772,10 +1819,26 @@ Namespace OMS.Data
                                 'STRAMMIC.PRDSLSODRMより取得
                                 itemNo = ""
                                 errMsg = ""
-                                If _oderStageRepo.GetProductCode(customerCode, customeritemNo, productcode, itemNo, errMsg) = False Then
-                                    'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
-                                    'ErrFlg = True
+
+                                'Phase2対応
+                                If spprocessType <> 2 Then
+                                    If _oderStageRepo.GetProductCode(customerCode, customeritemNo, productcode, itemNo, errMsg) = False Then
+                                        'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                                        'ErrFlg = True
+                                    End If
+                                Else
+                                    '特殊加工=2は、ヤマハ(IM以外)
+                                    '品目ステータスを取得
+                                    If mapResult.nYamahaItemStatus > 0 Then
+                                        itemstatus = If(mapResult.nYamahaItemStatus > 0, xlRow.Cell(mapResult.nYamahaItemStatus).GetValue(Of String)().Trim(), "")
+                                    End If
+
+                                    If _oderStageRepo.GetProductCode2(customerCode, customeritemNo, itemstatus, itemNo, errMsg) = False Then
+                                        'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                                        'ErrFlg = True
+                                    End If
                                 End If
+
 
                                 '品目NoのPC   （必須）
                                 'STRAMMIC.USRDEFFLDFより取得
@@ -1970,14 +2033,31 @@ Namespace OMS.Data
                                     productcode = If(mapResult.nSeihinCode > 0, xlRow.Cell(mapResult.nSeihinCode).GetValue(Of String)().Trim(), "")
                                 End If
 
+
                                 '品目No   （必須）
                                 'STRAMMIC.PRDSLSODRMより取得
                                 itemNo = ""
                                 errMsg = ""
-                                If _oderStageRepo.GetProductCode(customerCode, customeritemNo, productcode, itemNo, errMsg) = False Then
-                                    errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
-                                    ErrFlg = True
+
+                                'Phase2対応
+                                If spprocessType <> 2 Then
+                                    If _oderStageRepo.GetProductCode(customerCode, customeritemNo, productcode, itemNo, errMsg) = False Then
+                                        errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                                        ErrFlg = True
+                                    End If
+                                Else
+                                    '特殊加工=2は、ヤマハ(IM以外)
+                                    '品目ステータスを取得
+                                    If mapResult.nYamahaItemStatus > 0 Then
+                                        itemstatus = If(mapResult.nYamahaItemStatus > 0, xlRow.Cell(mapResult.nYamahaItemStatus).GetValue(Of String)().Trim(), "")
+                                    End If
+                                    If _oderStageRepo.GetProductCode2(customerCode, customeritemNo, itemstatus, itemNo, errMsg) = False Then
+                                        errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                                        ErrFlg = True
+                                    End If
                                 End If
+
+
 
 
 
