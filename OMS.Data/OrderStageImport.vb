@@ -3174,7 +3174,7 @@ Namespace OMS.Data
                     Dim proratedType As Integer = 1
                     Dim reconciletype As Integer = 0
                     Dim dtcvt As DateTime = Nothing
-                    Dim FirstWorkingDay = calen.GetFirstWorkingDay(calType, dtcvt)
+                    Dim firstWorkingDay As Date
                     Dim shipprocesstype = ""
                     Dim totalshipqty As Decimal?
                     Dim demandQty As Long = 0
@@ -3196,6 +3196,8 @@ Namespace OMS.Data
                         errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
                     End If
                     dtcvt = DateTime.ParseExact(ddate, "yyyyMMdd", Nothing)
+                    ' 月初稼働日
+                    firstWorkingDay = calen.GetFirstWorkingDay(calType, dtcvt)
 
                     Dim dqty = row("需要数")
                     If (dqty = "") Then
@@ -3296,13 +3298,13 @@ Namespace OMS.Data
                     ' CustomerOrderNo IM_受注仕様_20260113+(1)_天方.xlsx YAMAHAロボティックス取り込み フロー.xlsx [OSMDB Orders]
                     If (ft = YamahaRobotexType.UnofficialNotice) Then
                         ' 内示
-                        orderStageRow.CustomerOrderNo = FirstWorkingDay.ToString("yyyyMMdd")
+                        orderStageRow.CustomerOrderNo = firstWorkingDay.ToString("yyyyMMdd")
                     ElseIf (ft = YamahaRobotexType.Confirmed) Then
                         ' 確定
                         orderStageRow.CustomerOrderNo = "R" & row("客先発注No")
                     Else
                         ' ASTI 内示
-                        orderStageRow.CustomerOrderNo = FirstWorkingDay.ToString("yyyyMMdd")
+                        orderStageRow.CustomerOrderNo = firstWorkingDay.ToString("yyyyMMdd")
                     End If
 
                     orderStageRow.DueDate = dtcvt
@@ -3369,6 +3371,9 @@ Namespace OMS.Data
                 Dim firstLine As String = ""
                 Using reader As New StreamReader(filename, Encoding.GetEncoding("Shift_JIS"))
                     firstLine = reader.ReadLine()
+                    'タイトル "" 囲まれている場合削除
+                    firstLine = firstLine.Replace("""", "")
+                    firstLine = Strings.StrConv(firstLine, VbStrConv.Narrow)
                 End Using
 
                 If String.IsNullOrEmpty(firstLine) Then
@@ -3376,11 +3381,11 @@ Namespace OMS.Data
                 End If
 
                 ' 判定処理（1番目は可変のため前方一致で判定）
-                If firstLine.StartsWith("""部品番号"",""部品名称"",,") Then
+                If firstLine.StartsWith(Strings.StrConv("部品番号,部品名称,", VbStrConv.Narrow)) Then
                     Return YamahaRobotexType.UnofficialNotice
-                ElseIf firstLine.StartsWith("""部品番号"",""部品名称"",""納入指示日""") Then
+                ElseIf firstLine.StartsWith(Strings.StrConv("部品番号,部品名称,納入指示日,", VbStrConv.Narrow)) Then
                     Return YamahaRobotexType.Confirmed
-                ElseIf firstLine.StartsWith("""取引先コード"",""客先発注No""") Then
+                ElseIf firstLine.StartsWith(Strings.StrConv("取引先コード,客先発注No,", VbStrConv.Narrow)) Then
                     Return YamahaRobotexType.ASTIInternalNotification
                 End If
 

@@ -988,6 +988,36 @@ Namespace OMS.Common
                     Next
 
                 Case YamahaRobotexType.ASTIInternalNotification
+
+                    If dt.Columns.Contains("希望納期（納入予定日)") Then
+                        ' 2. 存在する場合、列名を変更
+                        dt.Columns("希望納期（納入予定日)").ColumnName = "希望納期"
+                    End If
+                    If dt.Columns.Contains("需要数（需要単位ベース）") Then
+                        ' 2. 存在する場合、列名を変更
+                        dt.Columns("需要数（需要単位ベース）").ColumnName = "需要数"
+                    End If
+
+                    '受注日、希望納期
+                    For Each row As DataRow In dt.Rows
+                        Dim result As DateTime
+                        Dim formats As String() = {"yyyy/MM/dd", "yyyyMMdd"}
+
+                        Dim ddate = row("受注日")
+                        If (Date.TryParseExact(ddate, formats, CultureInfo.InvariantCulture, DateTimeStyles.None, result)) Then
+                            row("受注日") = result.ToString("yyyyMMdd")
+                        Else
+                            row("受注日") = CDate("1900/01/01").ToString("yyyyMMdd")
+                        End If
+
+                        ddate = row("希望納期")
+                        If (Date.TryParseExact(ddate, formats, CultureInfo.InvariantCulture, DateTimeStyles.None, result)) Then
+                            row("希望納期") = result.ToString("yyyyMMdd")
+                        Else
+                            row("希望納期") = CDate("1900/01/01").ToString("yyyyMMdd")
+                        End If
+                    Next
+
                     ' ASTI追加内示ファイルの場合の処理 (File 読み込み DataTable(ASTI追加内示形式)をそのまま返す)
                     astiN = dt
 
