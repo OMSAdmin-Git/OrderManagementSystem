@@ -3151,11 +3151,9 @@ Namespace OMS.Data
                     Throw New ApplicationException($"ファイル{Path.GetFileName(strWorkFile)}が Yamaha robotex 内示/確定/ASTI内示 フォーマットではありません。")
                 End If
 
-                ' ファイル読み込み ASTI 追加内示フォーマット変換
+                ' ファイル読み込み Yamaha Robotex 内示/確定/ASTI 追加内示 
                 Dim dt = YamahaRobotexCreateNewDataSetFromCsv(strWorkFile, ft)
 
-                Dim unofficialNoticeCount = 5   ' 内示 Field 数
-                Dim confirmedCount = 10         ' 確定 Field 数
                 Dim sysDate = DateTime.Now      ' システム日付
                 'Dim dt = Utils.ConvertCsvToDataTable(filename)
                 Dim ordersStage As New List(Of OrdersStageRow)
@@ -3227,7 +3225,7 @@ Namespace OMS.Data
                     End If
 
                     ' ###### DEBUG
-                    ' あまりにも ヒットしないので 複数ある場合は先頭値
+                    ' あまりにも ヒットしないので 複数ある場合は先頭値で代用
                     Dim pcDummy = reps.GetProductCode(customerItemNo)
                     productCode = pcDummy
                     ' ###### DEBUG
@@ -3255,57 +3253,39 @@ Namespace OMS.Data
                     If (reps.GetReconcileType(CustomerSettingId, FolderType, reconciletype, errMsg) = False) Then
                         errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
                     End If
-                    ' 固定値
-                    Select Case orderType
-                        Case 1
-                            shipprocesstype = "O"
-                            totalshipqty = Nothing
-                        Case 2
-                            shipprocesstype = "E"
-                            totalshipqty = 0
-                        Case 3
-                            shipprocesstype = "K"
-                            totalshipqty = 0
-                    End Select
+                    ' 固定値 1: 内示 2: 確定 3: それ以外
+                    shipprocesstype = If(orderType = 1, "O", If(orderType = 2, "E", "K"))
 
                     ' Yamaha Data set
-                    orderStageRow.CustomerSettingId = CustomerSettingId '/IMP_FILES_STAGE.CUSTOMER_SETTING_ID
-                    orderStageRow.CustomerCode = customerCode           '/CUSTOMER_SETTING_MST.CUSTOMER_CODE
-                    orderStageRow.ShipTo = customerCode & customerCode  '/'SECTD.FSECTCD + CUSTOMER_CODE
+                    orderStageRow.CustomerSettingId = CustomerSettingId             ' /IMP_FILES_STAGE.CUSTOMER_SETTING_ID
+                    orderStageRow.CustomerCode = customerCode                       ' /CUSTOMER_SETTING_MST.CUSTOMER_CODE
+                    orderStageRow.ShipTo = customerCode & customerCode              ' /'SECTD.FSECTCD + CUSTOMER_CODE
                     orderStageRow.OrderDate = sysDate
-                    orderStageRow.ItemNo = itemNo                       '(品目No) ASTI 品番
-                    orderStageRow.DemandUnit = demandunit               '/ ITEMM.FUNIT
-                    orderStageRow.CurrencyCode = currencycode           '/ Sectm.FCURR
-                    orderStageRow.ShipStockLocation = shipstocklocation '/'SHPROUTM.FSHPWHCD
-                    orderStageRow.CompanyId = "1000"                    ' 固定値
-                    orderStageRow.ProductCode = productCode             '/ PRDSLSODRM.FPRDCD(品目No)
-                    orderStageRow.BillingStandard = "S"                 '/'S' 固定値
-                    orderStageRow.DeliveryInstrFlag = If(orderType = 3, "Y", "N") '/ 納入指示('Y') 以外('N')
+                    orderStageRow.ItemNo = itemNo                                   ' (品目No) ASTI 品番
+                    orderStageRow.DemandUnit = demandunit                           ' / ITEMM.FUNIT
+                    orderStageRow.CurrencyCode = currencycode                       ' / Sectm.FCURR
+                    orderStageRow.ShipStockLocation = shipstocklocation             ' /'SHPROUTM.FSHPWHCD
+                    orderStageRow.CompanyId = "1000"                                ' 固定値
+                    orderStageRow.ProductCode = productCode                         ' / PRDSLSODRM.FPRDCD(品目No)
+                    orderStageRow.BillingStandard = "S"                             ' /'S' 固定値
+                    orderStageRow.DeliveryInstrFlag = If(orderType = 3, "Y", "N")   ' / 納入指示('Y') 以外('N')
                     'orderStageRow.Remarks = ""
-                    orderStageRow.DeliveryCode = "0001"                 '/0001 '固定値
-                    orderStageRow.TransportMethod = 2                   '/ 2 固定値
-                    orderStageRow.ImpFileStageId = impfilestageId       'IMP_FILES_STAGE.IMP_FILE_STAGE_ID
-                    orderStageRow.OrderType = orderType                 '/内示(1) 確定(2)
-                    orderStageRow.ProratedType = proratedType           '/ 日割り(1)
-                    orderStageRow.CustomerInfoType = ""                 'null
-                    orderStageRow.InfoType = ""                         ' null
-                    orderStageRow.SelfFcstDeleteFlag = "N"              '/'N'
-                    orderStageRow.ReconcileType = reconciletype         'IMP_RULE_MST.RECONCILE_TYPE
-                    orderStageRow.ImpRunId = impRunId                   'IMP_RUN.IMP_RUN_ID
-                    orderStageRow.CreatedAt = stardedAt                 'IMP_RUN.STARTED_AT
-                    orderStageRow.CreatedUserId = UserId                'ログイン情報
+                    orderStageRow.DeliveryCode = "0001"                             ' /0001 '固定値
+                    orderStageRow.TransportMethod = 2                               ' / 2 固定値
+                    orderStageRow.ImpFileStageId = impfilestageId                   ' IMP_FILES_STAGE.IMP_FILE_STAGE_ID
+                    orderStageRow.OrderType = orderType                             ' /内示(1) 確定(2)
+                    orderStageRow.ProratedType = proratedType                       ' / 日割り(1)
+                    orderStageRow.CustomerInfoType = ""                             ' null
+                    orderStageRow.InfoType = ""                                     ' null
+                    orderStageRow.SelfFcstDeleteFlag = "N"                          ' /'N'
+                    orderStageRow.ReconcileType = reconciletype                     ' IMP_RULE_MST.RECONCILE_TYPE
+                    orderStageRow.ImpRunId = impRunId                               ' IMP_RUN.IMP_RUN_ID
+                    orderStageRow.CreatedAt = stardedAt                             ' IMP_RUN.STARTED_AT
+                    orderStageRow.CreatedUserId = UserId                            ' ログイン情報
                     '-----------------------------------------------
                     ' CustomerOrderNo IM_受注仕様_20260113+(1)_天方.xlsx YAMAHAロボティックス取り込み フロー.xlsx [OSMDB Orders]
-                    If (ft = YamahaRobotexType.UnofficialNotice) Then
-                        ' 内示
-                        orderStageRow.CustomerOrderNo = firstWorkingDay.ToString("yyyyMMdd")
-                    ElseIf (ft = YamahaRobotexType.Confirmed) Then
-                        ' 確定
-                        orderStageRow.CustomerOrderNo = "R" & row("客先発注No")
-                    Else
-                        ' ASTI 内示
-                        orderStageRow.CustomerOrderNo = firstWorkingDay.ToString("yyyyMMdd")
-                    End If
+                    ' 内示: 当月の稼動日初日 確定: "R" + 客先発注No それ以外: 当月の稼動日初日 
+                    orderStageRow.CustomerOrderNo = If(ft = YamahaRobotexType.UnofficialNotice, firstWorkingDay.ToString("yyyyMMdd"), If(ft = YamahaRobotexType.Confirmed, "R" & row("客先発注No"), firstWorkingDay.ToString("yyyyMMdd")))
 
                     orderStageRow.DueDate = dtcvt
                     orderStageRow.CustomerItemNo = customerItemNo
@@ -3314,18 +3294,18 @@ Namespace OMS.Data
                     orderStageRow.SelfFcstFlag = selfFcstFlag
                     orderStageRow.SelfFcstDeleteFlag = selfFcstDeleteFlag
 
-                    orderStageRow.DemandStatus = If(orderType = 1, "F", "O")    ' 内示('F') 内示以外('O')
-                    orderStageRow.ShipProcessType = shipprocesstype             ' / 内示('O') 確定('E') 以外('K')
-                    orderStageRow.TotalShipQty = totalshipqty                   ' / 内示(なし) 以外(0)
-                    orderStageRow.PreDailyOrderQty = orderStageRow.DemandQty    ' 3.需要数
-                    orderStageRow.PreDailyDeliveryDate = orderStageRow.DueDate  ' 2.日付
+                    orderStageRow.DemandStatus = If(orderType = 1, "F", "O")        ' 内示('F') 内示以外('O')
+                    orderStageRow.ShipProcessType = shipprocesstype                 ' / 内示('O') 確定('E') 以外('K')
+                    orderStageRow.TotalShipQty = totalshipqty                       ' / 内示(なし) 以外(0)
+                    orderStageRow.PreDailyOrderQty = orderStageRow.DemandQty        ' 3.需要数
+                    orderStageRow.PreDailyDeliveryDate = orderStageRow.DueDate      ' 2.日付
 
-                    orderStageRow.Status = "IMPORTED"                   ' 固定値
-                    orderStageRow.ActiveFlag = "Y"                      ' 固定値
-                    orderStageRow.CreatedPgId = "OrderImport(Execute)"  ' 固定値
+                    orderStageRow.Status = "IMPORTED"                               ' 固定値
+                    orderStageRow.ActiveFlag = "Y"                                  ' 固定値
+                    orderStageRow.CreatedPgId = "OrderImport(Execute)"              ' 固定値
                     orderStageRow.UpdatedAt = stardedAt
                     orderStageRow.UpdatedUserId = UserId
-                    orderStageRow.UpdatedPgId = "OrderImport(Execute)"  ' 固定値
+                    orderStageRow.UpdatedPgId = "OrderImport(Execute)"              ' 固定値
 
                     'ここまででエラーフラグがあれば登録しない
                     If ErrFlg = True Then
@@ -3380,8 +3360,8 @@ Namespace OMS.Data
                     Return YamahaRobotexType.Unknown
                 End If
 
-                ' 判定処理（1番目は可変のため前方一致で判定）
-                If firstLine.StartsWith(Strings.StrConv("部品番号,部品名称,", VbStrConv.Narrow)) Then
+                ' 判定処理（前方一致で判定）
+                If firstLine.StartsWith(Strings.StrConv("部品番号,部品名称,,日付", VbStrConv.Narrow)) Then
                     Return YamahaRobotexType.UnofficialNotice
                 ElseIf firstLine.StartsWith(Strings.StrConv("部品番号,部品名称,納入指示日,", VbStrConv.Narrow)) Then
                     Return YamahaRobotexType.Confirmed

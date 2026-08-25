@@ -973,15 +973,15 @@ Namespace OMS.Common
                         astiRowDt("客先品目No") = row("部品番号")
                         astiRowDt("コメント") = row("部品名称")
                         astiRowDt("希望納期") = row("納入指示日")
-                        'astiRowDt("需要数") = row("納入指示数")
+                        astiRowDt("需要数") = row("納入指示数")
                         astiRowDt("客先発注No") = row("オーダーＮｏ")
                         astiRowDt("ASTI追加内示フラグ") = "N"
                         astiRowDt("ASTI追加内示削除フラグ") = "N"
-                        Dim qty As String = ""
-                        If row("需要数（需要単位ベース）") IsNot DBNull.Value Then
-                            qty = row("需要数（需要単位ベース）").ToString()
-                        End If
-                        astiRowDt("需要数") = qty
+                        'Dim qty As String = ""
+                        'If row("需要数（需要単位ベース）") IsNot DBNull.Value Then
+                        '    qty = row("需要数（需要単位ベース）").ToString()
+                        'End If
+                        'astiRowDt("需要数") = qty
 
                         'astiRowDt("取引先コード") = "5977"
                         astiN.Rows.Add(astiRowDt)
