@@ -817,7 +817,7 @@ Namespace OMS.Common
             astiN.Columns.Add("受注日", GetType(String))            ' "20250701" 等の形式
             astiN.Columns.Add("希望納期", GetType(String))          ' "20250701" 等の形式
             astiN.Columns.Add("客先品目No", GetType(String))
-            astiN.Columns.Add("需要数", GetType(Integer))
+            astiN.Columns.Add("需要数", GetType(String))
             astiN.Columns.Add("通貨コード", GetType(String))
             astiN.Columns.Add("製品コード", GetType(String))
             astiN.Columns.Add("納入先コード", GetType(String))
@@ -868,7 +868,7 @@ Namespace OMS.Common
                     fileDt.Columns.Add("部品番号", GetType(String))
                     fileDt.Columns.Add("部品名称", GetType(String))
                     fileDt.Columns.Add("日付", GetType(String))      ' "20250701" 等の形式
-                    fileDt.Columns.Add("需要数", GetType(Integer))
+                    fileDt.Columns.Add("需要数", GetType(String))
                     fileDt.Columns.Add("長期内示", GetType(String))
 
                     ' 3. 元のデータが空の場合は、空の構造だけを返す
@@ -891,9 +891,10 @@ Namespace OMS.Common
                                 newRow("日付") = header & "01"
 
                                 ' 需要数の安全な数値化
-                                Dim qty As Integer = 0
+                                Dim qty As String = 0
                                 If row(header) IsNot DBNull.Value Then
-                                    Integer.TryParse(row(header).ToString(), qty)
+                                    'Integer.TryParse(row(header).ToString(), qty)
+                                    qty = row(header).ToString()
                                 End If
                                 newRow("需要数") = qty
 
@@ -934,7 +935,7 @@ Namespace OMS.Common
                     fileDt.Columns.Add("部品番号", GetType(String))
                     fileDt.Columns.Add("部品名称", GetType(String))
                     fileDt.Columns.Add("納入指示日", GetType(String))
-                    fileDt.Columns.Add("納入指示数", GetType(Integer))
+                    fileDt.Columns.Add("納入指示数", GetType(String))
                     fileDt.Columns.Add("オーダーＮｏ", GetType(String))
                     fileDt.Columns.Add("納入場所", GetType(String))
                     fileDt.Columns.Add("支給先", GetType(String))
@@ -950,8 +951,11 @@ Namespace OMS.Common
                         Dim dd As Date
                         Date.TryParse(row("納入指示日").ToString(), dd)
                         newRow("納入指示日") = dd.ToString("yyyyMMdd")
-                        Dim qty As Integer = 0
-                        Integer.TryParse(row("納入指示数").ToString(), qty)
+                        Dim qty As String = ""
+                        'Integer.TryParse(row("納入指示数").ToString(), qty)
+                        If row("納入指示数") IsNot DBNull.Value Then
+                            qty = row("納入指示数").ToString()
+                        End If
                         newRow("納入指示数") = qty
                         newRow("オーダーＮｏ") = row("オーダーＮｏ")
 
@@ -969,10 +973,15 @@ Namespace OMS.Common
                         astiRowDt("客先品目No") = row("部品番号")
                         astiRowDt("コメント") = row("部品名称")
                         astiRowDt("希望納期") = row("納入指示日")
-                        astiRowDt("需要数") = row("納入指示数")
+                        'astiRowDt("需要数") = row("納入指示数")
                         astiRowDt("客先発注No") = row("オーダーＮｏ")
                         astiRowDt("ASTI追加内示フラグ") = "N"
                         astiRowDt("ASTI追加内示削除フラグ") = "N"
+                        Dim qty As String = ""
+                        If row("需要数（需要単位ベース）") IsNot DBNull.Value Then
+                            qty = row("需要数（需要単位ベース）").ToString()
+                        End If
+                        astiRowDt("需要数") = qty
 
                         'astiRowDt("取引先コード") = "5977"
                         astiN.Rows.Add(astiRowDt)
@@ -983,7 +992,7 @@ Namespace OMS.Common
                     astiN = dt
 
                 Case Else
-                    Throw New ArgumentException("不明なYamahaRobotexTypeです。", NameOf(type))
+                    Throw New ArgumentException("不明な YamahaRobotex File 形式 です。", NameOf(type))
             End Select
 
             ' 6. 変換後のDataTableを返す
