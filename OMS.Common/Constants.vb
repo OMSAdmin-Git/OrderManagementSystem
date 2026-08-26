@@ -80,7 +80,8 @@ Namespace OMS.Common
                 {"CUSTOMER_INFO_TYPE", "取引先情報区分"},
                 {"SELF_FCST_FLAG", "自社予測フラグ"},
                 {"SELF_FCST_DELETE_FLAG", "自社予測削除フラグ"},
-                {"INFO_TYPE_CODE", "スズキ情報区分コード"}
+                {"INFO_TYPE_CODE", "スズキ情報区分コード"},
+                {"ITEM_STATUS", "ヤマハ品目ステータス"}
             }
 
         Public ReadOnly RowSelectorTypeMap As IReadOnlyDictionary(Of String, String) =
