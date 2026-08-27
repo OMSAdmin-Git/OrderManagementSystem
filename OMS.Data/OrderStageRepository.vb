@@ -2128,24 +2128,24 @@ Namespace OMS.Data
                     cmd.Parameters.Add(":p_order_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.OrderNo, 45)
                     cmd.Parameters.Add(":p_remarks", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.Remarks, 45)
                     cmd.Parameters.Add(":p_delivery_code", OracleDbType.Varchar2, 25).Value = SafeVarcharLength(r.DeliveryCode, 25)
-                    'cmd.Parameters.Add(":p_order_time", OracleDbType.Decimal).Value = r.OrderTime       ' NUMBER(18,6)
-                    'cmd.Parameters.Add(":p_sales_unit_price", OracleDbType.Decimal).Value = r.SalesUnitPrice  ' NUMBER(18,6)
-                    'cmd.Parameters.Add(":p_delivery_time", OracleDbType.Decimal).Value = r.DeliveryTime    ' NUMBER(18,6)
-                    'cmd.Parameters.Add(":p_usage_location", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.UsageLocation, 45)
+                    cmd.Parameters.Add(":p_order_time", OracleDbType.Decimal).Value = r.OrderTime       ' NUMBER(18,6)
+                    cmd.Parameters.Add(":p_sales_unit_price", OracleDbType.Decimal).Value = r.SalesUnitPrice  ' NUMBER(18,6)
+                    cmd.Parameters.Add(":p_delivery_time", OracleDbType.Decimal).Value = r.DeliveryTime    ' NUMBER(18,6)
+                    cmd.Parameters.Add(":p_usage_location", OracleDbType.Varchar2, 45).Value = SafeVarcharLength(r.UsageLocation, 45)
                     cmd.Parameters.Add(":p_total_ship_qty", OracleDbType.Decimal).Value = r.TotalShipQty
-                    'cmd.Parameters.Add(":p_production_category", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.ProductionCategory, 45)
+                    cmd.Parameters.Add(":p_production_category", OracleDbType.Varchar2, 45).Value = SafeVarcharLength(r.ProductionCategory, 45)
                     'cmd.Parameters.Add(":p_char_2", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.Char2, 45)
-                    'cmd.Parameters.Add(":p_container_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.ContainerNo, 45)
+                    cmd.Parameters.Add(":p_container_no", OracleDbType.Varchar2, 45).Value = SafeVarcharLength(r.ContainerNo, 45)
                     'cmd.Parameters.Add(":p_char_3", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.Char3, 45)
                     'cmd.Parameters.Add(":p_char_4", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.Char4, 45)
                     'cmd.Parameters.Add(":p_char_4_2", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.Char4_2, 45)
                     'cmd.Parameters.Add(":p_char_5", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.Char5, 45)
                     'cmd.Parameters.Add(":p_char_5_2", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.Char5_2, 45)
                     'cmd.Parameters.Add(":p_char_6", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.Char6, 45)
-                    'cmd.Parameters.Add(":p_order_reason", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.OrderReason, 45)
-                    'cmd.Parameters.Add(":p_container_capacity", OracleDbType.Decimal).Value = r.ContainerCapacity
-                    'cmd.Parameters.Add(":p_customer_lot_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.CustomerLotNo, 45)
-                    'cmd.Parameters.Add(":p_initial_flag", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.InitialFlag, 45)
+                    cmd.Parameters.Add(":p_order_reason", OracleDbType.Varchar2, 45).Value = SafeVarcharLength(r.OrderReason, 45)
+                    cmd.Parameters.Add(":p_container_capacity", OracleDbType.Decimal).Value = r.ContainerCapacity   ' NUMBER(18,6)
+                    cmd.Parameters.Add(":p_customer_lot_no", OracleDbType.Varchar2, 45).Value = SafeVarcharLength(r.CustomerLotNo, 45)
+                    cmd.Parameters.Add(":p_initial_flag", OracleDbType.Varchar2, 45).Value = SafeVarcharLength(r.InitialFlag, 45)
                     cmd.Parameters.Add(":p_ship_date", OracleDbType.Date).Value = r.ShipDate
                     'cmd.Parameters.Add(":p_char_50", OracleDbType.Varchar2, 60).Value = SafeVarchar(r.Char50, 60)
                     cmd.Parameters.Add(":p_transport_method", OracleDbType.Varchar2, 3).Value = SafeVarchar(r.TransportMethod, 3)
@@ -2215,35 +2215,6 @@ Namespace OMS.Data
                 Return
             End If
 
-            'Const sql As String =
-            '            "INSERT INTO orders_stage (" &
-            '            "  order_id, customer_setting_id, customer_code, billing_to, customer_order_no, demand_status, ship_to, " &
-            '            "  order_date, due_date, ship_scheduled_date, customer_item_no, item_no, " &
-            '            "  demand_qty, demand_unit, currency_code, ship_stock_location, company_id, " &
-            '            "  product_code, billing_standard, ship_process_type, delivery_instr_flag, " &
-            '            "  order_no, remarks, delivery_code, total_ship_qty, ship_date, transport_method, " &
-            '            "  ship_plan_date, customer_order_line_no, " &
-            '            "  pre_daily_order_qty, pre_daily_delivery_date, imp_file_id, " &
-            '            "  order_type, prorated_type, customer_info_type, info_type, self_fcst_flag, self_fcst_delete_flag, " &
-            '            "  reconcile_type, imp_run_id, status, active_flag, " &
-            '            "  created_at, created_user_id, created_pg_id, " &
-            '            "  updated_at, updated_user_id, updated_pg_id" &
-            '            ") SELECT " &
-            '            "  order_id, customer_setting_id, customer_code, billing_to, customer_order_no, demand_status, ship_to, " &
-            '            "  order_date, due_date, ship_scheduled_date, customer_item_no, item_no, " &
-            '            "  demand_qty, demand_unit, currency_code, ship_stock_location, company_id, " &
-            '            "  product_code, billing_standard, ship_process_type, delivery_instr_flag, " &
-            '            "  order_no, remarks, delivery_code, total_ship_qty, ship_date, transport_method, " &
-            '            "  ship_plan_date, customer_order_line_no, " &
-            '            "  pre_daily_order_qty, pre_daily_delivery_date, imp_file_id, " &
-            '            "  order_type, prorated_type, customer_info_type, info_type, self_fcst_flag, self_fcst_delete_flag, " &
-            '            "  reconcile_type, imp_run_id, status, active_flag, " &
-            '            "  created_at, created_user_id, created_pg_id, " &
-            '            "  updated_at, updated_user_id, updated_pg_id " &
-            '            "  FROM orders " &
-            '            "  WHERE customer_setting_id = :p_customer_setting_id " &
-            '            "  AND order_type IN (1,2) " &
-            '            "  AND active_flag = 'Y' "
             Const sql As String =
                 "INSERT INTO orders_stage (" &
                 "  order_id, customer_setting_id, customer_code, billing_to, customer_order_no, demand_status, ship_to, " &
@@ -2257,7 +2228,11 @@ Namespace OMS.Data
                 "  reconcile_type, imp_run_id, status, active_flag, " &
                 "  created_at, created_user_id, created_pg_id, " &
                 "  updated_at, updated_user_id, updated_pg_id, " &
-                "  stra_order_qty, stra_ship_qty, stra_order_backlog " &
+                "  stra_order_qty, stra_ship_qty, stra_order_backlog, " &
+                "  delivery_time, container_capacity, initial_flag, " &
+                "  target_reference_date_type, target_reference_date, info_type_code, " &
+                "  order_time, sales_unit_price, usage_location, " &
+                "  production_category, container_no, order_reason,customer_lot_no " &
                 ") SELECT " &
                 "  o.order_id, o.customer_setting_id, o.customer_code, o.billing_to, o.customer_order_no, o.demand_status, o.ship_to, " &
                 "  o.order_date, o.due_date, o.ship_scheduled_date, o.customer_item_no, o.item_no, " &
@@ -2270,7 +2245,11 @@ Namespace OMS.Data
                 "  o.reconcile_type, o.imp_run_id, o.status, o.active_flag, " &
                 "  o.created_at, o.created_user_id, o.created_pg_id, " &
                 "  o.updated_at, o.updated_user_id, o.updated_pg_id, " &
-                "  o.stra_order_qty, o.stra_ship_qty, o.stra_order_backlog " &
+                "  o.stra_order_qty, o.stra_ship_qty, o.stra_order_backlog, " &
+                "  o.delivery_time, o.container_capacity, o.initial_flag, " &
+                "  o.target_reference_date_type, o.target_reference_date, o.info_type_code, " &
+                "  o.order_time, o.sales_unit_price, o.usage_location, " &
+                "  o.production_category, o.container_no, o.order_reason,o.customer_lot_no " &
                 "  FROM orders o " &
                 "  WHERE o.customer_setting_id = :p_customer_setting_id " &
                 "  AND o.order_type IN (1,2) " &

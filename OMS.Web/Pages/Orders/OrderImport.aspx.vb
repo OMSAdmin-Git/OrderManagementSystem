@@ -193,84 +193,6 @@ Namespace Pages.Orders
         ' 取込実行ボタン
         Protected Sub btnImportFile_Click(sender As Object, e As EventArgs)
 
-            ''LIST用
-            'Dim nKyakusakiHattyuNo As Integer = 0    '/// 客先発注No
-            'Dim nJutyuuBi As Integer = 0 '/// 受注日
-            'Dim nKibouNouki As Integer = 0    '/// 希望納期
-            'Dim nKyakusakiHinmokuNo As Integer = 0      '/// 客先品目No
-            'Dim njuyouSuu As Integer = 0   '/// 需要数
-            'Dim nTukaCode As Integer = 0  '/// 通貨コード
-            'Dim nSeihinCode As Integer = 0     '/// 製品コード
-            'Dim nNonyusakiCode As Integer = 0   '/// 納入先コード
-            'Dim nComment As Integer = 0   '/// コメント
-            'Dim nJutyuKubun As Integer = 0   '/// 受注区分
-            'Dim nBunkatuKubun As Integer = 0   '/// 分割区分
-            'Dim nTorihikisakiJohoKubun As Integer = 0   '/// 取引先情報区分
-            'Dim nJishaYosokuFlag As Integer = 0   '/// 自社予測フラグ
-            'Dim nJishaYosokuDelFlag As Integer = 0   '
-
-            ''MATRIX用
-            'Dim mKyakusakiHattyuNo As String = ""    '/// 客先発注No
-            'Dim mJutyuuBi As String = "" '/// 受注日
-            'Dim mKibouNouki As String = ""    '/// 希望納期
-            'Dim mKyakusakiHinmokuNo As String = ""      '/// 客先品目No
-            'Dim mjuyouSuu As String = ""   '/// 需要数
-            'Dim mTukaCode As String = ""  '/// 通貨コード
-            'Dim mSeihinCode As String = ""     '/// 製品コード
-            'Dim mNonyusakiCode As String = ""   '/// 納入先コード
-            'Dim mComment As String = ""   '/// コメント
-            'Dim mJutyuKubun As String = ""   '/// 受注区分
-            'Dim mBunkatuKubun As String = ""   '/// 分割区分
-            'Dim mTorihikisakiJohoKubun As String = ""  '/// 取引先情報区分
-            'Dim mJishaYosokuFlag As String = ""   '/// 自社予測フラグ
-            'Dim mJishaYosokuDelFlag As String = ""   '
-
-            'Dim strTempDate As String  '日付検証用
-            'Dim strQtyValue As String  '数値検証用
-
-            ''日付検証用
-            'Dim formats As String() = {
-            '                                    "yyyy/MM/dd", "yyyy-MM-dd", "yyyyMMdd",
-            '                                    "yy/MM/dd", "yy-MM-dd", "yyMMdd",
-            '                                    "yyyy/M/d", "yyyy-M-d",
-            '                                    "yyyy/MM/dd HH:mm:ss", "yyyy-MM-dd HH:mm:ss",
-            '                                    "yyyy/MM/dd H:mm:ss", "yyyy-MM-dd H:mm:ss"
-            '                                }
-
-            'Dim customerorderNo As String
-            'Dim orderDate As Date
-            'Dim dueDate As Date
-            'Dim customeritemNo As String
-            'Dim demandqty As Decimal?
-            'Dim demandunit As String
-            'Dim currencycode As String
-            'Dim productcode As String
-            'Dim remarks As String
-            'Dim deliverycode As String
-            'Dim predailyorderqty As Decimal?
-            'Dim predailydeliveryDate As Date
-            'Dim ordertype As Integer
-            'Dim proratedtype As Integer
-            'Dim customerinfotype As String
-            'Dim selffcstflag As String
-            'Dim selffcstdeleteflag As String
-            'Dim shipto As String
-            'Dim billingto As String
-            'Dim itemNo As String
-            'Dim demandstatus As String
-            'Dim shipprocesstype As String
-            'Dim deliveryinstrflag As String
-            'Dim totalshipqty As Decimal?
-            'Dim shipstocklocation As String
-            'Dim infotype As String
-            'Dim reconciletype As Integer
-
-            'Dim profitcenter As String
-            'Dim profitcenterCSM As String
-
-            'Dim errMsg As String
-
-
             ' DB接続の取得
             Dim csSetting = ConfigurationManager.ConnectionStrings("OMSConnection")
             If csSetting Is Nothing OrElse String.IsNullOrWhiteSpace(csSetting.ConnectionString) Then
@@ -709,7 +631,12 @@ Namespace Pages.Orders
                                 '    Continue For
                                 'End If
 
-                                If mapResult IsNot Nothing Then
+                                If mapResult IsNot Nothing AndAlso (spprocesstype = 0 OrElse
+                                                                    (spprocesstype = 1 AndAlso chkHandFlag.Checked = True) OrElse
+                                                                    (spprocesstype = 2 AndAlso chkHandFlag.Checked = True) OrElse
+                                                                    (spprocesstype = 3 AndAlso chkHandFlag.Checked = True)) Then
+
+                                    '特殊処理以外(通常の取込実行)　または　特殊処理でハンドフラグにチェックが入っている場合(特殊処理のASTI追加内示)
 
                                     '取込ファイルからデータを取得する処理
                                     OMS.Data.OrderStageImport.ParseImportFile(
@@ -731,10 +658,10 @@ Namespace Pages.Orders
                                                                 rowsForTemp2,
                                                                 mapResult)
 
-                                ElseIf mapResult Is Nothing And spprocesstype = 1 And folderType = 4 Then
+                                ElseIf mapResult Is Nothing AndAlso spprocesstype = 1 AndAlso folderType = 4 Then
                                     '特殊加工:スズキ フォルダ区分:混合
 
-                                ElseIf mapResult Is Nothing And spprocesstype = 2 And folderType = 4 Then
+                                ElseIf mapResult Is Nothing AndAlso spprocesstype = 2 AndAlso folderType = 4 Then
                                     '特殊加工:ヤマハ(IM以外) フォルダ区分:混合
 
                                     '取込ファイルからデータを取得する処理
@@ -756,7 +683,7 @@ Namespace Pages.Orders
                                                                 errors,
                                                                 rowsForTemp2)
 
-                                ElseIf mapResult Is Nothing And spprocesstype = 3 And folderType <> 4 Then
+                                ElseIf mapResult Is Nothing AndAlso spprocesstype = 3 AndAlso folderType <> 4 Then
                                     ' Yamaha robotex 内示/確定/ASTI内示取得
                                     OMS.Data.OrderStageImport.YamahaRobotexOrdersStageImport(tran,
                                                                                             customerSettingId,
@@ -774,7 +701,7 @@ Namespace Pages.Orders
                                                                                             pgId,
                                                                                             errors,
                                                                                             rowsForTemp2)
-                                Else
+                                ElseIf mapResult Is Nothing Then
 
                                     'errors.Add($"顧客設定ID:{customerSettingId} - {mapError}")
                                     errors.Add($"顧客設定ID:{customerSettingId}:MAPPINNG_PROFILE_MSTに未登録")
