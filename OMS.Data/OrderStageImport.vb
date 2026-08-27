@@ -331,6 +331,19 @@ Namespace OMS.Data
             Dim reconciletype As Integer
             Dim profitcenter As String
             Dim profitcenterCSM As String
+            '2026/08/24 追加
+            Dim ordertime As Integer?
+            Dim salesunitprice As Decimal?
+            Dim deliverytime As Integer?
+            Dim usagelocation As String
+            Dim productioncategory As String
+            Dim containerno As String
+            Dim containercapacity As String
+            Dim customerlotno As String
+            Dim initialflag As String
+            Dim orderreason As String
+            '--
+
             Dim errMsg As String
 
             Dim isTruncated As Boolean = False
@@ -513,7 +526,7 @@ Namespace OMS.Data
 
             End Using
 
-            'デバック用に取込したデータをワークテーブルに保存
+            'デバック用に取込したデータをワークテーブル(YAMAHA_IMP_ORDERS-)に保存
             SaveImportDataToWorkTable(tran, m_ImpData, impfilestageId, newId, UserId, pgId)
 
 
@@ -530,9 +543,9 @@ Namespace OMS.Data
             For IntDataCnt As Integer = 0 To UBound(m_ImpData)
 
                 ''テスト用に変数宣言
-                Dim seisankubun As String = ""      'JU0580(生産区分)
-                Dim syohinkubun As String = ""      'JU0920(初品区分)
-                Dim siyosaki As String = ""         'JU0240(使用先)
+                'Dim seisankubun As String = ""      'JU0580(生産区分)
+                'Dim syohinkubun As String = ""      'JU0920(初品区分)
+                'Dim siyosaki As String = ""         'JU0240(使用先)
 
                 '初期化
                 strTempDate = ""  '日付検証用
@@ -566,6 +579,18 @@ Namespace OMS.Data
                 reconciletype = 1
                 profitcenterCSM = ""
                 profitcenter = ""
+                '2026/08/24 追加
+                ordertime = Nothing
+                salesunitprice = Nothing
+                deliverytime = 0
+                usagelocation = Nothing
+                productioncategory = ""
+                containerno = ""
+                containercapacity = ""
+                customerlotno = ""
+                initialflag = ""
+                orderreason = Nothing
+                '--
 
                 errMsg = ""
 
@@ -606,6 +631,8 @@ Namespace OMS.Data
                 '取引先設定IDのPCと同じPCのみ取込対象とする
                 If String.IsNullOrEmpty(profitcenterCSM) OrElse String.IsNullOrEmpty(profitcenter) OrElse profitcenterCSM <> profitcenter Then
                     'PCが違う場合は取込しない、エラーメッセージなし、ファイル移動もなし
+                    'Debug用
+                    errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：取込対象PCではないため除外 (Debug用)")
                     fileidx += 1
                     Continue For
                 End If
@@ -679,6 +706,7 @@ Namespace OMS.Data
                 Dim parsedDate As Date
                 If DateTime.TryParseExact(strTempDate, "yyyyMMdd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, parsedDate) Then
                     ' 変換成功
+                    'dueDate = parsedDate
                     dueDate = parsedDate
                 Else
                     ' 変換に失敗した場合（空文字や不正な値など）のデフォルト値
@@ -775,11 +803,16 @@ Namespace OMS.Data
                 remarks = ""
 
                 '納入先コード
-                If m_ImpData(IntDataCnt).nonyuplat <> "" Then
-                    deliverycode = m_ImpData(IntDataCnt).nonyuplat
+                If m_ImpData(IntDataCnt).nonyuplat IsNot Nothing AndAlso m_ImpData(IntDataCnt).nonyuplat <> "" Then
+                    deliverycode = m_ImpData(IntDataCnt).nonyuplat      '納品プラットフォームをセット
                 Else
-                    deliverycode = m_ImpData(IntDataCnt).siyosha
+                    'deliverycode = m_ImpData(IntDataCnt).siyosha        '使用者をセット
+                    deliverycode = ""        '使用者は使用しない仕様 2026/08/25
                 End If
+                If m_ImpData(IntDataCnt).cardkubun = "2" Then
+                    deliverycode = m_ImpData(IntDataCnt).icdenpyoNo      'IC伝票Noをセット
+                End If
+
 
                 '出荷在庫場所 （任意）
                 'STRAMMIC.ITEMMより取得
@@ -794,15 +827,16 @@ Namespace OMS.Data
 
                 '取引先情報区分
                 customerinfotype = ""
-
-                '情報区分
-                'INFO_TYPE_MSTより取得
                 infotype = ""
-                errMsg = ""
-                If _oderStageRepo.GetInfoType(CustomerSettingId, customerinfotype, infotype, errMsg) = False Then
-                    'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
-                    'ErrFlg = True
-                End If
+
+                ''情報区分
+                ''INFO_TYPE_MSTより取得
+                'infotype = ""
+                'errMsg = ""
+                'If _oderStageRepo.GetInfoType(CustomerSettingId, customerinfotype, infotype, errMsg) = False Then
+                '    'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                '    'ErrFlg = True
+                'End If
 
                 '消込条件区分 ※順次/同月まで/同月内のみ
                 'IMP_RULE_MSTより取得
@@ -832,17 +866,36 @@ Namespace OMS.Data
                     'ErrFlg = True
                 End If
 
+                '2026/08/24 追加
+                '納入時間
+                If m_ImpData(IntDataCnt).nonyujikan IsNot Nothing AndAlso m_ImpData(IntDataCnt).nonyujikan <> "" Then
+                    deliverytime = m_ImpData(IntDataCnt).nonyujikan
+                Else
+                    deliverytime = Nothing
+                End If
+
                 '生産区分　初品区分
                 If m_ImpData(IntDataCnt).status = "2" Then
-                    seisankubun = "1"
-                    syohinkubun = "1"
+                    productioncategory = "1"        '生産区分
+                    initialflag = "1"               '初品区分
                 ElseIf m_ImpData(IntDataCnt).status = "3" Then
-                    seisankubun = "2"
-                    syohinkubun = "0"
+                    productioncategory = "2"        '生産区分
+                    initialflag = "0"               '初品区分
                 Else
-                    seisankubun = Nothing
-                    syohinkubun = "1"
+                    productioncategory = Nothing    '生産区分
+                    initialflag = "1"               '初品区分
                 End If
+
+                '容器番号
+                containerno = m_ImpData(IntDataCnt).yokibangou
+
+                '容器収容数
+                containercapacity = m_ImpData(IntDataCnt).yokisyuuyousuu
+
+                '得意先ロットNo
+                customerlotno = m_ImpData(IntDataCnt).nohinshoNo
+                '--
+
 
                 ''品目NoのPCを取得
                 ''STRAMMIC.USRDEFFLDF(FTABLEID='ITEMM')より取得
@@ -859,8 +912,6 @@ Namespace OMS.Data
                 '    Case Else
                 '        siyosaki = ""
                 'End Select
-
-
 
                 '-----------------
                 '桁チェック
@@ -1016,6 +1067,16 @@ Namespace OMS.Data
                             .ImpRunId = newId,
                             .Status = "IMPORTED",
                             .ActiveFlag = "Y",
+                            .ContainerCapacity = containercapacity,
+                            .InitialFlag = initialflag,
+                            .OrderTime = ordertime,
+                            .SalesUnitPrice = salesunitprice,
+                            .DeliveryTime = deliverytime,
+                            .UsageLocation = usagelocation,
+                            .ProductionCategory = productioncategory,
+                            .ContainerNo = containerno,
+                            .OrderReason = orderreason,
+                            .CustomerOrderLineNo = customerlotno,
                             .CreatedAt = Now,
                             .CreatedUserId = UserId,
                             .CreatedPgId = pgId,

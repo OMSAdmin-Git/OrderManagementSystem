@@ -1571,15 +1571,22 @@ Namespace OMS.Data
                 '客先品目Noにハイフォンをつける
                 pCustomerItemNo = FormatByCostmerItemNo(pCustomerItemNo, currentPattern)
 
+                'Dim sql As String =
+                '        " SELECT fprdcd,fcustitemno FROM prdslsodrm " &
+                '        " WHERE 1=1 " &
+                '        " AND fcustcd = :p_customer_code " &
+                '        " AND fcustitemno = :p_customer_item_no "
                 Dim sql As String =
                         " SELECT fprdcd,fcustitemno FROM prdslsodrm " &
                         " WHERE 1=1 " &
                         " AND fcustcd = :p_customer_code " &
-                        " AND fcustitemno = :p_customer_item_no "
+                        " AND TRIM(fcustitemno) = :p_customer_item_no "
 
                 'ステータスが2の場合は、試作品なので品目Noの末尾がSのレコードが対象
                 If Status IsNot Nothing AndAlso Status = "2" Then
-                    sql &= " AND fprdcd like '%S' "
+                    sql &= " AND fprdcd LIKE '%S' "
+                Else
+                    sql &= " AND fprdcd NOT LIKE '%S' "
                 End If
 
                 Using conn As New OracleConnection(_connectionString)
@@ -1611,7 +1618,10 @@ Namespace OMS.Data
                         ' 件数判定
                         If hitCount = 0 Then
                             '結果が0件
-                            errorMessage = "品目No及び製品コードが取得できません。"
+                            'errorMessage = "品目No及び製品コードが取得できません。"
+                            'Debug用
+                            errorMessage = "品目No及び製品コードが取得できません。" & "品目No:" & orgCustomerItemNo & " (Debug用)"
+
                             'Return False
                         ElseIf hitCount = 1 Then
                             '結果が1件
@@ -3654,6 +3664,38 @@ Namespace OMS.Data
             Dim insertedCount As Integer = 0
 
             ' 受注ワーク(orders_stage)から正規(orders)へデータを追加する
+            'Const sql As String =
+            '            "INSERT INTO orders (" &
+            '            "  customer_setting_id, customer_code, billing_to, customer_order_no, demand_status, ship_to, " &
+            '            "  order_date, due_date, customer_item_no, item_no, " &
+            '            "  demand_qty, demand_unit, currency_code, ship_stock_location, company_id, " &
+            '            "  product_code, billing_standard, ship_process_type, delivery_instr_flag, " &
+            '            "  remarks, delivery_code, total_ship_qty, transport_method, " &
+            '            "  customer_order_line_no, " &
+            '            "  pre_daily_order_qty, pre_daily_delivery_date, imp_file_id, " &
+            '            "  order_type, prorated_type, customer_info_type, info_type, self_fcst_flag, self_fcst_delete_flag, " &
+            '            "  reconcile_type, imp_run_id, status, active_flag, " &
+            '            "  created_at, created_user_id, created_pg_id, " &
+            '            "  updated_at, updated_user_id, updated_pg_id, " &
+            '            "  stra_order_qty, stra_ship_qty, stra_order_backlog " &
+            '            ") SELECT " &
+            '            "  customer_setting_id, customer_code, billing_to, customer_order_no, demand_status, ship_to, " &
+            '            "  order_date, due_date, customer_item_no, item_no, " &
+            '            "  demand_qty, demand_unit, currency_code, ship_stock_location, company_id, " &
+            '            "  product_code, billing_standard, ship_process_type, delivery_instr_flag, " &
+            '            "  remarks, delivery_code, total_ship_qty, transport_method, " &
+            '            "  customer_order_line_no, " &
+            '            "  pre_daily_order_qty, pre_daily_delivery_date, imp_file_stage_id, " &
+            '            "  order_type, prorated_type, customer_info_type, info_type, self_fcst_flag, self_fcst_delete_flag, " &
+            '            "  reconcile_type, imp_run_id, status, active_flag, " &
+            '            "  :p_updated_at, :p_user_id, :p_updated_pg_id, " &
+            '            "  :p_updated_at, :p_user_id, :p_updated_pg_id, " &
+            '            "  stra_order_qty, stra_ship_qty, stra_order_backlog " &
+            '            "  FROM orders_stage " &
+            '            "  WHERE customer_setting_id = :p_customer_setting_id " &
+            '            "  AND status = 'PROCESSED' " &
+            '            "  AND order_id IS NULL " &
+            '            "  AND active_flag = 'Y' "
             Const sql As String =
                         "INSERT INTO orders (" &
                         "  customer_setting_id, customer_code, billing_to, customer_order_no, demand_status, ship_to, " &
@@ -3667,7 +3709,10 @@ Namespace OMS.Data
                         "  reconcile_type, imp_run_id, status, active_flag, " &
                         "  created_at, created_user_id, created_pg_id, " &
                         "  updated_at, updated_user_id, updated_pg_id, " &
-                        "  stra_order_qty, stra_ship_qty, stra_order_backlog " &
+                        "  stra_order_qty, stra_ship_qty, stra_order_backlog, " &
+                        "  order_time, sales_unit_price, delivery_time, " &
+                        "  usage_location, production_category, container_no, " &
+                        "  container_capacity, customer_lot_no, initial_flag, order_reason" &
                         ") SELECT " &
                         "  customer_setting_id, customer_code, billing_to, customer_order_no, demand_status, ship_to, " &
                         "  order_date, due_date, customer_item_no, item_no, " &
@@ -3680,7 +3725,10 @@ Namespace OMS.Data
                         "  reconcile_type, imp_run_id, status, active_flag, " &
                         "  :p_updated_at, :p_user_id, :p_updated_pg_id, " &
                         "  :p_updated_at, :p_user_id, :p_updated_pg_id, " &
-                        "  stra_order_qty, stra_ship_qty, stra_order_backlog " &
+                        "  stra_order_qty, stra_ship_qty, stra_order_backlog, " &
+                        "  order_time, sales_unit_price, delivery_time, " &
+                        "  usage_location, production_category, container_no, " &
+                        "  container_capacity, customer_lot_no, initial_flag, order_reason" &
                         "  FROM orders_stage " &
                         "  WHERE customer_setting_id = :p_customer_setting_id " &
                         "  AND status = 'PROCESSED' " &
@@ -3723,6 +3771,40 @@ Namespace OMS.Data
                                             ByVal updatepgId As String)
 
             ' 受注履歴テーブル(orders_history)へ受注テーブル(orders)のデータを追加する
+            'Const sql As String =
+            '            "INSERT INTO orders_history (" &
+            '            "  order_id, customer_setting_id, customer_code, billing_to, customer_order_no, demand_status, ship_to, " &
+            '            "  order_date, due_date, ship_scheduled_date, customer_item_no, item_no, " &
+            '            "  demand_qty, demand_unit, currency_code, ship_stock_location, company_id, " &
+            '            "  product_code, billing_standard, ship_process_type, delivery_instr_flag, " &
+            '            "  order_no, remarks, delivery_code, total_ship_qty, ship_date, transport_method, " &
+            '            "  customer_order_line_no, " &
+            '            "  pre_daily_order_qty, pre_daily_delivery_date, imp_file_id, " &
+            '            "  order_type, prorated_type, customer_info_type, info_type, self_fcst_flag, self_fcst_delete_flag, " &
+            '            "  reconcile_type, imp_run_id, status, active_flag, " &
+            '            "  created_at, created_user_id, created_pg_id, " &
+            '            "  updated_at, updated_user_id, updated_pg_id, " &
+            '            "  stra_order_qty, stra_ship_qty, stra_order_backlog " &
+            '            ") SELECT " &
+            '            "  order_id, customer_setting_id, customer_code, billing_to, customer_order_no, demand_status, ship_to, " &
+            '            "  order_date, due_date, ship_scheduled_date, customer_item_no, item_no, " &
+            '            "  demand_qty, demand_unit, currency_code, ship_stock_location, company_id, " &
+            '            "  product_code, billing_standard, ship_process_type, delivery_instr_flag, " &
+            '            "  order_no, remarks, delivery_code, total_ship_qty, ship_date, transport_method, " &
+            '            "  customer_order_line_no, " &
+            '            "  pre_daily_order_qty, pre_daily_delivery_date, imp_file_id, " &
+            '            "  order_type, prorated_type, customer_info_type, info_type, self_fcst_flag, self_fcst_delete_flag, " &
+            '            "  reconcile_type, imp_run_id, status, active_flag, " &
+            '            "  created_at, created_user_id, created_pg_id, " &
+            '            "  updated_at, updated_user_id, updated_pg_id, " &
+            '            "  stra_order_qty, stra_ship_qty, stra_order_backlog " &
+            '            "  FROM orders " &
+            '            "  WHERE customer_setting_id = :p_customer_setting_id " &
+            '            "  AND status = 'PROCESSED' " &
+            '            "  AND active_flag = 'Y' " &
+            '            "  AND created_at = :p_updated_at " &
+            '            "  AND created_user_id = :p_user_id " &
+            '            "  AND created_pg_id = :p_updated_pg_id "
             Const sql As String =
                         "INSERT INTO orders_history (" &
                         "  order_id, customer_setting_id, customer_code, billing_to, customer_order_no, demand_status, ship_to, " &
@@ -3736,7 +3818,10 @@ Namespace OMS.Data
                         "  reconcile_type, imp_run_id, status, active_flag, " &
                         "  created_at, created_user_id, created_pg_id, " &
                         "  updated_at, updated_user_id, updated_pg_id, " &
-                        "  stra_order_qty, stra_ship_qty, stra_order_backlog " &
+                        "  stra_order_qty, stra_ship_qty, stra_order_backlog, " &
+                        "  order_time, sales_unit_price, delivery_time, " &
+                        "  usage_location, production_category, container_no, " &
+                        "  container_capacity, customer_lot_no, initial_flag, order_reason" &
                         ") SELECT " &
                         "  order_id, customer_setting_id, customer_code, billing_to, customer_order_no, demand_status, ship_to, " &
                         "  order_date, due_date, ship_scheduled_date, customer_item_no, item_no, " &
@@ -3749,7 +3834,10 @@ Namespace OMS.Data
                         "  reconcile_type, imp_run_id, status, active_flag, " &
                         "  created_at, created_user_id, created_pg_id, " &
                         "  updated_at, updated_user_id, updated_pg_id, " &
-                        "  stra_order_qty, stra_ship_qty, stra_order_backlog " &
+                        "  stra_order_qty, stra_ship_qty, stra_order_backlog, " &
+                        "  order_time, sales_unit_price, delivery_time, " &
+                        "  usage_location, production_category, container_no, " &
+                        "  container_capacity, customer_lot_no, initial_flag, order_reason" &
                         "  FROM orders " &
                         "  WHERE customer_setting_id = :p_customer_setting_id " &
                         "  AND status = 'PROCESSED' " &
