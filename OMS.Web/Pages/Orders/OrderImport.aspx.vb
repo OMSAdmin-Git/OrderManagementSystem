@@ -758,9 +758,22 @@ Namespace Pages.Orders
 
                                 ElseIf mapResult Is Nothing And spprocesstype = 3 And folderType <> 4 Then
                                     ' Yamaha robotex 内示/確定/ASTI内示取得
-
-                                    Dim reps = New OrderStageRepository(Utils.GetConnectionString())
-                                    Dim erm = reps.YamahaRobotexOrdersStageImport(conn, tran, TorikomiFile, UserId, impfilestageId, customerSettingId, folderType, ErrFlg, ErrFileFlg, errcnt, errors, rowsForTemp2)
+                                    OMS.Data.OrderStageImport.YamahaRobotexOrdersStageImport(tran,
+                                                                                            customerSettingId,
+                                                                                            customerCode,
+                                                                                            impfilestageId,
+                                                                                            spprocesstype,
+                                                                                            strWorkFile,
+                                                                                            TorikomiFile,
+                                                                                            ErrFlg,
+                                                                                            ErrFileFlg,
+                                                                                            errcnt,
+                                                                                            folderType,
+                                                                                            newId,
+                                                                                            UserId,
+                                                                                            pgId,
+                                                                                            errors,
+                                                                                            rowsForTemp2)
                                 Else
 
                                     'errors.Add($"顧客設定ID:{customerSettingId} - {mapError}")

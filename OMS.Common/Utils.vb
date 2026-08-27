@@ -809,44 +809,46 @@ Namespace OMS.Common
             ' CSVをDataTableに変換
             Dim dt = ConvertCsvToDataTable(filename)
 
-            ' 0. 新しいDataTableの構造（列）を作成 長期内示か判断するフラグを追加 (変換後データ)
-            ' 内示 および 確定 データを ASTI 追加内示形式の データ構成に並び替える
-            Dim newDt As New DataTable()
-            newDt.Columns.Add("顧客", GetType(String))
-            newDt.Columns.Add("客先発注No", GetType(String))
-            newDt.Columns.Add("受注日", GetType(String))            ' "20250701" 等の形式
-            newDt.Columns.Add("希望納期", GetType(String))          ' "20250701" 等の形式
-            newDt.Columns.Add("客先品目No", GetType(String))
-            newDt.Columns.Add("需要数", GetType(Integer))
-            newDt.Columns.Add("通貨コード", GetType(String))
-            newDt.Columns.Add("製品コード", GetType(String))
-            newDt.Columns.Add("納入先コード", GetType(String))
-            newDt.Columns.Add("分割区分", GetType(String))
-            newDt.Columns.Add("受注区分", GetType(String))
-            newDt.Columns.Add("コメント", GetType(String))
-            newDt.Columns.Add("情報区分", GetType(String))
-            newDt.Columns.Add("ASTI追加内示フラグ", GetType(String))
-            newDt.Columns.Add("ASTI追加内示削除フラグ", GetType(String))
+            '' 0. 新しいDataTableの構造（列）を作成 長期内示か判断するフラグを追加 (変換後データ)
+            '' 内示 および 確定 データを ASTI 追加内示形式の データ構成に並び替える
+            Dim astiN As New DataTable()
+            astiN.Columns.Add("取引先コード", GetType(String))
+            astiN.Columns.Add("客先発注No", GetType(String))
+            astiN.Columns.Add("受注日", GetType(String))            ' "20250701" 等の形式
+            astiN.Columns.Add("希望納期", GetType(String))          ' "20250701" 等の形式
+            astiN.Columns.Add("客先品目No", GetType(String))
+            astiN.Columns.Add("需要数", GetType(String))
+            astiN.Columns.Add("通貨コード", GetType(String))
+            astiN.Columns.Add("製品コード", GetType(String))
+            astiN.Columns.Add("納入先コード", GetType(String))
+            astiN.Columns.Add("分割区分", GetType(String))
+            astiN.Columns.Add("受注区分", GetType(String))
+            astiN.Columns.Add("コメント", GetType(String))
+            astiN.Columns.Add("情報区分", GetType(String))
+            astiN.Columns.Add("ASTI追加内示フラグ", GetType(String))
+            astiN.Columns.Add("ASTI追加内示削除フラグ", GetType(String))
 
-            Dim newRow As DataRow = newDt.NewRow()
-            newRow("取引先コード") = ""
-            newRow("客先発注No") = ""
-            newRow("受注日") = ""
-            newRow("希望納期") = ""
-            newRow("客先品目No") = ""
-            newRow("需要数") = ""
-            newRow("通貨コード") = ""
-            newRow("製品コード") = ""
-            newRow("納入先コード") = ""
-            newRow("分割区分") = ""
-            newRow("受注区分") = ""
-            newRow("コメント") = ""
-            newRow("情報区分") = ""
-            newRow("ASTI追加内示フラグ") = ""
-            newRow("ASTI追加内示削除フラグ") = ""
+            'Dim astiRowDt As DataRow = astiN.NewRow()
+            'newRow("取引先コード") = ""
+            'newRow("客先発注No") = ""
+            'newRow("受注日") = ""
+            'newRow("希望納期") = ""
+            'newRow("客先品目No") = ""
+            'newRow("需要数") = 0
+            'newRow("通貨コード") = ""
+            'newRow("製品コード") = ""
+            'newRow("納入先コード") = ""
+            'newRow("分割区分") = ""
+            'newRow("受注区分") = ""
+            'newRow("コメント") = ""
+            'newRow("情報区分") = ""
+            'newRow("ASTI追加内示フラグ") = ""
+            'newRow("ASTI追加内示削除フラグ") = ""
+            'Dim newDt As New DataTable()
 
             Select Case type
                 Case YamahaRobotexType.UnofficialNotice
+
                     ' 条件に合う行だけを抽出
                     Dim sourceDt = RemoveRowsWithoutThisTime(dt)
 
@@ -861,67 +863,101 @@ Namespace OMS.Common
                             dateHeaders.Add(col.ColumnName)
                         End If
                     Next
+                    ' 3. 新しいDataTableの構造（列）を作成
+                    Dim fileDt As New DataTable()
+                    fileDt.Columns.Add("部品番号", GetType(String))
+                    fileDt.Columns.Add("部品名称", GetType(String))
+                    fileDt.Columns.Add("日付", GetType(String))      ' "20250701" 等の形式
+                    fileDt.Columns.Add("需要数", GetType(String))
+                    fileDt.Columns.Add("長期内示", GetType(String))
 
                     ' 3. 元のデータが空の場合は、空の構造だけを返す
                     If sourceDt.Rows.Count = 0 Then
-                        Return newDt
+                        Return astiN
                     End If
 
                     ' 内示ファイルの場合の処理
                     ' 4. LINQの SelectMany を使って動的な年月列の数だけ行を展開
                     Dim newRows = sourceDt.AsEnumerable().SelectMany(
-                            Function(row)
-                                ' Select の引数に index を追加して、何番目の日付（数量）かを判定
-                                Return dateHeaders.Select(
-                                    Function(header, index)
+                    Function(row)
+                        ' Select の引数に index を追加して、何番目の日付（数量）かを判定
+                        Return dateHeaders.Select(
+                            Function(header, index)
+                                Dim newRow As DataRow = fileDt.NewRow()
+                                newRow("部品番号") = row("部品番号")
+                                newRow("部品名称") = row("部品名称")
 
-                                        newRow("部品番号") = row("部品番号")
-                                        newRow("部品名称") = row("部品名称")
+                                ' 取得したヘッダー名（可変）に "01" を付加
+                                newRow("日付") = header & "01"
 
-                                        ' 取得したヘッダー名（可変）に "01" を付加
-                                        newRow("希望納期") = header & "01"
+                                ' 需要数の安全な数値化
+                                Dim qty As String = 0
+                                If row(header) IsNot DBNull.Value Then
+                                    'Integer.TryParse(row(header).ToString(), qty)
+                                    qty = row(header).ToString()
+                                End If
+                                newRow("需要数") = qty
 
-                                        ' 需要数の安全な数値化
-                                        Dim qty As Integer = 0
-                                        If row(header) IsNot DBNull.Value Then
-                                            Integer.TryParse(row(header).ToString(), qty)
-                                        End If
-                                        newRow("需要数") = qty
+                                ' 数量の順番に応じて長期内示フラグを設定
+                                ' indexは0から始まるので、0〜3（1〜4番目）は "N"、4〜7（5番目以降）は "Y"
+                                If index < 4 Then
+                                    newRow("長期内示") = "N"
+                                Else
+                                    newRow("長期内示") = "Y"
+                                End If
 
-                                        ' 数量の順番に応じて長期内示フラグを設定
-                                        ' indexは0から始まるので、0〜3（1〜4番目）は "N"、4〜7（5番目以降）は "Y"
-                                        If index < 4 Then
-                                            newRow("ASTI追加内示フラグ") = "N"
-                                            newRow("ASTI追加内示削除フラグ") = "N"
-                                        Else
-                                            newRow("ASTI追加内示フラグ") = "Y"
-                                            newRow("ASTI追加内示削除フラグ") = "Y"
-                                        End If
-
-                                        Return newRow
-                                    End Function)
+                                Return newRow
                             End Function)
+                    End Function)
 
                     ' 5. 展開した行データを新しいDataTableに追加
+                    Dim cnt = newRows.Count
                     For Each row As DataRow In newRows
-                        newDt.Rows.Add(row)
+                        Dim astiRowDt As DataRow = astiN.NewRow()
+                        astiRowDt("客先品目No") = row("部品番号")
+                        astiRowDt("コメント") = row("部品名称")
+                        astiRowDt("需要数") = row("需要数")
+                        astiRowDt("希望納期") = row("日付")
+                        astiRowDt("ASTI追加内示フラグ") = "N"
+                        astiRowDt("ASTI追加内示削除フラグ") = "N"
+                        'astiRowDt("取引先コード") = "5977"
+                        astiN.Rows.Add(astiRowDt)
                     Next
+                    'Dim cnt2 = newDt.Rows.Count
 
                 Case YamahaRobotexType.Confirmed
+
                     ' 確定受注ファイルの場合の処理
                     Dim sourceDt = dt
 
+                    ' 3. 新しいDataTableの構造（列）を作成
+                    Dim fileDt As New DataTable()
+                    fileDt.Columns.Add("部品番号", GetType(String))
+                    fileDt.Columns.Add("部品名称", GetType(String))
+                    fileDt.Columns.Add("納入指示日", GetType(String))
+                    fileDt.Columns.Add("納入指示数", GetType(String))
+                    fileDt.Columns.Add("オーダーＮｏ", GetType(String))
+                    fileDt.Columns.Add("納入場所", GetType(String))
+                    fileDt.Columns.Add("支給先", GetType(String))
+                    fileDt.Columns.Add("カード発行日", GetType(String))
+                    fileDt.Columns.Add("発注理由", GetType(String))
+                    fileDt.Columns.Add("特注管理No", GetType(String))
+
                     Dim newRows = sourceDt.AsEnumerable().Select(
                     Function(row)
+                        Dim newRow As DataRow = fileDt.NewRow()
                         newRow("部品番号") = row("部品番号")
                         newRow("部品名称") = row("部品名称")
                         Dim dd As Date
                         Date.TryParse(row("納入指示日").ToString(), dd)
-                        newRow("希望納期") = dd.ToString("yyyyMMdd")
-                        Dim qty As Integer = 0
-                        Integer.TryParse(row("納入指示数").ToString(), qty)
-                        newRow("需要数") = qty
-                        newRow("部品番号") = row("オーダーＮｏ")
+                        newRow("納入指示日") = dd.ToString("yyyyMMdd")
+                        Dim qty As String = ""
+                        'Integer.TryParse(row("納入指示数").ToString(), qty)
+                        If row("納入指示数") IsNot DBNull.Value Then
+                            qty = row("納入指示数").ToString()
+                        End If
+                        newRow("納入指示数") = qty
+                        newRow("オーダーＮｏ") = row("オーダーＮｏ")
 
                         '5.納入場所
                         '6.支給先
@@ -931,19 +967,66 @@ Namespace OMS.Common
                         Return newRow
                     End Function)
                     ' 5. 展開した行データを新しいDataTableに追加
+                    Dim cnt = newRows.Count
                     For Each row As DataRow In newRows
-                        newDt.Rows.Add(row)
+                        Dim astiRowDt As DataRow = astiN.NewRow()
+                        astiRowDt("客先品目No") = row("部品番号")
+                        astiRowDt("コメント") = row("部品名称")
+                        astiRowDt("希望納期") = row("納入指示日")
+                        astiRowDt("需要数") = row("納入指示数")
+                        astiRowDt("客先発注No") = row("オーダーＮｏ")
+                        astiRowDt("ASTI追加内示フラグ") = "N"
+                        astiRowDt("ASTI追加内示削除フラグ") = "N"
+                        'Dim qty As String = ""
+                        'If row("需要数（需要単位ベース）") IsNot DBNull.Value Then
+                        '    qty = row("需要数（需要単位ベース）").ToString()
+                        'End If
+                        'astiRowDt("需要数") = qty
+
+                        'astiRowDt("取引先コード") = "5977"
+                        astiN.Rows.Add(astiRowDt)
                     Next
 
                 Case YamahaRobotexType.ASTIInternalNotification
+
+                    If dt.Columns.Contains("希望納期（納入予定日)") Then
+                        ' 2. 存在する場合、列名を変更
+                        dt.Columns("希望納期（納入予定日)").ColumnName = "希望納期"
+                    End If
+                    If dt.Columns.Contains("需要数（需要単位ベース）") Then
+                        ' 2. 存在する場合、列名を変更
+                        dt.Columns("需要数（需要単位ベース）").ColumnName = "需要数"
+                    End If
+
+                    '受注日、希望納期
+                    For Each row As DataRow In dt.Rows
+                        Dim result As DateTime
+                        Dim formats As String() = {"yyyy/MM/dd", "yyyyMMdd"}
+
+                        Dim ddate = row("受注日")
+                        If (Date.TryParseExact(ddate, formats, CultureInfo.InvariantCulture, DateTimeStyles.None, result)) Then
+                            row("受注日") = result.ToString("yyyyMMdd")
+                        Else
+                            row("受注日") = CDate("1900/01/01").ToString("yyyyMMdd")
+                        End If
+
+                        ddate = row("希望納期")
+                        If (Date.TryParseExact(ddate, formats, CultureInfo.InvariantCulture, DateTimeStyles.None, result)) Then
+                            row("希望納期") = result.ToString("yyyyMMdd")
+                        Else
+                            row("希望納期") = CDate("1900/01/01").ToString("yyyyMMdd")
+                        End If
+                    Next
+
                     ' ASTI追加内示ファイルの場合の処理 (File 読み込み DataTable(ASTI追加内示形式)をそのまま返す)
-                    newDt = dt
+                    astiN = dt
+
                 Case Else
-                    Throw New ArgumentException("不明なYamahaRobotexTypeです。", NameOf(type))
+                    Throw New ArgumentException("不明な YamahaRobotex File 形式 です。", NameOf(type))
             End Select
 
             ' 6. 変換後のDataTableを返す
-            Return newDt
+            Return astiN
         End Function
         ''' <summary>
         '''  Yamaha Robotex 内示受注データ有効な"今回"データ以外を削除する
