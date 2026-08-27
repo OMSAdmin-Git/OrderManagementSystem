@@ -230,7 +230,7 @@ Namespace Pages.Orders
                             ' ①	CUSTOMER_SETTING_ID = 処理中のCUSTOMER_SETTING_ID（取引先設定ID） 
                             ' ②	STATUS（ステータス） = 'DUE_SET'
                             ' ③	ACTIVE_FLAG（有効フラグ）= 'Y'
-                            Dim orders = repo.GetOrders(conn, tran, OrderRepository.OrdersTable.Orders, status:="DUE_SET", activeFlag:="Y", customerSettingId:=customerSettingId)
+                            Dim orders = repo.GetOrders(conn, tran, OrderRepository.OrdersTable.Orders, status:="DUE_SET", activeFlag:="Y", customerSettingId:=customerSettingId, additionalConditions:=$"And created_user_id = '{loginUserId}'")
                             Dim orderRows = repo.ToClass(orders)
                             errors.Add(reps.InsertRange(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, orderRows))
                             '#If DEBUG Then
@@ -414,7 +414,7 @@ Namespace Pages.Orders
                             ' 生産計画ワーク取得
                             ' Orders -> OrdersStage に追加した OrderRow 
                             ' 作業用に 追加した OrderStege レコードを取得
-                            Dim orderStageRowsOrg = reps.ToClass(reps.GetOrders(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, status:="DUE_SET", activeFlag:="Y", customerSettingId:=customerSettingId))
+                            Dim orderStageRowsOrg = reps.ToClass(reps.GetOrders(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, status:="DUE_SET", activeFlag:="Y", customerSettingId:=customerSettingId, additionalConditions:=$"And created_user_id = '{loginUserId}'"))
                             count += orderStageRowsOrg.Count
                             ' 生産計画条件マスタ 振り分け リスト取得 
                             ' CUSTOMER_SETTING_ID で抽出した Order を 下記の条件でグループ分けを行う
@@ -879,6 +879,7 @@ Namespace Pages.Orders
                                                     thisRecord = New OrdersStageRow(oldOrders(0))
                                                     thisRecord.ShipScheduledDate = ProcessingStartDate
                                                     thisRecord.DemandQty = 0
+                                                    thisRecord.StageId = Nothing
                                                     ordersStage.Add(thisRecord)
                                                     ' 分割期間よりも以前の場合 prod_plan_stage にレコードが無いため追加する
                                                     errors.Add(reps.Insert(conn, tran, OrderRepository.OrdersTable.ProductPlan, thisRecord))
@@ -913,14 +914,15 @@ Namespace Pages.Orders
                                                 'Prod_Plan_Stage 更新
                                                 'kOrderStageId:=tg.StageId, 追加したレコード検索できないので除く
                                                 errors.Add(reps.Update(conn, tran, OrderStageRepository.OrdersTable.ProductPlan,
-                                                                kOrderId:=tg.OrderId,
-                                                                kShipScheduledDate:=tg.ShipScheduledDate,
-                                                                demandQty:=tg.DemandQty,
-                                                                orderNo:=tg.OrderNo,
-                                                                shipPlanDate:=tg.ShipScheduledDate,
-                                                                updatedAt:=tg.UpdatedAt,
-                                                                updatedUserId:=tg.UpdatedUserId,
-                                                                updatedPgId:=tg.UpdatedPgId))
+                                                                        kOrderStageId:=tg.StageId,
+                                                                        kOrderId:=tg.OrderId,
+                                                                        kShipScheduledDate:=tg.ShipScheduledDate,
+                                                                        demandQty:=tg.DemandQty,
+                                                                        orderNo:=tg.OrderNo,
+                                                                        shipPlanDate:=tg.ShipScheduledDate,
+                                                                        updatedAt:=tg.UpdatedAt,
+                                                                        updatedUserId:=tg.UpdatedUserId,
+                                                                        updatedPgId:=tg.UpdatedPgId))
                                             Next
                                             '#If DEBUG Then
                                             '                                            ' #### DEBUG

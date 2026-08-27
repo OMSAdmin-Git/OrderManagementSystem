@@ -352,7 +352,7 @@ Namespace Pages.Orders
                 fileList.Add(trfilename)
 
                 ' 処理数を 集計する
-                Dim cnt = repo.ProdPlanCount(conn, tran, OrderRepository.OrdersTable.ProductPlan)
+                Dim cnt = repo.ProdPlanCount(conn, tran, OrderRepository.OrdersTable.ProductPlan, loginUserId)
                 unofficialNotice = cnt.unofficialNotice
                 confirmed = cnt.confirmed
 
@@ -424,6 +424,9 @@ Namespace Pages.Orders
 
                 ' UPDATE (生産計画ワーク)
 #If True Then
+                ' 最後の Ordere レコード更新用に取得しておく
+                Dim rowsu = reps.ToClass(reps.GetOrders(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, status:="POST_PLAN_DUE_SET", activeFlag:="Y"))
+
                 ' SQL の場合
                 errors.Add(reps.ProductionPlanWorkUpdate(conn, tran, ProcessingStartDate, loginUserId))
 #Else
@@ -445,8 +448,18 @@ Namespace Pages.Orders
 
                 ' UPDATE (生産計画)
 #If True Then
+                ' ImpRunID でまとめる
+                Dim uniqueRows = rowsu.
+                                GroupBy(Function(x) x.ImpRunId).
+                                Select(Function(g) g.First()).
+                                ToList()
+
+                For Each row In uniqueRows
+                    errors.Add(repo.Update(conn, tran, OrderRepository.OrdersTable.Orders, kImpRunId:=row.ImpRunId, kStatus:="DUE_SET", kActiveFlag:="Y", status:="EXPORTED", updatedAt:=row.UpdatedAt, updatedUserId:=row.UpdatedUserId, updatedPgId:=row.UpdatedPgId))
+                Next
+
                 ' SQL の場合
-                errors.Add(repo.ProductionPlanUpdate(conn, tran, ProcessingStartDate, loginUserId))
+                'errors.Add(repo.ProductionPlanUpdate(conn, tran, ProcessingStartDate, loginUserId))
 #Else
 
                 Dim rows = reps.GetOrders(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, status:="EXPORTED", activeFlag:="Y")

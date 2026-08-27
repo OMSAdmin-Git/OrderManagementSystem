@@ -641,9 +641,11 @@ Namespace OMS.Data
                                 Optional ByVal kOrderId As Long? = Nothing,
                                 Optional ByVal kCustomerSettingId As Integer? = Nothing,
                                 Optional ByVal kDemandQty As Long? = Nothing,
+                                Optional ByVal kImpRunId As Long? = Nothing,
                                 Optional ByVal kStatus As String = Nothing,
                                 Optional ByVal kActiveFlag As String = Nothing,
                                 Optional ByVal kShipScheduledDate As Date? = Nothing,
+                                Optional ByVal kUserId As String = Nothing,
                                 Optional ByVal orderId As Long? = Nothing,
                                 Optional ByVal customerSettingId As Integer? = Nothing,
                                 Optional ByVal demandQty As Long? = Nothing,
@@ -776,13 +778,18 @@ Namespace OMS.Data
                     prm.Add(New OracleParameter(":p_kDemandQty", OracleDbType.Int64) With {.Value = kDemandQty})
                 End If
 
+                If kImpRunId IsNot Nothing Then
+                    sb.AppendLine("AND imp_run_id = :p_kImpRunId ")
+                    prm.Add(New OracleParameter(":p_kImpRunId", OracleDbType.Int64) With {.Value = kImpRunId})
+                End If
+
                 If kStatus IsNot Nothing Then
                     sb.AppendLine("AND UPPER(status) = :p_kStatus ")
                     prm.Add(New OracleParameter(":p_kStatus", OracleDbType.Varchar2) With {.Value = kStatus})
                 End If
-                If kStatus IsNot Nothing Then
-                    sb.AppendLine("AND UPPER(activeFlag) = :p_kActiveFlag ")
-                    prm.Add(New OracleParameter(":p_kActiveFlag", OracleDbType.Varchar2) With {.Value = kActiveFlag})
+                If kUserId IsNot Nothing Then
+                    sb.AppendLine("AND UPPER(updated_user_Id) = :p_kUserId ")
+                    prm.Add(New OracleParameter(":p_kUserId", OracleDbType.Varchar2) With {.Value = kUserId})
                 End If
                 If kActiveFlag IsNot Nothing Then
                     sb.AppendLine("AND UPPER(active_Flag) = :p_kActiveFlag ")
@@ -807,7 +814,6 @@ Namespace OMS.Data
             Return errorMessage
 
         End Function
-
 
         ''' <summary>
         ''' 納期設定
@@ -1329,15 +1335,15 @@ Namespace OMS.Data
         ''' <param name="tran"></param>
         ''' <param name="type"></param>
         ''' <returns></returns>
-        Public Function ProdPlanCount(conn As OracleConnection, tran As OracleTransaction, type As OrdersTable) As (unofficialNotice As Integer, confirmed As Integer)
+        Public Function ProdPlanCount(conn As OracleConnection, tran As OracleTransaction, type As OrdersTable, userid As String) As (unofficialNotice As Integer, confirmed As Integer)
 
             Dim dt As New DataTable()
             Dim uc = 0
             Dim cc = 0
             ' 受注ファイル出力時 Prd_Plan で 内示処理と 確定処理を 行ったレコード数を 返す SQL
-            Dim sql = "SELECT 
-                         COUNT(CASE WHEN active_flag = 'Y' AND status = 'POST_PLAN_DUE_SET' AND demand_status = 'F' THEN 1 ELSE NULL END) AS UnofficialNotice,
-                         COUNT(CASE WHEN active_flag = 'Y' AND status = 'POST_PLAN_DUE_SET' AND demand_status = 'O' THEN 1 ELSE NULL END) AS Confirmed
+            Dim sql = $"SELECT 
+                         COUNT(CASE WHEN active_flag = 'Y' AND status = 'POST_PLAN_DUE_SET' AND demand_status = 'F' AND updated_user_id = '{userid}' THEN 1 ELSE NULL END) AS UnofficialNotice,
+                         COUNT(CASE WHEN active_flag = 'Y' AND status = 'POST_PLAN_DUE_SET' AND demand_status = 'O' AND updated_user_id = '{userid}' THEN 1 ELSE NULL END) AS Confirmed
                         FROM 
                          prod_plan "
             Try
@@ -1611,23 +1617,56 @@ Namespace OMS.Data
             Dim sb As New StringBuilder()
             Dim errors = ""
 
+            'sb.AppendLine("MERGE INTO ORDERS target ")
+            'sb.AppendLine("USING ( ")
+            'sb.AppendLine("    SELECT DISTINCT ")           ' prod_plan_stage の CUSTOMER_ORDER_NO を単項目に
+            'sb.AppendLine("        CUSTOMER_ORDER_NO ")
+            'sb.AppendLine("    FROM ")
+            'sb.AppendLine("        PROD_PLAN_STAGE ")
+            'sb.AppendLine("    WHERE ")
+            'sb.AppendLine("        STATUS = 'EXPORTED' ")
+            'sb.AppendLine("        AND ACTIVE_FLAG = 'Y' ")
+            'sb.AppendLine(") source ")
+            'sb.AppendLine("ON (target.CUSTOMER_ORDER_NO = source.CUSTOMER_ORDER_NO) ")
+            'sb.AppendLine("WHEN MATCHED THEN ")
+            'sb.AppendLine("UPDATE SET ")
+            'sb.AppendLine("    target.STATUS = 'EXPORTED', ")
+            'sb.AppendLine("    target.UPDATED_AT = :p_date, ")
+            'sb.AppendLine("    target.UPDATED_USER_ID = :p_user_id, ")
+            'sb.AppendLine("    target.UPDATED_PG_ID = 'OrderExport'")
             sb.AppendLine("MERGE INTO ORDERS target ")
             sb.AppendLine("USING ( ")
-            sb.AppendLine("    SELECT DISTINCT ")           ' prod_plan_stage の CUSTOMER_ORDER_NO を単項目に
-            sb.AppendLine("        CUSTOMER_ORDER_NO ")
+            sb.AppendLine("    SELECT DISTINCT ")
+            sb.AppendLine("        CUSTOMER_ORDER_NO, ")
+            sb.AppendLine("        CUSTOMER_ITEM_NO, ")
+            sb.AppendLine("        SHIP_SCHEDULED_DATE, ")
+            sb.AppendLine("        ITEM_NO, ")
+            sb.AppendLine("        ORDER_DATE ")
             sb.AppendLine("    FROM ")
             sb.AppendLine("        PROD_PLAN_STAGE ")
             sb.AppendLine("    WHERE ")
             sb.AppendLine("        STATUS = 'EXPORTED' ")
             sb.AppendLine("        AND ACTIVE_FLAG = 'Y' ")
             sb.AppendLine(") source ")
-            sb.AppendLine("ON (target.CUSTOMER_ORDER_NO = source.CUSTOMER_ORDER_NO) ")
+            sb.AppendLine("ON ( ")
+            sb.AppendLine("    (source.CUSTOMER_ORDER_NO IS NOT NULL AND target.CUSTOMER_ORDER_NO = source.CUSTOMER_ORDER_NO) ")
+            sb.AppendLine("    OR ")
+            sb.AppendLine("    (source.CUSTOMER_ORDER_NO IS NULL ")
+            sb.AppendLine("     AND target.CUSTOMER_ITEM_NO = source.CUSTOMER_ITEM_NO ")
+            sb.AppendLine("     AND target.PRE_DAILY_ORDER_QTY = source.PRE_DAILY_ORDER_QTY ")
+            sb.AppendLine("     AND target.PRE_DAILY_DELIVERY_DATE = source.PRE_DAILY_DELIVERY_DATE ")
+            'sb.AppendLine("     AND target.SHIP_SCHEDULED_DATE = source.SHIP_SCHEDULED_DATE ")
+            sb.AppendLine("     AND target.IMP_FILE_ID = source.IMP_FILE_ID ")
+            sb.AppendLine("     AND target.ITEM_NO = source.ITEM_NO ")
+            sb.AppendLine("     AND target.ORDER_DATE = source.ORDER_DATE) ")
+            sb.AppendLine(") ")
             sb.AppendLine("WHEN MATCHED THEN ")
             sb.AppendLine("UPDATE SET ")
             sb.AppendLine("    target.STATUS = 'EXPORTED', ")
             sb.AppendLine("    target.UPDATED_AT = :p_date, ")
             sb.AppendLine("    target.UPDATED_USER_ID = :p_user_id, ")
             sb.AppendLine("    target.UPDATED_PG_ID = 'OrderExport'")
+
 
             Try
                 'Using conn As New OracleConnection(_connectionString)
