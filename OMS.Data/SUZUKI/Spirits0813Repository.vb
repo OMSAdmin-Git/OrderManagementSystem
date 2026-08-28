@@ -1,4 +1,4 @@
-Imports System.Data
+﻿Imports System.Data
 Imports System.Text
 Imports OMS.Common
 Imports Oracle.ManagedDataAccess.Client
