@@ -1,4 +1,4 @@
-﻿'------------------------------------------------------------------------------
+'------------------------------------------------------------------------------
 ' <自動生成>
 '     このコードはツールによって生成されました。
 '
@@ -166,5 +166,23 @@ Namespace Pages.Orders
         '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
         '''</remarks>
         Protected WithEvents lblError As Global.System.Web.UI.WebControls.Label
+
+        '''<summary>
+        '''errorModalOverlay コントロール。
+        '''</summary>
+        '''<remarks>
+        '''自動生成されたフィールド。
+        '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
+        '''</remarks>
+        Protected WithEvents errorModalOverlay As Global.System.Web.UI.HtmlControls.HtmlGenericControl
+
+        '''<summary>
+        '''gvErrorList コントロール。
+        '''</summary>
+        '''<remarks>
+        '''自動生成されたフィールド。
+        '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
+        '''</remarks>
+        Protected WithEvents gvErrorList As Global.System.Web.UI.WebControls.GridView
     End Class
 End Namespace

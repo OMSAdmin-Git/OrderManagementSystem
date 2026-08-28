@@ -1,4 +1,4 @@
-﻿Imports System.Data
+Imports System.Data
 Imports System.Text
 Imports OMS.Common
 Imports Oracle.ManagedDataAccess.Client
@@ -55,7 +55,7 @@ Namespace OMS.Data.SUZUKI
             Try
                 Dim sb As New StringBuilder()
                 sb.AppendLine($"INSERT INTO SUZUKI_SPIRITS_0813 (")
-                sb.AppendLine("  info_type_id, info_type_code, doc_title_type, payment_method_word_type, client_code, ")
+                sb.AppendLine("  info_type_code, doc_title_type, payment_method_word_type, client_code, ")
                 sb.AppendLine("  reserve1, publication_date, publication_time, target_reference_date_type, target_reference_date, ")
                 sb.AppendLine("  customer_item_no, item_no, customer_item_no_process_no, customer_item_name, critical_safety_parts_code, ")
                 sb.AppendLine("  packaging_code, capacity, supplier_code, supplier_factory_code, supplier_shipping_location, ")
@@ -69,7 +69,7 @@ Namespace OMS.Data.SUZUKI
                 sb.AppendLine("  updated_user_id, updated_pg_id ")
 
                 sb.AppendLine(") VALUES (")
-                sb.AppendLine(" :p_info_type_id, :p_info_type_code, :p_doc_title_type, :p_payment_method_word_type, :p_client_code, ")
+                sb.AppendLine(" :p_info_type_code, :p_doc_title_type, :p_payment_method_word_type, :p_client_code, ")
                 sb.AppendLine(" :p_reserve1, :p_publication_date, :p_publication_time, :p_target_reference_date_type, :p_target_reference_date, ")
                 sb.AppendLine(" :p_customer_item_no, :p_item_no, :p_customer_item_no_process_no, :p_customer_item_name, :p_critical_safety_parts_code, ")
                 sb.AppendLine(" :p_packaging_code, :p_capacity, :p_supplier_code, :p_supplier_factory_code, :p_supplier_shipping_location, ")
@@ -91,23 +91,22 @@ Namespace OMS.Data.SUZUKI
 
                     For Each r In records
                         cmd.Parameters.Clear()
-                        cmd.Parameters.Add(":p_info_type_id", OracleDbType.Int64).Value = r.InfoTypeId
                         cmd.Parameters.Add(":p_info_type_code", OracleDbType.Varchar2, 4).Value = SafeVarchar(r.InfoTypeCode, 4)
                         cmd.Parameters.Add(":p_doc_title_type", OracleDbType.Varchar2, 2).Value = SafeVarchar(r.DocTitleType, 2)
                         cmd.Parameters.Add(":p_payment_method_word_type", OracleDbType.Varchar2, 2).Value = SafeVarchar(r.PaymentMethodWordType, 2)
                         cmd.Parameters.Add(":p_client_code", OracleDbType.Varchar2, 12).Value = SafeVarchar(r.ClientCode, 12)
                         cmd.Parameters.Add(":p_reserve1", OracleDbType.Varchar2, 16).Value = SafeVarchar(r.Reserve1, 16)
-                        cmd.Parameters.Add(":p_publication_date", OracleDbType.Date).Value = r.PublicationDate
-                        cmd.Parameters.Add(":p_publication_time", OracleDbType.Int16).Value = r.DeliveryTime
+                        cmd.Parameters.Add(":p_publication_date", OracleDbType.Date).Value = Utils.SafeNullable(r.PublicationDate)
+                        cmd.Parameters.Add(":p_publication_time", OracleDbType.Int16).Value = Utils.SafeNullable(r.PublicationTime)
                         cmd.Parameters.Add(":p_target_reference_date_type", OracleDbType.Varchar2, 1).Value = SafeVarchar(r.TargetReferenceDateType, 1)
-                        cmd.Parameters.Add(":p_target_reference_date", OracleDbType.Date).Value = r.TargetReferenceDate
+                        cmd.Parameters.Add(":p_target_reference_date", OracleDbType.Varchar2, 8).Value = SafeVarchar(r.TargetReferenceDate, 8)
                         cmd.Parameters.Add(":p_customer_item_no", OracleDbType.Varchar2, 15).Value = SafeVarchar(r.CustomerItemNo, 15)
                         cmd.Parameters.Add(":p_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.ItemNo, 45)
                         cmd.Parameters.Add(":p_customer_item_no_process_no", OracleDbType.Varchar2, 2).Value = SafeVarchar(r.CustomerItemNoProcessNo, 2)
                         cmd.Parameters.Add(":p_customer_item_name", OracleDbType.Varchar2, 12).Value = SafeVarchar(r.CustomerItemName, 12)
                         cmd.Parameters.Add(":p_critical_safety_parts_code", OracleDbType.Varchar2, 1).Value = SafeVarchar(r.CriticalSafetyPartsCode, 1)
                         cmd.Parameters.Add(":p_packaging_code", OracleDbType.Varchar2, 5).Value = SafeVarchar(r.PackagingCode, 5)
-                        cmd.Parameters.Add(":p_capacity", OracleDbType.Int16).Value = r.Capacity
+                        cmd.Parameters.Add(":p_capacity", OracleDbType.Int16).Value = Utils.SafeNullable(r.Capacity)
                         cmd.Parameters.Add(":p_supplier_code", OracleDbType.Varchar2, 12).Value = SafeVarchar(r.SupplierCode, 12)
                         cmd.Parameters.Add(":p_supplier_factory_code", OracleDbType.Varchar2, 3).Value = SafeVarchar(r.SupplierFactoryCode, 3)
                         cmd.Parameters.Add(":p_supplier_shipping_location", OracleDbType.Varchar2, 8).Value = SafeVarchar(r.SupplierShippingLocation, 8)
@@ -135,17 +134,17 @@ Namespace OMS.Data.SUZUKI
                         cmd.Parameters.Add(":p_order_data_type", OracleDbType.Varchar2, 1).Value = SafeVarchar(r.DeliveryDateType, 1)
                         cmd.Parameters.Add(":p_delivery_date_type", OracleDbType.Varchar2, 1).Value = SafeVarchar(r.DeliveryDateType, 1)
                         cmd.Parameters.Add(":p_order_qty_type", OracleDbType.Varchar2, 1).Value = SafeVarchar(r.OrderQtyType, 1)
-                        cmd.Parameters.Add(":p_delivery_date", OracleDbType.Date).Value = r.DeliveryDate
+                        cmd.Parameters.Add(":p_delivery_date", OracleDbType.Date).Value = Utils.SafeNullable(r.DeliveryDate)
                         cmd.Parameters.Add(":p_delivery_time", OracleDbType.Varchar2, 4).Value = SafeVarchar(r.DeliveryTime, 4)
-                        cmd.Parameters.Add(":p_order_qty", OracleDbType.Int64).Value = r.OrderQty
-                        cmd.Parameters.Add(":p_imp_file_id", OracleDbType.Int64).Value = r.ImpFileId
-                        cmd.Parameters.Add(":p_imp_run_id", OracleDbType.Int64).Value = r.ImpRunId
+                        cmd.Parameters.Add(":p_order_qty", OracleDbType.Int64).Value = Utils.SafeNullable(r.OrderQty)
+                        cmd.Parameters.Add(":p_imp_file_id", OracleDbType.Int64).Value = Utils.SafeNullable(r.ImpFileId)
+                        cmd.Parameters.Add(":p_imp_run_id", OracleDbType.Int64).Value = Utils.SafeNullable(r.ImpRunId)
                         cmd.Parameters.Add(":p_status", OracleDbType.Char, 20).Value = SafeVarchar(r.Status, 20)
                         cmd.Parameters.Add(":p_active_flag", OracleDbType.Char, 1).Value = SafeVarchar(r.ActiveFlag, 1)
-                        cmd.Parameters.Add(":p_created_at", OracleDbType.Date).Value = r.CreatedAt
+                        cmd.Parameters.Add(":p_created_at", OracleDbType.Date).Value = Utils.SafeNullable(r.CreatedAt)
                         cmd.Parameters.Add(":p_created_user_id", OracleDbType.Varchar2, 9).Value = SafeVarchar(r.CreatedUserId, 9)
                         cmd.Parameters.Add(":p_created_pg_id", OracleDbType.Varchar2, 150).Value = SafeVarchar(r.CreatedPgId, 150)
-                        cmd.Parameters.Add(":p_updated_at", OracleDbType.Date).Value = r.UpdatedAt
+                        cmd.Parameters.Add(":p_updated_at", OracleDbType.Date).Value = Utils.SafeNullable(r.UpdatedAt)
                         cmd.Parameters.Add(":p_updated_user_id", OracleDbType.Varchar2, 9).Value = SafeVarchar(r.UpdatedUserId, 9)
                         cmd.Parameters.Add(":p_updated_pg_id", OracleDbType.Varchar2, 150).Value = SafeVarchar(r.UpdatedPgId, 150)
 
@@ -171,7 +170,7 @@ Namespace OMS.Data.SUZUKI
         Public Property ClientCode As String                            ' 発注者コード			VARCHAR2	12 CHAR
         Public Property Reserve1 As String                              ' 予備1					VARCHAR2	16 CHAR
         Public Property PublicationDate As Date?                        ' 発行日				DATE		
-        Public Property PublicationTime As String                       ' 発行時刻				NUMBER		4,0
+        Public Property PublicationTime As Integer?                     ' 発行時刻				NUMBER		4,0
         Public Property TargetReferenceDateType As String               ' 対象基準日区分		VARCHAR2	1 CHAR
         Public Property TargetReferenceDate As String                   ' 対象基準日			VARCHAR2	8 CHAR
         Public Property CustomerItemNo As String                        ' 部品番号				VARCHAR2	15 CHAR
