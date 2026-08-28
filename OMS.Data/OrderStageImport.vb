@@ -371,6 +371,17 @@ Namespace OMS.Data
                 Return False
             End If
 
+
+            '取引先設定IDのPC   （必須）
+            'CUSTOMER_SETTING_MSTより取得
+            profitcenterCSM = ""
+            errMsg = ""
+            If _oderStageRepo.GetProfitCenterFromCSM(CustomerSettingId, profitcenterCSM, errMsg) = False Then
+                'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：{errMsg}")
+                'ErrFlg = True
+            End If
+
+
             Using StmRdr As New IO.StreamReader(strWorkFile, MapEncoding("UTF8"))
 
                 'ヤマハ取込データ保存配列　初期化
@@ -522,6 +533,8 @@ Namespace OMS.Data
 
                         End If
 
+                        'End If
+
                     End If
 
                 End While
@@ -529,10 +542,8 @@ Namespace OMS.Data
             End Using
 
             'デバック用に取込したデータをワークテーブル(YAMAHA_IMP_ORDERS-)に保存
-            SaveImportDataToWorkTable(tran, m_ImpData, impfilestageId, newId, UserId, pgId)
-
-
-
+            'SaveImportDataToWorkTable(tran, m_ImpData, impfilestageId, newId, UserId, pgId)
+            SaveImportDataToWorkTable2(tran, m_ImpData, impfilestageId, newId, UserId, pgId)
 
             '-----------------
             '取込データを加工
@@ -541,13 +552,7 @@ Namespace OMS.Data
             fileidx = 1
 
 
-
             For IntDataCnt As Integer = 0 To UBound(m_ImpData)
-
-                ''テスト用に変数宣言
-                'Dim seisankubun As String = ""      'JU0580(生産区分)
-                'Dim syohinkubun As String = ""      'JU0920(初品区分)
-                'Dim siyosaki As String = ""         'JU0240(使用先)
 
                 '初期化
                 strTempDate = ""  '日付検証用
@@ -579,7 +584,7 @@ Namespace OMS.Data
                 shipstocklocation = ""
                 infotype = ""
                 reconciletype = 1
-                profitcenterCSM = ""
+                'profitcenterCSM = ""
                 profitcenter = ""
                 '2026/08/24 追加
                 ordertime = Nothing
@@ -598,16 +603,14 @@ Namespace OMS.Data
 
                 ErrFlg = False
 
-
-
-                '取引先設定IDのPC   （必須）
-                'CUSTOMER_SETTING_MSTより取得
-                profitcenterCSM = ""
-                errMsg = ""
-                If _oderStageRepo.GetProfitCenterFromCSM(CustomerSettingId, profitcenterCSM, errMsg) = False Then
-                    'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：{errMsg}")
-                    'ErrFlg = True
-                End If
+                ''取引先設定IDのPC   （必須）
+                ''CUSTOMER_SETTING_MSTより取得
+                'profitcenterCSM = ""
+                'errMsg = ""
+                'If _oderStageRepo.GetProfitCenterFromCSM(CustomerSettingId, profitcenterCSM, errMsg) = False Then
+                '    'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：{errMsg}")
+                '    'ErrFlg = True
+                'End If
 
                 '客先品目No　品目No検索 (客先品目Noにハイフォンをつけて検索)
                 'STRAMMIC.PRDSLSODRMより取得
@@ -634,7 +637,7 @@ Namespace OMS.Data
                 If String.IsNullOrEmpty(profitcenterCSM) OrElse String.IsNullOrEmpty(profitcenter) OrElse profitcenterCSM <> profitcenter Then
                     'PCが違う場合は取込しない、エラーメッセージなし、ファイル移動もなし
                     'Debug用
-                    errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：取込対象PCではないため除外 (Debug用)")
+                    'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：取込対象PCではないため除外 (Debug用)")
                     fileidx += 1
                     Continue For
                 End If
@@ -779,15 +782,15 @@ Namespace OMS.Data
                 End If
 
 
-                '客先品目No　品目No検索 (客先品目Noにハイフォンをつけて検索)
-                'STRAMMIC.PRDSLSODRMより取得
-                customeritemNo = m_ImpData(IntDataCnt).customeritemNo
-                itemNo = ""
-                errMsg = ""
-                If _oderStageRepo.GetProductCode2(customerCode, customeritemNo, m_ImpData(IntDataCnt).status, itemNo, errMsg) = False Then
-                    errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：{errMsg}")
-                    ErrFlg = True
-                End If
+                ''客先品目No　品目No検索 (客先品目Noにハイフォンをつけて検索)
+                ''STRAMMIC.PRDSLSODRMより取得
+                'customeritemNo = m_ImpData(IntDataCnt).customeritemNo
+                'itemNo = ""
+                'errMsg = ""
+                'If _oderStageRepo.GetProductCode2(customerCode, customeritemNo, m_ImpData(IntDataCnt).status, itemNo, errMsg) = False Then
+                '    errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：{errMsg}")
+                '    ErrFlg = True
+                'End If
 
                 '製品コード
                 productcode = itemNo
@@ -3851,6 +3854,175 @@ Namespace OMS.Data
 
                     cmd.ExecuteNonQuery()
                 Next
+            End Using
+        End Sub
+
+        ''' <summary>
+        ''' 配列に格納された取込データをワークテーブルに一括保存します。
+        ''' </summary>
+        Private Shared Sub SaveImportDataToWorkTable2(
+            ByVal tran As OracleTransaction,
+            ByVal impDataList() As ImportDataType,
+            ByVal impFileStageId As Long,
+            ByVal newId As Integer,
+            ByVal UserId As String,
+            ByVal pgId As String)
+
+            ' 配列が空、またはデータが1件もない場合は処理を抜ける
+            If impDataList Is Nothing OrElse impDataList.Length = 0 Then Return
+            ' 配列が初期化（0）のままで、かつ有効なデータが1件もセットされていなければスキップ
+            If impDataList.Length = 1 AndAlso String.IsNullOrEmpty(impDataList(0).customeritemNo) Then Return
+
+            Dim dataCount As Integer = impDataList.Length
+            Dim nowTime As DateTime = DateTime.Now
+
+
+            ' -------------------------------------------------------------------------
+            ' 配列バインド用のデータ格納領域を準備
+            ' -------------------------------------------------------------------------
+            Dim arrNowTime(dataCount - 1) As DateTime
+            Dim arrCustomerCode(dataCount - 1) As String
+            Dim arrPublicationDate(dataCount - 1) As DateTime
+            Dim arrPublicationTime(dataCount - 1) As Object
+            Dim arrCustomerItemNo(dataCount - 1) As String
+
+            Dim arrImpFileStageId(dataCount - 1) As Long
+            Dim arrHinmokuGyoNo(dataCount - 1) As Object
+            Dim arrOrderGyoNo(dataCount - 1) As Object
+            Dim arrSiyosha(dataCount - 1) As String
+            Dim arrStatus(dataCount - 1) As String
+            Dim arrNonyuplat(dataCount - 1) As String
+            Dim arrYokisyuuyousuu(dataCount - 1) As Object
+            Dim arrYokibangou(dataCount - 1) As String
+            Dim arrOrdersikibetuNo(dataCount - 1) As String
+            Dim arrNonyusijibi(dataCount - 1) As String
+            Dim arrNonyujikan(dataCount - 1) As String
+            Dim arrNonyusijisu(dataCount - 1) As Object
+            Dim arrCardkubun(dataCount - 1) As String
+            Dim arrNaijikubun(dataCount - 1) As String
+            Dim arrIcdenpyoNo(dataCount - 1) As String
+            Dim arrNohinshoNo(dataCount - 1) As String
+
+            Dim arrImpRunId(dataCount - 1) As Integer
+            Dim arrActiveFlag(dataCount - 1) As String
+            Dim arrCreatedUserId(dataCount - 1) As String
+            Dim arrCreatedPgId(dataCount - 1) As String
+
+            ' NETのデータをOracleバインド用の配列に詰め替える
+            For i As Integer = 0 To dataCount - 1
+                Dim pubDate As DateTime = Date.ParseExact(impDataList(i).hakkobi, "yyyyMMdd", Nothing)
+                Dim custCode As String = SafeVarchar(impDataList(i).customercode, 25)
+
+                ' 共通パラメータ
+                arrNowTime(i) = nowTime
+                arrCustomerCode(i) = custCode
+                arrPublicationDate(i) = pubDate
+                arrPublicationTime(i) = impDataList(i).hakkojikan
+                arrCustomerItemNo(i) = impDataList(i).customeritemNo
+
+                ' INSERT専用パラメータ
+                arrImpFileStageId(i) = impFileStageId
+                arrHinmokuGyoNo(i) = impDataList(i).hinmokugyoNo
+                arrOrderGyoNo(i) = impDataList(i).ordergyoNo
+                arrSiyosha(i) = impDataList(i).siyosha
+                arrStatus(i) = impDataList(i).status
+                arrNonyuplat(i) = impDataList(i).nonyuplat
+                arrYokisyuuyousuu(i) = If(String.IsNullOrEmpty(impDataList(i).yokisyuuyousuu), DBNull.Value, Convert.ToInt32(impDataList(i).yokisyuuyousuu))
+                arrYokibangou(i) = impDataList(i).yokibangou
+                arrOrdersikibetuNo(i) = impDataList(i).ordersikibetuNo
+                arrNonyusijibi(i) = impDataList(i).nonyusijibi
+                arrNonyujikan(i) = impDataList(i).nonyujikan
+                arrNonyusijisu(i) = If(String.IsNullOrEmpty(impDataList(i).nonyusijisu), DBNull.Value, Convert.ToInt32(impDataList(i).nonyusijisu))
+                arrCardkubun(i) = impDataList(i).cardkubun
+                arrNaijikubun(i) = impDataList(i).naijikubun
+                arrIcdenpyoNo(i) = impDataList(i).icdenpyoNo
+                arrNohinshoNo(i) = impDataList(i).nohinshoNo
+
+                arrImpRunId(i) = newId
+                arrActiveFlag(i) = "Y"
+                arrCreatedUserId(i) = SafeVarchar(UserId, 9)
+                arrCreatedPgId(i) = SafeVarchar(pgId, 150)
+            Next
+
+
+
+            '前回の取込データを一旦すべて無効化する(active_flag = 'N')
+            Dim updateSql As String = "
+            UPDATE yamaha_imp_orders
+            SET active_flag = 'N'
+            WHERE active_flag = 'Y'
+              AND created_at < :p_now_time
+              AND customer_code = :p_customer_code
+              AND publication_date = :p_publication_date
+              AND publication_time = :p_publication_time
+              AND customer_item_no = :p_customer_item_no"
+
+            Using updCmd As New OracleCommand(updateSql, tran.Connection)
+                updCmd.BindByName = True
+                updCmd.CommandType = CommandType.Text
+                updCmd.ArrayBindCount = dataCount ' 配列バインドの件数を指定
+
+                updCmd.Parameters.Add("p_now_time", OracleDbType.Date, arrNowTime, ParameterDirection.Input)
+                updCmd.Parameters.Add("p_customer_code", OracleDbType.Varchar2, arrCustomerCode, ParameterDirection.Input)
+                updCmd.Parameters.Add("p_publication_date", OracleDbType.Date, arrPublicationDate, ParameterDirection.Input)
+                updCmd.Parameters.Add("p_publication_time", OracleDbType.Int32, arrPublicationTime, ParameterDirection.Input)
+                updCmd.Parameters.Add("p_customer_item_no", OracleDbType.Varchar2, arrCustomerItemNo, ParameterDirection.Input)
+
+                updCmd.ExecuteNonQuery()
+
+            End Using
+
+            Dim sql As String = "
+                INSERT INTO yamaha_imp_orders (
+                    imp_file_stage_id, hinmoku_gyo_no, order_gyo_no, customer_code, siyosha, status, customer_item_no, nonyuplat,
+                    yokisyuuyousuu, yokibangou, ordersikibetu_no, nonyusijibi, nonyujikan,
+                    nonyusijisu, cardkubun, naijikubun, icdenpyo_no, nohinsho_no,
+                    publication_date, publication_time, imp_run_id, active_flag,
+                    created_at, created_user_id, created_pg_id
+                ) VALUES (
+                    :p_imp_file_stage_id, :p_hinmoku_gyo_no, :p_order_gyo_no, :p_customer_code, :p_siyosha, :p_status, :p_customer_item_no, :p_nonyuplat,
+                    :p_yokisyuuyousuu, :p_yokibangou, :p_ordersikibetu_no, :p_nonyusijibi, :p_nonyujikan,
+                    :p_nonyusijisu, :p_cardkubun, :p_naijikubun, :p_icdenpyo_no, :p_nohinsho_no,
+                    :p_publication_date, :p_publication_time, :p_imp_run_id, :p_active_flag,
+                    :p_created_at, :p_created_user_id, :p_created_pg_id
+                )"
+
+            Using cmd As New OracleCommand(sql, tran.Connection)
+                'cmd.Transaction = tran
+                cmd.BindByName = True
+                cmd.CommandType = CommandType.Text
+                cmd.ArrayBindCount = dataCount ' 配列バインドの件数を指定
+
+                cmd.Parameters.Add("p_imp_file_stage_id", OracleDbType.Int64, arrImpFileStageId, ParameterDirection.Input)
+                cmd.Parameters.Add("p_hinmoku_gyo_no", OracleDbType.Int32, arrHinmokuGyoNo, ParameterDirection.Input)
+                cmd.Parameters.Add("p_order_gyo_no", OracleDbType.Int32, arrOrderGyoNo, ParameterDirection.Input)
+                cmd.Parameters.Add("p_customer_code", OracleDbType.Varchar2, arrCustomerCode, ParameterDirection.Input)
+                cmd.Parameters.Add("p_siyosha", OracleDbType.Varchar2, arrSiyosha, ParameterDirection.Input)
+                cmd.Parameters.Add("p_status", OracleDbType.Varchar2, arrStatus, ParameterDirection.Input)
+                cmd.Parameters.Add("p_customer_item_no", OracleDbType.Varchar2, arrCustomerItemNo, ParameterDirection.Input)
+                cmd.Parameters.Add("p_nonyuplat", OracleDbType.Varchar2, arrNonyuplat, ParameterDirection.Input)
+                cmd.Parameters.Add("p_yokisyuuyousuu", OracleDbType.Int32, arrYokisyuuyousuu, ParameterDirection.Input)
+                cmd.Parameters.Add("p_yokibangou", OracleDbType.Varchar2, arrYokibangou, ParameterDirection.Input)
+                cmd.Parameters.Add("p_ordersikibetu_no", OracleDbType.Varchar2, arrOrdersikibetuNo, ParameterDirection.Input)
+                cmd.Parameters.Add("p_nonyusijibi", OracleDbType.Varchar2, arrNonyusijibi, ParameterDirection.Input)
+                cmd.Parameters.Add("p_nonyujikan", OracleDbType.Varchar2, arrNonyujikan, ParameterDirection.Input)
+                cmd.Parameters.Add("p_nonyusijisu", OracleDbType.Int32, arrNonyusijisu, ParameterDirection.Input)
+                cmd.Parameters.Add("p_cardkubun", OracleDbType.Varchar2, arrCardkubun, ParameterDirection.Input)
+                cmd.Parameters.Add("p_naijikubun", OracleDbType.Varchar2, arrNaijikubun, ParameterDirection.Input)
+                cmd.Parameters.Add("p_icdenpyo_no", OracleDbType.Varchar2, arrIcdenpyoNo, ParameterDirection.Input)
+                cmd.Parameters.Add("p_nohinsho_no", OracleDbType.Varchar2, arrNohinshoNo, ParameterDirection.Input)
+
+                cmd.Parameters.Add("p_publication_date", OracleDbType.Date, arrPublicationDate, ParameterDirection.Input)
+                cmd.Parameters.Add("p_publication_time", OracleDbType.Int32, arrPublicationTime, ParameterDirection.Input)
+
+                cmd.Parameters.Add("p_imp_run_id", OracleDbType.Long, arrImpRunId, ParameterDirection.Input)
+                cmd.Parameters.Add("p_active_flag", OracleDbType.Char, arrActiveFlag, ParameterDirection.Input)
+                cmd.Parameters.Add("p_created_at", OracleDbType.Date, arrNowTime, ParameterDirection.Input)
+                cmd.Parameters.Add("p_created_user_id", OracleDbType.Varchar2, arrCreatedUserId, ParameterDirection.Input)
+                cmd.Parameters.Add("p_created_pg_id", OracleDbType.Varchar2, arrCreatedPgId, ParameterDirection.Input)
+
+                cmd.ExecuteNonQuery()
+
             End Using
         End Sub
 
