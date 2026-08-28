@@ -104,7 +104,7 @@ Namespace OMS.Data
                 prm.Add(New OracleParameter(":p_status", OracleDbType.Varchar2) With {.Value = status})
             End If
 
-            If Not String.IsNullOrEmpty(activeFlag) Then
+            If activeFlag IsNot Nothing Then
                 sb.AppendLine("AND UPPER(active_flag) = :p_active ")
                 prm.Add(New OracleParameter(":p_active", OracleDbType.Char) With {.Value = activeFlag})
             End If
@@ -197,23 +197,26 @@ Namespace OMS.Data
                 sb.AppendLine("AND UPPER(demand_status) LIKE UPPER(:p_demandStatus) ESCAPE '\' ")
                 prm.Add(New OracleParameter(":p_demandStatus", OracleDbType.Varchar2) With {.Value = demandStatus})
             End If
-
-            If Not String.IsNullOrEmpty(activeFlag) Then
+            If activeFlag IsNot Nothing Then
                 sb.AppendLine("AND UPPER(active_flag) = :p_active ")
                 prm.Add(New OracleParameter(":p_active", OracleDbType.Char) With {.Value = activeFlag})
             End If
 
-            If Not String.IsNullOrEmpty(orderDate) Then
-                sb.AppendLine("order_date >= :p_orderDate ")
-                prm.Add(New OracleParameter(":p_orderDate", OracleDbType.Date) With {.Value = orderDate})
+            If (orderDate.HasValue) Then
+                If Not String.IsNullOrEmpty(orderDate) Then
+                    sb.AppendLine("order_date >= :p_orderDate ")
+                    prm.Add(New OracleParameter(":p_orderDate", OracleDbType.Date) With {.Value = orderDate})
+                End If
             End If
 
-            If Not String.IsNullOrEmpty(orderType) Then
-                sb.AppendLine("order_type >= :p_orderType ")
-                prm.Add(New OracleParameter(":p_orderType", OracleDbType.Date) With {.Value = orderType})
+            If (orderType.HasValue) Then
+                If Not String.IsNullOrEmpty(orderType) Then
+                    sb.AppendLine("order_type >= :p_orderType ")
+                    prm.Add(New OracleParameter(":p_orderType", OracleDbType.Date) With {.Value = orderType})
+                End If
             End If
 
-            If Not String.IsNullOrEmpty(additionalConditions) Then
+            If (additionalConditions IsNot Nothing) Then
                 sb.AppendLine(additionalConditions)
             End If
 

@@ -1,9 +1,11 @@
 ﻿Imports System
 Imports System.Data
 Imports System.Globalization
+Imports System.IO
 Imports System.Runtime.Remoting.Metadata.W3cXsd2001
 Imports System.Web.UI
 Imports System.Web.UI.WebControls
+Imports DocumentFormat.OpenXml.Bibliography
 Imports DocumentFormat.OpenXml.Drawing.Diagrams
 Imports DocumentFormat.OpenXml.Math
 Imports DocumentFormat.OpenXml.Office2010.Excel
@@ -146,7 +148,11 @@ Namespace Pages.Orders
         Protected Sub btnProdPlan_Click(sender As Object, e As EventArgs) Handles btnProdPlan.Click
             'lblError.Text = "開発未着手"
 
+            lblError.Text = ""
+            lblResult.Text = ""
             Dim errors As New List(Of String)()
+            Dim valid As Integer = 0
+            Dim count As Integer = 0
             Dim loginUserId As String = PageHelpers.GetUserId(Me)
 
             ' 値取得
@@ -171,9 +177,6 @@ Namespace Pages.Orders
             Dim idList As New List(Of Long)
 
             Try
-                Dim count As Integer = 0
-                Dim correct As Integer = 0
-
                 ' 処理対象 がチェックされている行
                 For Each row In gvSelectCustomers.Rows
 
@@ -202,6 +205,12 @@ Namespace Pages.Orders
 
                             ' Customer Setting ID リストに追加
                             idList.Add(customerSettingId)
+
+                            '' ++++++++++++++++++++++ DEBUG
+                            '' DEBUG Data
+                            'customerCode = "7158"
+                            'customerSettingId = 24
+                            '' ++++++++++++++++++++++ DEBUG
 
                             ' 生産計画ワーク削除
                             ' ①	CUSTOMER_SETTING_ID = 処理中のCUSTOMER_SETTING_ID（取引先設定ID） 	
@@ -251,12 +260,12 @@ Namespace Pages.Orders
                                     If (splitCaseFlag = "Y") Then
                                         Dim splitCase = splitp.GetSplitCaseRuleListSortByPriolity(conn, tran, prodPlanRuleId)
                                         If (splitCase.Count <> 0) Then
-                                            correct = correct + 1
+                                            valid = valid + 1
                                         Else
                                         End If
                                     Else
                                         ' 分割していないときは +1
-                                        correct = correct + 1
+                                        valid = valid + 1
                                     End If
                                 End If
                             Next
@@ -274,7 +283,7 @@ Namespace Pages.Orders
 
                 ' SPLIT_CASE_FLAG = Y で分割指定が正しいとき
                 ' SPLIT_CASE_FLAG = N のとき
-                If (count = correct) Then
+                If (count = valid) Then
                     ' 分割処理を呼び出す
                     btnProdPlanOK_Click(sender, e)
                 Else
@@ -295,9 +304,10 @@ Namespace Pages.Orders
                     'tran.Commit()
                 Else
                     'tran.Rollback()
+                    lblError.Text = String.Join(vbCrLf, errors)
                 End If
                 'tran.Dispose()
-                'conn.Close()
+                'conn.Close()    
                 'conn.Dispose()
             End Try
 
@@ -316,7 +326,11 @@ Namespace Pages.Orders
         Protected Sub btnProdPlanOK_Click(sender As Object, e As EventArgs) Handles btnProdPlanOK.Click
 
             'lblError.Text = "開発未着手"
+            lblError.Text = ""
+            lblResult.Text = ""
             Dim errors As New List(Of String)()
+            Dim valid As Integer = 0
+            Dim count As Integer = 0
             Dim loginUserId As String = PageHelpers.GetUserId(Me)
 
             ' 確認ボタン/メッセージ非表示
@@ -324,9 +338,9 @@ Namespace Pages.Orders
             ' aspx 内で OK Click のevent 内に非表示処理を入れ java で実行する
 
             ' 値取得(処理開始日 時間 00:00:00 に丸める )
-            'Dim ProcessingStartDate As Date = DateSerial(Year(DateTime.Now), Month(DateTime.Now), Day(DateTime.Now))
+            Dim ProcessingStartDate As Date = DateSerial(DateAndTime.Year(DateTime.Now), DateAndTime.Month(DateTime.Now), DateAndTime.Day(DateTime.Now))
 #If DEBUG Then  '#DEBUG
-            Dim ProcessingStartDate As Date = DateSerial(2026, 3, 1)
+            'Dim ProcessingStartDate As Date = DateSerial(2026, 3, 1)
 #End If
             ' Oracle connection/Transaction
             Dim conn As New OracleConnection(Utils.GetConnectionString())
@@ -373,6 +387,12 @@ Namespace Pages.Orders
                             csidObj = keys("ProfitCenter")
                             Dim profitCenter As String = csidObj.ToString()
 
+                            '' ++++++++++++++++++++++ DEBUG
+                            '' DEBUG Data
+                            'customerCode = "7752"
+                            'customerSettingId = 24
+                            '' ++++++++++++++++++++++ DEBUG
+
                             ' Customer Setting ID リストに追加
                             idList.Add(customerSettingId)
 
@@ -395,7 +415,7 @@ Namespace Pages.Orders
                             ' Orders -> OrdersStage に追加した OrderRow 
                             ' 作業用に 追加した OrderStege レコードを取得
                             Dim orderStageRowsOrg = reps.ToClass(reps.GetOrders(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, status:="DUE_SET", activeFlag:="Y", customerSettingId:=customerSettingId))
-
+                            count += orderStageRowsOrg.Count
                             ' 生産計画条件マスタ 振り分け リスト取得 
                             ' CUSTOMER_SETTING_ID で抽出した Order を 下記の条件でグループ分けを行う
                             ' CUSTOMER_SETTING_ID（取引先設定ID）
@@ -419,7 +439,7 @@ Namespace Pages.Orders
                                 ' 更新しない項目については、出荷予定日の昇順で最初のレコードの情報を反映させる。
                                 Dim ordersStageRow = ordersStageRows.ToList().OrderBy(Function(x) x.ShipScheduledDate).FirstOrDefault()
                                 Dim prodPlanRule = prodp.GetProdPlanRule(conn, tran, customerSettingId)
-
+                                'prodPlanRule = Nothing
                                 If (prodPlanRule IsNot Nothing) Then
                                     Dim splitCaseFlag = prodPlanRule.SplitCaseFlag
                                     'Dim prodPlanRuleId = prodPlanRule.ProdPlanRuleId
@@ -434,7 +454,12 @@ Namespace Pages.Orders
                                     Dim splitFlag = prodPlanRule.SplitFlag
                                     Dim orderType = ordersStageRow.OrderType
                                     Dim proratedType = ordersStageRow.ProratedType
-                                    If (splitFlag = "Y") Then
+                                    '' ++++++++++++++++++++++ DEBUG
+                                    'splitFlag = "Y"
+                                    'orderType = 1
+                                    'proratedType = 2
+                                    '' ++++++++++++++++++++++ DEBUG
+                                    If (splitFlag = "Y") Then   ' 分割指定なし そのまま抜ける
                                         ' 2026/03/09 仕様変更分 ----
                                         ' 内示指定の時 かつ 日割り指定以外
                                         If (orderType = 1 And proratedType = 2) Then
@@ -456,22 +481,68 @@ Namespace Pages.Orders
                                             ' 日割り期間 を計算
                                             Dim splitStartType = prodPlanRule.SplitStartType
                                             Dim shipScheduledDate = ordersStageRow.ShipScheduledDate
+
+                                            '' ++++++++++++++++++++++ DEBUG
+                                            '' DEBUG Data
+                                            '' customerCode: 7752
+                                            '' profitCenter: P1
+                                            '' ItemNo : MDSNSS0161MZ
+                                            '' ShipTo: 71587158
+                                            '' shipStockLocation: M999
+                                            '' 希望納期: 2026/6/1
+                                            '' 需要数:150
+                                            '' 品揃LT: 1
+                                            '' 搬送LT: 0
+                                            '' 納期設定後 出荷予定日: 2026/8/27
+
+                                            'splitMethodType = 1 '1(日割り) 2(4分割) 3(3分割) 4(2分割) 5(週まるめ) 6(分割なし)    
+                                            'splitStartType = 1  '1(月初) 2(前月第4週) 3(納期の4週前)
+                                            'shipScheduledDate = New Date(2026, 6, 1)
+
+                                            ''Dim shproutm = New ShproutmRepository(Utils.GetConnectionString())
+                                            ''FUSRDEC1 ((A)品揃リードタイム)
+                                            ''Dim assortLeadTime = shproutm.GetAssortmentLeadTime(customerCode, profitCenter, "MDSNSS0161MZ")
+                                            ''FTRANLT(輸送L/T)
+                                            ''Dim transferLeadTime = shproutm.GetTransferLeadTime("71587158", "M999")
+                                            '' ++++++++++++++++++++++ DEBUG
+
+
                                             'SPLIT_START_TYPE（分割開始区分）出荷予定日 期間を決定
+                                            ' 指定期間の カレンダーを取得(仕様書では カレンダーは もっと上で取得することになっているが 期間が判明するここで取得する)
+                                            Dim calm As CalenderRepository = New CalenderRepository(Utils.GetConnectionString())
+
                                             Select Case (splitStartType)
                                                 Case 1
                                                     '   1(月初)        ：  月初～月末                         （例：2026年3月が対象の場合、3/1～3/31）
-                                                    startDate = DateSerial(Year(shipScheduledDate), Month(shipScheduledDate), 1)
-                                                    endDate = DateSerial(Year(shipScheduledDate), Month(shipScheduledDate), DateTime.DaysInMonth(Year(shipScheduledDate), Month(shipScheduledDate)))
+                                                    startDate = DateSerial(DateAndTime.Year(shipScheduledDate), DateAndTime.Month(shipScheduledDate), 1)
+                                                    endDate = DateSerial(DateAndTime.Year(shipScheduledDate), DateAndTime.Month(shipScheduledDate), DateTime.DaysInMonth(DateAndTime.Year(shipScheduledDate), DateAndTime.Month(shipScheduledDate)))
                                                 Case 2
-                                                    '   2(前月第4週)    ：  前月第4週～当月第3週              （例：2026年3月が対象の場合、2/23～3/20）
+                                                    '   2(前月第4週)    ：  前月第4週～当月第3週              （例：2026年3月が対象の場合、2/23～3/20）→ 2/23 ～ 3/21
                                                     startDate = Get4WeekOfLastMonth(shipScheduledDate)
                                                     endDate = Get3WeekOfThisMonth(shipScheduledDate)
                                                 Case 3
-                                                    '   3(納期の4週前)  ：  出荷予定日4週前～出荷予定日1週前  （例：出荷予定日が2026/3/13の場合、2/13～3/6）
-                                                    startDate = Get4WeeksBefore(shipScheduledDate)
-                                                    endDate = Get1WeeksBefore(shipScheduledDate)
-                                            End Select
+                                                    '   3(納期の4週前)  ：  出荷予定日4週前～出荷予定日1週前  （例：出荷予定日が2026/3/13の場合、2/13～3/6）→ 2/12 ～ 3/14
 
+                                                    ' 1.初期 -> NG (②-3では OKらしい)
+                                                    'startDate = Get4WeeksBefore(shipScheduledDate)
+                                                    'endDate = Get1WeeksBefore(shipScheduledDate)
+
+                                                    ' 2. 調整したが ②-3 で1week多くなる
+                                                    'startDate = Get4WeeksBefore(shipScheduledDate)
+                                                    'endDate = GetWeekendSaturday(shipScheduledDate)
+
+                                                    ' 4. ②-3 用 仕様に合っている
+                                                    startDate = Get4WeeksBefore(shipScheduledDate)
+                                                    endDate = startDate.AddDays(28 - 1)
+
+                                            End Select
+                                            'Order_Stage テーブルに 対象月の稼働日でレコードを作成
+                                            Dim ordersStage = New List(Of OrdersStageRow)()
+                                            Dim baseOrder = New OrdersStageRow(ordersStageRow)
+                                            Dim calender = calm.GetCalenderList(conn, tran, "00001", startDate, endDate)
+                                            If (calender.Count < 20) Then
+                                                endDate.AddDays(7)
+                                            End If
                                             ' 需要数 集計数
                                             Dim qty = ordersStageRows.Sum(Function(x) x.DemandQty)
                                             ' 端数の行先 1: 先頭 2: 最後尾
@@ -484,9 +555,15 @@ Namespace Pages.Orders
                                             splitRationType = If(splitRationType <> 1 And splitRationType <> 2, 1, splitRationType)
 
                                             ' 丸め 1以下の場合 強制的に 1
-                                            If (unit < 1) Then
+                                            If (unit < 1 Or unit Is Nothing) Then
                                                 unit = 1
                                             End If
+
+                                            '' ++++++++++++++++++++++ DEBUG
+                                            'splitRationType = 1 ' 1:1 2:1
+                                            'unit = 1            ' 丸め数
+                                            '' ++++++++++++++++++++++ DEBUG
+
                                             ' 分割条件 読み込み
                                             Dim prodPlanRuleId = prodPlanRule.ProdPlanRuleId
                                             Dim splitCase = splitp.GetSplitCaseRuleListSortByPriolity(conn, tran, prodPlanRuleId)
@@ -529,30 +606,30 @@ Namespace Pages.Orders
                                                 Dim spDate = ordersStageRow.ShipScheduledDate
                                                 ' 週先頭の月曜日
                                                 startDate = GetDateMonday(spDate)
-                                                endDate = DateSerial(Year(shipScheduledDate), Month(shipScheduledDate), DateTime.DaysInMonth(Year(shipScheduledDate), Month(shipScheduledDate)))
+                                                endDate = DateSerial(DateAndTime.Year(shipScheduledDate), DateAndTime.Month(shipScheduledDate), DateTime.DaysInMonth(DateAndTime.Year(shipScheduledDate), DateAndTime.Month(shipScheduledDate)))
                                             End If
 
+                                            ' <<<<<<<<<<<<<<<<<<< 0/6 の時もクリアしている
                                             ' 対象 ProdPlanStage のDemandQtyをクリアして 削除対象とする
                                             ' 2026/3/31 追加 DemandQty クリア
                                             For Each tg In ordersStageRows
                                                 reps.Update(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, kOrderId:=tg.OrderId, demandQty:=0)
-                                                'ordersStageRows.ForEach(Sub(x) x.DemandQty = 0)
                                             Next
 
                                             ' 指定期間の カレンダーを取得(仕様書では カレンダーは もっと上で取得することになっているが 期間が判明するここで取得する)
-                                            Dim calm As CalenderRepository = New CalenderRepository(Utils.GetConnectionString())
-                                            Dim calender = calm.GetCalenderList(conn, tran, startDate, endDate)
+                                            'Dim calm As CalenderRepository = New CalenderRepository(Utils.GetConnectionString())
+                                            'Dim calender = calm.GetCalenderList(conn, tran, "00001", startDate, endDate)
                                             ' 営業日リスト
                                             Dim businessDayList As List(Of CalenderRow) = calender.Where(Function(x) x.HolidayFlag = "W").ToList()
                                             ' 営業日日数
                                             Dim businessDay = businessDayList.Count
 
-                                            'Order_Stage テーブルに 対象月の稼働日でレコードを作成
-                                            Dim ordersStage = New List(Of OrdersStageRow)()
+                                            ''Order_Stage テーブルに 対象月の稼働日でレコードを作成
+                                            'Dim ordersStage = New List(Of OrdersStageRow)()
                                             ' 抽出しているレコードの Calender 該当日を取得
                                             Dim targetDay = ordersStageRows.Join(businessDayList, Function(ord) ord.ShipScheduledDate, Function(bus) bus.DefDate, Function(ord, bus) bus).ToList()
                                             ' Base order record
-                                            Dim baseOrder = New OrdersStageRow(ordersStageRow)
+                                            'Dim baseOrder = New OrdersStageRow(ordersStageRow)
                                             For Each bday In businessDayList
                                                 ' すでにレコードがある日付
                                                 If (targetDay.Any(Function(x) x.DefDate = bday.DefDate)) Then
@@ -594,8 +671,12 @@ Namespace Pages.Orders
                                             ' 分割方法確認 (SPLIT_METHOD_TYPE)
                                             Select Case (splitMethodType)
                                                 ' 何もしない
-                                                Case 0
-                                                Case 6
+                                                Case 0, 6
+                                                    ' 元の DemandQty を戻す
+                                                    For Each osr In ordersStageRows
+                                                        Dim tg = ordersStage.Find(Function(x) x.ShipScheduledDate = osr.ShipScheduledDate)
+                                                        tg.DemandQty = osr.DemandQty
+                                                    Next
                                                 '日割り
                                                 Case 1
                                                     Dim ans = GetRoundCalc(qty, businessDay, unit, splitRationType)
@@ -604,15 +685,19 @@ Namespace Pages.Orders
                                                     Dim fraction = ans.fraction     ' 端数
 
                                                     For cnt = 0 To days - 1
-                                                        Dim setDay = GetDesignationDay(calender, "W", cnt)
+                                                        'Dim setDay = GetDesignationDay(calender, "W", cnt)
+                                                        Dim setDay = businessDayList(cnt).DefDate
+
                                                         Dim dqty = roundup
-                                                        ' 先頭端数の時
-                                                        If (cnt = 0) And (carryToType = 1) Then
-                                                            dqty = fraction
-                                                        End If
-                                                        ' 先後尾端数の時
-                                                        If (cnt = days - 1) And (carryToType = 2) Then
-                                                            dqty = fraction
+                                                        If (fraction <> 0) Then
+                                                            ' 先頭端数の時
+                                                            If (cnt = 0) And (carryToType = 1) Then
+                                                                dqty = fraction
+                                                            End If
+                                                            ' 先後尾端数の時
+                                                            If (cnt = days - 1) And (carryToType = 2) Then
+                                                                dqty = fraction
+                                                            End If
                                                         End If
                                                         Dim tg = ordersStage.Find(Function(x) x.ShipScheduledDate = setDay)
                                                         tg.DemandQty = dqty
@@ -629,18 +714,28 @@ Namespace Pages.Orders
                                                 Case 2
                                                     Dim ans = GetRoundCalc(qty, 4, unit, splitRationType)
                                                     Dim roundup = ans.roundedUp     ' 注文/day
-                                                    Dim days = ans.days             ' 期間
+                                                    Dim days = ans.days + If(splitRationType = 1, -1, -2)           ' 期間
                                                     Dim fraction = ans.fraction     ' 端数
+                                                    For cnt = 0 To 3
+                                                        ' 1.
+                                                        'Dim setDay = GetDesignationDay(calender, "W", cnt * (businessDay / 4))
 
-                                                    For cnt = 0 To days - 1
-                                                        Dim setDay = GetDesignationDay(calender, "W", cnt * (businessDay / 4))
+                                                        ' 2.
+                                                        'Dim offsetDays As Integer = Convert.ToInt32(Math.Round(cnt * (businessDay / 4), MidpointRounding.AwayFromZero))
+                                                        'Dim offsetDays = Convert.ToInt32(Math.Round(CDbl(cnt) * CDbl(businessDay) / CDbl(4), MidpointRounding.))
+                                                        'Dim setDay = GetDesignationDay(calender, "W", offsetDays)
+
+                                                        ' 3. 稼働日配列から 切り上げで 取得
+                                                        Dim offsetDays = Math.Ceiling(CDbl(businessDay) / CDbl(4))
+                                                        Dim setDay = businessDayList(cnt * offsetDays).DefDate
+
                                                         Dim dqty = roundup
                                                         ' 先頭端数の時
-                                                        If (cnt = 0) And (carryToType = 1) Then
+                                                        If (cnt = 0) And (carryToType = 1) And (fraction <> 0) Then
                                                             dqty = fraction
                                                         End If
                                                         ' 先後尾端数の時
-                                                        If (cnt = days - 1) And (carryToType = 2) Then
+                                                        If (cnt = 3) And (carryToType = 2) And (fraction <> 0) Then
                                                             dqty = fraction
                                                         End If
                                                         Dim tg = ordersStage.Find(Function(x) x.ShipScheduledDate = setDay)
@@ -657,20 +752,26 @@ Namespace Pages.Orders
 
                                                 '3分割
                                                 Case 3
-                                                    Dim ans = GetRoundCalc3D(qty, 4, unit)
+                                                    Dim ans = GetRoundCalc3D(qty, 4, unit, splitRationType)
                                                     Dim roundup = ans.roundedUp     ' 注文/day
                                                     Dim days = ans.days             ' 期間
                                                     Dim fraction = ans.fraction     ' 端数
 
-                                                    For cnt = 0 To days ' 日付は月 4分割 のため
-                                                        Dim setDay = GetDesignationDay(calender, "W", cnt * (businessDay / 4))
+                                                    For cnt = 0 To 3 ' 日付は月 4分割 のため
+                                                        'Dim setDay = GetDesignationDay(calender, "W", cnt * (businessDay / 4))
+
+
+                                                        Dim offsetDays = Math.Ceiling(CDbl(businessDay) / CDbl(4))
+                                                        Dim setDay = businessDayList(cnt * offsetDays).DefDate
+
+
                                                         Dim dqty = roundup
                                                         ' 先頭端数の時
-                                                        If (cnt = 0) And (carryToType = 1) Then
+                                                        If (cnt = 0) And (carryToType = 1) And (fraction <> 0) Then
                                                             dqty = fraction
                                                         End If
                                                         ' 先後尾端数の時
-                                                        If (cnt = days) And (carryToType = 2) Then
+                                                        If (cnt = 3) And (carryToType = 2) And (fraction <> 0) Then
                                                             dqty = fraction
                                                         End If
 
@@ -679,9 +780,14 @@ Namespace Pages.Orders
                                                             Continue For
                                                         End If
                                                         Dim tg = ordersStage.Find(Function(x) x.ShipScheduledDate = setDay)
-                                                        tg.DemandQty = dqty
                                                         tg.ShipPlanDate = setDay
+                                                        tg.DemandQty = dqty
                                                         'tg.CustomerOrderLineNo = "" ' ????? 仕様不明
+                                                        If (splitRationType = 2) Then
+                                                            If (cnt = 0) Then
+                                                                tg.DemandQty += roundup
+                                                            End If
+                                                        End If
                                                     Next
 
                                                 '2分割
@@ -690,16 +796,20 @@ Namespace Pages.Orders
                                                     Dim roundup = ans.roundedUp     ' 注文/day
                                                     Dim days = ans.days             ' 期間
                                                     Dim fraction = ans.fraction     ' 端数
-
-                                                    For cnt = 0 To days - 1
-                                                        Dim setDay = GetDesignationDay(calender, "W", cnt * (businessDay / 2))
+                                                    'If (splitRationType = 2) Then
+                                                    '    days -= 1
+                                                    'End If
+                                                    For cnt = 0 To 1
+                                                        'Dim setDay = GetDesignationDay(calender, "W", cnt * (businessDay / 2))
+                                                        Dim offsetDays = Math.Ceiling(CDbl(businessDay) / CDbl(2))
+                                                        Dim setDay = businessDayList(cnt * offsetDays).DefDate
                                                         Dim dqty = roundup
                                                         ' 先頭端数の時
-                                                        If (cnt = 0) And (carryToType = 1) Then
+                                                        If (cnt = 0) And (carryToType = 1) And (fraction <> 0) Then
                                                             dqty = fraction
                                                         End If
                                                         ' 先後尾端数の時
-                                                        If (cnt = days - 1) And (carryToType = 2) Then
+                                                        If (cnt = 1) And (carryToType = 2) And (fraction <> 0) Then
                                                             dqty = fraction
                                                         End If
                                                         Dim tg = ordersStage.Find(Function(x) x.ShipScheduledDate = setDay)
@@ -722,7 +832,7 @@ Namespace Pages.Orders
                                                     For i As Integer = 0 To wCount - 1
                                                         'Dim wOrders = orderRows.FindAll(Function(x) x.ShipScheduledDate >= wStartDate And x.ShipScheduledDate <= wEndDate)
                                                         'Dim wOrders = ordersStageRows.FindAll(Function(x) x.ShipScheduledDate >= wStartDate And x.ShipScheduledDate <= wEndDate)
-                                                        Dim wOrders = ordersStageRows.FindAll(Function(x) x.ShipScheduledDate >= weekStart And x.ShipScheduledDate <= DateSerial(Year(weekStart), Month(weekStart), Day(weekStart) + 6))
+                                                        Dim wOrders = ordersStageRows.FindAll(Function(x) x.ShipScheduledDate >= weekStart And x.ShipScheduledDate <= DateSerial(DateAndTime.Year(weekStart), DateAndTime.Month(weekStart), DateAndTime.Day(weekStart) + 6))
                                                         Dim dqty = wOrders.Sum(Function(x) x.DemandQty)
                                                         ' 週単位で 週内の DemandQty に 0代入 
                                                         wOrders.ForEach(Sub(x) x.DemandQty = 0)
@@ -735,8 +845,8 @@ Namespace Pages.Orders
                                                             tg.ShipPlanDate = setDay
                                                             'tg.CustomerOrderLineNo = "" ' ????? 仕様不明
                                                         End If
-                                                        ' 次の週
-                                                        weekStart = DateSerial(Year(weekStart), Month(weekStart), Day(weekStart) + 7)
+                                                        ' 次の週 
+                                                        weekStart = DateSerial(DateAndTime.Year(weekStart), DateAndTime.Month(weekStart), DateAndTime.Day(weekStart) + 7)
                                                     Next
                                             End Select
                                             '
@@ -755,18 +865,27 @@ Namespace Pages.Orders
                                             '需要数以外の項目は集約対象期間の昇順で先頭のレコードを参照する
                                             '（例：処理開始日が3/10の場合、3/1～3/9に割り当てられた需要数を3/10に合算する）
                                             '集約されたレコードの需要数をブランクに更新する
-                                            Dim oldOrderOrder = ordersStage.FindAll(Function(x) x.ShipScheduledDate < ProcessingStartDate).OrderBy(Function(x) x.ShipScheduledDate).ToList()
-                                            If (oldOrderOrder.Count > 0) Then
+
+                                            ' 過去データの集約
+                                            Dim oldOrders = ordersStage.FindAll(Function(x) x.ShipScheduledDate < ProcessingStartDate).OrderBy(Function(x) x.ShipScheduledDate).ToList()
+                                            Dim orders = ordersStage.FindAll(Function(x) x.ShipScheduledDate >= ProcessingStartDate).OrderBy(Function(x) x.ShipScheduledDate).ToList()
+
+                                            If (oldOrders.Count > 0) Then
                                                 ' 作業日に該当する レコードを取得
                                                 Dim thisRecord = ordersStage.Find(Function(x) x.ShipScheduledDate = ProcessingStartDate)
-                                                ' 
+                                                ' 日付範囲 
                                                 If (thisRecord Is Nothing) Then
-                                                    ' 昇順先頭レコードを先頭レコードをもとに作成
-                                                    thisRecord = New OrdersStageRow(oldOrderOrder(0))
+                                                    ' 昇順先頭レコードを先頭レコードをもとに作成 CopyConstructor 内で 詳細仕様書(96) Suzuki 対応 2026/08/18
+                                                    thisRecord = New OrdersStageRow(oldOrders(0))
                                                     thisRecord.ShipScheduledDate = ProcessingStartDate
+                                                    thisRecord.DemandQty = 0
+                                                    thisRecord.StageId = Nothing
                                                     ordersStage.Add(thisRecord)
                                                     ' 分割期間よりも以前の場合 prod_plan_stage にレコードが無いため追加する
                                                     errors.Add(reps.Insert(conn, tran, OrderRepository.OrdersTable.ProductPlan, thisRecord))
+
+                                                    ' 
+
                                                     '#If DEBUG Then
                                                     '                                                    ' #### DEBUG
                                                     '                                                    tran.Commit()
@@ -779,24 +898,30 @@ Namespace Pages.Orders
                                                         Continue For
                                                     End If
                                                 End If
-                                                ' 作業日以前の Qty をまとめる
-                                                thisRecord.DemandQty = oldOrderOrder.Sum(Function(x) x.DemandQty)
-                                                ' 作業日以前の Qty を0クリア
-                                                oldOrderOrder.ForEach(Sub(x) x.DemandQty = 0)
+                                                ' 日付範囲に 該当するレコードがない場合は、全て 過去日として 全数 作業日に 集約する
+                                                If (orders.Count = 0) Then
+                                                    thisRecord.DemandQty = thisRecord.DemandQty + oldOrders.Sum(Function(x) x.DemandQty)
+                                                Else
+                                                    ' 作業日以前の Qty をまとめる
+                                                    ' 自身の数量を加算していない 修正 2026/7/22
+                                                    thisRecord.DemandQty = thisRecord.DemandQty + oldOrders.Sum(Function(x) x.DemandQty)
+                                                    ' 作業日以前の Qty を0クリア
+                                                End If
+                                                oldOrders.ForEach(Sub(x) x.DemandQty = 0)
                                             End If
 
                                             For Each tg In ordersStage
-                                                ' OrdersStage 更新
+                                                'Prod_Plan_Stage 更新
+                                                'kOrderStageId:=tg.StageId, 追加したレコード検索できないので除く
                                                 errors.Add(reps.Update(conn, tran, OrderStageRepository.OrdersTable.ProductPlan,
-                                                                        kOrderStageId:=tg.StageId,
-                                                                        kOrderId:=tg.OrderId,
-                                                                        kShipScheduledDate:=tg.ShipScheduledDate,
-                                                                        demandQty:=tg.DemandQty,
-                                                                        orderNo:=tg.OrderNo,
-                                                                        shipPlanDate:=tg.ShipScheduledDate,
-                                                                        updatedAt:=tg.UpdatedAt,
-                                                                        updatedUserId:=tg.UpdatedUserId,
-                                                                        updatedPgId:=tg.UpdatedPgId))
+                                                                kOrderId:=tg.OrderId,
+                                                                kShipScheduledDate:=tg.ShipScheduledDate,
+                                                                demandQty:=tg.DemandQty,
+                                                                orderNo:=tg.OrderNo,
+                                                                shipPlanDate:=tg.ShipScheduledDate,
+                                                                updatedAt:=tg.UpdatedAt,
+                                                                updatedUserId:=tg.UpdatedUserId,
+                                                                updatedPgId:=tg.UpdatedPgId))
                                             Next
                                             '#If DEBUG Then
                                             '                                            ' #### DEBUG
@@ -809,6 +934,11 @@ Namespace Pages.Orders
                                                 DBError(tran)
                                                 Continue For
                                             End If
+                                            '' ++++++++++++++++++++++ DEBUG
+                                            'tran.Commit()
+                                            'tran = conn.BeginTransaction()
+                                            'Throw New Exception("デバッグ 中 Exception")
+                                            '' ++++++++++++++++++++++ DEBUG
 
                                             ' 不要なレコードを削除する (DEMAND_QTY（需要数）がブランク)
                                             '----------------------------
@@ -839,19 +969,20 @@ Namespace Pages.Orders
                                 'For Each trow In urows
                                 'errors.Add(reps.Update(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, kOrderStageId:=trow.StageId, status:="PLAN_SET"))
                                 'Next
+
+                                ' 一括更新では駄目 2026/5/14
                                 'errors.Add(reps.Update(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, kCustomerSettingId:=customerSettingId, kStatus:="DUE_SET", status:="PLAN_SET"))
 
-                                ' 一括更新は 間違い 2026/5/14 
+                                ' 1レコード単位で更新
                                 For Each tg In ordersStageRows
-                                    errors.Add(reps.Update(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, kOrderId:=tg.OrderId, kStatus:="DUE_SET", status:="PLAN_SET"))
+                                    errors.Add(reps.Update(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, kOrderId:=tg.OrderId, kCustomerSettingId:=customerSettingId, kStatus:="DUE_SET", status:="PLAN_SET"))
                                     If (CheckError(errors)) Then
                                         ' エラー
                                         DBError(tran)
                                         Continue For
                                     End If
                                 Next
-
-
+                                valid += ordersStageRows.Count
                                 '#If DEBUG Then
                                 '                                ' #### DEBUG
                                 '                                tran.Commit()
@@ -920,23 +1051,37 @@ Namespace Pages.Orders
                 '----------------------------
                 ' Excel 出力
                 '----------------------------
-                'Dim path = GetWorkPath()
-                Dim strPath = Server.MapPath("~/App_Data/Files/")
-                Dim filename = GetExcelFilename()
+                'Dim strPath = Server.MapPath("~/App_Data/Files/")
+                'Dim filename = GetExcelFilename()
+                ''errors.Add(exout.OrderExcelFile(filename, registerdOrders))
+                'errors.Add(ProductPlanExcelOut(IO.Path.Combine(strPath, filename), registerdOrders))
+                'If (CheckError(errors)) Then
+                '    ' エラー
+                'End If
+                '' Excel ファイル転送
+                'If (filename <> "") Then
+                '    Utils.FileTransfer2(Response, Server, IO.Path.Combine(strPath, filename))
+                'Else
+                '    ' Excel ファイル作成 Error
+                '    errors.Add("Error: Excel 生産計画リスト出力エラー")
+                'End If
 
+                Dim fileList As List(Of String) = New List(Of String)()
+                Dim filename = IO.Path.Combine(Server.MapPath("~/App_Data/Files/"), GetExcelFilename())
                 'errors.Add(exout.OrderExcelFile(filename, registerdOrders))
-                errors.Add(ProductPlanExcelOut(IO.Path.Combine(strPath, filename), registerdOrders))
+                errors.Add(ProductPlanExcelOut(filename, registerdOrders))
                 If (CheckError(errors)) Then
                     ' エラー
                 End If
                 ' Excel ファイル転送
-                If (filename <> "") Then
-                    Utils.FileTransfer2(Response, Server, IO.Path.Combine(strPath, filename))
-                Else
-                    ' Excel ファイル作成 Error
-                    errors.Add("Error: Excel 生産計画リスト出力エラー")
-                End If
-
+                fileList.Add(filename)
+                Dim orderFilename = repo.GeOrderZipFilename("生産計画_出力日時", ProcessingStartDate)
+                ' 別ページでDownload 処理を行う
+                Dim fileListName = IO.Path.Combine(Server.MapPath("~/App_Data/Files/"), Utils.GetTempFileName("FileList.txt"))
+                Utils.SaveFileList(fileListName, fileList)
+                Dim url As String = $"DownloadProcess.ashx?file={HttpUtility.UrlEncode(orderFilename)}&list={HttpUtility.UrlEncode(fileListName)}"
+                Dim script As String = $"document.getElementById('downloadFrame').src = '{url}';"
+                ClientScript.RegisterStartupScript(Me.GetType(), "downloadScript", script, True)
             Catch ex As Exception
                 errors.Add(ex.Message)
             Finally
@@ -945,12 +1090,21 @@ Namespace Pages.Orders
                 If errors.Count = 0 Then
                     tran.Commit()
                 Else
+                    lblError.Text = String.Join(vbCrLf, errors)
                     tran.Rollback()
+                End If
+
+                If (count = 0 And valid = 0) Then
+                    lblResult.Text = $"有効なデータが無かったため生産計画設定は行われませんでした。"
+                Else
+                    lblResult.Text = $"{count}件中{valid}件の生産計画設定を行いました。"
                 End If
                 tran.Dispose()
                 conn.Close()
                 conn.Dispose()
-
+                btnProdPlanOK.Visible = False
+                btnProdPlanNO.Visible = False
+                lblProdPlanContinueMessage.Visible = False
             End Try
 
         End Sub
@@ -958,7 +1112,7 @@ Namespace Pages.Orders
         ''' <summary>
         ''' Error メッセージ以外を削除する エラー数を返す
         ''' </summary>
-        ''' <param name="errors"></param>
+        ''' <param name="errors"></param>.
         ''' <returns>true:error false:non error</returns>
         Private Function CheckError(ByRef errors As List(Of String)) As Boolean
 
@@ -991,9 +1145,8 @@ Namespace Pages.Orders
         Protected Sub btnExportProdPlanList_Click(sender As Object, e As EventArgs)
 
             'lblError.Text = "開発未着手"
-
-            '' DEBUG code
-            '' DEBUG code
+            lblError.Text = ""
+            lblResult.Text = ""
             Dim errors As New List(Of String)()
             Dim customerSettingIdList As List(Of Long) = New List(Of Long)()
             Dim repo As New OrderRepository(Utils.GetConnectionString())
@@ -1060,18 +1213,18 @@ Namespace Pages.Orders
         '    Return ProductPlanExcelOut(conn, tran, OrderRepository.OrdersTable.ProductPlan, filename)
 
         'End Function
-        ''' <summary>
-        ''' Orders stage の excel 出力
-        ''' </summary>
-        ''' <param name="filename"></param>
-        ''' <param name="registerdOrders"></param>
-        ''' <returns></returns>
-        Private Function ProductPlanExcelOut(filename As String, registerdOrders As List(Of OrdersStageRow)) As String
+        '''' <summary>
+        '''' Orders stage の excel 出力
+        '''' </summary>
+        '''' <param name="filename"></param>
+        '''' <param name="registerdOrders"></param>
+        '''' <returns></returns>
+        'Private Function ProductPlanExcelOut(filename As String, registerdOrders As List(Of OrdersStageRow)) As String
 
-            Dim excel = New OrderProductionPlanExcelFile()
-            Return excel.OrdersStageExcelFile(filename, registerdOrders)
+        '    Dim excel = New OrderProductionPlanExcelFile()
+        '    Return excel.OrdersStageExcelFile(filename, registerdOrders)
 
-        End Function
+        'End Function
         'End Function
         ''' <summary>
         ''' Orders stage の excel 出力
@@ -1160,8 +1313,43 @@ Namespace Pages.Orders
         ''' <param name="sender"></param>
         ''' <param name="e"></param>
         Protected Sub btnImportProdPlanList_Click(sender As Object, e As EventArgs) Handles Button1.Click
+
+
+            ' ++++++++++++++++++++++++++++++
+            'Dim shipScheduledDate = New DateTime(2026, 3, 13)
+            'Dim startDate As Date
+            'Dim endDate As Date
+            ''   1(月初)        ：  月初～月末                         （例：2026年3月が対象の場合、3/1～3/31）
+            'startDate = DateSerial(Year(shipScheduledDate), Month(shipScheduledDate), 1)
+            'endDate = DateSerial(Year(shipScheduledDate), Month(shipScheduledDate), DateTime.DaysInMonth(Year(shipScheduledDate), Month(shipScheduledDate)))
+
+            ''   2(前月第4週)    ：  前月第4週～当月第3週              （例：2026年3月が対象の場合、2/23～3/20）
+            'startDate = Get4WeekOfLastMonth(shipScheduledDate)
+            'endDate = Get3WeekOfThisMonth(shipScheduledDate)
+
+            ''   3(納期の4週前)  ：  出荷予定日4週前～出荷予定日1週前  （例：出荷予定日が2026/3/13の場合、2/13～3/6）
+            'startDate = Get4WeeksBefore(shipScheduledDate)
+            'endDate = Get1WeeksBefore(shipScheduledDate)
+
+
+            'Dim sd = startDate
+
+            ' ++++++++++++++++++++++++++++++
+
+
+
+
+
+
+
+
+
+
+
+
             'lblError.Text = "開発未着手"
             lblError.Text = ""
+            lblResult.Text = ""
             Dim errors As New List(Of String)()
 
             ' カレントディレクトリを取得する。
@@ -1198,326 +1386,356 @@ Namespace Pages.Orders
             Dim repo As New OrderRepository(Utils.GetConnectionString())
             Dim reps As New OrderStageRepository(Utils.GetConnectionString())
             Dim reph = New OrderHistoryRepository(Utils.GetConnectionString())
+            Dim importCount = 0
+            Try
 
-            '実行管理
-            'IMP_RUN（取込実行テーブル）に新規レコードを作成する。
-            'STARTED_AT         実行開始日時        SYSDATE
-            'STATUS             ステータス          'RUNNNING'
-            'STARTED_USER_ID    実行開始ユーザーID  [ログインユーザーID]
-            'STARTED_PG_ID      実行プログラムID    'ProductionPlanningImport(Execute)'
-            '----------------------------
-            ' Insert 取込実行 IMP_RUN
-            '----------------------------
+                '実行管理
+                'IMP_RUN（取込実行テーブル）に新規レコードを作成する。
+                'STARTED_AT         実行開始日時        SYSDATE
+                'STATUS             ステータス          'RUNNNING'
+                'STARTED_USER_ID    実行開始ユーザーID  [ログインユーザーID]
+                'STARTED_PG_ID      実行プログラムID    'ProductionPlanningImport(Execute)'
+                '----------------------------
+                ' Insert 取込実行 IMP_RUN
+                '----------------------------
 #If DEBUG Then
-            'Dim s = repir.GetImpRunIdNext(conn, tran)
-            'repir.Delete(conn, tran, impRunId:="0")
+                'Dim s = repir.GetImpRunIdNext(conn, tran)
+                'repir.Delete(conn, tran, impRunId:="0")
 #End If
-            Dim startedAt = DateTime.Now
-            Dim impRun = New ImpRunRow(startedAt, "RUNNING", loginUserId, "ProductionPlanningImport(Execute)")
-            ' 次のIndexNo.
-            'impRun.ImpRunId = repir.GetImpRunIdNext(conn, tran)
-            errors.Add(repir.Insert(conn, tran, impRun))
-            '#If DEBUG Then
-            '            ' #### DEBUG
-            '            tran.Commit()
-            '            tran = conn.BeginTransaction()
-            '            ' #### DEBUG
-            '#End If
-            If (CheckError(errors)) Then
-                ' エラー
-                Return
-            End If
-            ' 読み直し
-            impRun = repir.GetImpRunRow(conn, tran, startedAt:=startedAt, startedUserId:=loginUserId)
-            'impRun = repir.GetImpRun(conn, tran, startedAt:=startedAt)
-            If (impRun Is Nothing) Then
-                errors.Add("Excel 取り込み Imp run is nothing.")
-            End If
-            If (CheckError(errors)) Then
-                ' エラー
-                Return
-            End If
+                Dim startedAt = DateTime.Now
+                Dim impRun = New ImpRunRow(startedAt, "RUNNING", loginUserId, "ProductionPlanningImport(Execute)")
+                ' 次のIndexNo.
+                'impRun.ImpRunId = repir.GetImpRunIdNext(conn, tran)
+                errors.Add(repir.Insert(conn, tran, impRun))
+                '#If DEBUG Then
+                '            ' #### DEBUG
+                '            tran.Commit()
+                '            tran = conn.BeginTransaction()
+                '            ' #### DEBUG
+                '#End If
+                If (CheckError(errors)) Then
+                    ' エラー
+                    Return
+                End If
+                ' 読み直し
+                impRun = repir.GetImpRunRow(conn, tran, startedAt:=startedAt, startedUserId:=loginUserId)
+                'impRun = repir.GetImpRun(conn, tran, startedAt:=startedAt)
+                If (impRun Is Nothing) Then
+                    errors.Add("Excel 取り込み ユーザー設定がありません。")
+                End If
+                If (CheckError(errors)) Then
+                    ' エラー
+                    'Return
+                    Throw New Exception()
+                End If
 
-            Dim impRunId = impRun.ImpRunId
-            'データインサート
-            'IMP_FILES_STAGE（取込ファイルワークテーブル）に追加する。
-            'CUSTOMER_SETTING_ID     取引先設定ID        9999999999                                  固定値
-            'FOLDER_TYPE             フォルダ区分        4                                           固定値
-            'FOLDER_PATH             フォルダパス        [フォルダパス]                              取得ファイル ?
-            'FILE_NAME               ファイル名          [ファイル名]                                取得ファイル
-            'STAGED_FOLDER_PATH      ワークフォルダパス  [フォルダパス]                              取得ファイル ?
-            'STAGED_FILE_NAME        ワークファイル名    [ファイル名]                                取得ファイル
-            'RECONCILE_FLAG          消込フラグ          'S'                                         固定値
-            'FCST_RECONCILE_FLAG     内示消込フラグ      'N'                                         固定値
-            'HAND_FLAG               ハンドフラグ        'Y'                                         固定値
-            'STATUS                  ステータス          'PARSED'                                    固定値
-            'CREATED_AT              登録日時            [処理日時]                                  OS日時
-            'CREATED_USER_ID         登録ユーザーID      [ログインユーザーID]                        ログイン情報
-            'CREATED_PG_ID           登録プログラムID    'ProductionPlanningImport(Execute)'         固定値
-            'UPDATED_AT              更新日時            [処理日時]                                  OS日時
-            'UPDATED_USER_ID         更新ユーザーID      [ログインユーザーID]                        ログイン情報
-            'UPDATED_PG_ID           更新プログラムID    'ProductionPlanningImport(Execute)'         固定値
-            '----------------------------
-            ' Insert 取込実行 IMP_FILES_STAGE
-            '----------------------------
-            Dim osTime = DateTime.Now
-            'path = ""
-            Dim impFIlesStage = New ImpFilesStageRow(9999999999, 4, path, fileName, path, fileName, "S", "N", "Y", "PARSED", osTime, loginUserId, "ProductionPlanningImport(Execute)", osTime, loginUserId, "ProductionPlanningImport(Execute)")
-            errors.Add(repis.Insert(conn, tran, impFIlesStage))
-            '#If DEBUG Then
-            '            ' #### DEBUG
-            '            tran.Commit()
-            '            tran = conn.BeginTransaction()
-            '            ' #### DEBUG
-            '#End If
-            If (CheckError(errors)) Then
-                ' エラー
-            End If
-            ' DB から 読み直し (ImpFileStageId 取得するため
-            impFIlesStage = repis.GetImpFilesStageFilename(conn, tran, fileName:=fileName)
+                Dim impRunId = impRun.ImpRunId
+                'データインサート
+                'IMP_FILES_STAGE（取込ファイルワークテーブル）に追加する。
+                'CUSTOMER_SETTING_ID     取引先設定ID        9999999999                                  固定値
+                'FOLDER_TYPE             フォルダ区分        4                                           固定値
+                'FOLDER_PATH             フォルダパス        [フォルダパス]                              取得ファイル ?
+                'FILE_NAME               ファイル名          [ファイル名]                                取得ファイル
+                'STAGED_FOLDER_PATH      ワークフォルダパス  [フォルダパス]                              取得ファイル ?
+                'STAGED_FILE_NAME        ワークファイル名    [ファイル名]                                取得ファイル
+                'RECONCILE_FLAG          消込フラグ          'S'                                         固定値
+                'FCST_RECONCILE_FLAG     内示消込フラグ      'N'                                         固定値
+                'HAND_FLAG               ハンドフラグ        'Y'                                         固定値
+                'STATUS                  ステータス          'PARSED'                                    固定値
+                'CREATED_AT              登録日時            [処理日時]                                  OS日時
+                'CREATED_USER_ID         登録ユーザーID      [ログインユーザーID]                        ログイン情報
+                'CREATED_PG_ID           登録プログラムID    'ProductionPlanningImport(Execute)'         固定値
+                'UPDATED_AT              更新日時            [処理日時]                                  OS日時
+                'UPDATED_USER_ID         更新ユーザーID      [ログインユーザーID]                        ログイン情報
+                'UPDATED_PG_ID           更新プログラムID    'ProductionPlanningImport(Execute)'         固定値
+                '----------------------------
+                ' Insert 取込実行 IMP_FILES_STAGE
+                '----------------------------
+                Dim osTime = DateTime.Now
+                'path = ""
+                Dim impFIlesStage = New ImpFilesStageRow(9999999999, 4, path, fileName, path, fileName, "S", "N", "Y", "PARSED", osTime, loginUserId, "ProductionPlanningImport(Execute)", osTime, loginUserId, "ProductionPlanningImport(Execute)")
+                errors.Add(repis.Insert(conn, tran, impFIlesStage))
+                '#If DEBUG Then
+                '            ' #### DEBUG
+                '            tran.Commit()
+                '            tran = conn.BeginTransaction()
+                '            ' #### DEBUG
+                '#End If
+                If (CheckError(errors)) Then
+                    ' エラー
+                    Throw New Exception()
+                End If
+                ' DB から 読み直し (ImpFileStageId 取得するため
+                impFIlesStage = repis.GetImpFilesStageFilename(conn, tran, fileName:=fileName)
 
-            'PROD_PLAN_STAGE（生産計画ワークテーブル）より、全レコードを削除する。
-            '----------------------------
-            ' Delete 生産計画ワーク
-            '----------------------------
-            errors.Add(reps.Delete(conn, tran, OrderStageRepository.OrdersTable.ProductPlan))
-            '#If DEBUG Then
-            '            ' #### DEBUG
-            '            tran.Commit()
-            '            tran = conn.BeginTransaction()
-            '            ' #### DEBUG
-            '#End If
-            If (CheckError(errors)) Then
-                ' エラー
-            End If
-            '選択されたExcelファイルからデータを取り込む。
-            '----------------------------
-            ' Insert 生産計画ワーク 
-            '----------------------------
-            Dim excel = New OrderProductionPlanExcelFile()
-            Dim ordersRows = excel.OrderExcelFile(IO.Path.Combine(strPath, fileName))
-            If (ordersRows.Count = 0) Then
-            End If
-            errors.Add(reps.InsertRange(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, ordersRows))
-            If (CheckError(errors)) Then
-                ' エラー
-            End If
-            '#If DEBUG Then
-            '            ' #### DEBUG
-            '            tran.Commit()
-            '            tran = conn.BeginTransaction()
-            '            ' #### DEBUG
-            '#End If
-            '----------------------------
-            ' エラーチェック
-            '----------------------------
-            ' 1.入力内容の真偽は判断できないため、必須チェック（NULLでないか）のみ
-            ' 2.確定[ORDER_TYPE=2]、納入指示{ORDER_TYPE=3]のレコードについては
-            ' CUSTOMER_ORDER_NO（客先発注No）が必須となるため、
-            ' 対象の受注区分は客先発注Noを必須チェックに加える
-            Dim rowCount = 0
-            Dim errorCount = 0
-            rowCount = ordersRows.Count
-            errorCount = ordersRows.Where(Function(x) x.IsCorrect()).Count()
+                'PROD_PLAN_STAGE（生産計画ワークテーブル）より、全レコードを削除する。
+                '----------------------------
+                ' Delete 生産計画ワーク
+                '----------------------------
+                'errors.Add(reps.Delete(conn, tran, OrderStageRepository.OrdersTable.ProductPlan))
+                errors.Add(reps.Truncate(conn, tran, OrderStageRepository.OrdersTable.ProductPlan))
+                '#If DEBUG Then
+                '            ' #### DEBUG
+                '            tran.Commit()
+                '            tran = conn.BeginTransaction()
+                '            ' #### DEBUG
+                '#End If
+                If (CheckError(errors)) Then
+                    ' エラー
+                    Throw New Exception()
+                End If
+                '選択されたExcelファイルからデータを取り込む。
+                '----------------------------
+                ' Insert 生産計画ワーク 
+                '----------------------------
+                Dim excel = New OrderProductionPlanExcelFile()
+                Dim ordersRows = excel.OrderExcelFile(IO.Path.Combine(strPath, fileName))
+                importCount = ordersRows.Count
+                If (importCount = 0) Then
+                    errors.Add($"{fileName}ファイルの取り込みはデータが無いため中止しました。")
+                    Throw New Exception()
+                End If
+                errors.Add(reps.InsertRange(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, ordersRows))
+                If (CheckError(errors)) Then
+                    ' エラー
+                    Throw New Exception()
+                End If
+                '#If DEBUG Then
+                '            ' #### DEBUG
+                '            tran.Commit()
+                '            tran = conn.BeginTransaction()
+                '            ' #### DEBUG
+                '#End If
+                '----------------------------
+                ' エラーチェック
+                '----------------------------
+                ' 1.入力内容の真偽は判断できないため、必須チェック（NULLでないか）のみ
+                ' 2.確定[ORDER_TYPE=2]、納入指示{ORDER_TYPE=3]のレコードについては
+                ' CUSTOMER_ORDER_NO（客先発注No）が必須となるため、
+                ' 対象の受注区分は客先発注Noを必須チェックに加える
+                Dim errorCount = 0
+                errorCount = ordersRows.Where(Function(x) x.IsCorrect()).Count()
+                If (errorCount <> 0) Then
+                    ' エラー
+                    ' IMP_FILES_STAGE から追加したレコードを削除
+                    ' 実行管理更新へ
+                    Throw New Exception()
+                End If
 
-            If (errorCount <> 0) Then
-                ' エラー
-                ' IMP_FILES_STAGE から追加したレコードを削除
-                ' 実行管理更新へ
-            End If
+                '選択したExcelファイルを完了フォルダにコピーする。
+                'コピーしたExcelファイルは以下の命名規則によってリネームする。
+                '   [元のファイル名]_[ログインユーザーID]_yyyyMMddhhmmss.xlsx
+                '   （例：[生産計画01.xlsx]→[生産計画01_ast04710_20260304164802.xlsx]）
+                '----------------------------
+                ' ファイルコピー
+                '----------------------------
+                'Dim name As String = TryCast(Page.Session("UserName"), String)
+                Dim pathDone As String = IO.Path.Combine(strPath, "Copy")
+                EnsureDirectory(pathDone)
+                'Dim pathDone As String = GetDonePath()
+                Dim newFilename As String = IO.Path.GetFileNameWithoutExtension(fileName) & loginUserId & DateTime.Now.ToString("yyyyMMddHHmmss") & ".xlsx"
+                ' コピー先に 同名ファイルがある
+                If (IO.File.Exists(IO.Path.Combine(pathDone, fileName)) Or IO.File.Exists(IO.Path.Combine(pathDone, newFilename))) Then
+                    ' エラー
+                    'Throw New Exception()
+                End If
+                IO.File.Copy(IO.Path.Combine(strPath, fileName), IO.Path.Combine(pathDone, fileName))
+                IO.File.Move(IO.Path.Combine(pathDone, fileName), IO.Path.Combine(pathDone, newFilename))
+                '----------------------------
+                ' Update IMP_FILES_STAGE 取込ファイルワークテーブル
+                '----------------------------
+                'STAGED_FOLDER_PATH  (ワークフォルダパス)
+                'STAGED_FILE_NAME(ワークファイル名)
+                'UPDATED_AT(更新日時) 
+                Dim impFileStageId = impFIlesStage.ImpFileStageId
+                Dim updateAt = DateTime.Now
+                impFIlesStage.StagedFolderPath = pathDone
+                impFIlesStage.StagedFileName = newFilename
+                impFIlesStage.UpdatedAt = updateAt
+                errors.Add(repis.Update(conn, tran, kImpFileStageId:=impFileStageId, stagedFolderPath:=pathDone, stagedFileName:=newFilename, updatedAt:=updateAt))
+                If (CheckError(errors)) Then
+                    ' エラー 
+                    Throw New Exception()
+                End If
+                '#If DEBUG Then
+                '            ' #### DEBUG
+                '            tran.Commit()
+                '            tran = conn.BeginTransaction()
+                '            ' #### DEBUG
+                '#End If
 
-            '選択したExcelファイルを完了フォルダにコピーする。
-            'コピーしたExcelファイルは以下の命名規則によってリネームする。
-            '   [元のファイル名]_[ログインユーザーID]_yyyyMMddhhmmss.xlsx
-            '   （例：[生産計画01.xlsx]→[生産計画01_ast04710_20260304164802.xlsx]）
-            '----------------------------
-            ' ファイルコピー
-            '----------------------------
-            'Dim name As String = TryCast(Page.Session("UserName"), String)
-            Dim pathDone As String = IO.Path.Combine(strPath, "Copy")
-            EnsureDirectory(pathDone)
-            'Dim pathDone As String = GetDonePath()
-            Dim newFilename As String = IO.Path.GetFileNameWithoutExtension(fileName) & loginUserId & DateTime.Now.ToString("yyyyMMddHHmmss") & ".xlsx"
-            ' コピー先に 同名ファイルがある
-            If (IO.File.Exists(IO.Path.Combine(pathDone, fileName)) Or IO.File.Exists(IO.Path.Combine(pathDone, newFilename))) Then
-                ' エラー
-            End If
-            IO.File.Copy(IO.Path.Combine(strPath, fileName), IO.Path.Combine(pathDone, fileName))
-            IO.File.Move(IO.Path.Combine(pathDone, fileName), IO.Path.Combine(pathDone, newFilename))
-            '----------------------------
-            ' Update IMP_FILES_STAGE 取込ファイルワークテーブル
-            '----------------------------
-            'STAGED_FOLDER_PATH  (ワークフォルダパス)
-            'STAGED_FILE_NAME(ワークファイル名)
-            'UPDATED_AT(更新日時) 
-            Dim impFileStageId = impFIlesStage.ImpFileStageId
-            Dim updateAt = DateTime.Now
-            impFIlesStage.StagedFolderPath = pathDone
-            impFIlesStage.StagedFileName = newFilename
-            impFIlesStage.UpdatedAt = updateAt
-            errors.Add(repis.Update(conn, tran, kImpFileStageId:=impFileStageId, stagedFolderPath:=pathDone, stagedFileName:=newFilename, updatedAt:=updateAt))
-            If (CheckError(errors)) Then
-                ' エラー 
-            End If
-            '#If DEBUG Then
-            '            ' #### DEBUG
-            '            tran.Commit()
-            '            tran = conn.BeginTransaction()
-            '            ' #### DEBUG
-            '#End If
+                'IMP_FILES（取込ファイルテーブル）データ挿入
+                'IMP_FILES（取込ファイルテーブル）に、IMP_FILES_STAGE（取込ファイルワークテーブル）のレコードを追加する。
+                '追加時に自動作成される IMP_FILE_ID（取込ファイルID） を保持する。
+                '追加したデータはIMP_FILES_STAGE から物理削除する。
+                '----------------------------
+                ' Insert 取込ファイル
+                '----------------------------
+                ' impFIlesStage のレコードを 追加する
+                Dim impFIles = ImpFilesStageRow.ToImpFilesRow(impFIlesStage)
+                'impFIlesStage.Status = "PARSED"
+                errors.Add(repif.Insert(conn, tran, impFIles))
+                If (CheckError(errors)) Then
+                    ' エラー 
+                    Throw New Exception()
+                End If
+                '#If DEBUG Then
+                '            ' #### DEBUG
+                '            tran.Commit()
+                '            tran = conn.BeginTransaction()
+                '            ' #### DEBUG
+                '#End If
+                ' 追加した レコードを読み直し(imp_file_id を取得するため
+                impFIles = repif.GetImpFilesFilename(conn, tran, fileName:=fileName)
+                Dim impFileId = impFIles.ImpFileId
+                ' 削除
+                Dim impFIlesStageId = impFIlesStage.ImpFileStageId
+                Dim status = impFIlesStage.Status
+                errors.Add(repis.Delete(conn, tran, impFileStageId:=impFIlesStageId, status:=status))
+                If (CheckError(errors)) Then
+                    ' エラー 
+                    Throw New Exception()
+                End If
+                '#If DEBUG Then
+                '            ' #### DEBUG
+                '            tran.Commit()
+                '            tran = conn.BeginTransaction()
+                '            ' #### DEBUG
+                '#End If
+                '----------------------------
+                ' Update 生産計画ワーク
+                '----------------------------
+                'ORDERS_STAGE（生産計画ワークテーブル）データ更新
+                'IMP_FILE_STAGE_ID(一時取込ファイルID)(取込ファイルワークテーブル)
+                'IMP_FILE_ID(取込ファイルID)(取込ファイルテーブル)
+                ''IMP_RUN_ID(取込実行ID)                  取込実行テーブル
+                'status(ステータス)                      "PLAN_SET"
+                'ACTIVE_FLAG(有効フラグ)                 "Y"
+                'CREATED_AT(登録日時)                    imp_run.startedAt
+                'CREATED_USER_ID(登録ユーザーID)         ログイン情報
+                'CREATED_PG_ID(登録プログラムID)         "ProductionPlanningImport(Execute)"
+                'UPDATED_AT(更新日時)                    imp_run.startedAt
+                'UPDATED_USER_ID(更新ユーザーID)         ログイン情報
+                'UPDATED_PG_ID(更新プログラムID)         "ProductionPlanningImport(Execute)"
+                ' 変数
+                'ordersRows
+                'impRun
+                'impFIlesStage
+                'impFIles
+                errors.Add(reps.UpdateByOrderId(conn, tran, OrderStageRepository.OrdersTable.ProductPlan,
+                                     OrdersRow.ToOrdersStageRow(ordersRows),
+                                     impFileStageId:=impFileStageId,
+                                     impFileId:=impFileId,
+                                     impRunId:=impRunId,
+                                     status:="PLAN_SET",
+                                     activeFlag:="Y",
+                                     createdAt:=startedAt,
+                                     createdUserId:=loginUserId,
+                                     createdPgId:="ProductionPlanningImport(Execute)",
+                                     updatedAt:=startedAt,
+                                     updatedUserId:=loginUserId,
+                                     updatedPgId:="ProductionPlanningImport(Execute)"))
+                If (CheckError(errors)) Then
+                    ' エラー 
+                    Throw New Exception()
+                End If
+                '#If DEBUG Then
+                '            ' #### DEBUG
+                '            tran.Commit()
+                '            tran = conn.BeginTransaction()
+                '            ' #### DEBUG
+                '#End If
 
-            'IMP_FILES（取込ファイルテーブル）データ挿入
-            'IMP_FILES（取込ファイルテーブル）に、IMP_FILES_STAGE（取込ファイルワークテーブル）のレコードを追加する。
-            '追加時に自動作成される IMP_FILE_ID（取込ファイルID） を保持する。
-            '追加したデータはIMP_FILES_STAGE から物理削除する。
-            '----------------------------
-            ' Insert 取込ファイル
-            '----------------------------
-            ' impFIlesStage のレコードを 追加する
-            Dim impFIles = ImpFilesStageRow.ToImpFilesRow(impFIlesStage)
-            'impFIlesStage.Status = "PARSED"
-            errors.Add(repif.Insert(conn, tran, impFIles))
-            If (CheckError(errors)) Then
-                ' エラー 
-            End If
-            '#If DEBUG Then
-            '            ' #### DEBUG
-            '            tran.Commit()
-            '            tran = conn.BeginTransaction()
-            '            ' #### DEBUG
-            '#End If
-            ' 追加した レコードを読み直し(imp_file_id を取得するため
-            impFIles = repif.GetImpFilesFilename(conn, tran, fileName:=fileName)
-            Dim impFileId = impFIles.ImpFileId
-            ' 削除
-            Dim impFIlesStageId = impFIlesStage.ImpFileStageId
-            Dim status = impFIlesStage.Status
-            errors.Add(repis.Delete(conn, tran, impFileStageId:=impFIlesStageId, status:=status))
-            If (CheckError(errors)) Then
-                ' エラー 
-            End If
-            '#If DEBUG Then
-            '            ' #### DEBUG
-            '            tran.Commit()
-            '            tran = conn.BeginTransaction()
-            '            ' #### DEBUG
-            '#End If
-            '----------------------------
-            ' Update 生産計画ワーク
-            '----------------------------
-            'ORDERS_STAGE（生産計画ワークテーブル）データ更新
-            'IMP_FILE_STAGE_ID(一時取込ファイルID)(取込ファイルワークテーブル)
-            'IMP_FILE_ID(取込ファイルID)(取込ファイルテーブル)
-            ''IMP_RUN_ID(取込実行ID)                  取込実行テーブル
-            'status(ステータス)                      "PLAN_SET"
-            'ACTIVE_FLAG(有効フラグ)                 "Y"
-            'CREATED_AT(登録日時)                    imp_run.startedAt
-            'CREATED_USER_ID(登録ユーザーID)         ログイン情報
-            'CREATED_PG_ID(登録プログラムID)         "ProductionPlanningImport(Execute)"
-            'UPDATED_AT(更新日時)                    imp_run.startedAt
-            'UPDATED_USER_ID(更新ユーザーID)         ログイン情報
-            'UPDATED_PG_ID(更新プログラムID)         "ProductionPlanningImport(Execute)"
-            ' 変数
-            'ordersRows
-            'impRun
-            'impFIlesStage
-            'impFIles
-            errors.Add(reps.UpdateByOrderId(conn, tran, OrderStageRepository.OrdersTable.ProductPlan,
-                                 OrdersRow.ToOrdersStageRow(ordersRows),
-                                 impFileStageId:=impFileStageId,
-                                 impFileId:=impFileId,
-                                 impRunId:=impRunId,
-                                 status:="PLAN_SET",
-                                 activeFlag:="Y",
-                                 createdAt:=startedAt,
-                                 createdUserId:=loginUserId,
-                                 createdPgId:="ProductionPlanningImport(Execute)",
-                                 updatedAt:=startedAt,
-                                 updatedUserId:=loginUserId,
-                                 updatedPgId:="ProductionPlanningImport(Execute)"))
-            If (CheckError(errors)) Then
-                ' エラー 
-            End If
-            '#If DEBUG Then
-            '            ' #### DEBUG
-            '            tran.Commit()
-            '            tran = conn.BeginTransaction()
-            '            ' #### DEBUG
-            '#End If
+                'PROD_PLAN_STAGE（生産計画ワークテーブル）のCUSTOMER_SETTING_ID（取引先設定ID）と一致するレコード
+                '----------------------------
+                ' Delete 生産計画
+                '----------------------------
+                Dim idList As New List(Of Long)
+                ' 処理対象となる CustomerSettingId リスト
+                ordersRows.ForEach(Sub(x) idList.Add(x.CustomerSettingId))
+                ' Customer Setting ID リスト重複をまとめる
+                Dim idSelectList = idList.Distinct().ToList()
+                errors.Add(repo.DeleteRegisteredOrders(conn, tran, OrderRepository.OrdersTable.ProductPlan, idSelectList))
+                If (CheckError(errors)) Then
+                    ' エラー 
+                    Throw New Exception()
+                End If
+                '#If DEBUG Then
+                '            ' #### DEBUG
+                '            tran.Commit()
+                '            tran = conn.BeginTransaction()
+                '            ' #### DEBUG
+                '#End If
+                '----------------------------
+                ' Insert orders 生産計画
+                '----------------------------
+                'PROD_PLAN_STAGE（生産計画ワークテーブル）の全レコード
+                Dim orders = OrdersStageRow.ToOrdersRow(reps.ToClass(reps.GetOrders(conn, tran, OrderStageRepository.OrdersTable.ProductPlan)))
+                errors.Add(repo.InsertRange(conn, tran, OrderRepository.OrdersTable.ProductPlan, orders))
+                If (CheckError(errors)) Then
+                    ' エラー 
+                    Throw New Exception()
+                End If
+                '#If DEBUG Then
+                '            ' #### DEBUG
+                '            tran.Commit()
+                '            tran = conn.BeginTransaction()
+                '            ' #### DEBUG
+                '#End If
+                '----------------------------
+                ' Insert orders_history 生産計画履歴
+                '----------------------------
+                ' 履歴を登録する
+                errors.Add(reph.InsertRange(conn, tran, OrderHistoryRepository.OrdersTable.ProductPlan, orders))
+                If (CheckError(errors)) Then
+                    ' エラー 
+                    Throw New Exception()
+                End If
+                '#If DEBUG Then
+                '            ' #### DEBUG
+                '            tran.Commit()
+                '            tran = conn.BeginTransaction()
+                '            ' #### DEBUG
+                '#End If
+                '----------------------------
+                ' Update imp_run
+                '----------------------------
+                ' 更新条件
+                'IMP_RUN_ID(取込実行ID)	処理中の IMP_RUN_ID
+                'status(ステータス)		"RUNNING"
+                'ENDED_AT(実行終了日時)      DateTIme.Now
+                'status(ステータス)          OK:"COMPLETED" NG:"FAILED"
+                'FILE_COUNT(ファイル件数)    1
+                'ROW_COUNT(データ件数)
+                'ERROR_COUNT(エラー件数)
 
-            'PROD_PLAN_STAGE（生産計画ワークテーブル）のCUSTOMER_SETTING_ID（取引先設定ID）と一致するレコード
-            '----------------------------
-            ' Delete 生産計画
-            '----------------------------
-            Dim idList As New List(Of Long)
-            ' 処理対象となる CustomerSettingId リスト
-            ordersRows.ForEach(Sub(x) idList.Add(x.CustomerSettingId))
-            ' Customer Setting ID リスト重複をまとめる
-            Dim idSelectList = idList.Distinct().ToList()
-            errors.Add(repo.DeleteRegisteredOrders(conn, tran, OrderRepository.OrdersTable.ProductPlan, idSelectList))
-            If (CheckError(errors)) Then
-                ' エラー 
-            End If
-            '#If DEBUG Then
-            '            ' #### DEBUG
-            '            tran.Commit()
-            '            tran = conn.BeginTransaction()
-            '            ' #### DEBUG
-            '#End If
-            '----------------------------
-            ' Insert orders 生産計画
-            '----------------------------
-            'PROD_PLAN_STAGE（生産計画ワークテーブル）の全レコード
-            Dim orders = OrdersStageRow.ToOrdersRow(reps.ToClass(reps.GetOrders(conn, tran, OrderStageRepository.OrdersTable.ProductPlan)))
-            errors.Add(repo.InsertRange(conn, tran, OrderRepository.OrdersTable.ProductPlan, orders))
-            If (CheckError(errors)) Then
-                ' エラー 
-            End If
-            '#If DEBUG Then
-            '            ' #### DEBUG
-            '            tran.Commit()
-            '            tran = conn.BeginTransaction()
-            '            ' #### DEBUG
-            '#End If
-            '----------------------------
-            ' Insert orders_history 生産計画履歴
-            '----------------------------
-            ' 履歴を登録する
-            errors.Add(reph.InsertRange(conn, tran, OrderHistoryRepository.OrdersTable.ProductPlan, orders))
-            If (CheckError(errors)) Then
-                ' エラー 
-            End If
-            '#If DEBUG Then
-            '            ' #### DEBUG
-            '            tran.Commit()
-            '            tran = conn.BeginTransaction()
-            '            ' #### DEBUG
-            '#End If
-            '----------------------------
-            ' Update imp_run
-            '----------------------------
-            ' 更新条件
-            'IMP_RUN_ID(取込実行ID)	処理中の IMP_RUN_ID
-            'status(ステータス)		"RUNNING"
-            'ENDED_AT(実行終了日時)      DateTIme.Now
-            'status(ステータス)          OK:"COMPLETED" NG:"FAILED"
-            'FILE_COUNT(ファイル件数)    1
-            'ROW_COUNT(データ件数)
-            'ERROR_COUNT(エラー件数)
+                Dim endedAt = DateTime.Now
+                Dim satus = If(errorCount = 0, "COMPLETED", "FAILED")
+                Dim fileCount = 1
+                errors.Add(repir.Update(conn, tran, kImpRunId:=impRunId, kStatus:="RUNNING", endedAt:=endedAt, status:=status, fileCount:=fileCount, rowCount:=importCount, errorCount:=errorCount))
+                If (CheckError(errors)) Then
+                    ' エラー 
+                    Throw New Exception()
+                End If
+                '#If DEBUG Then
+                '            ' #### DEBUG
+                '            tran.Commit()
+                '            tran = conn.BeginTransaction()
+                '            ' #### DEBUG
+                '#End If
+            Catch ex As Exception
+            Finally
+                If (errors.Count > 0) Then
+                    'lblError.Text = errors(0)
+                    lblError.Text = String.Join(vbCrLf, errors)
+                Else
+                    If (importCount = 0) Then
+                    Else
+                        lblResult.Text = $"{fileName}ファイルの取り込みを行いました。"
+                    End If
+                End If
+            End Try
 
-            Dim endedAt = DateTime.Now
-            Dim satus = If(errorCount = 0, "COMPLETED", "FAILED")
-            Dim fileCount = 1
-            errors.Add(repir.Update(conn, tran, kImpRunId:=impRunId, kStatus:="RUNNING", endedAt:=endedAt, status:=status, fileCount:=fileCount, rowCount:=rowCount, errorCount:=errorCount))
-            If (CheckError(errors)) Then
-                ' エラー 
-            End If
-            '#If DEBUG Then
-            '            ' #### DEBUG
-            '            tran.Commit()
-            '            tran = conn.BeginTransaction()
-            '            ' #### DEBUG
-            '#End If
         End Sub
 #End Region
         ''' <summary>
@@ -1567,7 +1785,7 @@ Namespace Pages.Orders
         ''' <param name="tgDate"></param>
         ''' <returns></returns>
         Public Function Get4WeeksBefore(tgDate As Date) As Date
-            Return GetDaysBefore(tgDate, 7 * 4)
+            Return GetDaysBefore(tgDate, 7 * 4) ' + 1)
         End Function
 
         ''' <summary>
@@ -1579,6 +1797,26 @@ Namespace Pages.Orders
             Return GetDaysBefore(tgDate, 7)
         End Function
 
+        ''' <summary>
+        ''' 引数の日付（当日）が含まれる週の週末（土曜日）の日付を返します。
+        ''' </summary>
+        ''' <param name="targetDate">当日（基準となる日付）</param>
+        Function GetWeekendSaturday(targetDate As DateTime) As DateTime
+            Dim startOfWeek = DayOfWeek.Sunday
+
+            ' 1. 週の始まりの曜日から見て、当日が何日目かを計算
+            ' (Mod 7 を使うことで、マイナスにならずに0〜6の範囲に収めます)
+            Dim daysFromStart As Integer = (CInt(targetDate.DayOfWeek) - CInt(startOfWeek) + 7) Mod 7
+
+            ' 2. 当日が含まれる週の「週の始まり（日/月曜日）」の日付を特定
+            Dim weekStartDate As DateTime = targetDate.AddDays(-daysFromStart)
+
+            ' 3. 週の始まりから、土曜日までの日数を計算
+            Dim daysToSaturday As Integer = (CInt(DayOfWeek.Saturday) - CInt(startOfWeek) + 7) Mod 7
+
+            ' 4. 週の始まりに日数を足して、目的の土曜日を返す
+            Return weekStartDate.AddDays(daysToSaturday)
+        End Function
         ''' <summary>
         ''' 指定日数前の 日付を取得
         ''' </summary>
@@ -1640,6 +1878,7 @@ Namespace Pages.Orders
             'If (calenderList.Count < index - 1) Then
             If (calenderList.Count < index + 1) Then
                 ' 範囲外エラー
+                index = index - 1
             End If
             Return calenderList(index).DefDate
 
@@ -1653,19 +1892,40 @@ Namespace Pages.Orders
         ''' <param name="tgDate"></param>
         ''' <returns></returns>
         Public Function Get3WeekOfThisMonth(tgDate As Date) As Date
-            Dim firstOfThisMonth As Date
+            'Dim firstOfThisMonth As Date
 
-            ' 当月の1日を取得
-            firstOfThisMonth = DateSerial(tgDate.Year, tgDate.Month, 1)
+            '' 当月の1日を取得
+            'firstOfThisMonth = DateSerial(tgDate.Year, tgDate.Month, 1)
 
-            ' 第1週の土曜日を求める (DayOfWeek.Saturday = 6)
-            Dim daysUntilSaturday As Integer = (DayOfWeek.Saturday - firstOfThisMonth.DayOfWeek + 7) Mod 7
-            Dim firstSaturday As DateTime = firstOfThisMonth.AddDays(daysUntilSaturday)
+            '' 第1週の土曜日を求める (DayOfWeek.Saturday = 6)
+            'Dim daysUntilSaturday As Integer = (DayOfWeek.Saturday - firstOfThisMonth.DayOfWeek + 7) Mod 7
+            'Dim firstSaturday As DateTime = firstOfThisMonth.AddDays(daysUntilSaturday)
 
-            ' 第3週の終わりの日（第1土曜日の2週間後）
-            Dim thirdWeekEnd As DateTime = firstSaturday.AddDays(14)
-            'Console.WriteLine("今月の第3週の終わり（土曜日）は: " & thirdWeekEnd.ToShortDateString())
-            Return thirdWeekEnd
+            '' 第3週の終わりの日（第1土曜日の2週間後）
+            'Dim thirdWeekEnd As DateTime = firstSaturday.AddDays(14)
+            ''Console.WriteLine("今月の第3週の終わり（土曜日）は: " & thirdWeekEnd.ToShortDateString())
+            'Return thirdWeekEnd
+
+            Dim startOfWeek = DayOfWeek.Sunday
+
+            ' 1. 指定された日付の「月の初日（1日）」を取得
+            Dim firstDayOfMonth As New DateTime(tgDate.Year, tgDate.Month, 1)
+
+            ' 2. その月の最初の「週の始まりの曜日」の日付を探す（ここが第1週の始まり）
+            Dim firstWeekStart As DateTime = firstDayOfMonth
+            While firstWeekStart.DayOfWeek <> startOfWeek
+                firstWeekStart = firstWeekStart.AddDays(1)
+            End While
+
+            ' 3. 第3週の始まりは、第1週の始まりから2週間後（14日後）
+            Dim thirdWeekStart As DateTime = firstWeekStart.AddDays(14)
+
+            ' 4. 週の週末（土曜日）の日付を計算
+            ' 週の始まりから土曜日までの日数を足す
+            Dim daysToSaturday As Integer = (DayOfWeek.Saturday - startOfWeek + 7) Mod 7
+            Dim thirdWeekend As DateTime = thirdWeekStart.AddDays(daysToSaturday)
+
+            Return thirdWeekend
 
         End Function
         ''' <summary>
@@ -1713,9 +1973,9 @@ Namespace Pages.Orders
         '''  days 展開日数
         '''  fraction 端数
         ''' </returns>
-        Public Function GetRoundCalc3D(total As Integer, tdays As Integer, tunit As Integer) As (roundedUp As Integer, days As Integer, fraction As Integer)
+        Public Function GetRoundCalc3D(total As Integer, tdays As Integer, tunit As Integer, splitRationType As Integer) As (roundedUp As Integer, days As Integer, fraction As Integer)
             Dim totalQuantity As Double = total
-            Dim daysValue As Double = 3 'tdays
+            Dim daysValue As Double = If(splitRationType = 1, 3, 4) 'tdays
             Dim unit As Double = tunit
 
             ' 1日あたりの平均
@@ -1799,19 +2059,19 @@ Namespace Pages.Orders
             'hfResult.Value = ""
         End Sub
 
-        ''' <summary>
-        ''' Work path 取得 (ない場合は作成する)
-        ''' </summary>
-        ''' <returns></returns>
-        Public Function GetWorkPath() As String
+        '''' <summary>
+        '''' Work path 取得 (ない場合は作成する)
+        '''' </summary>
+        '''' <returns></returns>
+        'Public Function GetWorkPath() As String
 
-            Dim rawWork As String = GetWorkFolderRoot()
-            Dim workFolder = rawWork & "FileTempFolder"
-            If (Not IO.File.Exists(workFolder)) Then
-                EnsureDirectory(workFolder)
-            End If
-            Return workFolder
-        End Function
+        '    Dim rawWork As String = GetWorkFolderRoot()
+        '    Dim workFolder = rawWork & "FileTempFolder"
+        '    If (Not IO.File.Exists(workFolder)) Then
+        '        EnsureDirectory(workFolder)
+        '    End If
+        '    Return workFolder
+        'End Function
 
         ''' <summary>
         ''' 完了 path 取得 (ない場合は作成する)
