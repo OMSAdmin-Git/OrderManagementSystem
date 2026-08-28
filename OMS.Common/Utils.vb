@@ -1,4 +1,4 @@
-﻿Imports System
+Imports System
 Imports System.Collections.Generic
 Imports System.Configuration
 Imports System.Data
@@ -274,6 +274,15 @@ Namespace OMS.Common
             If s Is Nothing Then Return Nothing
             s = s.Trim()
             Return If(s.Length = 0, Nothing, s)
+        End Function
+
+        ''' <summary>Nullable型を DBNull.Value または 値 に変換する</summary>
+        Public Function SafeNullable(Of T As Structure)(val As T?) As Object
+            If val.HasValue Then
+                Return val.Value
+            Else
+                Return DBNull.Value
+            End If
         End Function
 
 #End Region
