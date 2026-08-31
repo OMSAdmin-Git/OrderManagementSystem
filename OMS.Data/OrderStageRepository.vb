@@ -1644,6 +1644,135 @@ Namespace OMS.Data
         End Function
 
         ''' <summary>
+        ''' 製品コード(品目No)およびPC(プロフィットセンター)を一括取得する
+        ''' </summary>
+        ''' <param name="CustomerCode">処理中の取引先コード</param>
+        ''' <param name="CustomerItemNo">処理中の客先品目No</param>
+        ''' <param name="Status">ステータス 2=試作品</param>
+        ''' <param name="itemNo">取得した製品コード(品目No)</param>
+        ''' <param name="pcCode">取得したPC(プロフィットセンター)コード</param>
+        ''' <param name="errorMessage">エラーメッセージ</param>
+        Public Function GetProductCode3(ByVal CustomerCode As String,
+                                        ByRef CustomerItemNo As String,
+                                        ByVal Status As String,
+                                        ByRef itemNo As String,
+                                        ByRef pcCode As String,
+                                        ByRef errorMessage As String
+                                    ) As Boolean
+
+            '' --- 初期化 ---
+            'itemNo = ""
+            'pcCode = ""
+            'errorMessage = String.Empty
+
+            'Dim pCustomerCode As String = If(String.IsNullOrWhiteSpace(CustomerCode), Nothing, CustomerCode.Trim())
+            'Dim pCustomerItemNo As String = If(String.IsNullOrWhiteSpace(CustomerItemNo), Nothing, CustomerItemNo.Trim())
+
+            '' --- 変換パターンの設定 ---
+            'Dim PatternList As New List(Of String)()
+            'Select Case CustomerCode
+            '    Case "5384" ' YMPC(ヤマハモーターパワープロダクツ)
+            '        PatternList.AddRange({"3-5-2", "5-5"})
+            '    Case "5952" ' YEJP(ヤマハ発動機 遠州森町工場)
+            '        PatternList.AddRange({"3-5-2", "5-5-2-2", "4-5-2", "3-5-5", "3-11", "5-5"})
+            '    Case "5977" ' YMC(ヤマハ発動機)
+            '        PatternList.AddRange({"3-5-2", "5-5"})
+            'End Select
+
+            '' パターンリストが空の場合はエラー
+            'If PatternList Is Nothing OrElse PatternList.Count = 0 Then
+            '    errorMessage = "変換パターンリストが指定されていません。"
+            '    Return False
+            'End If
+
+            'Dim orgCustomerItemNo As String = pCustomerItemNo
+
+            '' --- パターンの数だけループ処理 ---
+            'For Each currentPattern As String In PatternList
+
+            '    pCustomerItemNo = orgCustomerItemNo
+            '    pCustomerItemNo = FormatByCostmerItemNo(pCustomerItemNo, currentPattern)
+
+            '    ' SQLの統合（LEFT OUTER JOIN）
+            '    ' 製品受注基準マスタを主軸に、PCマスタを結合
+            '    Dim sql As String =
+            '    " SELECT " &
+            '    "   A.fprdcd, " &
+            '    "   A.fcustitemno, " &
+            '    "   B.fusrstr1 " &
+            '    " FROM prdslsodrm A " &
+            '    " LEFT OUTER JOIN usrdeffldf B " &
+            '    "   ON B.ftableid = 'ITEMM' AND B.fvreckey = A.fprdcd " &
+            '    " WHERE 1=1 " &
+            '    "   AND A.fcustcd = :p_customer_code " &
+            '    "   AND TRIM(A.fcustitemno) = :p_customer_item_no "
+
+            '    ' ステータス判定（試作品対応）
+            '    If Status IsNot Nothing AndAlso Status = "2" Then
+            '        sql &= " AND A.fprdcd LIKE '%S' "
+            '    Else
+            '        sql &= " AND A.fprdcd NOT LIKE '%S' "
+            '    End If
+
+            '    Dim hitCount As Integer = 0
+            '    Dim fprdcd As String = Nothing
+            '    Dim fcustitemno As String = Nothing
+            '    Dim fusrstr1 As String = Nothing
+
+            '    ' DBアクセス
+            '    Using conn As New OracleConnection(_connectionString)
+            '        conn.Open()
+            '        Using cmd As New OracleCommand(sql, conn)
+            '            cmd.BindByName = True
+            '            cmd.CommandType = CommandType.Text
+
+            '            cmd.Parameters.Add(":p_customer_code", OracleDbType.Varchar2, 25).Value = SafeVarchar(pCustomerCode, 25)
+            '            cmd.Parameters.Add(":p_customer_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(pCustomerItemNo, 45)
+
+            '            Using reader As OracleDataReader = cmd.ExecuteReader()
+            '                While reader.Read()
+            '                    hitCount += 1
+            '                    If hitCount = 1 Then
+            '                        fprdcd = Convert.ToString(reader("fprdcd"))
+            '                        fcustitemno = Convert.ToString(reader("fcustitemno"))
+            '                        ' DBからNULLが返ってきた場合は空文字にする
+            '                        fusrstr1 = If(reader("fusrstr1") Is DBNull.Value, "", Convert.ToString(reader("fusrstr1")))
+            '                    End If
+            '                    If hitCount > 1 Then Exit While
+            '                End While
+            '            End Using
+            '        End Using
+            '    End Using
+
+            '    ' --- 件数判定とエラーハンドリング ---
+            '    If hitCount > 1 Then
+            '        errorMessage = "製品受注基準マスタが複数件取得されました。"
+            '        Return False
+            '    ElseIf hitCount = 1 Then
+            '        ' 製品データが1件見つかった場合、PCの存在チェック
+            '        If String.IsNullOrEmpty(fusrstr1) Then
+            '            ' LEFT JOINの結果がNULL、または空文字の場合はPC未登録エラー
+            '            'errorMessage = "PCが取得できません。"
+            '            Return False
+            '        End If
+
+            '        ' すべて正常に取得できた場合、値を格納して終了
+            '        itemNo = fprdcd
+            '        CustomerItemNo = fcustitemno
+            '        pcCode = fusrstr1
+            '        Return True
+            '    End If
+
+            '    ' hitCount = 0 の場合は、次の変換パターン（currentPattern）を試すためループを継続
+            'Next
+
+            '' すべてのパターンを試しても製品コード自体が1件もヒットしなかった場合
+            'errorMessage = "品目No及び製品コードが取得できません。品目No:" & orgCustomerItemNo & " (Debug用)"
+            'Return False
+
+        End Function
+
+        ''' <summary>
         ''' 需要単位を取得する
         ''' </summary>
         ''' <param name="ProductCode">処理中の製品コード</param>
@@ -1749,6 +1878,70 @@ Namespace OMS.Data
                         Return False
                     ElseIf hitCount > 1 Then
                         errorMessage = "出荷在庫場所が複数件取得されました。"
+                        Return False
+                    End If
+
+
+                    ' 正常終了
+                    Code = tempCode
+                    Return True
+
+                End Using
+            End Using
+
+        End Function
+
+        ''' <summary>
+        ''' 需要単位と出荷在庫場所を取得する
+        ''' </summary>
+        ''' <param name="ProductCode">処理中の製品コード</param>
+        ''' <param name="Code">取得内容</param>
+        ''' ''' <param name="Code2">取得内容2</param>
+        ''' <param name="errorMessage">エラーメッセージ</param>
+        Public Function GetDemandUnitAndShipStockLocation(ByVal ProductCode As String, ByRef Code As String, ByRef Code2 As String, ByRef errorMessage As String) As Boolean
+
+            Dim pProductCode As String = If(String.IsNullOrWhiteSpace(ProductCode), Nothing, ProductCode.Trim())
+
+            'Code = Nothing
+            Code = ""
+            Code2 = ""
+            errorMessage = String.Empty
+
+            Const sql As String =
+                        " SELECT funit,fprmwhcd FROM itemm " &
+                        " WHERE fitemno = :p_product_code "
+
+            Using conn As New OracleConnection(_connectionString)
+                conn.Open()
+                Using cmd As New OracleCommand(sql, conn)
+
+                    cmd.BindByName = True
+                    cmd.CommandType = CommandType.Text
+
+                    cmd.Parameters.Clear()
+                    cmd.Parameters.Add(":p_product_code", OracleDbType.Varchar2, 45).Value = SafeVarchar(pProductCode, 45)
+
+                    Dim hitCount As Integer = 0
+                    Dim tempCode As String = Nothing
+                    Dim tempCode2 As String = Nothing
+
+                    Using reader As OracleDataReader = cmd.ExecuteReader()
+                        While reader.Read()
+                            hitCount += 1
+                            If hitCount = 1 Then
+                                tempCode = Convert.ToString(reader("funit"))
+                                tempCode2 = Convert.ToString(reader("fprmwhcd"))
+                            End If
+                            If hitCount > 1 Then Exit While
+                        End While
+                    End Using
+
+                    ' 件数判定
+                    If hitCount = 0 Then
+                        errorMessage = "需要単位または出荷在庫場所が取得できません。"
+                        Return False
+                    ElseIf hitCount > 1 Then
+                        errorMessage = "需要単位または出荷在庫場所が複数件取得されました。"
                         Return False
                     End If
 
