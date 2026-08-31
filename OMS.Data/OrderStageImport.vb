@@ -113,6 +113,7 @@ Namespace OMS.Data
             Dim hinmokugyoNo As String      '品目情報行番号
             Dim ordergyoNo As String        'オーダー情報行番号
             Dim customercode As String      '得意先コード
+            Dim itemNo As String            'ASTI品番
         End Structure
         Private Shared m_ImpData() As ImportDataType
 
@@ -444,6 +445,50 @@ Namespace OMS.Data
                     Else
                         'オーダ情報（1行の中にデータ1とデータ2が最大2つ格納されている）
 
+
+                        '客先品目No　品目No検索 (客先品目Noにハイフォンをつけて検索)
+                        'STRAMMIC.PRDSLSODRMより取得
+                        'customeritemNo = currentCustomeritemNo
+                        Dim wkcustomeritemNo As String = currentCustomeritemNo
+                        itemNo = ""
+                        errMsg = ""
+                        If _oderStageRepo.GetProductCode2(customerCode, wkcustomeritemNo, currentStatus, itemNo, errMsg) = False Then
+                            errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {currentHinmokugyoNo}：{errMsg}")
+                            ''ErrFlg = True
+                            'fileidx += 1
+                            Continue While
+                        End If
+
+                        '品目NoのPC   （必須）
+                        'STRAMMIC.USRDEFFLDFより取得
+                        profitcenter = ""
+                        errMsg = ""
+                        If _oderStageRepo.GetProfitCenter(itemNo, profitcenter, errMsg) = False Then
+                            'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：{errMsg}")
+                            'ErrFlg = True
+                        End If
+
+                        'Dim orgCustomerItemNo As String = currentCustomeritemNo
+                        'itemNo = ""
+                        'profitcenter = ""
+                        'errMsg = ""
+                        'If _oderStageRepo.GetProductCode3(customerCode, orgCustomerItemNo, currentStatus, itemNo, profitcenter, errMsg) = False Then
+                        '    errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {currentHinmokugyoNo}：{errMsg}")
+                        '    ''ErrFlg = True
+                        '    fileidx += 1
+                        '    Continue While
+                        'End If
+
+
+                        '取引先設定IDのPCと同じPCのみ取込対象とする
+                        If String.IsNullOrEmpty(profitcenterCSM) OrElse String.IsNullOrEmpty(profitcenter) OrElse profitcenterCSM <> profitcenter Then
+                            'PCが違う場合は取込しない、エラーメッセージなし、ファイル移動もなし
+                            'Debug用
+                            'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：取込対象PCではないため除外 (Debug用)")
+                            'fileidx += 1
+                            Continue While
+                        End If
+
                         ' --------------------------------------------------
                         ' 1つ目のオーダ情報データの処理
                         ' --------------------------------------------------
@@ -467,7 +512,9 @@ Namespace OMS.Data
                             '品目情報をセット
                             m_ImpData(UBound(m_ImpData)).siyosha = currentSiyosha                                   '使用者
                             m_ImpData(UBound(m_ImpData)).status = currentStatus                                     '品目ステータス
-                            m_ImpData(UBound(m_ImpData)).customeritemNo = currentCustomeritemNo                     '旧体系部品番号(客先品目No)
+                            'm_ImpData(UBound(m_ImpData)).customeritemNo = currentCustomeritemNo                     '旧体系部品番号(客先品目No)
+                            m_ImpData(UBound(m_ImpData)).customeritemNo = wkcustomeritemNo                     '旧体系部品番号(客先品目No)
+                            m_ImpData(UBound(m_ImpData)).itemNo = itemNo                                        'ASTI品番
                             m_ImpData(UBound(m_ImpData)).nonyuplat = currentNonyuplat                               '納入プラットフォーム
                             m_ImpData(UBound(m_ImpData)).yokisyuuyousuu = currentYokisyuuyousuu                     '荷姿収容数
                             m_ImpData(UBound(m_ImpData)).yokibangou = currentYokibangou                             '荷姿コード
@@ -513,7 +560,9 @@ Namespace OMS.Data
                             '品目情報をセット
                             m_ImpData(UBound(m_ImpData)).siyosha = currentSiyosha                                   '使用者
                             m_ImpData(UBound(m_ImpData)).status = currentStatus                                     '品目ステータス
-                            m_ImpData(UBound(m_ImpData)).customeritemNo = currentCustomeritemNo                     '旧体系部品番号(客先品目No)
+                            'm_ImpData(UBound(m_ImpData)).customeritemNo = currentCustomeritemNo                     '旧体系部品番号(客先品目No)
+                            m_ImpData(UBound(m_ImpData)).customeritemNo = wkcustomeritemNo                     '旧体系部品番号(客先品目No)
+                            m_ImpData(UBound(m_ImpData)).itemNo = itemNo                                        'ASTI品番
                             m_ImpData(UBound(m_ImpData)).nonyuplat = currentNonyuplat                               '納入プラットフォーム
                             m_ImpData(UBound(m_ImpData)).yokisyuuyousuu = currentYokisyuuyousuu                     '荷姿収容数
                             m_ImpData(UBound(m_ImpData)).yokibangou = currentYokibangou                             '荷姿コード
@@ -541,9 +590,9 @@ Namespace OMS.Data
 
             End Using
 
-            'デバック用に取込したデータをワークテーブル(YAMAHA_IMP_ORDERS-)に保存
+            'デバック用に取込したデータをワークテーブル(YAMAHA_IMP_ORDERS)に保存
             'SaveImportDataToWorkTable(tran, m_ImpData, impfilestageId, newId, UserId, pgId)
-            SaveImportDataToWorkTable2(tran, m_ImpData, impfilestageId, newId, UserId, pgId)
+            'SaveImportDataToWorkTable2(tran, m_ImpData, impfilestageId, newId, UserId, pgId)
 
             '-----------------
             '取込データを加工
@@ -585,7 +634,7 @@ Namespace OMS.Data
                 infotype = ""
                 reconciletype = 1
                 'profitcenterCSM = ""
-                profitcenter = ""
+                'profitcenter = ""
                 '2026/08/24 追加
                 ordertime = Nothing
                 salesunitprice = Nothing
@@ -612,35 +661,37 @@ Namespace OMS.Data
                 '    'ErrFlg = True
                 'End If
 
-                '客先品目No　品目No検索 (客先品目Noにハイフォンをつけて検索)
-                'STRAMMIC.PRDSLSODRMより取得
+                ''客先品目No　品目No検索 (客先品目Noにハイフォンをつけて検索)
+                ''STRAMMIC.PRDSLSODRMより取得
+                'customeritemNo = m_ImpData(IntDataCnt).customeritemNo
+                'itemNo = ""
+                'errMsg = ""
+                'If _oderStageRepo.GetProductCode2(customerCode, customeritemNo, m_ImpData(IntDataCnt).status, itemNo, errMsg) = False Then
+                '    errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：{errMsg}")
+                '    'ErrFlg = True
+                '    fileidx += 1
+                '    Continue For
+                'End If
                 customeritemNo = m_ImpData(IntDataCnt).customeritemNo
-                itemNo = ""
-                errMsg = ""
-                If _oderStageRepo.GetProductCode2(customerCode, customeritemNo, m_ImpData(IntDataCnt).status, itemNo, errMsg) = False Then
-                    errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：{errMsg}")
-                    'ErrFlg = True
-                    fileidx += 1
-                    Continue For
-                End If
+                itemNo = m_ImpData(IntDataCnt).itemNo
 
-                '品目NoのPC   （必須）
-                'STRAMMIC.USRDEFFLDFより取得
-                profitcenter = ""
-                errMsg = ""
-                If _oderStageRepo.GetProfitCenter(itemNo, profitcenter, errMsg) = False Then
-                    'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：{errMsg}")
-                    'ErrFlg = True
-                End If
+                ''品目NoのPC   （必須）
+                ''STRAMMIC.USRDEFFLDFより取得
+                'profitcenter = ""
+                'errMsg = ""
+                'If _oderStageRepo.GetProfitCenter(itemNo, profitcenter, errMsg) = False Then
+                '    'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：{errMsg}")
+                '    'ErrFlg = True
+                'End If
 
-                '取引先設定IDのPCと同じPCのみ取込対象とする
-                If String.IsNullOrEmpty(profitcenterCSM) OrElse String.IsNullOrEmpty(profitcenter) OrElse profitcenterCSM <> profitcenter Then
-                    'PCが違う場合は取込しない、エラーメッセージなし、ファイル移動もなし
-                    'Debug用
-                    'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：取込対象PCではないため除外 (Debug用)")
-                    fileidx += 1
-                    Continue For
-                End If
+                ''取引先設定IDのPCと同じPCのみ取込対象とする
+                'If String.IsNullOrEmpty(profitcenterCSM) OrElse String.IsNullOrEmpty(profitcenter) OrElse profitcenterCSM <> profitcenter Then
+                '    'PCが違う場合は取込しない、エラーメッセージなし、ファイル移動もなし
+                '    'Debug用
+                '    'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：取込対象PCではないため除外 (Debug用)")
+                '    fileidx += 1
+                '    Continue For
+                'End If
 
 
 
@@ -772,14 +823,14 @@ Namespace OMS.Data
                 '納入指示フラグ    （固定値）
                 deliveryinstrflag = If(ordertype = 3, "Y", "N")
 
-                '通貨コード  （任意）
-                'STRAMMIC.SECTMより取得
-                currencycode = ""
-                errMsg = ""
-                If _oderStageRepo.GetCurrencyCode(customerCode, currencycode, errMsg) = False Then
-                    'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
-                    'ErrFlg = True
-                End If
+                ''通貨コード  （任意）
+                ''STRAMMIC.SECTMより取得
+                'currencycode = ""
+                'errMsg = ""
+                'If _oderStageRepo.GetCurrencyCode(customerCode, currencycode, errMsg) = False Then
+                '    'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                '    'ErrFlg = True
+                'End If
 
 
                 ''客先品目No　品目No検索 (客先品目Noにハイフォンをつけて検索)
@@ -795,14 +846,34 @@ Namespace OMS.Data
                 '製品コード
                 productcode = itemNo
 
-                '需要単位   （任意）
+                ''需要単位   （任意）
+                ''STRAMMIC.ITEMMより取得
+                'demandunit = ""
+                'errMsg = ""
+                'If _oderStageRepo.GetDemandUnit(productcode, demandunit, errMsg) = False Then
+                '    'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                '    'ErrFlg = True
+                'End If
+
+                ''出荷在庫場所 （任意）
+                ''STRAMMIC.ITEMMより取得
+                'shipstocklocation = ""
+                'errMsg = ""
+                'If _oderStageRepo.GetShipStockLocation(productcode, shipstocklocation, errMsg) = False Then
+                '    'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                '    'ErrFlg = True
+                'End If
+
+                '需要単位   （任意）と　出荷在庫場所 （任意）
                 'STRAMMIC.ITEMMより取得
                 demandunit = ""
+                shipstocklocation = ""
                 errMsg = ""
-                If _oderStageRepo.GetDemandUnit(productcode, demandunit, errMsg) = False Then
+                If _oderStageRepo.GetDemandUnitAndShipStockLocation(productcode, demandunit, shipstocklocation, errMsg) = False Then
                     'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
                     'ErrFlg = True
                 End If
+
 
                 'コメント   （任意）
                 remarks = ""
@@ -817,18 +888,6 @@ Namespace OMS.Data
                 If m_ImpData(IntDataCnt).cardkubun = "2" Then
                     deliverycode = m_ImpData(IntDataCnt).icdenpyoNo      'IC伝票Noをセット
                 End If
-
-
-                '出荷在庫場所 （任意）
-                'STRAMMIC.ITEMMより取得
-                shipstocklocation = ""
-                errMsg = ""
-                If _oderStageRepo.GetShipStockLocation(productcode, shipstocklocation, errMsg) = False Then
-                    'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
-                    'ErrFlg = True
-                End If
-
-
 
                 '取引先情報区分
                 customerinfotype = ""
@@ -860,6 +919,15 @@ Namespace OMS.Data
                 If _oderStageRepo.GetShipTo(customerCode, deliverycode, shipto, errMsg) = False Then
                     errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：{errMsg}")
                     ErrFlg = True
+                End If
+
+                '通貨コード  （任意）
+                'STRAMMIC.SECTMより取得
+                currencycode = ""
+                errMsg = ""
+                If _oderStageRepo.GetCurrencyCode(customerCode, currencycode, errMsg) = False Then
+                    'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                    'ErrFlg = True
                 End If
 
                 '請求先    (任意）
@@ -3922,6 +3990,7 @@ Namespace OMS.Data
             Dim arrPublicationDate(dataCount - 1) As DateTime
             Dim arrPublicationTime(dataCount - 1) As Object
             Dim arrCustomerItemNo(dataCount - 1) As String
+            Dim arrItemNo(dataCount - 1) As String
 
             Dim arrImpFileStageId(dataCount - 1) As Long
             Dim arrHinmokuGyoNo(dataCount - 1) As Object
@@ -3975,6 +4044,8 @@ Namespace OMS.Data
                 arrIcdenpyoNo(i) = impDataList(i).icdenpyoNo
                 arrNohinshoNo(i) = impDataList(i).nohinshoNo
 
+                arrItemNo(i) = impDataList(i).itemNo
+
                 arrImpRunId(i) = newId
                 arrActiveFlag(i) = "Y"
                 arrCreatedUserId(i) = SafeVarchar(UserId, 9)
@@ -4015,13 +4086,13 @@ Namespace OMS.Data
                     yokisyuuyousuu, yokibangou, ordersikibetu_no, nonyusijibi, nonyujikan,
                     nonyusijisu, cardkubun, naijikubun, icdenpyo_no, nohinsho_no,
                     publication_date, publication_time, imp_run_id, active_flag,
-                    created_at, created_user_id, created_pg_id
+                    created_at, created_user_id, created_pg_id, item_no
                 ) VALUES (
                     :p_imp_file_stage_id, :p_hinmoku_gyo_no, :p_order_gyo_no, :p_customer_code, :p_siyosha, :p_status, :p_customer_item_no, :p_nonyuplat,
                     :p_yokisyuuyousuu, :p_yokibangou, :p_ordersikibetu_no, :p_nonyusijibi, :p_nonyujikan,
                     :p_nonyusijisu, :p_cardkubun, :p_naijikubun, :p_icdenpyo_no, :p_nohinsho_no,
                     :p_publication_date, :p_publication_time, :p_imp_run_id, :p_active_flag,
-                    :p_created_at, :p_created_user_id, :p_created_pg_id
+                    :p_created_at, :p_created_user_id, :p_created_pg_id, :p_item_no
                 )"
 
             Using cmd As New OracleCommand(sql, tran.Connection)
@@ -4057,6 +4128,7 @@ Namespace OMS.Data
                 cmd.Parameters.Add("p_created_at", OracleDbType.Date, arrNowTime, ParameterDirection.Input)
                 cmd.Parameters.Add("p_created_user_id", OracleDbType.Varchar2, arrCreatedUserId, ParameterDirection.Input)
                 cmd.Parameters.Add("p_created_pg_id", OracleDbType.Varchar2, arrCreatedPgId, ParameterDirection.Input)
+                cmd.Parameters.Add("p_item_no", OracleDbType.Varchar2, arrItemNo, ParameterDirection.Input)
 
                 cmd.ExecuteNonQuery()
 
