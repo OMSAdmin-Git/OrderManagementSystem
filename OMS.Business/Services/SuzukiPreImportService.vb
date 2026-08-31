@@ -27,9 +27,22 @@ Namespace Services
         ''' <summary>
         ''' 取込処理メインエントリ
         ''' </summary>
-        Public Function ExecuteImport(folderPath As String, customerSettingId As Long, folderType As Integer, Optional userId As String = "SUZUKI-AT", Optional isBatch As Boolean = True, Optional reconcileFlag As String = "", Optional fcstReconcileFlag As String = "", Optional ByRef webErrors As List(Of String) = Nothing) As Integer
+        Public Function ExecuteImport(folderPath As String, customerSettingId As Long, folderType As Integer, Optional userId As String = "SUZUKI-AT", Optional isBatch As Boolean = True, Optional reconcileFlag As String = "", Optional fcstReconcileFlag As String = "", Optional ByRef webErrors As List(Of String) = Nothing, Optional ByRef outStageRows As List(Of ImpFilesStageRow) = Nothing, Optional ByRef totalFilesCount As Integer = 0, Optional ByRef validFilesCount As Integer = 0, Optional ByRef errorFilesCount As Integer = 0) As Integer
             Dim loggerPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "app.log")
             Dim logger As New Logger(loggerPath)
+
+            ' ユーザーIDの厳密チェック (Strict User ID check)
+            If String.IsNullOrWhiteSpace(userId) Then
+                If isBatch Then
+                    userId = "SUZUKI-AT"
+                Else
+                    logger.Write("[SUZUKI_IMPORT] User ID is empty. Aborting execution.")
+                    If webErrors IsNot Nothing Then
+                        webErrors.Add("ユーザーIDが取得できませんでした。ログイン状態を確認してください。")
+                    End If
+                    Return 0
+                End If
+            End If
 
             logger.Write($"[SUZUKI_IMPORT] Start processing folder={folderPath} user={userId} isBatch={isBatch}")
 
@@ -38,10 +51,11 @@ Namespace Services
                 Return 0
             End If
 
-            ' 2. WORK フォルダ確保
+            ' 2. ユーザー専用のWORKフォルダを確保（WORK/[UserID]/[取引先CD]/[FolderType]）
             Dim workRoot = ConfigurationManager.AppSettings("WorkFolderRoot")
             If String.IsNullOrWhiteSpace(workRoot) Then workRoot = "C:\ASTI\DATA\WORK"
-            Dim userWorkDir = Path.Combine(workRoot, userId)
+            Dim customerCode = GetCustomerCode(customerSettingId)
+            Dim userWorkDir = Path.Combine(workRoot, userId, customerCode, folderType.ToString())
             Utils.EnsureDirectory(userWorkDir)
 
             ' 1. source folder から WORK へ移動
@@ -58,6 +72,10 @@ Namespace Services
 
             ' WORK フォルダ内の CSV を取得
             Dim workFiles = Directory.GetFiles(userWorkDir, "*.csv")
+            totalFilesCount = workFiles.Length
+            validFilesCount = 0
+            errorFilesCount = 0
+
             If workFiles.Length = 0 Then
                 logger.Write("[SUZUKI_IMPORT] No CSV files found to process.")
                 Return 0
@@ -147,46 +165,38 @@ Namespace Services
                                 ' エラーチェック
                                 Dim errorRows = FindPartMatchingErrors(conn, tran, infoCode, workFilePath)
                                 If errorRows.Count > 0 Then
+                                    errorFilesCount += 1
                                     logger.Write($"[SUZUKI_IMPORT] Found {errorRows.Count} part matching errors in {fileName}")
                                     ExportErrorsToCsv(folderPath, fileName, errorRows, isBatch, webErrors)
                                     MoveBackErrorFile(workFilePath, folderPath, fileName, userId)
                                     DeleteErrorRows(conn, tran, infoCode)
+                                Else
+                                    validFilesCount += 1
                                 End If
 
                                 tran.Commit()
                                 processCount += 1
                                 logger.Write($"[SUZUKI_IMPORT] Successfully imported file: {fileName}")
 
-                                ' ワークフォルダのファイル後処理
+                                ' ワークフォルダのファイル後処理 (Stage 1: エラー時もWORKフォルダから削除せず保持)
                                 If File.Exists(workFilePath) Then
                                     Try
-                                        If errorRows.Count = 0 Then
-                                            Dim completedRoot = ConfigurationManager.AppSettings("CompletedFolderRoot")
-                                            If String.IsNullOrWhiteSpace(completedRoot) Then completedRoot = "C:\ASTI\DATA\COMPLETED"
-                                            Dim completedDir = Path.Combine(completedRoot, userId)
-                                            Utils.EnsureDirectory(completedDir)
-                                            Dim destPath = Path.Combine(completedDir, fileName)
-                                            If File.Exists(destPath) Then File.Delete(destPath)
-                                            File.Move(workFilePath, destPath)
-                                        Else
-                                            File.Delete(workFilePath)
+                                        ' 発見されたステージング行を結果リストに追加
+                                        If outStageRows IsNot Nothing Then
+                                            outStageRows.Add(stageRow)
                                         End If
-                                    Catch
+                                    Catch ex As Exception
+                                        logger.Write($"[SUZUKI_IMPORT] Post-processing error for {fileName}: {ex.Message}")
                                     End Try
                                 End If
                             Catch ex As Exception
                                 tran.Rollback()
+                                errorFilesCount += 1
                                 logger.Write($"[SUZUKI_IMPORT] DB Error processing {fileName}: {ex.Message}")
                                 Dim errList As New List(Of String)()
                                 errList.Add($"処理エラー: {ex.Message}")
                                 ExportErrorsToCsv(folderPath, fileName, errList, isBatch, webErrors)
                                 MoveBackErrorFile(workFilePath, folderPath, fileName, userId)
-                                If File.Exists(workFilePath) Then
-                                    Try
-                                        File.Delete(workFilePath)
-                                    Catch
-                                    End Try
-                                End If
                             End Try
                         End Using
                     Catch ex As Exception
@@ -599,6 +609,27 @@ Namespace Services
                 cmd.ExecuteNonQuery()
             End Using
         End Sub
+
+        ''' <summary>
+        ''' 取引先設定IDから取引先コードを取得する (Get Customer Code by Customer Setting ID)
+        ''' </summary>
+        Private Function GetCustomerCode(customerSettingId As Long) As String
+            Try
+                Using conn As New OracleConnection(_connectionString)
+                    conn.Open()
+                    Dim sql = "SELECT customer_code FROM customer_setting_mst WHERE customer_setting_id = :p_id AND active_flag = 'Y'"
+                    Using cmd As New OracleCommand(sql, conn)
+                        cmd.Parameters.Add(":p_id", OracleDbType.Int64).Value = customerSettingId
+                        Dim res = cmd.ExecuteScalar()
+                        If res IsNot Nothing AndAlso Not DBNull.Value.Equals(res) Then
+                            Return res.ToString().Trim()
+                        End If
+                    End Using
+                End Using
+            Catch ex As Exception
+            End Try
+            Return "5455" ' スズキのデフォルト取引先コード (Default Suzuki customer code fallback)
+        End Function
 
     End Class
 

@@ -55,8 +55,6 @@ Namespace OMS.Data.SUZUKI
             Try
                 Dim sb As New StringBuilder()
                 sb.AppendLine($"INSERT INTO SUZUKI_SPIRITS_6604AND6634 (")
-
-                sb.AppendLine(") VALUES (")
                 sb.AppendLine("  info_type_code, doc_title_type, payment_method_word_type, client_code, ")
                 sb.AppendLine("  contractor_code, contractor_office_code, publication_date, target_reference_date_type, target_reference_date, ")
                 sb.AppendLine("  customer_item_no, item_no, customer_item_no_process_no1, customer_item_no_process_no2, customer_item_name, ")
@@ -66,7 +64,7 @@ Namespace OMS.Data.SUZUKI
                 sb.AppendLine("  order_qty, old_order_qty, imp_file_id, imp_run_id, status, ")
                 sb.AppendLine("  active_flag, created_at, created_user_id, created_pg_id, updated_at, ")
                 sb.AppendLine("  updated_user_id, updated_pg_id ")
-                sb.AppendLine(")")
+                sb.AppendLine(") VALUES (")
                 sb.AppendLine(" :p_info_type_code, :p_doc_title_type, :p_payment_method_word_type, :p_client_code, ")
                 sb.AppendLine(" :p_contractor_code, :p_contractor_office_code, :p_publication_date, :p_target_reference_date_type, :p_target_reference_date, ")
                 sb.AppendLine(" :p_customer_item_no, :p_item_no, :p_customer_item_no_process_no1, :p_customer_item_no_process_no2, :p_customer_item_name, ")
@@ -76,6 +74,7 @@ Namespace OMS.Data.SUZUKI
                 sb.AppendLine(" :p_order_qty, :p_old_order_qty, :p_imp_file_id, :p_imp_run_id, :p_status, ")
                 sb.AppendLine(" :p_active_flag, :p_created_at, :p_created_user_id, :p_created_pg_id, :p_updated_at, ")
                 sb.AppendLine(" :p_updated_user_id, :p_updated_pg_id ")
+                sb.AppendLine(")")
 
                 Using cmd As New OracleCommand(sb.ToString(), conn)
                     cmd.Transaction = tran

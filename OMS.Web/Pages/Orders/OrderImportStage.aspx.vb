@@ -1,4 +1,4 @@
-﻿Imports System
+Imports System
 Imports System.Data
 Imports System.IO
 Imports System.Configuration
@@ -185,6 +185,11 @@ Namespace Pages.Orders
             lblError.Text = ""
 
             Dim loginUserId As String = PageHelpers.GetUserId(Me)
+            If String.IsNullOrWhiteSpace(loginUserId) Then
+                lblError.Text = "ユーザーIDが取得できませんでした。再ログインしてください。"
+                Exit Sub
+            End If
+
             Dim results As New List(Of ImpFilesStageResult)()
             Dim anyFound As Boolean = False
             Dim errors As New List(Of String)()
@@ -255,6 +260,7 @@ Namespace Pages.Orders
                         If spprocesstype = "1" Then
                             ' --- スズキ (SPIRITS) 特殊取込前処理 ---
                             Dim suzukiErrors As New List(Of String)()
+                            Dim suzukiStageRows As New List(Of ImpFilesStageRow)()
                             Dim suzukiSvc As New SuzukiPreImportService()
                             Dim importedCount As Integer = suzukiSvc.ExecuteImport(
                                 folderPath:=sourceFolder,
@@ -264,31 +270,34 @@ Namespace Pages.Orders
                                 isBatch:=False,
                                 reconcileFlag:=reconcileVal,
                                 fcstReconcileFlag:=fcstReconcileVal,
-                                webErrors:=suzukiErrors
+                                webErrors:=suzukiErrors,
+                                outStageRows:=suzukiStageRows
                             )
 
-                            If importedCount > 0 Then
+                            If suzukiStageRows.Count > 0 Then
                                 foundInThisCustomer = True
-                                results.Add(New ImpFilesStageResult With {
-                                    .CustomerSettingId = customerSettingId,
-                                    .CustomerCode = customerCode,
-                                    .CustomerName = customerName,
-                                    .ProfitCenter = profitCenter,
-                                    .CustomerUnitId = customerUnitId,
-                                    .CustomerUnitName = customerUnitName,
-                                    .FolderType = info.FolderType,
-                                    .FolderPath = sourceFolder,
-                                    .FileName = $"スズキ取込準備完了 ({importedCount}件処理)",
-                                    .StagedFolderPath = sourceFolder,
-                                    .StagedFilePath = sourceFolder,
-                                    .StagedFileName = "SPIRITS_BATCH",
-                                    .Status = "DISCOVERED",
-                                    .LastWriteTime = DateTime.Now,
-                                    .ReconcileFlag = reconcileVal,
-                                    .FcstReconcileFlag = fcstReconcileVal,
-                                    .HandFlag = "N",
-                                    .SpProcessType = spprocesstype
-                                })
+                                For Each sRow In suzukiStageRows
+                                    results.Add(New ImpFilesStageResult With {
+                                        .CustomerSettingId = customerSettingId,
+                                        .CustomerCode = customerCode,
+                                        .CustomerName = customerName,
+                                        .ProfitCenter = profitCenter,
+                                        .CustomerUnitId = customerUnitId,
+                                        .CustomerUnitName = customerUnitName,
+                                        .FolderType = info.FolderType,
+                                        .FolderPath = sourceFolder,
+                                        .FileName = sRow.FileName,
+                                        .StagedFolderPath = sRow.StagedFolderPath,
+                                        .StagedFilePath = Path.Combine(sRow.StagedFolderPath, sRow.FileName),
+                                        .StagedFileName = sRow.StagedFileName,
+                                        .Status = "DISCOVERED",
+                                        .LastWriteTime = DateTime.Now,
+                                        .ReconcileFlag = sRow.ReconcileFlag,
+                                        .FcstReconcileFlag = sRow.FcstReconcileFlag,
+                                        .HandFlag = "N",
+                                        .SpProcessType = spprocesstype
+                                    })
+                                Next
                             End If
 
                             If suzukiErrors.Count > 0 Then
@@ -387,26 +396,28 @@ Namespace Pages.Orders
 
             Dim rowsForTemp As New List(Of ImpFilesStageRow)()
             If results IsNot Nothing AndAlso results.Count > 0 Then
-                rowsForTemp = results.Select(Function(r) New ImpFilesStageRow With {
-                    .CustomerSettingId = r.CustomerSettingId,
-                    .FolderType = r.FolderType,
-                    .FolderPath = r.FolderPath,
-                    .FileName = r.FileName,
-                    .StagedFolderPath = r.StagedFolderPath,
-                    .StagedFileName = r.StagedFileName,
-                    .ReconcileFlag = r.ReconcileFlag,
-                    .FcstReconcileFlag = r.FcstReconcileFlag,
-                    .HandFlag = r.HandFlag,
-                    .Status = r.Status,
-                    .CreatedAt = now,
-                    .CreatedUserId = loginUserId,
-                    .CreatedPgId = pgId,
-                    .UpdatedAt = now,
-                    .UpdatedUserId = loginUserId,
-                    .UpdatedPgId = pgId
-                }).ToList()
-
-
+                ' スズキ以外の通常取込ファイルを IMP_FILES_STAGE 登録対象とする（スズキは前処理内で登録済み）
+                Dim nonSuzukiResults = results.Where(Function(r) r.SpProcessType <> "1").ToList()
+                If nonSuzukiResults.Count > 0 Then
+                    rowsForTemp = nonSuzukiResults.Select(Function(r) New ImpFilesStageRow With {
+                        .CustomerSettingId = r.CustomerSettingId,
+                        .FolderType = r.FolderType,
+                        .FolderPath = r.FolderPath,
+                        .FileName = r.FileName,
+                        .StagedFolderPath = r.StagedFolderPath,
+                        .StagedFileName = r.StagedFileName,
+                        .ReconcileFlag = r.ReconcileFlag,
+                        .FcstReconcileFlag = r.FcstReconcileFlag,
+                        .HandFlag = r.HandFlag,
+                        .Status = r.Status,
+                        .CreatedAt = now,
+                        .CreatedUserId = loginUserId,
+                        .CreatedPgId = pgId,
+                        .UpdatedAt = now,
+                        .UpdatedUserId = loginUserId,
+                        .UpdatedPgId = pgId
+                    }).ToList()
+                End If
 
                 'Select Case spprocesstype
                 '    Case "1"    'スズキ
@@ -447,6 +458,7 @@ Namespace Pages.Orders
             End If
 
             If errors.Count > 0 Then
+                ' 既存のエラー表示欄(lblError)に改行区切りでエラーを出力 (Render errors directly to page)
                 Dim alreadyText = lblError.Text
                 Dim addText = String.Join("<br/>", errors.Select(Function(s) Server.HtmlEncode(s)))
                 If String.IsNullOrEmpty(alreadyText) Then
@@ -455,15 +467,15 @@ Namespace Pages.Orders
                     lblError.Text = alreadyText & "<br/>" & addText
                 End If
 
-                ' エラーポップアップ用 GridView へのバインド & モーダル表示
-                Dim errDt As New DataTable()
-                errDt.Columns.Add("ErrorMessage", GetType(String))
-                For Each errItem In errors
-                    errDt.Rows.Add(errItem)
-                Next
-                gvErrorList.DataSource = errDt
-                gvErrorList.DataBind()
-                ScriptManager.RegisterStartupScript(Me, Me.GetType(), "ShowErrorModalScript", "showErrorModal();", True)
+                ' 【将来用】モーダルポップアップ表示（必要に応じてコメント解除して利用可能）
+                ' Dim errDt As New DataTable()
+                ' errDt.Columns.Add("ErrorMessage", GetType(String))
+                ' For Each errItem In errors
+                '     errDt.Rows.Add(errItem)
+                ' Next
+                ' gvErrorList.DataSource = errDt
+                ' gvErrorList.DataBind()
+                ' ScriptManager.RegisterStartupScript(Me, Me.GetType(), "ShowErrorModalScript", "showErrorModal();", True)
             End If
 
         End Sub
