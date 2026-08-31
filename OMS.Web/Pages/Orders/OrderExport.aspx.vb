@@ -470,7 +470,7 @@ Namespace Pages.Orders
 
 
                 ' Pharse-2
-                'UPDATE (受注) NG customer_oder_no がない場合があるため
+                'UPDATE (受注) NG customer_oder_no がない場合があるため → Excel 取り込みでは使えないため 要修正
 
                 ' ImpRunID でまとめる
                 Dim uniqueRows = rowsu.
