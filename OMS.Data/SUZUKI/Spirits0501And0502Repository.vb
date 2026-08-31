@@ -57,7 +57,7 @@ Namespace OMS.Data.SUZUKI
             Try
                 Dim sb As New StringBuilder()
                 sb.AppendLine($"INSERT INTO SUZUKI_SPIRITS_0501AND0502 (")
-                sb.AppendLine("  nfo_type_code, doc_title_type, payment_method_word_type, client_code, ")
+                sb.AppendLine("  info_type_code, doc_title_type, payment_method_word_type, client_code, ")
                 sb.AppendLine("  contractor_code, contractor_office_code, publication_date, publication_time, target_reference_date_type, ")
                 sb.AppendLine("  target_reference_date, customer_item_no, item_no, customer_item_no_process_no, customer_item_name, ")
                 sb.AppendLine("  suppliers_code, reserve1, arrange_manager, purchase_manager, reserve2, ")

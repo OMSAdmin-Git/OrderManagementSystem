@@ -2,6 +2,6 @@
     Inherits Page
 
     Protected Sub Page_Load(ByVal sender As Object, ByVal e As EventArgs) Handles Me.Load
-
+        Response.Redirect("~/Pages/Login/Login.aspx")
     End Sub
 End Class

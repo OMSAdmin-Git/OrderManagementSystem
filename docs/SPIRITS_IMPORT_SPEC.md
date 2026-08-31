@@ -23,7 +23,7 @@ The system can be triggered in two primary environments, which exhibit key behav
 | **Folder Type Scope** | Fixed to `FOLDER_TYPE = 4` (`4: 混在`) | User-selected `FOLDER_TYPE` |
 | **Reconcile Flag Defaults** | Hardcoded `'Y'` for `RECONCILE_FLAG` & `FCST_RECONCILE_FLAG` | Read from UI drop-down choices (`ddlReconcileFlag`, `ddlFcstReconcileFlag`) |
 | **Stage 1 to Stage 2 Pipeline** | Automatically seamlessly proceeds to Stage 2 (`SUZUKI_SPIRITS_DATA_IMPORT`) | Halts after Stage 1, or proceeds manually based on `chkStageImport` check box |
-| **Error Reporting Destination** | Generates aggregated Excel report at `[FOLDER_PATH]\エラーリスト\` | Directly renders validation errors on the browser screen grid/dialog |
+| **Error Reporting Destination** | Generates aggregated Excel report at `[FOLDER_PATH]\エラーリスト\` | Directly renders validation errors on the browser screen (`lblError.Text`) |
 | **Downstream Process Integration** | Automatically executes `STRA納期設定` (STRA Delivery Date Setting) on completion | Bypasses `STRA納期設定` process entirely |
 
 ---
@@ -44,7 +44,7 @@ The complete process is executed across 18 distinct processing steps divided int
 * Searches for import target files inside `FOLDER_PATH`. If no files exist, execution terminates normally.
 
 ### Step 3: Work Directory Management (`フォルダ作成` / `ファイル移動`)
-* Calls helper `Utils.EnsureDirectory` to verify/create user-specific WORK directories (uses directory `SUZUKI-AT` for batch execution).
+* Calls helper `Utils.EnsureDirectory` to verify/create user-specific WORK directories: `C:\ASTI\DATA\WORK\[UserId]\[CustomerCode]\[FolderType]\` (uses directory `SUZUKI-AT\5455\4` for batch execution).
 * Moves discovered files from `FOLDER_PATH` into the user-specific WORK directory.
 
 ### Step 4: Import Run Tracking Initialization (`実行管理` / `INSERT IMP_RUN`)
@@ -57,6 +57,8 @@ The complete process is executed across 18 distinct processing steps divided int
 ### Step 5: Work File Staging Registration (`INSERT IMP_FILES_STAGE`)
 * Registers each file into `IMP_FILES_STAGE`:
   * `STATUS = 'DISCOVERED'`
+  * `STAGED_FOLDER_PATH`: `C:\ASTI\DATA\WORK\[UserId]\[CustomerCode]\[FolderType]\`
+  * `STAGED_FILE_NAME`: `[FileName]`
   * `RECONCILE_FLAG` & `FCST_RECONCILE_FLAG`: Explicitly set to `'Y'` during batch execution, or populated from UI selection controls (`ddlReconcileFlag`, `ddlFcstReconcileFlag`) during Web UI execution.
   * `HAND_FLAG`: Hardcoded default `'N'`.
   * Audit fields: `CREATED_AT = OS日時`, `CREATED_USER_ID`, `CREATED_PG_ID = 'OrderImport(Stage)'`.
@@ -93,7 +95,7 @@ The complete process is executed across 18 distinct processing steps divided int
 * If unmapped rows exist:
   * Outputs error message: `"Row(n):品目No及び製品コードが取得できません。"`.
   * **Batch Mode**: Generates Excel error report at `[FOLDER_PATH]\エラーリスト\`.
-  * **UI Mode**: Renders error directly to UI grid/dialog.
+  * **UI Mode**: Renders error directly on the browser screen in `lblError.Text` (modal popup code is preserved in comments for future use).
   * Copies source file back to original location as `[OriginalFileName]_[UserID]_[ProcessingTimestamp]`.
   * Physically deletes (`DELETE`) the unmapped rows from Suzuki staging tables.
 * If **NO errors exist**:

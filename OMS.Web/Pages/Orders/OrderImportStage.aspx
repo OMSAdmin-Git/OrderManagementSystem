@@ -142,7 +142,7 @@
                         BackColor="White"
                         BorderColor="#CCCCCC" BorderStyle="None" BorderWidth="1px"
                         CellPadding="4" ForeColor="Black" GridLines="Both"
-                        DataKeyNames="CustomerSettingId, CustomerCode, ProfitCenter, CustomerUnitId, SpProcessType">
+                        DataKeyNames="CustomerSettingId, CustomerCode, CustomerName, ProfitCenter, CustomerUnitId, CustomerUnitName, SpProcessType">
                         <Columns>
                             <asp:BoundField DataField="CustomerSettingId" HeaderText="取引先設定ID" Visible="false" />
                             <asp:BoundField DataField="CustomerCode" HeaderText="取引先コード" />
