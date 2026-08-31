@@ -3442,7 +3442,6 @@ Namespace OMS.Data
 
         End Function
 
-
         Public Shared Function OrdersStageSaved(ByVal tran As OracleTransaction,
                                             ByVal CustomerSettingId As Long,
                                             ByVal impfilestageId As Long,
@@ -3453,6 +3452,23 @@ Namespace OMS.Data
                                             ByVal UserId As String,
                                             ByVal pgId As String,
                                             ByVal rowsForTemp2 As List(Of OrdersStageRow)) As OrderStageImport
+
+            Return OrdersStageSaved(tran, CustomerSettingId, impfilestageId, FolderType, ReconcileFlag, FcstReconcileFlag, blnHandFlag, UserId, pgId, rowsForTemp2, -1)
+
+        End Function
+
+        Public Shared Function OrdersStageSaved(ByVal tran As OracleTransaction,
+                                            ByVal CustomerSettingId As Long,
+                                            ByVal impfilestageId As Long,
+                                            ByVal FolderType As Integer,
+                                            ByVal ReconcileFlag As String,
+                                            ByVal FcstReconcileFlag As String,
+                                            ByVal blnHandFlag As Boolean,
+                                            ByVal UserId As String,
+                                            ByVal pgId As String,
+                                            ByVal rowsForTemp2 As List(Of OrdersStageRow),
+                                            ByVal spprocesstype As Integer
+                                            ) As OrderStageImport
 
             Dim _oderStageRepo As New OrderStageRepository(Utils.GetConnectionString())
             Dim _impFileStageRepo As New ImpFilesStageRepository(Utils.GetConnectionString())
@@ -3535,13 +3551,22 @@ Namespace OMS.Data
                 '今回取込した内示データの件数をチェック
                 If dtNaiji.Rows.Count > 0 Then
 
-                    '内示洗い替え
-                    _oderStageRepo.ReplaceNaijiRelation(tran, impfilestageId, CustomerSettingId, Now, UserId, pgId)
+                    If (spprocesstype <> 3) Then
+                        ' Yamaha robotex 以外
+                        '内示洗い替え
+                        _oderStageRepo.ReplaceNaijiRelation(tran, impfilestageId, CustomerSettingId, Now, UserId, pgId)
 
-                    'ステータス更新
-                    _oderStageRepo.UpdateNaijiStatusProcessed(tran, impfilestageId)
+                        'ステータス更新
+                        _oderStageRepo.UpdateNaijiStatusProcessed(tran, impfilestageId)
 
+                    ElseIf (spprocesstype = 3) Then
+                        ' Yamaha robotex 
+                        '内示洗い替え
+                        _oderStageRepo.ReplaceNaijiRelationYamahaRobotex(tran, impfilestageId, CustomerSettingId, Now, UserId, pgId)
 
+                        'ステータス更新
+                        _oderStageRepo.UpdateNaijiStatusProcessedYamahaRobotex(tran, impfilestageId)
+                    End If
 
                     '2026/05/26 酒井 フェーズ2 受注残対応
                     '受注残加工
@@ -3558,27 +3583,24 @@ Namespace OMS.Data
                                                        Now,
                                                        UserId,
                                                        pgId)
-
                     End If
                     '--
 
-
-
                 End If
-                '-----------------------------------------------
+                    '-----------------------------------------------
 
 
 
 
 
 
-                '-----------------------------------------------
-                '--------
-                '確定加工
-                '--------
+                    '-----------------------------------------------
+                    '--------
+                    '確定加工
+                    '--------
 
-                '打切処理
-                _oderStageRepo.UpdateClese(tran, impfilestageId, 2)
+                    '打切処理
+                    _oderStageRepo.UpdateClese(tran, impfilestageId, 2)
 
                 '取消処理
                 _oderStageRepo.UpdateCancel(tran, impfilestageId, 2)
@@ -3616,8 +3638,23 @@ Namespace OMS.Data
                                                          UserId,
                                                          pgId)
 
-                    End If
 
+
+                        ' Yamaha robotex 指示日更新
+                        '
+                        ' 残った内示の指示日は確定指示日の翌日とする。
+                        ' ただし、確定指示日が月末日の場合、
+                        ' 確定指示日と同じ日付とする
+                        If (spprocesstype <> 3) Then
+                            _oderStageRepo.ResetShipScheduledateYamahaRobotex(tran,
+                                                       CustomerSettingId,
+                                                       impfilestageId,
+                                                       ReconcileType,
+                                                       Now,
+                                                       UserId,
+                                                       pgId)
+                        End If
+                    End If
                 End If
 
                 '--------------------------------

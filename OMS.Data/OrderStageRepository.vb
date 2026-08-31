@@ -2399,6 +2399,102 @@ Namespace OMS.Data
         End Sub
 
         ''' <summary>
+        ''' 今回取込（impFileStageId）を起点に、同一取引先の過去の内示データをすべて洗い替え（無効化）する
+        ''' Yamaha robotex 用
+        ''' </summary>
+        ''' <param name="tran">トランザクション</param>
+        ''' <param name="impFileStageId">処理対象の一時取込ファイルID</param>
+        ''' <param name="updatedAt">更新日時</param>
+        ''' <param name="updateUserId">更新ユーザーID</param>
+        ''' <param name="updatepgId">更新プログラムID</param>
+        Public Sub ReplaceNaijiRelationYamahaRobotex(ByVal tran As OracleTransaction,
+                                        ByVal impFileStageId As Long,
+                                        ByVal customerSettingId As Long,
+                                        ByVal updatedAt As DateTime,
+                                        ByVal updateUserId As String,
+                                        ByVal updatepgId As String)
+
+            Dim NCount As Integer = 0
+            Dim YCount As Integer = 0
+
+            Dim sqlCount As String = "
+                    SELECT COUNT(*) 
+                    FROM orders_stage 
+                    WHERE imp_file_stage_id = :p_imp_file_stage_id 
+                    AND order_type = 1 
+                    AND self_fcst_flag = 'N' 
+                    AND active_flag = 'Y'
+                    AND (customer_order_no NOT LIKE 'R%' OR customer_order_no IS NULL)
+                    AND (total_ship_qty <> 0 OR total_ship_qty IS NULL)"
+            ' Yamaharobotex 客先発注No の先頭 'R' 以外,累計出荷数が 0 以外 を除く
+
+            Using cmd As New OracleCommand(sqlCount, tran.Connection)
+                cmd.Transaction = tran
+                cmd.BindByName = True
+                cmd.CommandType = CommandType.Text
+                cmd.Parameters.Clear()
+
+                ' パラメータ設定
+                cmd.Parameters.Add(":p_imp_file_stage_id", OracleDbType.Int64).Value = impFileStageId
+
+                '実行 (取引先内示件数を取得)
+                NCount = Convert.ToInt32(cmd.ExecuteScalar())
+            End Using
+
+            sqlCount = "
+                    SELECT COUNT(*) 
+                    FROM orders_stage 
+                    WHERE imp_file_stage_id = :p_imp_file_stage_id 
+                    AND order_type = 1 
+                    AND self_fcst_flag = 'Y' 
+                    AND active_flag = 'Y'
+                    AND (customer_order_no NOT LIKE 'R%' OR customer_order_no IS NULL)
+                    AND (total_ship_qty <> 0 OR total_ship_qty IS NULL)"
+            ' Yamaharobotex 客先発注No の先頭 'R' 以外,累計出荷数が 0 以外 を除く
+
+            Using cmd As New OracleCommand(sqlCount, tran.Connection)
+                cmd.Transaction = tran
+                cmd.BindByName = True
+                cmd.CommandType = CommandType.Text
+                cmd.Parameters.Clear()
+
+                ' パラメータ設定
+                cmd.Parameters.Add(":p_imp_file_stage_id", OracleDbType.Int64).Value = impFileStageId
+
+                '実行 (ASTI追加内示件数を取得)
+                YCount = Convert.ToInt32(cmd.ExecuteScalar())
+            End Using
+
+
+            Dim selfFcstFlag As String = Nothing
+            Dim selfFcstDeleteFlag As String = Nothing
+
+            If NCount >= 1 AndAlso YCount = 0 Then
+
+                '取引先内示の削除処理
+                selfFcstFlag = "N"
+                UpdateNaijiStatusReplacedYamahaRobotex(tran, impFileStageId, customerSettingId, updatedAt, updateUserId, updatepgId, selfFcstFlag, selfFcstDeleteFlag)
+
+                'ASTI追加内示の自動削除処理
+                selfFcstFlag = "Y"
+                selfFcstDeleteFlag = "Y"
+                UpdateNaijiStatusReplacedYamahaRobotex(tran, impFileStageId, customerSettingId, updatedAt, updateUserId, updatepgId, selfFcstFlag, selfFcstDeleteFlag)
+
+            ElseIf NCount = 0 AndAlso YCount >= 1 Then
+
+                'ASTI追加内示の削除処理
+                selfFcstFlag = "Y"
+                UpdateNaijiStatusReplacedYamahaRobotex(tran, impFileStageId, customerSettingId, updatedAt, updateUserId, updatepgId, selfFcstFlag, selfFcstDeleteFlag)
+
+            ElseIf NCount >= 1 AndAlso YCount >= 1 Then
+
+                '全件(取引先内示とASTI追加内示)の削除処理
+                UpdateNaijiStatusReplacedYamahaRobotex(tran, impFileStageId, customerSettingId, updatedAt, updateUserId, updatepgId, selfFcstFlag, selfFcstDeleteFlag)
+
+            End If
+
+        End Sub
+        ''' <summary>
         ''' 一致するデータの STATUS を 'REPLACED'洗替済データ に更新する
         ''' </summary>
         '''  ''' <param name="tran">トランザクション</param>
@@ -2474,6 +2570,126 @@ Namespace OMS.Data
             End Using
 
         End Sub
+        ''' <summary>
+        ''' 一致するデータの STATUS を 'REPLACED'洗替済データ に更新する
+        ''' YamahaRobotex用
+        ''' </summary>
+        '''  ''' <param name="tran">トランザクション</param>
+        ''' <param name="impFileStageId">処理対象の一時取込ファイルID</param>
+        Public Sub UpdateNaijiStatusReplacedYamahaRobotex(ByVal tran As OracleTransaction,
+                                        ByVal impFileStageId As Long,
+                                        ByVal customerSettingId As Long,
+                                        ByVal updatedAt As DateTime,
+                                        ByVal updateUserId As String,
+                                        ByVal updatepgId As String,
+                                        Optional ByVal selfFcstFlag As String = Nothing,
+                                        Optional ByVal selfFcstDeleteFlag As String = Nothing)
+            Dim sql As String =
+                        " UPDATE orders_stage SET" &
+                        " status = 'REPLACED', " &
+                        " active_flag = 'N', " &
+                        " updated_at = :p_updated_at, " &
+                        " updated_user_id = :p_user_id, " &
+                        " updated_pg_id = :p_updated_pg_id " &
+                        " WHERE 1=1 " &
+                        " AND order_type = 1 " &
+                        " AND active_flag = 'Y' " &
+                        " AND customer_setting_id = :p_customer_setting_id " &
+                        " AND imp_file_stage_id IS NULL " &
+                        " AND (customer_order_no Not Like 'R%' OR customer_order_no IS NULL) " &
+                        " AND (total_ship_qty <> 0 OR total_ship_qty IS NULL)"
+
+            If selfFcstFlag IsNot Nothing Then
+                sql &= " AND self_fcst_flag = :p_self_fcst_flag "
+            End If
+
+            If selfFcstDeleteFlag IsNot Nothing Then
+                sql &= " AND self_fcst_delete_flag = :p_self_fcst_delete_flag "
+            End If
+
+            Using cmd As New OracleCommand(sql, tran.Connection)
+                cmd.Transaction = tran
+                cmd.BindByName = True
+                cmd.CommandType = CommandType.Text
+                cmd.Parameters.Clear()
+
+                cmd.Parameters.Add(":p_customer_setting_id", OracleDbType.Int64).Value = customerSettingId
+                cmd.Parameters.Add(":p_imp_file_stage_id", OracleDbType.Int64).Value = impFileStageId
+                cmd.Parameters.Add(":p_updated_at", OracleDbType.Date).Value = updatedAt
+                cmd.Parameters.Add(":p_user_id", OracleDbType.Varchar2, 9).Value = SafeVarchar(updateUserId, 9)
+                cmd.Parameters.Add(":p_updated_pg_id", OracleDbType.Varchar2, 150).Value = SafeVarchar(updatepgId, 150)
+
+                If selfFcstFlag IsNot Nothing Then
+                    cmd.Parameters.Add(New OracleParameter(":p_self_fcst_flag", OracleDbType.Varchar2) With {.Value = selfFcstFlag})
+                End If
+
+                If selfFcstDeleteFlag IsNot Nothing Then
+                    cmd.Parameters.Add(New OracleParameter(":p_self_fcst_delete_flag", OracleDbType.Varchar2) With {.Value = selfFcstDeleteFlag})
+                End If
+
+                cmd.ExecuteNonQuery()
+            End Using
+
+        End Sub
+        ''' <summary>
+        ''' 一致するデータの STATUS を 'REPLACED'洗替済データ に更新する
+        ''' Yamaha robotex
+        ''' </summary>
+        '''  ''' <param name="tran">トランザクション</param>
+        ''' <param name="impFileStageId">処理対象の一時取込ファイルID</param>
+        Public Sub UpdateNaijiStatusProcessedYamahaRobotex(ByVal tran As OracleTransaction,
+                                        ByVal impFileStageId As Long,
+                                        ByVal customerSettingId As Long,
+                                        ByVal updatedAt As DateTime,
+                                        ByVal updateUserId As String,
+                                        ByVal updatepgId As String,
+                                        Optional ByVal selfFcstFlag As String = Nothing,
+                                        Optional ByVal selfFcstDeleteFlag As String = Nothing)
+            Dim sql As String =
+                        " UPDATE orders_stage SET" &
+                        " status = 'REPLACED', " &
+                        " active_flag = 'N', " &
+                        " updated_at = :p_updated_at, " &
+                        " updated_user_id = :p_user_id, " &
+                        " updated_pg_id = :p_updated_pg_id " &
+                        " WHERE 1=1 " &
+                        " AND order_type = 1 " &
+                        " AND active_flag = 'Y' " &
+                        " AND customer_setting_id = :p_customer_setting_id " &
+                        " AND imp_file_stage_id IS NULL "
+
+            If selfFcstFlag IsNot Nothing Then
+                sql &= " AND self_fcst_flag = :p_self_fcst_flag "
+            End If
+
+            If selfFcstDeleteFlag IsNot Nothing Then
+                sql &= " AND self_fcst_delete_flag = :p_self_fcst_delete_flag "
+            End If
+
+            Using cmd As New OracleCommand(sql, tran.Connection)
+                cmd.Transaction = tran
+                cmd.BindByName = True
+                cmd.CommandType = CommandType.Text
+                cmd.Parameters.Clear()
+
+                cmd.Parameters.Add(":p_customer_setting_id", OracleDbType.Int64).Value = customerSettingId
+                cmd.Parameters.Add(":p_imp_file_stage_id", OracleDbType.Int64).Value = impFileStageId
+                cmd.Parameters.Add(":p_updated_at", OracleDbType.Date).Value = updatedAt
+                cmd.Parameters.Add(":p_user_id", OracleDbType.Varchar2, 9).Value = SafeVarchar(updateUserId, 9)
+                cmd.Parameters.Add(":p_updated_pg_id", OracleDbType.Varchar2, 150).Value = SafeVarchar(updatepgId, 150)
+
+                If selfFcstFlag IsNot Nothing Then
+                    cmd.Parameters.Add(New OracleParameter(":p_self_fcst_flag", OracleDbType.Varchar2) With {.Value = selfFcstFlag})
+                End If
+
+                If selfFcstDeleteFlag IsNot Nothing Then
+                    cmd.Parameters.Add(New OracleParameter(":p_self_fcst_delete_flag", OracleDbType.Varchar2) With {.Value = selfFcstDeleteFlag})
+                End If
+
+                cmd.ExecuteNonQuery()
+            End Using
+
+        End Sub
 
         ''' <summary>
         ''' 今回取り込んだ内示データのステータスを 'PROCESSED'加工済データ に更新する
@@ -2481,6 +2697,34 @@ Namespace OMS.Data
         '''  ''' <param name="tran">トランザクション</param>
         ''' <param name="impFileStageId">処理対象の一時取込ファイルID</param>
         Public Sub UpdateNaijiStatusProcessed(ByVal tran As OracleTransaction, ByVal impFileStageId As Long)
+
+            ' 今回のimp_file_stage_idに一致するデータの STATUS を 'PROCESSED'加工済データ に更新
+            Const sql As String =
+                        " UPDATE orders_stage " &
+                        " SET status = 'PROCESSED' " &
+                        " WHERE 1=1 " &
+                        " AND imp_file_stage_id = :p_imp_file_stage_id " &
+                        " AND order_type = 1"
+
+            Using cmd As New OracleCommand(sql, tran.Connection)
+                cmd.Transaction = tran
+                cmd.BindByName = True
+                cmd.CommandType = CommandType.Text
+                cmd.Parameters.Clear()
+
+                cmd.Parameters.Add(":p_imp_file_stage_id", OracleDbType.Int64).Value = impFileStageId
+
+                cmd.ExecuteNonQuery()
+            End Using
+
+        End Sub
+        ''' <summary>
+        ''' 今回取り込んだ内示データのステータスを 'PROCESSED'加工済データ に更新する
+        ''' YamahaRobotex 用
+        ''' </summary>
+        '''  ''' <param name="tran">トランザクション</param>
+        ''' <param name="impFileStageId">処理対象の一時取込ファイルID</param>
+        Public Sub UpdateNaijiStatusProcessedYamahaRobotex(ByVal tran As OracleTransaction, ByVal impFileStageId As Long)
 
             ' 今回のimp_file_stage_idに一致するデータの STATUS を 'PROCESSED'加工済データ に更新
             Const sql As String =
@@ -3279,6 +3523,142 @@ Namespace OMS.Data
 
         End Sub
         '--
+        ''' <summary>
+        ''' 指示日の再セット を実行する
+        ''' YamahaRobotex 用
+        ''' </summary>
+        ''' <param name="tran">トランザクション</param>
+        ''' <param name="customerSettingId">処理中の取引先設定ID</param>
+        ''' <param name="impFileStageId">処理中の取込ワークファイルID</param>
+        ''' <param name="reconcileType">消込条件（1:順次, 2:同月まで, 3:同月のみ）</param>
+        ''' <param name="updatedAt">更新日時</param>
+        ''' <param name="updateUserId">更新ユーザーID</param>
+        ''' <param name="updatepgId">更新プログラムID</param>
+        Public Sub ResetShipScheduledateYamahaRobotex(ByVal tran As OracleTransaction,
+                                        ByVal customerSettingId As Long,
+                                        ByVal impFileStageId As Long,
+                                        ByVal reconcileType As Integer,
+                                        ByVal updatedAt As DateTime,
+                                        ByVal updateUserId As String,
+                                        ByVal updatepgId As String)
+
+            Dim dtConfirmed As New DataTable()
+
+            ' ==========================================
+            ' ブロック 1) 確定レコードを検索し DataTable に取得
+            ' ==========================================
+            Dim selectSql As String = "
+                SELECT customer_item_no, ship_plan_date 
+                FROM order_stage 
+                WHERE order_type = 2 
+                  AND customerSettingId = :p_customerSettingId 
+                  AND active_flag = 'Y' 
+                  AND status = 'IMPORTED'
+            "
+
+            'Using conn As New OracleConnection(connectionString)
+            Using cmd As New OracleCommand(selectSql, tran.Connection)
+                cmd.Parameters.Add(New OracleParameter("p_customerSettingId", OracleDbType.Int64)).Value = customerSettingId
+
+                Using adapter As New OracleDataAdapter(cmd)
+                    Try
+                        'conn.Open()
+                        adapter.Fill(dtConfirmed)
+                    Catch ex As Exception
+                        Console.WriteLine("データ取得時にエラーが発生しました: " & ex.Message)
+                        Throw
+                    End Try
+                End Using
+            End Using
+            'End Using
+
+            ' ==========================================
+            ' ブロック 2) DataTable をループして内示レコードを更新
+            ' ==========================================
+            Dim updateSql As String = "
+                UPDATE order_stage 
+                SET ship_plan_date = :p_AssignDate 
+                WHERE order_type = 1 
+                  AND customerSettingId = :p_customerSettingId 
+                  AND active_flag = 'Y' 
+                  AND customer_item_no = :p_customerItemNo
+            "
+
+            'Using conn As New OracleConnection(connectionString)
+            Using cmd As New OracleCommand(updateSql, tran.Connection)
+                ' ループ内でパラメータ値を書き換えるため、先に定義を登録しておきます
+                cmd.Parameters.Add(New OracleParameter("p_AssignDate", OracleDbType.Date))
+                cmd.Parameters.Add(New OracleParameter("p_customerSettingId", OracleDbType.Int64)).Value = customerSettingId
+                cmd.Parameters.Add(New OracleParameter("p_customerItemNo", OracleDbType.Varchar2, 45))
+
+                Try
+                    'conn.Open()
+
+                    ' トランザクションの開始（大量更新時のパフォーマンス向上と一貫性確保のため）
+                    'Using tx As OracleTransaction = conn.BeginTransaction()
+                    cmd.Transaction = tran
+
+                    For Each row As DataRow In dtConfirmed.Rows
+                            ' DBのNullチェック
+                            If row.IsNull("ship_plan_date") OrElse row.IsNull("customer_item_no") Then Continue For
+
+                            Dim currentShipPlanDate As Date = Convert.ToDateTime(row("ship_plan_date"))
+                            Dim customerItemNo As String = row("customer_item_no").ToString()
+
+                        ' 2つの日付を関数呼び出して設定
+                        Dim p_NextDay As Date = GetNextDay(tran, currentShipPlanDate)
+                        Dim p_EndOfMonth As Date = GetEndOfMonth(tran, currentShipPlanDate)
+
+                        ' 条件判定して代入日付を決定
+                        Dim p_AssignDate As Date
+                        If (currentShipPlanDate > p_EndOfMonth) Then
+                            p_AssignDate = p_EndOfMonth
+                        Else
+                            p_AssignDate = p_NextDay
+                        End If
+
+                        ' SQLパラメータの値を更新して実行
+                        cmd.Parameters("p_AssignDate").Value = p_AssignDate
+                            cmd.Parameters("p_customerItemNo").Value = customerItemNo
+                            cmd.ExecuteNonQuery()
+                        Next
+
+                    ' すべての更新が成功したらコミット
+                    'tx.Commit()
+                    Console.WriteLine($"{dtConfirmed.Rows.Count} 件のループ処理が完了しました。")
+                    'End Try
+
+                Catch ex As Exception
+                    Console.WriteLine("更新処理中にエラーが発生しました: " & ex.Message)
+                    Throw
+                End Try
+            End Using
+            'End Using
+        End Sub
+
+        ''' <summary>
+        ''' Yamaha robotex 指示日(出荷予定日)更新 次の稼働日取得
+        ''' </summary>
+        ''' <param name="baseDate"></param>
+        ''' <returns></returns>
+        Private Function GetNextDay(tran As OracleTransaction, baseDate As Date) As Date
+
+            Dim cal = New CalenderRepository(Utils.GetConnectionString())
+            Return cal.AddWorkingDays(tran.Connection, tran, "00001", baseDate, 1)
+
+        End Function
+        ''' <summary>
+        ''' Yamaha robotex 指示日(出荷予定日)更新 月末稼働日取得
+        ''' </summary>
+        ''' <param name="baseDate"></param>
+        ''' <returns></returns>
+        Private Function GetEndOfMonth(tran As OracleTransaction, baseDate As Date) As Date
+
+            Dim lastDay As Date = New Date(Date.Today.Year, Date.Today.Month, Date.DaysInMonth(Date.Today.Year, Date.Today.Month))
+            Dim cal = New CalenderRepository(Utils.GetConnectionString())
+            Return cal.AddWorkingDays(tran.Connection, tran, "00001", baseDate, 0)
+
+        End Function
 
         ''' <summary>
         ''' ログインユーザーが担当する加工済みデータの取込先設定ID(customer_setting_id)の一覧とデータ件数を取得する
