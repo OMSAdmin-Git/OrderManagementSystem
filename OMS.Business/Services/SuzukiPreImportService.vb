@@ -58,28 +58,32 @@ Namespace Services
             Dim userWorkDir = Path.Combine(workRoot, userId, customerCode, folderType.ToString())
             Utils.EnsureDirectory(userWorkDir)
 
-            ' 1. source folder から WORK へ移動
-            If Directory.Exists(folderPath) Then
-                For Each src In Directory.GetFiles(folderPath, "*.csv")
-                    Dim fName = Path.GetFileName(src)
-                    Dim dest = Path.Combine(userWorkDir, fName)
-                    If Not src.Equals(dest, StringComparison.OrdinalIgnoreCase) Then
-                        If File.Exists(dest) Then File.Delete(dest)
-                        File.Move(src, dest)
-                    End If
-                Next
-            End If
+            ' 1. 取込対象フォルダ（source folder）内の CSV を検索（サブフォルダは除外）
+            Dim sourceFiles = If(Directory.Exists(folderPath), Directory.GetFiles(folderPath, "*.csv", SearchOption.TopDirectoryOnly), Array.Empty(Of String)())
 
-            ' WORK フォルダ内の CSV を取得
-            Dim workFiles = Directory.GetFiles(userWorkDir, "*.csv")
-            totalFilesCount = workFiles.Length
-            validFilesCount = 0
-            errorFilesCount = 0
-
-            If workFiles.Length = 0 Then
-                logger.Write("[SUZUKI_IMPORT] No CSV files found to process.")
+            If sourceFiles.Length = 0 Then
+                logger.Write("[SUZUKI_IMPORT] No CSV files found in source folder.")
+                totalFilesCount = 0
+                validFilesCount = 0
+                errorFilesCount = 0
                 Return 0
             End If
+
+            ' 2. 今回発見されたファイルのみ WORK へ移動し、処理対象リストに格納
+            Dim workFiles As New List(Of String)()
+            For Each src In sourceFiles
+                Dim fName = Path.GetFileName(src)
+                Dim dest = Path.Combine(userWorkDir, fName)
+                If Not src.Equals(dest, StringComparison.OrdinalIgnoreCase) Then
+                    If File.Exists(dest) Then File.Delete(dest)
+                    File.Move(src, dest)
+                End If
+                workFiles.Add(dest)
+            Next
+
+            totalFilesCount = workFiles.Count
+            validFilesCount = 0
+            errorFilesCount = 0
 
             Dim processCount As Integer = 0
             Dim runRepo As New ImpRunRepository(_connectionString)
