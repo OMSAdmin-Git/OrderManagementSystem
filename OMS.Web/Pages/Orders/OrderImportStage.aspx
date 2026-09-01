@@ -142,7 +142,7 @@
                         BackColor="White"
                         BorderColor="#CCCCCC" BorderStyle="None" BorderWidth="1px"
                         CellPadding="4" ForeColor="Black" GridLines="Both"
-                        DataKeyNames="CustomerSettingId, CustomerCode, ProfitCenter, CustomerUnitId, SpProcessType">
+                        DataKeyNames="CustomerSettingId, CustomerCode, CustomerName, ProfitCenter, CustomerUnitId, CustomerUnitName, SpProcessType">
                         <Columns>
                             <asp:BoundField DataField="CustomerSettingId" HeaderText="取引先設定ID" Visible="false" />
                             <asp:BoundField DataField="CustomerCode" HeaderText="取引先コード" />
@@ -206,8 +206,46 @@
             <!-- 実行結果 -->
             <div>
                 <br />
-                <asp:Label ID="lblResult" runat="server" ForeColor="Green" /><br />
-                <asp:Label ID="lblError" runat="server" ForeColor="Red" />
+                <asp:Label ID="lblResult" runat="server" ForeColor="Green" EnableViewState="false" /><br />
+                <asp:Label ID="lblError" runat="server" ForeColor="Red" EnableViewState="false" />
+            </div>
+
+            <!-- エラー表示用ポップアップ (Modal Dialog) -->
+            <div id="errorModalOverlay" class="modal-overlay" runat="server">
+                <div class="modal-dialog-custom">
+                    <div class="modal-header-custom">
+                        <h2>取込エラー一覧</h2>
+                        <button type="button" class="modal-close-btn" onclick="closeErrorModal();">&times;</button>
+                    </div>
+                    <div class="modal-body-custom">
+                        <p style="color: #c9302c; font-weight: bold; margin-top: 0; margin-bottom: 15px;">
+                            取込前処理中にエラーが発生しました。詳細は下記および各フォルダの「エラーリスト」フォルダ内のCSVをご確認ください。
+                        </p>
+                        <div style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd;">
+                            <asp:GridView ID="gvErrorList" runat="server"
+                                AutoGenerateColumns="False"
+                                CssClass="data-grid"
+                                BackColor="White"
+                                BorderColor="#CCCCCC" BorderStyle="None" BorderWidth="1px"
+                                CellPadding="6" ForeColor="Black" GridLines="Both" Width="100%">
+                                <Columns>
+                                    <asp:TemplateField HeaderText="No" ItemStyle-Width="50px" ItemStyle-HorizontalAlign="Center">
+                                        <ItemTemplate>
+                                            <%# Container.DataItemIndex + 1 %>
+                                        </ItemTemplate>
+                                    </asp:TemplateField>
+                                    <asp:BoundField DataField="ErrorMessage" HeaderText="エラー内容" />
+                                </Columns>
+                                <HeaderStyle BackColor="#333333" Font-Bold="True" ForeColor="White" />
+                                <RowStyle BackColor="#F7F7F7" />
+                                <AlternatingRowStyle BackColor="White" />
+                            </asp:GridView>
+                        </div>
+                    </div>
+                    <div class="modal-footer-custom">
+                        <button type="button" class="btn-asti btn-asti-process" onclick="closeErrorModal();">閉じる</button>
+                    </div>
+                </div>
             </div>
 
             <!-- エラー表示用ポップアップ (Modal Dialog) -->

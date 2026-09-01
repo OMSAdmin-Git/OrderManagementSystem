@@ -857,6 +857,8 @@ Namespace OMS.Common
 
             Select Case type
                 Case YamahaRobotexType.UnofficialNotice
+                    ' 内示
+
 
                     ' 条件に合う行だけを抽出
                     Dim sourceDt = RemoveRowsWithoutThisTime(dt)
@@ -935,6 +937,7 @@ Namespace OMS.Common
                     'Dim cnt2 = newDt.Rows.Count
 
                 Case YamahaRobotexType.Confirmed
+                    ' 確定
 
                     ' 確定受注ファイルの場合の処理
                     Dim sourceDt = dt
@@ -997,6 +1000,7 @@ Namespace OMS.Common
                     Next
 
                 Case YamahaRobotexType.ASTIInternalNotification
+                    ' 追加内示
 
                     If dt.Columns.Contains("希望納期（納入予定日)") Then
                         ' 2. 存在する場合、列名を変更
