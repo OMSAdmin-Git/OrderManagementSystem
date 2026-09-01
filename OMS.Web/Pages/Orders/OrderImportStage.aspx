@@ -206,8 +206,8 @@
             <!-- 実行結果 -->
             <div>
                 <br />
-                <asp:Label ID="lblResult" runat="server" ForeColor="Green" /><br />
-                <asp:Label ID="lblError" runat="server" ForeColor="Red" />
+                <asp:Label ID="lblResult" runat="server" ForeColor="Green" EnableViewState="false" /><br />
+                <asp:Label ID="lblError" runat="server" ForeColor="Red" EnableViewState="false" />
             </div>
 
             <!-- エラー表示用ポップアップ (Modal Dialog) -->

@@ -1,4 +1,4 @@
-Imports System
+﻿Imports System
 Imports System.Data
 Imports System.IO
 Imports System.Configuration
@@ -123,6 +123,9 @@ Namespace Pages.Orders
 
         ' 検索ボタン
         Protected Sub btnSearchGv_Click(sender As Object, e As EventArgs)
+            lblResult.Text = ""
+            lblError.Text = ""
+
             Dim customerCode As String = NullIfWhite(txtSearchCustomerCode.Value)
             Dim customerName As String = NullIfWhite(txtSearchCustomerName.Value)
             Dim profitCenter As String = NullIfWhite(txtSearchProfitCenter.Value)
@@ -133,6 +136,9 @@ Namespace Pages.Orders
 
         ' クリアボタン
         Protected Sub btnDefaultGv_Click(sender As Object, e As EventArgs)
+            lblResult.Text = ""
+            lblError.Text = ""
+
             txtSearchCustomerCode.Value = ""
             txtSearchCustomerName.Value = ""
             txtSearchProfitCenter.Value = ""
