@@ -734,9 +734,9 @@ Namespace Pages.Orders
                                                             blnHandFlag,
                                                             UserId,
                                                             pgId,
-                                                            rowsForTemp2
+                                                            rowsForTemp2,
+                                                            spprocesstype
                                     )
-
                                 Dim savedCount As Integer = importResult.InsertedCount
 
                                 If savedCount > 0 Then

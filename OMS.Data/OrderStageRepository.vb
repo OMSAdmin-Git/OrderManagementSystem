@@ -2766,6 +2766,7 @@ Namespace OMS.Data
         ''' <summary>
         ''' 一致するデータの STATUS を 'REPLACED'洗替済データ に更新する
         ''' YamahaRobotex用
+        ''' customer_order_no 先頭文字が 'R' 以外、total_ship_qty が 0 以外
         ''' </summary>
         '''  ''' <param name="tran">トランザクション</param>
         ''' <param name="impFileStageId">処理対象の一時取込ファイルID</param>
@@ -3133,6 +3134,13 @@ Namespace OMS.Data
 
             Dim dt As New DataTable()
 
+            'Const sql As String =
+            '            "  SELECT * FROM orders_stage " &
+            '            "  WHERE imp_file_stage_id = :p_imp_file_stage_id " &
+            '            "  AND order_type = 2 " &
+            '            "  AND active_flag = 'Y' " &
+            '            "  AND (info_type IS NULL OR info_type = 'I') " &
+            '            "  ORDER BY imp_file_stage_id ASC, item_no ASC, due_date ASC "
             Const sql As String =
                         "  SELECT * FROM orders_stage " &
                         "  WHERE imp_file_stage_id = :p_imp_file_stage_id " &
@@ -3140,6 +3148,7 @@ Namespace OMS.Data
                         "  AND active_flag = 'Y' " &
                         "  AND (info_type IS NULL OR info_type = 'I') " &
                         "  ORDER BY imp_file_stage_id ASC, item_no ASC, due_date ASC "
+
 
             Using cmd As New OracleCommand(sql, tran.Connection)
 
@@ -3775,14 +3784,16 @@ Namespace OMS.Data
                   AND customerSettingId = :p_customerSettingId 
                   AND active_flag = 'Y' 
                   AND customer_item_no = :p_customerItemNo
-            "
+                  AND TO_CHAR(due_date, 'YYYYMM') = TO_CHAR(:p_monthDt, 'YYYYMM')
+                "
 
             'Using conn As New OracleConnection(connectionString)
             Using cmd As New OracleCommand(updateSql, tran.Connection)
                 ' ループ内でパラメータ値を書き換えるため、先に定義を登録しておきます
-                cmd.Parameters.Add(New OracleParameter("p_AssignDate", OracleDbType.Date))
-                cmd.Parameters.Add(New OracleParameter("p_customerSettingId", OracleDbType.Int64)).Value = customerSettingId
-                cmd.Parameters.Add(New OracleParameter("p_customerItemNo", OracleDbType.Varchar2, 45))
+                cmd.Parameters.Add(New OracleParameter(":p_AssignDate", OracleDbType.Date))
+                cmd.Parameters.Add(New OracleParameter(":p_customerSettingId", OracleDbType.Int64)).Value = customerSettingId
+                cmd.Parameters.Add(New OracleParameter(":p_customerItemNo", OracleDbType.Varchar2, 45))
+                cmd.Parameters.Add(New OracleParameter(":p_monthDt", OracleDbType.Date))
 
                 Try
                     'conn.Open()
@@ -3792,28 +3803,32 @@ Namespace OMS.Data
                     cmd.Transaction = tran
 
                     For Each row As DataRow In dtConfirmed.Rows
-                            ' DBのNullチェック
-                            If row.IsNull("ship_plan_date") OrElse row.IsNull("customer_item_no") Then Continue For
+                        ' DBのNullチェック
+                        If row.IsNull("ship_plan_date") OrElse row.IsNull("customer_item_no") Then
+                            Continue For
+                        End If
 
-                            Dim currentShipPlanDate As Date = Convert.ToDateTime(row("ship_plan_date"))
-                            Dim customerItemNo As String = row("customer_item_no").ToString()
+                        Dim currentShipPlanDate As Date = Convert.ToDateTime(row("ship_plan_date"))
+                        Dim customerItemNo As String = row("customer_item_no").ToString()
 
                         ' 2つの日付を関数呼び出して設定
                         Dim p_NextDay As Date = GetNextDay(tran, currentShipPlanDate)
                         Dim p_EndOfMonth As Date = GetEndOfMonth(tran, currentShipPlanDate)
-
+                        Dim p_monthDt As Date = row("due_date")
                         ' 条件判定して代入日付を決定
                         Dim p_AssignDate As Date
-                        If (currentShipPlanDate > p_EndOfMonth) Then
+                        If (currentShipPlanDate >= p_EndOfMonth) Then
                             p_AssignDate = p_EndOfMonth
                         Else
                             p_AssignDate = p_NextDay
                         End If
 
                         ' SQLパラメータの値を更新して実行
-                        cmd.Parameters("p_AssignDate").Value = p_AssignDate
-                            cmd.Parameters("p_customerItemNo").Value = customerItemNo
-                            cmd.ExecuteNonQuery()
+                        cmd.Parameters(":p_AssignDate").Value = p_AssignDate
+                        cmd.Parameters(":p_customerItemNo").Value = customerItemNo
+                        cmd.Parameters(":p_monthDt").Value = p_monthDt
+
+                        cmd.ExecuteNonQuery()
                         Next
 
                     ' すべての更新が成功したらコミット
