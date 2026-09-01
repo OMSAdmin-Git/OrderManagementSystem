@@ -3750,17 +3750,17 @@ Namespace OMS.Data
             ' ブロック 1) 確定レコードを検索し DataTable に取得
             ' ==========================================
             Dim selectSql As String = "
-                SELECT customer_item_no, ship_plan_date 
-                FROM order_stage 
+                SELECT customer_item_no, due_date 
+                FROM orders_stage 
                 WHERE order_type = 2 
-                  AND customerSettingId = :p_customerSettingId 
+                  AND customer_Setting_Id = :p_customerSettingId 
                   AND active_flag = 'Y' 
                   AND status = 'IMPORTED'
             "
 
             'Using conn As New OracleConnection(connectionString)
             Using cmd As New OracleCommand(selectSql, tran.Connection)
-                cmd.Parameters.Add(New OracleParameter("p_customerSettingId", OracleDbType.Int64)).Value = customerSettingId
+                cmd.Parameters.Add(New OracleParameter(":p_customerSettingId", OracleDbType.Int64)).Value = customerSettingId
 
                 Using adapter As New OracleDataAdapter(cmd)
                     Try
@@ -3778,10 +3778,10 @@ Namespace OMS.Data
             ' ブロック 2) DataTable をループして内示レコードを更新
             ' ==========================================
             Dim updateSql As String = "
-                UPDATE order_stage 
-                SET ship_plan_date = :p_AssignDate 
+                UPDATE orders_stage 
+                SET ship_scheduled_date = :p_AssignDate 
                 WHERE order_type = 1 
-                  AND customerSettingId = :p_customerSettingId 
+                  AND customer_setting_id = :p_customerSettingId 
                   AND active_flag = 'Y' 
                   AND customer_item_no = :p_customerItemNo
                   AND TO_CHAR(due_date, 'YYYYMM') = TO_CHAR(:p_monthDt, 'YYYYMM')
@@ -3804,20 +3804,20 @@ Namespace OMS.Data
 
                     For Each row As DataRow In dtConfirmed.Rows
                         ' DBのNullチェック
-                        If row.IsNull("ship_plan_date") OrElse row.IsNull("customer_item_no") Then
+                        If row.IsNull("due_date") OrElse row.IsNull("customer_item_no") Then
                             Continue For
                         End If
 
-                        Dim currentShipPlanDate As Date = Convert.ToDateTime(row("ship_plan_date"))
+                        Dim currentShipScheduledDate As Date = Convert.ToDateTime(row("due_date"))
                         Dim customerItemNo As String = row("customer_item_no").ToString()
 
                         ' 2つの日付を関数呼び出して設定
-                        Dim p_NextDay As Date = GetNextDay(tran, currentShipPlanDate)
-                        Dim p_EndOfMonth As Date = GetEndOfMonth(tran, currentShipPlanDate)
+                        Dim p_NextDay As Date = GetNextDay(tran, currentShipScheduledDate)
+                        Dim p_EndOfMonth As Date = GetEndOfMonth(tran, currentShipScheduledDate)
                         Dim p_monthDt As Date = row("due_date")
                         ' 条件判定して代入日付を決定
                         Dim p_AssignDate As Date
-                        If (currentShipPlanDate >= p_EndOfMonth) Then
+                        If (currentShipScheduledDate >= p_EndOfMonth) Then
                             p_AssignDate = p_EndOfMonth
                         Else
                             p_AssignDate = p_NextDay
