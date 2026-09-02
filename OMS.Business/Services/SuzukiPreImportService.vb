@@ -230,14 +230,8 @@ Namespace Services
                                     DeleteErrorRows(conn, tran, infoCode)
                                 Else
                                     validFilesCount += 1
-                                    ' 正常取込完了: WORK から COMPLETED へファイルを移動
-                                    Try
-                                        Dim completedFilePath = Path.Combine(userCompletedDir, fileName)
-                                        If File.Exists(completedFilePath) Then File.Delete(completedFilePath)
-                                        If File.Exists(workFilePath) Then File.Move(workFilePath, completedFilePath)
-                                    Catch ex As Exception
-                                        logger.Write($"[SUZUKI_IMPORT] Error moving file to completed directory: {ex.Message}")
-                                    End Try
+                                    ' 正常取込完了: 仕様書通り、ファイルはWORKフォルダに保持し、Stage 2の[保存]または[破棄]時に移動する
+                                    logger.Write($"[SUZUKI_IMPORT] File staged successfully in WORK: {fileName}")
                                 End If
 
                                 tran.Commit()

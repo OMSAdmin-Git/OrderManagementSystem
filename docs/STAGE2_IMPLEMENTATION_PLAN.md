@@ -1,4 +1,4 @@
-﻿# 🚀 Implementation Plan: Stage 2 (Order Registration / SUZUKI_SPIRITS_DATA_IMPORT)
+# 🚀 Implementation Plan: Stage 2 (Order Registration / SUZUKI_SPIRITS_DATA_IMPORT)
 
 ## 📋 Overview & Scope
 
@@ -50,13 +50,13 @@ flowchart TD
 * Physically purges `ORDERS_STAGE` where `CUSTOMER_SETTING_ID = Current Target` and `FOLDER_TYPE = Current Target`.
 
 ### Step 12 & 13: Order Data Filtering & `ORDERS_STAGE` Insert (`受注データチェック` / `INSERT ORDERS_STAGE`)
-* Queries active staging records (`ACTIVE_FLAG = 'Y'`) from Suzuki dedicated tables for valid order `INFO_TYPE_CODE` values: `0600`, `0602`, `0650`, `0651`, `0814`, `6604`, `6624` (skipping `0630`, `663N`, `663S` on initial insert).
+* Queries active staging records (`ACTIVE_FLAG = 'Y'`) from Suzuki dedicated tables for valid order `INFO_TYPE_CODE` values: `0600`, `0602`, `0650`, `0651`, `0813`, `0814`, `6604`, `6624` (skipping `0630`, `663N`, `663S` on initial insert).
 * Transforms and inserts into `ORDERS_STAGE` with standard defaults & master lookups:
   * `COMPANY_ID`: Fixed `'1000'`
   * `BILLING_STANDARD`: Fixed `'S'`
   * `TRANSPORT_METHOD`: Fixed `2`
   * `STATUS`: Fixed `'IMPORTED'`, `ACTIVE_FLAG`: Fixed `'Y'`
-  * `ORDER_TYPE`: `1` (内示) for `0600`, `0602`, `6604`; `3` (納入指示) for `0650`, `0651`, `0814`, `6624`
+  * `ORDER_TYPE`: `1` (内示) for `0600`, `0602`, `0813`, `6604`; `3` (納入指示) for `0650`, `0651`, `0814`, `6624`
   * `DEMAND_STATUS`: `'F'` (for `ORDER_TYPE = 1`), `'O'` (for `ORDER_TYPE = 3`)
   * `SHIP_PROCESS_TYPE`: `'O'` (for `ORDER_TYPE = 1`), `'K'` (for `ORDER_TYPE = 3`)
   * `DELIVERY_INSTR_FLAG`: `'N'` (for `ORDER_TYPE = 1`), `'Y'` (for `ORDER_TYPE = 3`)
@@ -69,6 +69,9 @@ flowchart TD
   * `BILLING_TO`: Looked up from `SECTM.FBILLTOCD` via `GetBillingTo(CUSTOMER_CODE)`
   * `CURRENCY_CODE`: Looked up from `SECTM.FCURR` where `SECTM.FSECTCD = CUSTOMER_CODE`
   * `PRORATED_TYPE`: If `DELIVERY_DATE_TYPE` In ("1", "4") Then `2` (日割以外) Else `1` (日割り)
+  * `CUSTOMER_INFO_TYPE`:
+    * Converted from `ORDER_DATA_TYPE`: `1:内示` $\rightarrow$ `新規`, `2:確定` $\rightarrow$ `新規`, `3:変更` $\rightarrow$ `変更`.
+    * Special `0651`: If 17th digit of `ORDER_NOTES` is not 0 $\rightarrow$ `打切`.
   * Extended Phase 2 attributes: `DELIVERY_TIME`, `CONTAINER_CAPACITY`, `INITIAL_FLAG`, `TARGET_REFERENCE_DATE_TYPE`, `TARGET_REFERENCE_DATE`, `INFO_TYPE_CODE`.
 
 ### Step 14: Special Demand & Delivery Adjustments (`受注ワーク更新`)
@@ -105,31 +108,47 @@ flowchart TD
   * Proceeds to Step 16.
 
 ### Step 16: Forecast Processing & Conversion (`内示加工` / `受注残加工` / `納入指示加工`)
-1. **内示加工 (Forecast Invalidation & Replacement)**:
-   * **Code `0602` Special Rule**: Contains no reference dates; always treated as new data (skips forecast replacement).
-   * **Other Forecasts (`0600`, `6604`)**: Identifies previous active forecasts in `ORDERS_STAGE` (or copied from `ORDERS`) matching `SHIP_TO`, `ITEM_NO`, `TARGET_REFERENCE_DATE_TYPE`, `TARGET_REFERENCE_DATE`, `INFO_TYPE_CODE`, `ACTIVE_FLAG = 'Y'`, and sets them to `ACTIVE_FLAG = 'N'`.
-2. **出荷先変換 (Destination Conversion)**:
-   * Looks up `SUZUKI_SPIRITS_CONVERSION_MST` where `DELIVERY_CODE_ORDER = SHIP_TO` and `ACTIVE_FLAG = 'Y'`.
-   * If found: converts `SHIP_TO = DELIVERY_CODE_PLAN`. If not found: retains original `SHIP_TO`.
-3. **消込処理 (Forecast Consumption)**:
-   * When `RECONCILE_FLAG = 'Y'`:
+1. **内示加工 (Forecast Wash Replacement per `内示加工.pdf`)**:
+   * Counts customer naiji ($x$: `SELF_FCST_FLAG = 'N'`) and ASTI naiji ($y$: `SELF_FCST_FLAG = 'Y'`).
+   * **Case ① ($x \ge 1, y = 0$)**: Invalidate prior customer naiji (`SELF_FCST_FLAG = 'N'`) and auto-delete ASTI naiji (`SELF_FCST_DELETE_FLAG = 'Y'`).
+   * **Case ② ($x = 0, y \ge 1$)**: Invalidate prior ASTI naiji (`SELF_FCST_FLAG = 'Y'`).
+   * **Case ③ ($x \ge 1, y \ge 1$)**: Invalidate all prior naiji.
+   * **Special Rule `0602`**: Contains no reference date fields; treated as brand new data (skips wash replacement).
+   * Updates newly staged naiji records: `STATUS = 'PROCESSED'`.
+2. **受注残加工 (Backlog Reconciliation per `受注残加工.pdf`)**:
+   * If `RECONCILE_FLAG = 'Y'`:
+     * Queries `STRA_ORDER_BACKLOG` and reconciles demand quantities against firm orders/naiji based on `RECONCILE_TYPE` (1: 順次, 2: 同月まで, 3: 同月のみ).
+     * If `DEMAND_QTY = 0`: sets `STATUS = 'RECONCILED'`, `ACTIVE_FLAG = 'N'`.
+3. **納入指示加工 (Delivery Processing & Consumption per `納入指示加工.pdf`)**:
+   * **Step A (打切処理)**: Where `ORDER_TYPE = 3` and `INFO_TYPE = 'N'` $\rightarrow$ `STATUS = 'PROCESSED'`, `ACTIVE_FLAG = 'N'`.
+   * **Step B (取消処理)**: Where `ORDER_TYPE = 3` and `INFO_TYPE = 'D'` $\rightarrow$ `DEMAND_QTY = 0`, `STATUS = 'PROCESSED'`.
+   * **Step C (確定消込)**: If `RECONCILE_FLAG = 'Y'`, matches `CUSTOMER_ORDER_NO` against prior firm orders (`ORDER_TYPE = 2`) and deducts `DEMAND_QTY`.
+   * **Step D (出荷先変換)**: Replaces `SHIP_TO` with `DELIVERY_CODE_PLAN` from `SUZUKI_SPIRITS_CONVERSION_MST` (where `DELIVERY_CODE_ORDER = SHIP_TO` and `ACTIVE_FLAG = 'Y'`).
+   * **Step E (内示消込)**: If `FCST_RECONCILE_FLAG = 'Y'`:
      * `0650` / `0651` consumes active `0600` forecasts (matching converted `SHIP_TO`, `ITEM_NO`).
      * `0814` consumes active `0813` forecasts (matching converted `SHIP_TO`, `ITEM_NO`).
      * `6624` consumes active `6604` forecasts (matching converted `SHIP_TO`, `ITEM_NO`).
-     * Decrements forecast `DEMAND_QTY` in sequential or monthly order per `RECONCILE_TYPE`.
-   * When `FCST_RECONCILE_FLAG = 'Y'`:
-     * Reconciles delivery instruction quantities against active forecasts.
+   * **Step F (新規納入指示確定)**: Where `ORDER_TYPE = 3` and `INFO_TYPE In ('I', NULL)` $\rightarrow$ `STATUS = 'PROCESSED'`.
 
 ### Step 17: Production Order Table Commitment (`INSERT ORDERS` / `INSERT ORDER_HISTORY`)
-* Updates Suzuki staging table records (`STATUS = 'REGISTERED'`).
-* Copies valid rows from `ORDERS_STAGE` into master production table `ORDERS` (including extended attributes).
+* Updates Suzuki staging table records (`STATUS = 'REGISTERED'`, `IMP_FILE_ID = :impFileId`).
+* Copies valid rows from `ORDERS_STAGE` into master production table `ORDERS` (including extended attributes: `TARGET_REFERENCE_DATE_TYPE`, `TARGET_REFERENCE_DATE`, `INFO_TYPE_CODE`).
 * Appends historical audit records into `ORDER_HISTORY` (including extended attributes).
 * Inserts records into `IMP_FILES` (`STATUS = 'PARSED'`) and purges processed entries from `IMP_FILES_STAGE`.
 * Moves any remaining work files to `COMPLETED` archive folder.
 
 ### Step 18: Completion Logging & STRA Integration (`UPDATE IMP_RUN` / `STRA納期設定`)
-* Updates `IMP_RUN`: `ENDED_AT = SYSDATE`, `STATUS = 'COMPLETED'`, `FILE_COUNT`, `ROW_COUNT`, `ERROR_COUNT`.
-* **Batch Mode Only**: Automatically triggers downstream `OrderStageRepository.DeliveryDateSetting` (`STRA納期設定`) for customer `5455`.
+* **STRA Delivery Date Setting (`STRA納期設定` per `STRA納期設定ページ_受注取込後.pdf`)**:
+  * For orders with `STATUS = 'PROCESSED'`, calculates lead times and updates delivery dates:
+    * **(A)品揃リードタイム**: `SELECT FUSRDEC1 FROM USRDEFFLDF WHERE FTABLEID='ITEMM' AND FRECKEY = ORDERS_STAGE.ITEM_NO`
+    * **輸送L/T**: `SELECT FTRANLT FROM SHPROUTM WHERE FSHPTOCD = ORDERS_STAGE.SHIP_TO AND FPRMWHCD = ORDERS_STAGE.SHIP_STOCK_LOCATION AND FPRIORITY = (SELECT MIN(FPRIORITY) FROM SHPROUTM ...)`
+    * **出荷予定日 (`SHIP_SCHEDULED_DATE`)**: `ADD_WORKING_DAYS('00001', [希望納期], -(輸送L/T + 品揃L/T))`
+    * **出荷日 (`SHIP_DATE`)**: `ADD_WORKING_DAYS('00001', [希望納期], -輸送L/T)`
+    * **出荷計画日 (`SHIP_PLAN_DATE`)**: `ADD_WORKING_DAYS('00001', [希望納期], -(輸送L/T + 品揃L/T))`
+    * Updates `ORDERS`: `SHIP_SCHEDULED_DATE`, `SHIP_DATE`, `SHIP_PLAN_DATE`, `STATUS = 'DUE_SET'`, `UPDATED_PG_ID = 'DueDateSetting(Order)'`.
+    * Appends historical audit records into `ORDER_HISTORY` with `STATUS = 'DUE_SET'`.
+* **Execution Run Finalization**:
+  * Updates `IMP_RUN`: `ENDED_AT = SYSDATE`, `STATUS = 'COMPLETED'`, `FILE_COUNT`, `ROW_COUNT`, `ERROR_COUNT`.
 
 ---
 

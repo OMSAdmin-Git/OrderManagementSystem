@@ -71,8 +71,8 @@ The complete process is executed across 18 distinct processing steps divided int
   * `0650` $\rightarrow$ `SUZUKI_SPIRITS_0650`
   * `0651` $\rightarrow$ `SUZUKI_SPIRITS_0651`
   * `0740` $\rightarrow$ `SUZUKI_SPIRITS_0740`
-  * `0813` $\rightarrow$ `SUZUKI_SPIRITS_0813` *(Note: Table physically dropped/excluded from import scope per 2026/8/6 system revision)*
-  * `0814` $\rightarrow$ `SUZUKI_SPIRITS_0814`
+  * `0813` $\rightarrow$ `SUZUKI_SPIRITS_0813` (支給要求計画提示情報 内示 - registered to `ORDERS` and reconciled by `0814`)
+  * `0814` $\rightarrow$ `SUZUKI_SPIRITS_0814` (支給要求計画提示情報 確定)
   * `6604`, `6634` $\rightarrow$ `SUZUKI_SPIRITS_6604AND6634`
   * `6624` $\rightarrow$ `SUZUKI_SPIRITS_6624`
   * `663N`, `663S`, `664T` $\rightarrow$ `SUZUKI_SPIRITS_663NAND663SAND664T`
@@ -88,7 +88,7 @@ The complete process is executed across 18 distinct processing steps divided int
 
 ### Step 8: Part Number Matching & Suffix Business Logic (`UPDATE（品番）`)
 * Maps `CUSTOMER_ITEM_NO` against `PRDSLSODRM` where `FCUSTCD = '5455'` and `FCUSTITEMNO = CUSTOMER_ITEM_NO` to obtain `ITEM_NO` (`FPRDCD`).
-* **"Z" Suffix Rules**: If `INFO_TYPE_CODE` is `6604`, `6624`, `6634`, `663N`, `663S`, or `664T`, matches against `FCUSTITEMNO` ending with **'Z'**. All other codes match exact part numbers without 'Z'.
+* **"Z" Suffix Rules**: If `INFO_TYPE_CODE` is `6604`, `6624`, `6634`, `663N`, `663S`, or `664T`, matches against `FPRDCD` ending with **'Z'**. All other codes match exact part numbers without 'Z'.
 
 ### Step 9: Pre-Import Error Handling & File Recovery (`エラーチェック` / `ファイルコピー` / `DELETE` / `ファイル移動`)
 * Scans inserted staging rows for missing `ITEM_NO` values.
@@ -99,7 +99,8 @@ The complete process is executed across 18 distinct processing steps divided int
   * Copies source file back to original location as `[OriginalFileName]_[UserID]_[ProcessingTimestamp]`.
   * Physically deletes (`DELETE`) the unmapped rows from Suzuki staging tables.
 * If **NO errors exist**:
-  * Successfully parsed and staged files are moved immediately from the `WORK` directory to the final `COMPLETED` directory (`CompletedFolderRoot`). This early cleanup is possible because Stage 2 will read from the `SUZUKI_SPIRITS_...` database tables rather than the physical files.
+  * **Web UI Mode**: Staged files remain in the `WORK/` directory with `STATUS = 'DISCOVERED'` in `IMP_FILES_STAGE`. When the operator confirms and clicks **[保存] (Save)** on `OrderImport.aspx`, files are moved to `COMPLETED/` as `[FileName]_[loginUserId]_[yyyyMMddhhmmss].[ext]`. If the operator clicks **[破棄] (Discard)**, files are moved from `WORK/` back to the source input folder (`FOLDER_PATH`).
+  * **Batch Mode**: Because Stage 1 automatically flows through Stage 2, reconciliation, and Save, files are archived to the `COMPLETED/` directory at the completion of the automated run.
 
 ### Step 10: Transition to Order Registration (`受注登録`)
 * Batch execution automatically moves to Order Registration Stage (`SUZUKI_SPIRITS_DATA_IMPORT`). Manual UI execution halts after staging or proceeds based on user triggering.
@@ -108,21 +109,27 @@ The complete process is executed across 18 distinct processing steps divided int
 * Physically purges `ORDERS_STAGE` where `CUSTOMER_SETTING_ID = Current Target` and `FOLDER_TYPE = Current Target`.
 
 ### Step 12: Order Data Verification (`受注データチェック`)
-* Filters Suzuki staging records for valid order `INFO_TYPE_CODE` values: `0600`, `0602`, `0630`, `0650`, `0651`, `0814`, `6604`, `6624`, `663N`, `663S`.
+* Filters Suzuki staging records for valid order `INFO_TYPE_CODE` values: `0600`, `0602`, `0630`, `0650`, `0651`, `0813`, `0814`, `6604`, `6624`, `663N`, `663S`.
 
 ### Step 13: Order Stage Staging Insert (`INSERT ORDERS_STAGE`)
 * Inserts filtered records into `ORDERS_STAGE` (skips `0630`, `663N`, `663S` during initial insert; updated in Step 14):
   * `COMPANY_ID`: Fixed value `'1000'`
   * `BILLING_STANDARD`: Fixed value `'S'`
   * `TRANSPORT_METHOD`: Fixed value `2`
-  * `ORDER_TYPE`: Set to `1` (`1:内示`) for codes `0600`, `0602`, `0630`, `6604`, `663N`, `663S`; set to `3` (`3:納入指示`) for `0650`, `0651`, `0814`, `6624`.
-  * `DEMAND_STATUS`: `'F'` (when `ORDER_TYPE = 1`), `'O'` (otherwise).
+  * `ORDER_TYPE`: Set to `1` (`1:内示`) for codes `0600`, `0602`, `0630`, `0813`, `6604`, `663N`, `663S`; set to `3` (`3:納入指示`) for `0650`, `0651`, `0814`, `6624`.
+  * `DEMAND_STATUS`: `'F'` (when `ORDER_TYPE = 1`), `'O'` (when `ORDER_TYPE = 3`).
   * `SHIP_PROCESS_TYPE`: `'O'` (when `ORDER_TYPE = 1`), `'E'` (when `ORDER_TYPE = 2`), `'K'` (when `ORDER_TYPE = 3`).
   * `DELIVERY_INSTR_FLAG`: `'N'` (when `ORDER_TYPE ≠ 3`), `'Y'` (when `ORDER_TYPE = 3`).
   * `DUE_DATE = ADD_WORKING_DAYS2('00001', [DUE_DATE], 0)` formatted as `yyyy/MM/dd`.
   * `DEMAND_UNIT`: Joined from `ITEMM.FUNIT` where `ITEMM.FITEMNO = PRDSLSODRM.FPRDCD`.
   * `SHIP_STOCK_LOCATION`: Joined from `ITEMM.FSHPWHCD` where `ITEMM.FITEMNO = ORDERS_STAGE.ITEM_NO`.
-  * **Phase 2 Extended Attributes** (Added per system revisions): `DELIVERY_TIME`, `CONTAINER_CAPACITY`, `INITIAL_FLAG`, `TARGET_REFERENCE_DATE_TYPE`, `TARGET_REFERENCE_DATE`, `INFO_TYPE_CODE`.
+  * **Prorated Conversion (`DELIVERY_DATE_TYPE` $\rightarrow$ `PRORATED_TYPE`)**:
+    * `1:年月(大日程)` or `4:年週` $\rightarrow$ `2:日割以外`
+    * `5:年月日` or `6:年月日時分` $\rightarrow$ `1:日割り`
+  * **Customer Info Type Conversion (`ORDER_DATA_TYPE` $\rightarrow$ `CUSTOMER_INFO_TYPE`)**:
+    * `1:内示` $\rightarrow$ `新規`, `2:確定` $\rightarrow$ `新規`, `3:変更` $\rightarrow$ `変更`
+    * Special `0651`: If 17th digit of `ORDER_NOTES` is not 0 $\rightarrow$ `打切`.
+  * **Extended Attributes**: `DELIVERY_TIME`, `CONTAINER_CAPACITY`, `INITIAL_FLAG`, `TARGET_REFERENCE_DATE_TYPE`, `TARGET_REFERENCE_DATE`, `INFO_TYPE_CODE`.
 
 ### Step 14: Special Demand & Delivery Adjustments (`受注ワーク更新`)
 * Updates `CUSTOMER_SETTING_ID` in `ORDERS_STAGE` by fetching Profit Center (`FUSRSTR1`) from `USRDEFFLDF` where `FTABLEID='ITEMM'` and `FRECKEY = PRODUCT_CODE`, then joining `CUSTOMER_SETTING_MST` on `CUSTOMER_CODE = '5455'` and `PROFIT_CENTER`.
@@ -132,17 +139,32 @@ The complete process is executed across 18 distinct processing steps divided int
   * **Code `663S`**: Updates `DEMAND_QTY` from `SUZUKI_SPIRITS_663NAND663SAND664T` (matching `CUSTOMER_ORDER_NO`, `INFO_TYPE_CODE = '6624'`). Fallback to `ORDERS` master table if missing.
 
 ### Step 15: Post-Stage Validation & File Settlement (`エラーチェック` / `IMP_FILES`)
-* Performs validation. If errors exist: outputs error log and executes `DELETE FROM ORDERS_STAGE`.
+* Performs validation. If `CUSTOMER_SETTING_ID` is unresolved (still points to dummy setting without Profit Center), flags error.
+* If errors exist: outputs error log and executes `DELETE FROM ORDERS_STAGE`.
 * If valid:
   * Updates `IMP_FILES_STAGE` with `STAGED_FOLDER_PATH` and `STAGED_FILE_NAME`.
   * Inserts records into `IMP_FILES` with `STATUS = 'PARSED'`.
   * Deletes work record from `IMP_FILES_STAGE`.
-  * *(Note: Physical files were already moved to the `Completed` directory during Stage 1).*
 
-### Step 16: Forecast Invalidation & Conversion Processing (`内示加工` / `受注残加工` / `納入指示加工`)
-* Maps destination codes using `SUZUKI_SPIRITS_CONVERSION_MST` (`DELIVERY_CODE_PLAN` $\rightarrow$ `SHIP_TO` where `DELIVERY_CODE_ORDER = SHIP_TO`).
-* **Special Rule `0602`**: Contains no reference date fields; always processed as pure new data without forecast invalidation/replacement.
-* **Forecast Consumption**: `0650`/`0651` consumes active `0600` forecasts; `6624` consumes active `6604` forecasts.
+### Step 16: Forecast Wash Replacement, Backlog & Delivery Processing (`内示加工` / `受注残加工` / `納入指示加工`)
+* **1. 内示加工 (`内示加工.pdf`)**:
+  * Counts customer naiji ($x$: `SELF_FCST_FLAG = 'N'`) and ASTI naiji ($y$: `SELF_FCST_FLAG = 'Y'`).
+  * Case 1 ($x \ge 1, y = 0$): Invalidate prior customer naiji (`SELF_FCST_FLAG = 'N'`) and auto-delete ASTI naiji (`SELF_FCST_DELETE_FLAG = 'Y'`).
+  * Case 2 ($x = 0, y \ge 1$): Invalidate prior ASTI naiji (`SELF_FCST_FLAG = 'Y'`).
+  * Case 3 ($x \ge 1, y \ge 1$): Invalidate all prior naiji.
+  * Special rule for `0602`: No target reference date exists $\rightarrow$ treated as new data (no wash replacement).
+  * Updates newly processed naiji to `STATUS = 'PROCESSED'`.
+* **2. 受注残加工 (`受注残加工.pdf`)**:
+  * Reconciles backlog quantities from `STRA_ORDER_BACKLOG` by `RECONCILE_TYPE` (1: 順次, 2: 同月まで, 3: 同月のみ).
+* **3. 納入指示加工 (`納入指示加工.pdf`)**:
+  * `UPDATE (打切)`: Records with `ORDER_TYPE = 3` and `INFO_TYPE = 'N'` $\rightarrow$ `STATUS = 'PROCESSED'`, `ACTIVE_FLAG = 'N'`.
+  * `UPDATE (取消)`: Records with `ORDER_TYPE = 3` and `INFO_TYPE = 'D'` $\rightarrow$ `DEMAND_QTY = 0`, `STATUS = 'PROCESSED'`.
+  * `確定消込`: Deducts from prior firm orders (`ORDER_TYPE = 2`) by `CUSTOMER_ORDER_NO`.
+  * `出荷先変換`: Replaces `SHIP_TO` with `DELIVERY_CODE_PLAN` from `SUZUKI_SPIRITS_CONVERSION_MST` (where `DELIVERY_CODE_ORDER = SHIP_TO`).
+  * `内示消込`: If `FCST_RECONCILE_FLAG = 'Y'`:
+    * `0650` / `0651` reconciles `0600`
+    * `0814` reconciles `0813`
+    * `6624` reconciles `6604`
 
 ### Step 17: Production Order Table Commitment (`INSERT ORDERS` / `INSERT ORDER_HISTORY`)
 * Updates Suzuki staging table status to `'REGISTERED'` and populates `IMP_FILE_ID`.
@@ -150,8 +172,17 @@ The complete process is executed across 18 distinct processing steps divided int
 * Appends historical audit records into `ORDER_HISTORY` (including Phase 2 extended attributes: `TARGET_REFERENCE_DATE_TYPE`, `TARGET_REFERENCE_DATE`, `INFO_TYPE_CODE`, `DELIVERY_TIME`, `CONTAINER_CAPACITY`, `INITIAL_FLAG`).
 
 ### Step 18: Completion & Execution Logging (`UPDATE IMP_RUN` / `STRA納期設定`)
-* Updates `IMP_RUN`: `ENDED_AT = SYSDATE`, `STATUS = 'COMPLETED'`, `FILE_COUNT`, `ROW_COUNT`, `ERROR_COUNT`.
-* **Batch Mode Only**: Invokes downstream application `STRA納期設定` (STRA Delivery Date Setting) before finishing execution.
+* **STRA Delivery Date Setting (`STRA納期設定` per `STRA納期設定ページ_受注取込後.pdf`)**:
+  * For orders with `STATUS = 'PROCESSED'`, calculates lead times and updates delivery dates:
+    * **(A)品揃リードタイム**: `SELECT FUSRDEC1 FROM USRDEFFLDF WHERE FTABLEID='ITEMM' AND FRECKEY = ORDERS_STAGE.ITEM_NO`
+    * **輸送L/T**: `SELECT FTRANLT FROM SHPROUTM WHERE FSHPTOCD = ORDERS_STAGE.SHIP_TO AND FPRMWHCD = ORDERS_STAGE.SHIP_STOCK_LOCATION AND FPRIORITY = (SELECT MIN(FPRIORITY) FROM SHPROUTM ...)`
+    * **出荷予定日 (`SHIP_SCHEDULED_DATE`)**: `ADD_WORKING_DAYS('00001', [希望納期], -(輸送L/T + 品揃L/T))`
+    * **出荷日 (`SHIP_DATE`)**: `ADD_WORKING_DAYS('00001', [希望納期], -輸送L/T)`
+    * **出荷計画日 (`SHIP_PLAN_DATE`)**: `ADD_WORKING_DAYS('00001', [希望納期], -(輸送L/T + 品揃L/T))`
+    * Updates `ORDERS`: `SHIP_SCHEDULED_DATE`, `SHIP_DATE`, `SHIP_PLAN_DATE`, `STATUS = 'DUE_SET'`, `UPDATED_PG_ID = 'DueDateSetting(Order)'`.
+    * Appends historical audit records into `ORDER_HISTORY` with `STATUS = 'DUE_SET'`.
+* **Execution Run Finalization**:
+  * Updates `IMP_RUN`: `ENDED_AT = SYSDATE`, `STATUS = 'COMPLETED'`, `FILE_COUNT`, `ROW_COUNT`, `ERROR_COUNT`.
 
 ---
 
@@ -169,8 +200,8 @@ The following table details all 4-digit `INFO_TYPE_CODE` values processed by the
 | **0650** | 納入指示データ（通常） | `SUZUKI_SPIRITS_0650` | `CUSTOMER_ITEM_NO`, `PUBLICATION_DATE`, `PUBLICATION_TIME` | Yes (`ORDERS`) | No |
 | **0651** | 納入指示データ（臨時） | `SUZUKI_SPIRITS_0651` | `CUSTOMER_ITEM_NO`, `PUBLICATION_DATE`, `PUBLICATION_TIME` | Yes (`ORDERS`) | No |
 | **0740** | 検収データ | `SUZUKI_SPIRITS_0740` | `CUSTOMER_ITEM_NO`, `ACCEPTANCE_DATE`, `ACCEPTANCE_TIME` | No | No |
-| **0813** | 支給品情報データ | `SUZUKI_SPIRITS_0813` | `CUSTOMER_ITEM_NO`, `PUBLICATION_DATE`, `PUBLICATION_TIME` | No | No |
-| **0814** | 支給品納入指示データ | `SUZUKI_SPIRITS_0814` | `CUSTOMER_ITEM_NO`, `PUBLICATION_DATE`, `PUBLICATION_TIME` | Yes (`ORDERS`) | No |
+| **0813** | 支給要求計画提示情報（内示） | `SUZUKI_SPIRITS_0813` | `CUSTOMER_ITEM_NO`, `PUBLICATION_DATE`, `PUBLICATION_TIME` | Yes (`ORDERS`) | No |
+| **0814** | 支給要求計画提示情報（確定） | `SUZUKI_SPIRITS_0814` | `CUSTOMER_ITEM_NO`, `PUBLICATION_DATE`, `PUBLICATION_TIME` | Yes (`ORDERS`) | No |
 | **6604** | 注文データ（内示） | `SUZUKI_SPIRITS_6604AND6634` | `CUSTOMER_ITEM_NO`, `PUBLICATION_DATE` *(No Time)* | Yes (`ORDERS`) | **Yes** |
 | **6624** | 注文データ（確定/指示） | `SUZUKI_SPIRITS_6624` | `CUSTOMER_ITEM_NO`, `PUBLICATION_DATE` *(No Time)* | Yes (`ORDERS`) | **Yes** |
 | **6634** | 注文データ（変更） | `SUZUKI_SPIRITS_6604AND6634` | `CUSTOMER_ITEM_NO`, `PUBLICATION_DATE` *(No Time)* | No | **Yes** |

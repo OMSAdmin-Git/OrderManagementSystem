@@ -1,6 +1,6 @@
 # 🚀 Batch Execution Setup & Task Scheduler Testing Guide
 
-This document outlines the complete setup, directory structure, deployment steps, SQL verification queries, and Windows Task Scheduler configuration for running **`SUZUKI_SPIRITS_DATA_PRE_IMPORT.exe`** on the VM Server.
+This document outlines the complete setup, directory structure, deployment steps, SQL verification queries, and Windows Task Scheduler configuration for running **`SUZUKI_SPIRITS_DATA_IMPORT.exe`** on the VM Server.
 
 ---
 
@@ -70,18 +70,13 @@ C:\ (or D:\)
  │    └── OMS\
  │         ├── Web\                   <-- IIS Published Web App (C:\inetpub\wwwroot\OMS or D:\ASTI\OMS\Web)
  │         │    ├── bin\
+ │         │    │    ├── OMS.Web.dll
+ │         │    │    ├── OMS.Business.dll
+ │         │    │    ├── OMS.Data.dll
+ │         │    │    ├── SUZUKI_SPIRITS_DATA_IMPORT.exe         <-- Batch Binary (Single-Folder setup)
+ │         │    │    └── SUZUKI_SPIRITS_DATA_IMPORT.exe.config  <-- Batch Config
  │         │    ├── Pages\
  │         │    └── Web.config
- │         │
- │         └── Batch\                 <-- Standalone Batch Console Binaries
- │              ├── SUZUKI_SPIRITS_DATA_PRE_IMPORT.exe
- │              ├── SUZUKI_SPIRITS_DATA_PRE_IMPORT.exe.config
- │              ├── OMS.Business.dll
- │              ├── OMS.Data.dll
- │              ├── OMS.Common.dll
- │              ├── Oracle.ManagedDataAccess.dll
- │              ├── CsvHelper.dll
- │              └── app.log
 ```
 
 ---
@@ -97,36 +92,36 @@ New-Item -ItemType Directory -Force -Path "C:\ASTI\DATA\COMPLETED"
 
 ### **Step 2: Deploy Batch Binaries**
 1. In Visual Studio, set configuration to **Release**.
-2. Build the `SUZUKI_SPIRITS_DATA_PRE_IMPORT` project.
-3. Copy the output files from `bin/Release/` to `C:\ASTI\OMS\Batch\`.
-4. Open `SUZUKI_SPIRITS_DATA_PRE_IMPORT.exe.config` and verify the `OMSConnection` connection string points to your target Oracle database.
+2. Build the `SUZUKI_SPIRITS_DATA_IMPORT` project (post-build automatically copies it to `OMS.Web\bin\`).
+3. Publish `OMS.Web` and copy the published package to `C:\inetpub\wwwroot\OMS\`.
+4. Open `SUZUKI_SPIRITS_DATA_IMPORT.exe.config` in `bin\` and verify the `OMSConnection` connection string points to your target Oracle database.
 
 ### **Step 3: Manual Execution Test**
 1. Place a sample Suzuki CSV file into `C:\ASTI\DATA\SUZUKI\IN\`.
 2. Open PowerShell / Command Prompt on the VM and execute:
    ```powershell
-   cd C:\ASTI\OMS\Batch\
-   .\SUZUKI_SPIRITS_DATA_PRE_IMPORT.exe /batch
+   cd C:\inetpub\wwwroot\OMS\bin\
+   .\SUZUKI_SPIRITS_DATA_IMPORT.exe /batch
    ```
 3. **Verify Results**:
    - Console output: `[SUCCESS] Processed X file(s) successfully.`
    - Check `C:\ASTI\DATA\COMPLETED\SUZUKI-AT\5455\4\` (processed CSV files moved here).
    - Check Oracle Database (`IMP_RUN`, `IMP_FILES_STAGE`, `SUZUKI_SPIRITS_...` tables).
-   - Check `app.log` in `C:\ASTI\OMS\Batch\`.
+   - Check `app.log` in `C:\inetpub\wwwroot\OMS\bin\`.
 
 ### **Step 4: Windows Task Scheduler Configuration**
 1. Open **Task Scheduler** (`taskschd.msc`).
 2. Select **Create Task...**
    - **General Tab**:
-     - Name: `ASTI_Suzuki_Spirits_Data_Pre_Import`
+     - Name: `ASTI_Suzuki_Spirits_Data_Import`
      - Select: **"Run whether user is logged on or not"**
      - Check: **"Run with highest privileges"**
    - **Triggers Tab**:
      - Set your desired schedule (e.g., Daily at 21:00 or Hourly).
    - **Actions Tab**:
      - Action: `Start a program`
-     - Program/script: `C:\ASTI\OMS\Batch\SUZUKI_SPIRITS_DATA_PRE_IMPORT.exe`
+     - Program/script: `C:\inetpub\wwwroot\OMS\bin\SUZUKI_SPIRITS_DATA_IMPORT.exe`
      - Add arguments: `/batch`
-     - **Start in (Mandatory)**: `C:\ASTI\OMS\Batch\`
+     - **Start in (Mandatory)**: `C:\inetpub\wwwroot\OMS\bin\`
 3. Save the task and enter the administrative password if prompted.
 4. Right-click the task $\rightarrow$ **Run** to test. Confirm the **Last Run Result** shows `(0x0)`.
