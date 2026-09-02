@@ -150,4 +150,9 @@
     <Folder Include="My Project\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.VisualBasic.targets" />
+  <PropertyGroup>
+    <PostBuildEvent>copy "$(TargetPath)" "$(SolutionDir)OMS.Web\bin\"
+copy "$(TargetDir)$(TargetName).exe.config" "$(SolutionDir)OMS.Web\bin\"
+</PostBuildEvent>
+  </PropertyGroup>
 </Project>
