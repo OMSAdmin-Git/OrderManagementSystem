@@ -1,4 +1,4 @@
-﻿Imports System.Configuration
+Imports System.Configuration
 Imports System.Data
 Imports System.IO
 Imports System.Text
@@ -51,18 +51,29 @@ Namespace Services
                 Return 0
             End If
 
-            ' 2. ユーザー専用のWORKフォルダを確保（WORK/[UserID]/[取引先CD]/[FolderType]）
+            ' 2. ユーザー専用のWORKフォルダ及びCOMPLETEDフォルダを確保
             Dim workRoot = ConfigurationManager.AppSettings("WorkFolderRoot")
             If String.IsNullOrWhiteSpace(workRoot) Then workRoot = "C:\ASTI\DATA\WORK"
+            Dim completedRoot = ConfigurationManager.AppSettings("CompletedFolderRoot")
+            If String.IsNullOrWhiteSpace(completedRoot) Then completedRoot = "C:\ASTI\DATA\COMPLETED"
+
             Dim customerCode = GetCustomerCode(customerSettingId)
             Dim userWorkDir = Path.Combine(workRoot, userId, customerCode, folderType.ToString())
             Utils.EnsureDirectory(userWorkDir)
+            Dim userCompletedDir = Path.Combine(completedRoot, userId, customerCode, folderType.ToString())
+            Utils.EnsureDirectory(userCompletedDir)
 
-            ' 1. 取込対象フォルダ（source folder）内の CSV を検索（サブフォルダは除外）
-            Dim sourceFiles = If(Directory.Exists(folderPath), Directory.GetFiles(folderPath, "*.csv", SearchOption.TopDirectoryOnly), Array.Empty(Of String)())
+            ' 1. 取込対象フォルダ（source folder）内の CSV / Excel / TXT を検索（サブフォルダは除外）
+            Dim sourceFiles = If(Directory.Exists(folderPath),
+                Directory.EnumerateFiles(folderPath, "*.*", SearchOption.TopDirectoryOnly) _
+                    .Where(Function(f)
+                        Dim ext = Path.GetExtension(f).ToLowerInvariant()
+                        Return ext = ".csv" OrElse ext = ".xlsx" OrElse ext = ".txt"
+                    End Function).ToArray(),
+                Array.Empty(Of String)())
 
             If sourceFiles.Length = 0 Then
-                logger.Write("[SUZUKI_IMPORT] No CSV files found in source folder.")
+                logger.Write("[SUZUKI_IMPORT] No import target files (.csv, .xlsx, .txt) found in source folder.")
                 totalFilesCount = 0
                 validFilesCount = 0
                 errorFilesCount = 0
@@ -113,7 +124,52 @@ Namespace Services
                 For Each workFilePath In workFiles
                     Try
                         Dim fileName = Path.GetFileName(workFilePath)
+                        Dim fileExt = Path.GetExtension(workFilePath).ToLowerInvariant()
 
+                        ' --- ASTI追加内示 / Excel ファイル (.xlsx) のステージング処理 ---
+                        If fileExt = ".xlsx" Then
+                            Using tran As OracleTransaction = conn.BeginTransaction()
+                                Try
+                                    Dim rFlag = If(Not String.IsNullOrEmpty(reconcileFlag), reconcileFlag, If(isBatch, "Y", "N"))
+                                    Dim fFlag = If(Not String.IsNullOrEmpty(fcstReconcileFlag), fcstReconcileFlag, If(isBatch, "Y", "N"))
+
+                                    Dim stageRow As New ImpFilesStageRow() With {
+                                        .CustomerSettingId = customerSettingId,
+                                        .FolderType = CShort(folderType),
+                                        .FolderPath = folderPath,
+                                        .FileName = fileName,
+                                        .StagedFolderPath = userWorkDir,
+                                        .StagedFileName = fileName,
+                                        .ReconcileFlag = rFlag,
+                                        .FcstReconcileFlag = fFlag,
+                                        .HandFlag = "Y",
+                                        .Status = "DISCOVERED",
+                                        .CreatedAt = DateTime.Now,
+                                        .CreatedUserId = userId,
+                                        .CreatedPgId = "OrderImport(Stage)",
+                                        .UpdatedAt = DateTime.Now,
+                                        .UpdatedUserId = userId,
+                                        .UpdatedPgId = "OrderImport(Stage)"
+                                    }
+                                    stageRepo.Insert(conn, tran, stageRow)
+                                    tran.Commit()
+
+                                    validFilesCount += 1
+                                    processCount += 1
+                                    If outStageRows IsNot Nothing Then
+                                        outStageRows.Add(stageRow)
+                                    End If
+                                    logger.Write($"[SUZUKI_IMPORT] Successfully staged Excel file (HAND_FLAG=Y): {fileName}")
+                                Catch ex As Exception
+                                    tran.Rollback()
+                                    errorFilesCount += 1
+                                    logger.Write($"[SUZUKI_IMPORT] Error staging Excel file {fileName}: {ex.Message}")
+                                End Try
+                            End Using
+                            Continue For
+                        End If
+
+                        ' --- CSV / TXT ファイル処理 (SPIRITS EDI / 取込処理) ---
                         ' 種別判定
                         Dim infoCode = SuzukiCsvParser.PeekInfoTypeCode(workFilePath)
                         If String.IsNullOrEmpty(infoCode) OrElse infoCode.Length <> 4 Then
@@ -121,8 +177,6 @@ Namespace Services
                             Continue For
                         End If
 
-
-                        
                         Dim impFileStageId As Long = 0
 
                         Using tran As OracleTransaction = conn.BeginTransaction()
@@ -176,22 +230,16 @@ Namespace Services
                                     DeleteErrorRows(conn, tran, infoCode)
                                 Else
                                     validFilesCount += 1
+                                    ' 正常取込完了: 仕様書通り、ファイルはWORKフォルダに保持し、Stage 2の[保存]または[破棄]時に移動する
+                                    logger.Write($"[SUZUKI_IMPORT] File staged successfully in WORK: {fileName}")
                                 End If
 
                                 tran.Commit()
                                 processCount += 1
                                 logger.Write($"[SUZUKI_IMPORT] Successfully imported file: {fileName}")
 
-                                ' ワークフォルダのファイル後処理 (Stage 1: エラー時もWORKフォルダから削除せず保持)
-                                If File.Exists(workFilePath) Then
-                                    Try
-                                        ' 発見されたステージング行を結果リストに追加
-                                        If outStageRows IsNot Nothing Then
-                                            outStageRows.Add(stageRow)
-                                        End If
-                                    Catch ex As Exception
-                                        logger.Write($"[SUZUKI_IMPORT] Post-processing error for {fileName}: {ex.Message}")
-                                    End Try
+                                If outStageRows IsNot Nothing Then
+                                    outStageRows.Add(stageRow)
                                 End If
                             Catch ex As Exception
                                 tran.Rollback()
@@ -238,10 +286,10 @@ Namespace Services
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
                         r.CreatedUserId = userId
-                        r.CreatedPgId = "OrderImport(Execute)"
+                        r.CreatedPgId = "OrderImport(Stage)"
                         r.CreatedAt = DateTime.Now
                         r.UpdatedUserId = userId
-                        r.UpdatedPgId = "OrderImport(Execute)"
+                        r.UpdatedPgId = "OrderImport(Stage)"
                         r.UpdatedAt = DateTime.Now
                     Next
                     Dim dbErr = repo.InsertRange(conn, tran, rows)
@@ -255,10 +303,10 @@ Namespace Services
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
                         r.CreatedUserId = userId
-                        r.CreatedPgId = "OrderImport(Execute)"
+                        r.CreatedPgId = "OrderImport(Stage)"
                         r.CreatedAt = DateTime.Now
                         r.UpdatedUserId = userId
-                        r.UpdatedPgId = "OrderImport(Execute)"
+                        r.UpdatedPgId = "OrderImport(Stage)"
                         r.UpdatedAt = DateTime.Now
                     Next
                     Dim dbErr = repo.InsertRange(conn, tran, rows)
@@ -272,10 +320,10 @@ Namespace Services
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
                         r.CreatedUserId = userId
-                        r.CreatedPgId = "OrderImport(Execute)"
+                        r.CreatedPgId = "OrderImport(Stage)"
                         r.CreatedAt = DateTime.Now
                         r.UpdatedUserId = userId
-                        r.UpdatedPgId = "OrderImport(Execute)"
+                        r.UpdatedPgId = "OrderImport(Stage)"
                         r.UpdatedAt = DateTime.Now
                     Next
                     Dim dbErr = repo.InsertRange(conn, tran, rows)
@@ -289,10 +337,10 @@ Namespace Services
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
                         r.CreatedUserId = userId
-                        r.CreatedPgId = "OrderImport(Execute)"
+                        r.CreatedPgId = "OrderImport(Stage)"
                         r.CreatedAt = DateTime.Now
                         r.UpdatedUserId = userId
-                        r.UpdatedPgId = "OrderImport(Execute)"
+                        r.UpdatedPgId = "OrderImport(Stage)"
                         r.UpdatedAt = DateTime.Now
                     Next
                     Dim dbErr = repo.InsertRange(conn, tran, rows)
@@ -306,10 +354,10 @@ Namespace Services
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
                         r.CreatedUserId = userId
-                        r.CreatedPgId = "OrderImport(Execute)"
+                        r.CreatedPgId = "OrderImport(Stage)"
                         r.CreatedAt = DateTime.Now
                         r.UpdatedUserId = userId
-                        r.UpdatedPgId = "OrderImport(Execute)"
+                        r.UpdatedPgId = "OrderImport(Stage)"
                         r.UpdatedAt = DateTime.Now
                     Next
                     Dim dbErr = repo.InsertRange(conn, tran, rows)
@@ -323,10 +371,10 @@ Namespace Services
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
                         r.CreatedUserId = userId
-                        r.CreatedPgId = "OrderImport(Execute)"
+                        r.CreatedPgId = "OrderImport(Stage)"
                         r.CreatedAt = DateTime.Now
                         r.UpdatedUserId = userId
-                        r.UpdatedPgId = "OrderImport(Execute)"
+                        r.UpdatedPgId = "OrderImport(Stage)"
                         r.UpdatedAt = DateTime.Now
                     Next
                     Dim dbErr = repo.InsertRange(conn, tran, rows)
@@ -340,10 +388,10 @@ Namespace Services
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
                         r.CreatedUserId = userId
-                        r.CreatedPgId = "OrderImport(Execute)"
+                        r.CreatedPgId = "OrderImport(Stage)"
                         r.CreatedAt = DateTime.Now
                         r.UpdatedUserId = userId
-                        r.UpdatedPgId = "OrderImport(Execute)"
+                        r.UpdatedPgId = "OrderImport(Stage)"
                         r.UpdatedAt = DateTime.Now
                     Next
                     Dim dbErr = repo.InsertRange(conn, tran, rows)
@@ -360,10 +408,10 @@ Namespace Services
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
                         r.CreatedUserId = userId
-                        r.CreatedPgId = "OrderImport(Execute)"
+                        r.CreatedPgId = "OrderImport(Stage)"
                         r.CreatedAt = DateTime.Now
                         r.UpdatedUserId = userId
-                        r.UpdatedPgId = "OrderImport(Execute)"
+                        r.UpdatedPgId = "OrderImport(Stage)"
                         r.UpdatedAt = DateTime.Now
                     Next
                     Dim dbErr = repo.InsertRange(conn, tran, rows)
@@ -377,10 +425,10 @@ Namespace Services
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
                         r.CreatedUserId = userId
-                        r.CreatedPgId = "OrderImport(Execute)"
+                        r.CreatedPgId = "OrderImport(Stage)"
                         r.CreatedAt = DateTime.Now
                         r.UpdatedUserId = userId
-                        r.UpdatedPgId = "OrderImport(Execute)"
+                        r.UpdatedPgId = "OrderImport(Stage)"
                         r.UpdatedAt = DateTime.Now
                     Next
                     Dim dbErr = repo.InsertRange(conn, tran, rows)
@@ -394,10 +442,10 @@ Namespace Services
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
                         r.CreatedUserId = userId
-                        r.CreatedPgId = "OrderImport(Execute)"
+                        r.CreatedPgId = "OrderImport(Stage)"
                         r.CreatedAt = DateTime.Now
                         r.UpdatedUserId = userId
-                        r.UpdatedPgId = "OrderImport(Execute)"
+                        r.UpdatedPgId = "OrderImport(Stage)"
                         r.UpdatedAt = DateTime.Now
                     Next
                     Dim dbErr = repo.InsertRange(conn, tran, rows)
@@ -411,10 +459,10 @@ Namespace Services
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
                         r.CreatedUserId = userId
-                        r.CreatedPgId = "OrderImport(Execute)"
+                        r.CreatedPgId = "OrderImport(Stage)"
                         r.CreatedAt = DateTime.Now
                         r.UpdatedUserId = userId
-                        r.UpdatedPgId = "OrderImport(Execute)"
+                        r.UpdatedPgId = "OrderImport(Stage)"
                         r.UpdatedAt = DateTime.Now
                     Next
                     Dim dbErr = repo.InsertRange(conn, tran, rows)

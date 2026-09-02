@@ -300,7 +300,7 @@ Namespace Pages.Orders
                                         .LastWriteTime = DateTime.Now,
                                         .ReconcileFlag = sRow.ReconcileFlag,
                                         .FcstReconcileFlag = sRow.FcstReconcileFlag,
-                                        .HandFlag = "N",
+                                        .HandFlag = If(Not String.IsNullOrEmpty(sRow.HandFlag), sRow.HandFlag, "N"),
                                         .SpProcessType = spprocesstype
                                     })
                                 Next
