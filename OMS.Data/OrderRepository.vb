@@ -641,6 +641,7 @@ Namespace OMS.Data
                                 Optional ByVal kOrderId As Long? = Nothing,
                                 Optional ByVal kCustomerSettingId As Integer? = Nothing,
                                 Optional ByVal kDemandQty As Long? = Nothing,
+                                Optional ByVal kDemandStatus As String = Nothing,
                                 Optional ByVal kImpRunId As Long? = Nothing,
                                 Optional ByVal kStatus As String = Nothing,
                                 Optional ByVal kActiveFlag As String = Nothing,
@@ -776,6 +777,11 @@ Namespace OMS.Data
                 If kDemandQty IsNot Nothing Then
                     sb.AppendLine("AND demand_qty = :p_kDemandQty ")
                     prm.Add(New OracleParameter(":p_kDemandQty", OracleDbType.Int64) With {.Value = kDemandQty})
+                End If
+
+                If kDemandStatus IsNot Nothing Then
+                    sb.AppendLine("AND demand_status = :p_kDemandStatus ")
+                    prm.Add(New OracleParameter(":p_kDemandStatus", OracleDbType.Char, 1) With {.Value = kDemandStatus})
                 End If
 
                 If kImpRunId IsNot Nothing Then
