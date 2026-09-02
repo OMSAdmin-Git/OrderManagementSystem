@@ -2,6 +2,7 @@
 Imports System.Data
 Imports System.Text
 Imports System.Web
+Imports Antlr.Runtime.Misc
 Imports ClosedXML.Excel
 Imports DocumentFormat.OpenXml.Drawing.Spreadsheet
 Imports DocumentFormat.OpenXml.Math
@@ -959,7 +960,7 @@ Namespace OMS.Data
         ''' </summary>
         ''' <param name="value"></param>
         ''' <returns></returns>
-        Private Function ToValueString(value As String) As String
+        Private Shared Function ToValueString(value As String) As String
 
             Dim rt As String
             Try
@@ -1102,6 +1103,78 @@ Namespace OMS.Data
                 ordersRow = Nothing
             End Try
             Return ordersRow
+
+        End Function
+        ''' <summary>
+        ''' ASTI 内示 ファイル読み込み(Excel の場合)
+        ''' </summary>
+        ''' <param name="filename"></param>
+        ''' <returns></returns>
+        Public Shared Function OrderExcelAstiFileYamaharobotex(filename As String) As DataTable
+
+            Dim errors = New List(Of String)()
+
+            '' 0. 新しいDataTableの構造（列）を作成 長期内示か判断するフラグを追加 (変換後データ)
+            '' 内示 および 確定 データを ASTI 追加内示形式の データ構成に並び替える
+            Dim astiN As New DataTable()
+            astiN.Columns.Add("取引先コード", GetType(String))
+            astiN.Columns.Add("客先発注No", GetType(String))
+            astiN.Columns.Add("受注日", GetType(String))            ' "20250701" 等の形式
+            astiN.Columns.Add("希望納期", GetType(String))          ' "20250701" 等の形式
+            astiN.Columns.Add("客先品目No", GetType(String))
+            astiN.Columns.Add("需要数", GetType(String))
+            astiN.Columns.Add("通貨コード", GetType(String))
+            astiN.Columns.Add("製品コード", GetType(String))
+            astiN.Columns.Add("納入先コード", GetType(String))
+            astiN.Columns.Add("分割区分", GetType(String))
+            astiN.Columns.Add("受注区分", GetType(String))
+            astiN.Columns.Add("コメント", GetType(String))
+            astiN.Columns.Add("情報区分", GetType(String))
+            astiN.Columns.Add("ASTI追加内示フラグ", GetType(String))
+            astiN.Columns.Add("ASTI追加内示削除フラグ", GetType(String))
+
+            Try
+                'Using stream = New System.IO.FileStream(filename, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.ReadWrite)
+                'ワークブックを作成
+                Using objWBook As New XLWorkbook(filename)
+                    ' (差異リスト:内示) 
+                    'Dim objSheet1 As IXLWorksheet = objWBook.Worksheets.Add("生産計画")
+
+                    Dim objSheet1 = objWBook.Worksheets.FirstOrDefault()
+
+                    If objSheet1 Is Nothing Then
+                        Return astiN
+                    End If
+                    ' 最終行
+                    Dim rowLast = objSheet1.LastRowUsed().RowNumber()
+                    Dim offset = 1  ' Title 行 のかさまし分
+                    For i = 1 + offset To rowLast
+                        Dim rowDt As DataRow = astiN.NewRow()
+                        rowDt("取引先コード") = ToValueString(objSheet1.Cell(i, 1).Value.ToString())
+                        rowDt("客先発注No") = ToValueString(objSheet1.Cell(i, 2).Value.ToString())
+                        rowDt("受注日") = ToValueString(objSheet1.Cell(i, 3).Value.ToString())
+                        rowDt("希望納期") = ToValueString(objSheet1.Cell(i, 4).Value.ToString())
+                        rowDt("客先品目No") = ToValueString(objSheet1.Cell(i, 5).Value.ToString())
+                        rowDt("需要数") = ToValueString(objSheet1.Cell(i, 6).Value.ToString())
+                        rowDt("通貨コード") = ToValueString(objSheet1.Cell(i, 7).Value.ToString())
+                        rowDt("品目No") = ToValueString(objSheet1.Cell(i, 8).Value.ToString())
+                        rowDt("分割区分") = ToValueString(objSheet1.Cell(i, 9).Value.ToString())
+                        rowDt("受注区分") = ToValueString(objSheet1.Cell(i, 10).Value.ToString())
+                        rowDt("コメント") = ToValueString(objSheet1.Cell(i, 11).Value.ToString())
+                        rowDt("情報区分") = ToValueString(objSheet1.Cell(i, 12).Value.ToString())
+                        rowDt("自社予測フラグ") = ToValueString(objSheet1.Cell(i, 13).Value.ToString())
+                        rowDt("自社予測削除フラグ") = ToValueString(objSheet1.Cell(i, 14).Value.ToString())
+
+                        'errors.Add(CheckOrdersData(orders))
+                        astiN.Rows.Add(rowDt)
+                    Next
+                End Using
+                'End Using
+
+            Catch ex As Exception
+                astiN = Nothing
+            End Try
+            Return astiN
 
         End Function
 
