@@ -3317,6 +3317,7 @@ Namespace OMS.Data
                     If (customerItemNo = "") Then
                         errMsg = "客先品目Noが不正な値です。"
                         errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                        ErrFlg = True
                     End If
 
                     Dim ddate = row("希望納期")
@@ -3324,6 +3325,7 @@ Namespace OMS.Data
                         ddate = CDate("1900/01/01").ToString("yyyyMMdd")
                         errMsg = "希望納期が不正な値です。"
                         errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                        ErrFlg = True
                     End If
                     dtcvt = DateTime.ParseExact(ddate, "yyyyMMdd", Nothing)
                     ' 月初稼働日
@@ -3334,6 +3336,7 @@ Namespace OMS.Data
                         dqty = 0
                         errMsg = "需要数が不正な値です。"
                         errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                        ErrFlg = True
                     End If
                     demandQty = Long.Parse(dqty)
 
@@ -3347,6 +3350,7 @@ Namespace OMS.Data
                         selfFcstFlag = "N"
                         errMsg = "ASTI追加内示フラグが不正な値です。"
                         errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                        ErrFlg = True
                     End If
 
                     selfFcstDeleteFlag = row("ASTI追加内示削除フラグ")
@@ -3354,6 +3358,7 @@ Namespace OMS.Data
                         selfFcstDeleteFlag = "N"
                         errMsg = "ASTI追加内示削除フラグが不正な値です。"
                         errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                        ErrFlg = True
                     End If
 
                     ' ###### DEBUG
@@ -3365,19 +3370,23 @@ Namespace OMS.Data
                     ' Field 検索
                     If (reps.GetShipTo(customerCode, deliverycode, shipto, errMsg) = False) Then
                         errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                        ErrFlg = True
                     End If
 
                     If (reps.GetProductCode(customerCode, customerItemNo, productCode, itemNo, errMsg) = False) Then
                         errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                        ErrFlg = True
                     End If
                     If (reps.GetDemandUnit(productCode, demandunit, errMsg) = False) Then
                         errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                        ErrFlg = True
                     End If
                     If (reps.GetCurrencyCode(customerCode, currencycode, errMsg) = False) Then
                         errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
                     End If
                     If (reps.GetShipStockLocation(productCode, shipstocklocation, errMsg) = False) Then
                         errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                        ErrFlg = True
                     End If
                     If (reps.GetProratedType(CustomerSettingId, FolderType, proratedType, errMsg) = False) Then
                         errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
@@ -3408,7 +3417,7 @@ Namespace OMS.Data
                     orderStageRow.OrderType = orderType                             ' /内示(1) 確定(2)
                     orderStageRow.ProratedType = proratedType                       ' / 日割り(1)
                     orderStageRow.CustomerInfoType = ""                             ' null
-                    orderStageRow.InfoType = ""                                     ' null
+                    orderStageRow.InfoType = "I"                                    ' "I" 新規追加
                     orderStageRow.SelfFcstDeleteFlag = "N"                          ' /'N'
                     orderStageRow.ReconcileType = reconciletype                     ' IMP_RULE_MST.RECONCILE_TYPE
                     orderStageRow.ImpRunId = impRunId                               ' IMP_RUN.IMP_RUN_ID
@@ -3419,6 +3428,7 @@ Namespace OMS.Data
                     ' 内示: 当月の稼動日初日 確定: "R" + 客先発注No それ以外: 当月の稼動日初日 
                     orderStageRow.CustomerOrderNo = If(ft = YamahaRobotexType.UnofficialNotice, firstWorkingDay.ToString("yyyyMMdd"), If(ft = YamahaRobotexType.Confirmed, "R" & row("客先発注No"), firstWorkingDay.ToString("yyyyMMdd")))
 
+                    firstWorkingDay = calen.GetFirstWorkingDay(calType, dtcvt)
                     orderStageRow.DueDate = dtcvt
                     orderStageRow.CustomerItemNo = customerItemNo
                     orderStageRow.DemandQty = demandQty
@@ -3510,20 +3520,20 @@ Namespace OMS.Data
 
         End Function
 
-        Public Shared Function OrdersStageSaved(ByVal tran As OracleTransaction,
-                                            ByVal CustomerSettingId As Long,
-                                            ByVal impfilestageId As Long,
-                                            ByVal FolderType As Integer,
-                                            ByVal ReconcileFlag As String,
-                                            ByVal FcstReconcileFlag As String,
-                                            ByVal blnHandFlag As Boolean,
-                                            ByVal UserId As String,
-                                            ByVal pgId As String,
-                                            ByVal rowsForTemp2 As List(Of OrdersStageRow)) As OrderStageImport
+        'Public Shared Function OrdersStageSaved(ByVal tran As OracleTransaction,
+        '                                    ByVal CustomerSettingId As Long,
+        '                                    ByVal impfilestageId As Long,
+        '                                    ByVal FolderType As Integer,
+        '                                    ByVal ReconcileFlag As String,
+        '                                    ByVal FcstReconcileFlag As String,
+        '                                    ByVal blnHandFlag As Boolean,
+        '                                    ByVal UserId As String,
+        '                                    ByVal pgId As String,
+        '                                    ByVal rowsForTemp2 As List(Of OrdersStageRow)) As OrderStageImport
 
-            Return OrdersStageSaved(tran, CustomerSettingId, impfilestageId, FolderType, ReconcileFlag, FcstReconcileFlag, blnHandFlag, UserId, pgId, rowsForTemp2, -1)
+        '    Return OrdersStageSaved(tran, CustomerSettingId, impfilestageId, FolderType, ReconcileFlag, FcstReconcileFlag, blnHandFlag, UserId, pgId, rowsForTemp2, -1)
 
-        End Function
+        'End Function
 
         Public Shared Function OrdersStageSaved(ByVal tran As OracleTransaction,
                                             ByVal CustomerSettingId As Long,
@@ -3655,20 +3665,15 @@ Namespace OMS.Data
                     '--
 
                 End If
-                    '-----------------------------------------------
+                '-----------------------------------------------
 
+                '-----------------------------------------------
+                '--------
+                '確定加工
+                '--------
 
-
-
-
-
-                    '-----------------------------------------------
-                    '--------
-                    '確定加工
-                    '--------
-
-                    '打切処理
-                    _oderStageRepo.UpdateClese(tran, impfilestageId, 2)
+                '打切処理
+                _oderStageRepo.UpdateClese(tran, impfilestageId, 2)
 
                 '取消処理
                 _oderStageRepo.UpdateCancel(tran, impfilestageId, 2)
@@ -3707,13 +3712,12 @@ Namespace OMS.Data
                                                          pgId)
 
 
-
                         ' Yamaha robotex 指示日更新
                         '
                         ' 残った内示の指示日は確定指示日の翌日とする。
                         ' ただし、確定指示日が月末日の場合、
                         ' 確定指示日と同じ日付とする
-                        If (spprocesstype <> 3) Then
+                        If (spprocesstype = 3) Then
                             _oderStageRepo.ResetShipScheduledateYamahaRobotex(tran,
                                                        CustomerSettingId,
                                                        impfilestageId,
@@ -3731,9 +3735,6 @@ Namespace OMS.Data
                 _oderStageRepo.UpdateKakuteiNewOrders(tran, impfilestageId)
 
                 '-----------------------------------------------
-
-
-
 
 
                 '-----------------------------------------------

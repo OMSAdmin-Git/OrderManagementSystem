@@ -423,19 +423,11 @@ Namespace Pages.Orders
                 '#End If
 
                 ' UPDATE (生産計画ワーク)prod_plan_stage
-#If True Then
                 ' 最後の Ordere レコード更新用に取得しておく
                 Dim rowsu = reps.ToClass(reps.GetOrders(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, status:="POST_PLAN_DUE_SET", activeFlag:="Y"))
 
                 ' SQL の場合
                 errors.Add(reps.ProductionPlanWorkUpdate(conn, tran, ProcessingStartDate, loginUserId))
-
-#Else
-                Dim rowsu = reps.ToClass(reps.GetOrders(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, status:="POST_PLAN_DUE_SET", activeFlag:="Y"))
-                For Each row In rowsu
-                    errors.Add(reps.Update(conn, tran, OrderRepository.OrdersTable.ProductPlan, kOrderId:=row.OrderId, status:="EXPORTED", updatedAt:=FileDate, updatedUserId:=loginUserId, updatedPgId:="OrderExport"))
-                Next
-#End If
                 If (CheckError(errors)) Then
                     ' エラー
                     DBError(tran)
@@ -448,41 +440,35 @@ Namespace Pages.Orders
                 '#End If
 
                 ' UPDATE (生産計画) prod_plan
-#If True Then
                 ' SQL の場合
                 errors.Add(repo.ProductionPlanUpdate(conn, tran, ProcessingStartDate, loginUserId))
-#Else
-
-                Dim rows = reps.GetOrders(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, status:="EXPORTED", activeFlag:="Y")
-                Dim orderRows = reps.ToClass(rows)`
-                For Each row In orderRows
-                    errors.Add(repo.Update(conn, tran, OrderRepository.OrdersTable.ProductPlan, kOrderId:=row.OrderId, status:=row.Status, updatedAt:=row.UpdatedAt, updatedUserId:=row.UpdatedUserId, updatedPgId:=row.UpdatedPgId))
-                Next
-#End If
                 If (CheckError(errors)) Then
                     ' エラー
                     DBError(tran)
                 End If
 
 
-
-
-
-
                 ' Pharse-2
+
+                ' 仮対策
                 'UPDATE (受注) NG customer_oder_no がない場合があるため → Excel 取り込みでは使えないため 要修正
+                '' ImpRunID でまとめる
+                'Dim uniqueRows = rowsu.
+                '                GroupBy(Function(x) x.ImpRunId).
+                '                Select(Function(g) g.First()).
+                '                ToList()
 
-                ' ImpRunID でまとめる
-                Dim uniqueRows = rowsu.
-                                GroupBy(Function(x) x.ImpRunId).
-                                Select(Function(g) g.First()).
-                                ToList()
+                'For Each row In uniqueRows
+                '    errors.Add(repo.Update(conn, tran, OrderRepository.OrdersTable.Orders, kImpRunId:=row.ImpRunId, kStatus:="DUE_SET", kActiveFlag:="Y", status:="EXPORTED", updatedAt:=row.UpdatedAt, updatedUserId:=row.UpdatedUserId, updatedPgId:=row.UpdatedPgId))
+                'Next
 
-                For Each row In uniqueRows
-                    errors.Add(repo.Update(conn, tran, OrderRepository.OrdersTable.Orders, kImpRunId:=row.ImpRunId, kStatus:="DUE_SET", kActiveFlag:="Y", status:="EXPORTED", updatedAt:=row.UpdatedAt, updatedUserId:=row.UpdatedUserId, updatedPgId:=row.UpdatedPgId))
+
+                ' 本対策 2026/9//2 (DB 操作なので ファイル出力前に 処理を移動した)
+                'idList 処理を行った customerSettingId リスト
+                For Each customerSettingId In idList
+                    Dim trgRow = rowsu.FirstOrDefault(Function(x) x.CustomerSettingId = customerSettingId)
+                    errors.Add(repo.Update(conn, tran, OrderRepository.OrdersTable.Orders, kCustomerSettingId:=customerSettingId, kDemandStatus:="F", kStatus:="DUE_SET", kActiveFlag:="Y", status:="EXPORTED", updatedAt:=trgRow.UpdatedAt, updatedUserId:=trgRow.UpdatedUserId, updatedPgId:=trgRow.UpdatedPgId))
                 Next
-
-                'errors.Add(repo.OrderUpdate(conn, tran, ProcessingStartDate, loginUserId))
                 If (CheckError(errors)) Then
                     ' エラー
                     DBError(tran)
