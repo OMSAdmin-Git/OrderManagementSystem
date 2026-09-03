@@ -1,7 +1,9 @@
 ﻿Imports System.Configuration
 Imports System.Data
+Imports System.Globalization
 Imports System.Text
 Imports System.Web
+Imports Antlr.Runtime.Misc
 Imports ClosedXML.Excel
 Imports DocumentFormat.OpenXml.Drawing.Spreadsheet
 Imports DocumentFormat.OpenXml.Math
@@ -959,7 +961,7 @@ Namespace OMS.Data
         ''' </summary>
         ''' <param name="value"></param>
         ''' <returns></returns>
-        Private Function ToValueString(value As String) As String
+        Private Shared Function ToValueString(value As String) As String
 
             Dim rt As String
             Try
@@ -1104,7 +1106,121 @@ Namespace OMS.Data
             Return ordersRow
 
         End Function
+        ''' <summary>
+        ''' ASTI 内示 ファイル読み込み(Excel の場合)
+        ''' </summary>
+        ''' <param name="filename"></param>
+        ''' <returns></returns>
+        Public Shared Function OrderExcelAstiFileYamaharobotex(filename As String) As DataTable
 
+            Dim errors = New List(Of String)()
+
+            '' 0. 新しいDataTableの構造（列）を作成 長期内示か判断するフラグを追加 (変換後データ)
+            '' 内示 および 確定 データを ASTI 追加内示形式の データ構成に並び替える
+            Dim astiN As New DataTable()
+            astiN.Columns.Add("取引先コード", GetType(String))
+            astiN.Columns.Add("客先発注No", GetType(String))
+            astiN.Columns.Add("受注日", GetType(String))            ' "20250701" 等の形式
+            astiN.Columns.Add("希望納期", GetType(String))          ' "20250701" 等の形式
+            astiN.Columns.Add("客先品目No", GetType(String))
+            astiN.Columns.Add("需要数", GetType(String))
+            astiN.Columns.Add("通貨コード", GetType(String))
+            astiN.Columns.Add("製品コード", GetType(String))
+            astiN.Columns.Add("納入先コード", GetType(String))
+            astiN.Columns.Add("分割区分", GetType(String))
+            astiN.Columns.Add("受注区分", GetType(String))
+            astiN.Columns.Add("コメント", GetType(String))
+            astiN.Columns.Add("情報区分", GetType(String))
+            astiN.Columns.Add("ASTI追加内示フラグ", GetType(String))
+            astiN.Columns.Add("ASTI追加内示削除フラグ", GetType(String))
+
+            Try
+                'Using stream = New System.IO.FileStream(filename, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.ReadWrite)
+                'ワークブックを作成
+                Using objWBook As New XLWorkbook(filename)
+                    Dim formats As String() = {"yyyy/M/d", "yyyyMd", "yyyy/M/d h:m:s"}
+                    Dim result As DateTime
+
+                    ' (差異リスト:内示) 
+                    'Dim objSheet1 As IXLWorksheet = objWBook.Worksheets.Add("生産計画")
+
+                    Dim objSheet1 = objWBook.Worksheets.FirstOrDefault()
+
+                    If objSheet1 Is Nothing Then
+                        Return astiN
+                    End If
+                    ' 最終行
+                    Dim rowLast = objSheet1.LastRowUsed().RowNumber()
+                    Dim offset = 1  ' Title 行 のかさまし分
+                    For i = 1 + offset To rowLast
+                        Dim rowDt As DataRow = astiN.NewRow()
+                        rowDt("取引先コード") = ToValueString(objSheet1.Cell(i, 1).Value.ToString())
+                        rowDt("客先発注No") = ToValueString(objSheet1.Cell(i, 2).Value.ToString())
+
+                        Dim ddate = ToValueString(objSheet1.Cell(i, 3).Value.ToString())
+                        If (Date.TryParseExact(ddate, formats, CultureInfo.InvariantCulture, DateTimeStyles.None, result)) Then
+                            rowDt("受注日") = result.ToString("yyyyMMdd")
+                        Else
+                            rowDt("受注日") = CDate("1900/01/01").ToString("yyyyMMdd")
+                        End If
+
+                        ddate = ToValueString(objSheet1.Cell(i, 3).Value.ToString())
+                        If (Date.TryParseExact(ddate, formats, CultureInfo.InvariantCulture, DateTimeStyles.None, result)) Then
+                            rowDt("希望納期") = result.ToString("yyyyMMdd")
+                        Else
+                            rowDt("希望納期") = CDate("1900/01/01").ToString("yyyyMMdd")
+                        End If
+
+                        'Dim tdate = ToValueString(objSheet1.Cell(i, 3).Value.ToString())
+                        'If (Not IsValidDateFormat(tdate)) Then
+                        '    tdate = CDate("1900/01/01").ToString("yyyyMMdd")
+                        'End If
+                        'rowDt("受注日") = CDate(tdate).ToString("yyyyMMdd")
+
+                        'Dim ddate = ToValueString(objSheet1.Cell(i, 4).Value.ToString())
+                        'If (Not IsValidDateFormat(ddate)) Then
+                        '    ddate = CDate("1900/01/01").ToString("yyyyMMdd")
+                        'End If
+                        'rowDt("希望納期") = CDate(ddate).ToString("yyyyMMdd")
+
+                        rowDt("客先品目No") = ToValueString(objSheet1.Cell(i, 5).Value.ToString())
+                        rowDt("需要数") = ToValueString(objSheet1.Cell(i, 6).Value.ToString())
+                        rowDt("通貨コード") = ToValueString(objSheet1.Cell(i, 7).Value.ToString())
+                        rowDt("製品コード") = ToValueString(objSheet1.Cell(i, 8).Value.ToString())
+                        rowDt("納入先コード") = ToValueString(objSheet1.Cell(i, 9).Value.ToString())
+                        rowDt("分割区分") = ToValueString(objSheet1.Cell(i, 10).Value.ToString())
+                        rowDt("受注区分") = ToValueString(objSheet1.Cell(i, 11).Value.ToString())
+                        rowDt("コメント") = ToValueString(objSheet1.Cell(i, 12).Value.ToString())
+                        rowDt("情報区分") = ToValueString(objSheet1.Cell(i, 13).Value.ToString())
+                        rowDt("ASTI追加内示フラグ") = ToValueString(objSheet1.Cell(i, 14).Value.ToString())
+                        rowDt("ASTI追加内示削除フラグ") = ToValueString(objSheet1.Cell(i, 15).Value.ToString())
+                        'errors.Add(CheckOrdersData(orders))
+                        astiN.Rows.Add(rowDt)
+                    Next
+                End Using
+                'End Using
+
+            Catch ex As Exception
+                astiN = Nothing
+            End Try
+            Return astiN
+
+        End Function
+        '''' <summary>
+        '''' 日付チェック
+        '''' </summary>
+        '''' <param name="input"></param>
+        '''' <returns></returns>
+        'Private Shared Function IsValidDateFormat(ByVal input As String) As Boolean
+        '    Dim resultDate As DateTime
+        '    Dim formats As String() = {"yyyy/M/d", "yyyyMd", "yyyy/M/d h:m:s"}
+        '    ' yyyy/MM/dd 形式かつ、カレンダー上正しい日付か厳密にチェック
+        '    Return DateTime.TryParseExact(input,
+        '                                  formats,
+        '                                  CultureInfo.InvariantCulture,
+        '                                  DateTimeStyles.None,
+        '                                  resultDate)
+        'End Function
         '''' <summary>
         '''' 取り込みデータの 正誤確認
         '''' </summary>
