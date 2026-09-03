@@ -1,5 +1,6 @@
 ﻿Imports System.Configuration
 Imports System.Data
+Imports System.Globalization
 Imports System.Text
 Imports System.Web
 Imports Antlr.Runtime.Misc
@@ -1137,6 +1138,9 @@ Namespace OMS.Data
                 'Using stream = New System.IO.FileStream(filename, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.ReadWrite)
                 'ワークブックを作成
                 Using objWBook As New XLWorkbook(filename)
+                    Dim formats As String() = {"yyyy/M/d", "yyyyMd", "yyyy/M/d h:m:s"}
+                    Dim result As DateTime
+
                     ' (差異リスト:内示) 
                     'Dim objSheet1 As IXLWorksheet = objWBook.Worksheets.Add("生産計画")
 
@@ -1152,19 +1156,44 @@ Namespace OMS.Data
                         Dim rowDt As DataRow = astiN.NewRow()
                         rowDt("取引先コード") = ToValueString(objSheet1.Cell(i, 1).Value.ToString())
                         rowDt("客先発注No") = ToValueString(objSheet1.Cell(i, 2).Value.ToString())
-                        rowDt("受注日") = ToValueString(objSheet1.Cell(i, 3).Value.ToString())
-                        rowDt("希望納期") = ToValueString(objSheet1.Cell(i, 4).Value.ToString())
+
+                        Dim ddate = ToValueString(objSheet1.Cell(i, 3).Value.ToString())
+                        If (Date.TryParseExact(ddate, formats, CultureInfo.InvariantCulture, DateTimeStyles.None, result)) Then
+                            rowDt("受注日") = result.ToString("yyyyMMdd")
+                        Else
+                            rowDt("受注日") = CDate("1900/01/01").ToString("yyyyMMdd")
+                        End If
+
+                        ddate = ToValueString(objSheet1.Cell(i, 3).Value.ToString())
+                        If (Date.TryParseExact(ddate, formats, CultureInfo.InvariantCulture, DateTimeStyles.None, result)) Then
+                            rowDt("希望納期") = result.ToString("yyyyMMdd")
+                        Else
+                            rowDt("希望納期") = CDate("1900/01/01").ToString("yyyyMMdd")
+                        End If
+
+                        'Dim tdate = ToValueString(objSheet1.Cell(i, 3).Value.ToString())
+                        'If (Not IsValidDateFormat(tdate)) Then
+                        '    tdate = CDate("1900/01/01").ToString("yyyyMMdd")
+                        'End If
+                        'rowDt("受注日") = CDate(tdate).ToString("yyyyMMdd")
+
+                        'Dim ddate = ToValueString(objSheet1.Cell(i, 4).Value.ToString())
+                        'If (Not IsValidDateFormat(ddate)) Then
+                        '    ddate = CDate("1900/01/01").ToString("yyyyMMdd")
+                        'End If
+                        'rowDt("希望納期") = CDate(ddate).ToString("yyyyMMdd")
+
                         rowDt("客先品目No") = ToValueString(objSheet1.Cell(i, 5).Value.ToString())
                         rowDt("需要数") = ToValueString(objSheet1.Cell(i, 6).Value.ToString())
                         rowDt("通貨コード") = ToValueString(objSheet1.Cell(i, 7).Value.ToString())
-                        rowDt("品目No") = ToValueString(objSheet1.Cell(i, 8).Value.ToString())
-                        rowDt("分割区分") = ToValueString(objSheet1.Cell(i, 9).Value.ToString())
-                        rowDt("受注区分") = ToValueString(objSheet1.Cell(i, 10).Value.ToString())
-                        rowDt("コメント") = ToValueString(objSheet1.Cell(i, 11).Value.ToString())
-                        rowDt("情報区分") = ToValueString(objSheet1.Cell(i, 12).Value.ToString())
-                        rowDt("自社予測フラグ") = ToValueString(objSheet1.Cell(i, 13).Value.ToString())
-                        rowDt("自社予測削除フラグ") = ToValueString(objSheet1.Cell(i, 14).Value.ToString())
-
+                        rowDt("製品コード") = ToValueString(objSheet1.Cell(i, 8).Value.ToString())
+                        rowDt("納入先コード") = ToValueString(objSheet1.Cell(i, 9).Value.ToString())
+                        rowDt("分割区分") = ToValueString(objSheet1.Cell(i, 10).Value.ToString())
+                        rowDt("受注区分") = ToValueString(objSheet1.Cell(i, 11).Value.ToString())
+                        rowDt("コメント") = ToValueString(objSheet1.Cell(i, 12).Value.ToString())
+                        rowDt("情報区分") = ToValueString(objSheet1.Cell(i, 13).Value.ToString())
+                        rowDt("ASTI追加内示フラグ") = ToValueString(objSheet1.Cell(i, 14).Value.ToString())
+                        rowDt("ASTI追加内示削除フラグ") = ToValueString(objSheet1.Cell(i, 15).Value.ToString())
                         'errors.Add(CheckOrdersData(orders))
                         astiN.Rows.Add(rowDt)
                     Next
@@ -1177,7 +1206,21 @@ Namespace OMS.Data
             Return astiN
 
         End Function
-
+        '''' <summary>
+        '''' 日付チェック
+        '''' </summary>
+        '''' <param name="input"></param>
+        '''' <returns></returns>
+        'Private Shared Function IsValidDateFormat(ByVal input As String) As Boolean
+        '    Dim resultDate As DateTime
+        '    Dim formats As String() = {"yyyy/M/d", "yyyyMd", "yyyy/M/d h:m:s"}
+        '    ' yyyy/MM/dd 形式かつ、カレンダー上正しい日付か厳密にチェック
+        '    Return DateTime.TryParseExact(input,
+        '                                  formats,
+        '                                  CultureInfo.InvariantCulture,
+        '                                  DateTimeStyles.None,
+        '                                  resultDate)
+        'End Function
         '''' <summary>
         '''' 取り込みデータの 正誤確認
         '''' </summary>

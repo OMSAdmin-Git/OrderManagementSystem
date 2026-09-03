@@ -1,24 +1,25 @@
 ﻿Imports System.Configuration
 Imports System.Data
+Imports System.Globalization
 Imports System.IO
+Imports System.Runtime.InteropServices
+Imports System.Runtime.InteropServices.ComTypes
 Imports System.Text
 Imports System.Web
 Imports ClosedXML.Excel
+Imports CsvHelper
+Imports CsvHelper.Configuration
+Imports DocumentFormat.OpenXml.Drawing.Diagrams
 Imports DocumentFormat.OpenXml.Drawing.Spreadsheet
 Imports DocumentFormat.OpenXml.Math
 Imports DocumentFormat.OpenXml.Office2016.Drawing.ChartDrawing
+Imports DocumentFormat.OpenXml.Presentation
 Imports DocumentFormat.OpenXml.Spreadsheet
 Imports DocumentFormat.OpenXml.Wordprocessing
 Imports Microsoft.SqlServer
 Imports Microsoft.VisualBasic.ApplicationServices
 Imports OMS.Common
 Imports Oracle.ManagedDataAccess.Client
-Imports CsvHelper
-Imports CsvHelper.Configuration
-Imports System.Globalization
-Imports System.Runtime.InteropServices
-Imports DocumentFormat.OpenXml.Drawing.Diagrams
-Imports DocumentFormat.OpenXml.Presentation
 
 Namespace OMS.Data
     Public Class OrderStageImport
@@ -3283,8 +3284,15 @@ Namespace OMS.Data
                     Throw New ApplicationException($"ファイル{Path.GetFileName(strWorkFile)}が Yamaha robotex 内示/確定/ASTI内示 フォーマットではありません。")
                 End If
 
-                ' ファイル読み込み Yamaha Robotex 内示/確定/ASTI 追加内示 
-                Dim dt = YamahaRobotexCreateNewDataSetFromCsv(strWorkFile, ft)
+                Dim dt As DataTable
+                ' ASTI 内示 Excel 形式の場合
+                If (ft = YamahaRobotexType.ASTIInternalNotification2) Then
+                    ' Excel形式のCSVをDataTableに変換
+                    dt = OrderProductionPlanExcelFile.OrderExcelAstiFileYamaharobotex(strWorkFile)
+                Else
+                    ' ファイル読み込み Yamaha Robotex 内示/確定/ASTI 追加内示 
+                    dt = YamahaRobotexCreateNewDataSetFromCsv(strWorkFile, ft)
+                End If
 
                 Dim sysDate = DateTime.Now      ' システム日付
                 'Dim dt = Utils.ConvertCsvToDataTable(filename)
@@ -4339,7 +4347,7 @@ Namespace OMS.Data
                     '受注日、希望納期
                     For Each row As DataRow In dt.Rows
                         Dim result As DateTime
-                        Dim formats As String() = {"yyyy/MM/dd", "yyyyMMdd"}
+                        Dim formats As String() = {"yyyy/M/d", "yyyyMd", "yyyy/M/d h:m:s"}
 
                         Dim ddate = row("受注日")
                         If (Date.TryParseExact(ddate, formats, CultureInfo.InvariantCulture, DateTimeStyles.None, result)) Then
@@ -4359,7 +4367,7 @@ Namespace OMS.Data
                     ' ASTI追加内示ファイルの場合の処理 (File 読み込み DataTable(ASTI追加内示形式)をそのまま返す)
                     astiN = dt
                 Case YamahaRobotexType.ASTIInternalNotification2
-                    astiN = OrderProductionPlanExcelFile.OrderExcelAstiFileYamaharobotex(filename)
+                    'astiN = OrderProductionPlanExcelFile.OrderExcelAstiFileYamaharobotex(filename)
 
                 Case Else
                     Throw New ArgumentException("不明な YamahaRobotex File 形式 です。", NameOf(type))
