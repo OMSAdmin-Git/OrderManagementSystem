@@ -180,13 +180,16 @@ Namespace Services
                             errorFilesCount += 1
                             logger.Write($"[SUZUKI_IMPORT] Invalid or missing INFO_TYPE_CODE in file: {fileName}. Detail: {diagMsg}")
 
-                            Dim userErrMsg = $"【{fileName}】取込対象データを1件も取得できませんでした。フォーマット（情報区分コード等）を確認してください。"
+                            Dim userErrMsg = $"【{fileName}】対象データが1件もありません。"
                             If webErrors IsNot Nothing Then
                                 webErrors.Add(userErrMsg)
                             End If
 
                             Dim errList As New List(Of String)()
-                            errList.Add($"ヘッダまたは情報区分コードが不正です。4桁のSPIRITS情報区分コード(0600等)を指定してください。{diagMsg}")
+                            errList.Add("対象データが1件もありません。")
+                            If Not String.IsNullOrEmpty(diagMsg) Then
+                                errList.Add(diagMsg)
+                            End If
                             ExportErrorsToCsv(folderPath, fileName, errList, isBatch)
 
                             MoveBackErrorFile(workFilePath, folderPath, fileName, userId)
@@ -239,23 +242,63 @@ Namespace Services
                                 ' 無効化チェック (ACTIVE_FLAG = 'N')
                                 UpdateActiveFlags(conn, tran, infoCode)
 
-                                ' エラーチェック
+                                ' エラーチェック (ASTI品番未設定行)
                                 Dim errorRows = FindPartMatchingErrors(conn, tran, infoCode, workFilePath)
                                 If errorRows.Count > 0 Then
                                     errorFilesCount += 1
-                                    logger.Write($"[SUZUKI_IMPORT] Found {errorRows.Count} part matching errors in {fileName}")
-                                    ExportErrorsToCsv(folderPath, fileName, errorRows, isBatch, webErrors)
-                                    MoveBackErrorFile(workFilePath, folderPath, fileName, userId)
-                                    tran.Rollback()
-                                    Continue For
-                                Else
-                                    validFilesCount += 1
-                                    tran.Commit()
-                                    processCount += 1
-                                    logger.Write($"[SUZUKI_IMPORT] File staged successfully in WORK: {fileName}")
-                                    If outStageRows IsNot Nothing Then
-                                        outStageRows.Add(stageRow)
+
+                                    ' 有効件数の確認 (Check valid rows count)
+                                    Dim validRowsCount As Integer = 0
+                                    Dim tableName = GetTargetTableName(infoCode)
+                                    If Not String.IsNullOrEmpty(tableName) Then
+                                        Dim sqlCount = $"SELECT COUNT(1) FROM {tableName} WHERE imp_file_id = :p_imp_file_id AND active_flag = 'Y' AND item_no IS NOT NULL"
+                                        Using countCmd As New OracleCommand(sqlCount, conn)
+                                            countCmd.Transaction = tran
+                                            countCmd.Parameters.Add(":p_imp_file_id", OracleDbType.Int64).Value = impFileStageId
+                                            Dim cnt = countCmd.ExecuteScalar()
+                                            If cnt IsNot Nothing AndAlso Not DBNull.Value.Equals(cnt) Then
+                                                validRowsCount = Convert.ToInt32(cnt)
+                                            End If
+                                        End Using
                                     End If
+
+                                    logger.Write($"[SUZUKI_IMPORT] Found {errorRows.Count} part matching errors in {fileName} (valid rows: {validRowsCount})")
+
+                                    If validRowsCount = 0 Then
+                                        ' --- Rule 4: 全件がASTI品番エラーの場合 ---
+                                        ' エラーリストの最後に「対象データが1件もありません。」を追加
+                                        errorRows.Add("対象データが1件もありません。")
+                                        ExportErrorsToCsv(folderPath, fileName, errorRows, isBatch, webErrors)
+
+                                        ' workに移動したファイルは元のフォルダへ戻す (※workフォルダには残らない)
+                                        MoveBackErrorFile(workFilePath, folderPath, fileName, userId)
+
+                                        ' スズキ特殊テーブルの該当データは削除 (ロールバック)
+                                        tran.Rollback()
+                                        Continue For
+                                    Else
+                                        ' --- Rule 3: 一部の行がASTI品番エラーの場合 ---
+                                        ' 1. エラーリストへ追加 (CSV出力 & 画面エラーリスト)
+                                        ExportErrorsToCsv(folderPath, fileName, errorRows, isBatch, webErrors)
+
+                                        ' 2. 取込元フォルダにファイル名にuseridとtimestampをつけてコピー (※コピーなのでworkフォルダに残る)
+                                        CopyErrorBackupFile(workFilePath, folderPath, fileName, userId)
+
+                                        ' 3. スズキ特殊テーブルの該当データは削除する
+                                        DeleteErrorRows(conn, tran, infoCode)
+                                    End If
+                                Else
+                                    ' --- Rule 2: 全件正常の場合 ---
+                                    logger.Write($"[SUZUKI_IMPORT] File staged successfully in WORK: {fileName}")
+                                End If
+
+                                ' 正常データおよびIMP_FILES_STAGEを確定
+                                tran.Commit()
+                                validFilesCount += 1
+                                processCount += 1
+
+                                If outStageRows IsNot Nothing Then
+                                    outStageRows.Add(stageRow)
                                 End If
                             Catch ex As Exception
                                 tran.Rollback()
@@ -299,7 +342,7 @@ Namespace Services
                 Case "0501", "0502"
                     Dim repo As New Spirits0501And0502Repository(_connectionString)
                     Dim rows = SuzukiCsvParser.ParseSpirits0501And0502(filePath)
-                    If rows.Count = 0 Then Throw New Exception($"有効なデータ行（{infoCode}）が1件も取得できませんでした。列数やフォーマットを確認してください。")
+                    If rows.Count = 0 Then Throw New Exception("対象データが1件もありません。")
                     For Each r In rows
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
@@ -317,7 +360,7 @@ Namespace Services
                 Case "0600", "0630"
                     Dim repo As New Spirits0600And0630Repository(_connectionString)
                     Dim rows = SuzukiCsvParser.Parse0600And0630(filePath)
-                    If rows.Count = 0 Then Throw New Exception($"有効なデータ行（{infoCode}）が1件も取得できませんでした。列数やフォーマットを確認してください。")
+                    If rows.Count = 0 Then Throw New Exception("対象データが1件もありません。")
                     For Each r In rows
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
@@ -335,7 +378,7 @@ Namespace Services
                 Case "0602"
                     Dim repo As New Spirits0602Repository(_connectionString)
                     Dim rows = SuzukiCsvParser.Parse0602(filePath)
-                    If rows.Count = 0 Then Throw New Exception($"有効なデータ行（{infoCode}）が1件も取得できませんでした。列数やフォーマットを確認してください。")
+                    If rows.Count = 0 Then Throw New Exception("対象データが1件もありません。")
                     For Each r In rows
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
@@ -353,7 +396,7 @@ Namespace Services
                 Case "0650"
                     Dim repo As New Spirits0650Repository(_connectionString)
                     Dim rows = SuzukiCsvParser.ParseSpirits0650(filePath)
-                    If rows.Count = 0 Then Throw New Exception($"有効なデータ行（{infoCode}）が1件も取得できませんでした。列数やフォーマットを確認してください。")
+                    If rows.Count = 0 Then Throw New Exception("対象データが1件もありません。")
                     For Each r In rows
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
@@ -371,7 +414,7 @@ Namespace Services
                 Case "0651"
                     Dim repo As New Spirits0651Repository(_connectionString)
                     Dim rows = SuzukiCsvParser.ParseSpirits0651(filePath)
-                    If rows.Count = 0 Then Throw New Exception($"有効なデータ行（{infoCode}）が1件も取得できませんでした。列数やフォーマットを確認してください。")
+                    If rows.Count = 0 Then Throw New Exception("対象データが1件もありません。")
                     For Each r In rows
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
@@ -389,7 +432,7 @@ Namespace Services
                 Case "0740"
                     Dim repo As New Spirits0740Repository(_connectionString)
                     Dim rows = SuzukiCsvParser.ParseSpirits0740(filePath)
-                    If rows.Count = 0 Then Throw New Exception($"有効なデータ行（{infoCode}）が1件も取得できませんでした。列数やフォーマットを確認してください。")
+                    If rows.Count = 0 Then Throw New Exception("対象データが1件もありません。")
                     For Each r In rows
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
@@ -407,7 +450,7 @@ Namespace Services
                 Case "0813"
                     Dim repo As New Spirits0813Repository(_connectionString)
                     Dim rows = SuzukiCsvParser.ParseSpirits0813(filePath)
-                    If rows.Count = 0 Then Throw New Exception($"有効なデータ行（{infoCode}）が1件も取得できませんでした。列数やフォーマットを確認してください。")
+                    If rows.Count = 0 Then Throw New Exception("対象データが1件もありません。")
                     For Each r In rows
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
@@ -425,7 +468,7 @@ Namespace Services
                 Case "0814"
                     Dim repo As New Spirits0814Repository(_connectionString)
                     Dim rows = SuzukiCsvParser.ParseSpirits0814(filePath)
-                    If rows.Count = 0 Then Throw New Exception($"有効なデータ行（{infoCode}）が1件も取得できませんでした。列数やフォーマットを確認してください。")
+                    If rows.Count = 0 Then Throw New Exception("対象データが1件もありません。")
                     For Each r In rows
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
@@ -443,7 +486,7 @@ Namespace Services
                 Case "6604", "6634"
                     Dim repo As New Spirits6604And6634Repository(_connectionString)
                     Dim rows = SuzukiCsvParser.ParseSpirits6604And6634(filePath)
-                    If rows.Count = 0 Then Throw New Exception($"有効なデータ行（{infoCode}）が1件も取得できませんでした。列数やフォーマットを確認してください。")
+                    If rows.Count = 0 Then Throw New Exception("対象データが1件もありません。")
                     For Each r In rows
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
@@ -461,7 +504,7 @@ Namespace Services
                 Case "6624"
                     Dim repo As New Spirits6624Repository(_connectionString)
                     Dim rows = SuzukiCsvParser.ParseSpirits6624(filePath)
-                    If rows.Count = 0 Then Throw New Exception($"有効なデータ行（{infoCode}）が1件も取得できませんでした。列数やフォーマットを確認してください。")
+                    If rows.Count = 0 Then Throw New Exception("対象データが1件もありません。")
                     For Each r In rows
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
@@ -479,7 +522,7 @@ Namespace Services
                 Case "663N", "663S", "664T"
                     Dim repo As New Spirits663NAnd663SAnd66Repository(_connectionString)
                     Dim rows = SuzukiCsvParser.ParseSpirits663NAnd663SAnd664T(filePath)
-                    If rows.Count = 0 Then Throw New Exception($"有効なデータ行（{infoCode}）が1件も取得できませんでした。列数やフォーマットを確認してください。")
+                    If rows.Count = 0 Then Throw New Exception("対象データが1件もありません。")
                     For Each r In rows
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
@@ -676,6 +719,22 @@ Namespace Services
                 If File.Exists(targetPath) Then
                     File.Delete(workFilePath)
                 End If
+            Catch ex As Exception
+            End Try
+        End Sub
+
+        Private Sub CopyErrorBackupFile(workFilePath As String, sourceFolder As String, originalFileName As String, userId As String)
+            Try
+                Dim baseName = Path.GetFileNameWithoutExtension(originalFileName)
+                Dim match = Text.RegularExpressions.Regex.Match(baseName, "^(.*?)(?:_[a-zA-Z0-9\-]+_\d{8}_\d{6})+$")
+                If match.Success Then
+                    baseName = match.Groups(1).Value
+                End If
+
+                Dim timeStamp = DateTime.Now.ToString("yyyyMMdd_HHmmss")
+                Dim newFileName = $"{baseName}_{userId}_{timeStamp}{Path.GetExtension(originalFileName)}"
+                Dim targetPath = Path.Combine(sourceFolder, newFileName)
+                File.Copy(workFilePath, targetPath, True)
             Catch ex As Exception
             End Try
         End Sub
