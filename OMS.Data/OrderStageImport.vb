@@ -92,28 +92,29 @@ Namespace OMS.Data
 
         '/// ヤマハ取込データ保存配列
         Private Structure ImportDataType
-            Dim hakkobi As String           '発行日
-            Dim hakkojikan As String        '発行時間
-            Dim siyosha As String           '使用者
-            Dim status As String            '品目ステータス
-            Dim customeritemNo As String    '旧体系部品番号(客先品目No)
-            Dim nonyuplat As String         '納入プラットフォーム
-            Dim yokisyuuyousuu As String    '容器収容数
-            Dim yokibangou As String        '容器番号
-            Dim henkoukubun As String       '変更区分
-            Dim datakubun As String         'データ区分
-            Dim ordersikibetuNo As String   'オーダー識別番号
-            Dim nonyusijibi As String       '納入指示日
-            Dim nonyujikan As String        '納入時間
-            Dim nonyusijisu As String       '納入指示数
-            Dim cardkubun As String         'カード区分
-            Dim naijikubun As String        '内示区分
-            Dim icdenpyoNo As String        'IC伝票No
-            Dim nohinshoNo As String        '納品書番号
-            Dim hinmokugyoNo As String      '品目情報行番号
-            Dim ordergyoNo As String        'オーダー情報行番号
-            Dim customercode As String      '得意先コード
-            Dim itemNo As String            'ASTI品番
+            Dim hakkobi As String               '発行日
+            Dim hakkojikan As String            '発行時間
+            Dim siyosha As String               '使用者
+            Dim status As String                '品目ステータス
+            Dim customeritemNo As String        '旧体系部品番号(客先品目No)
+            Dim customeritemNoConv As String    'ハイフォン加工後客先品目No
+            Dim itemNo As String                'ASTI品番
+            Dim nonyuplat As String             '納入プラットフォーム
+            Dim yokisyuuyousuu As String        '容器収容数
+            Dim yokibangou As String            '容器番号
+            Dim henkoukubun As String           '変更区分
+            Dim datakubun As String             'データ区分
+            Dim ordersikibetuNo As String       'オーダー識別番号
+            Dim nonyusijibi As String           '納入指示日
+            Dim nonyujikan As String            '納入時間
+            Dim nonyusijisu As String           '納入指示数
+            Dim cardkubun As String             'カード区分
+            Dim naijikubun As String            '内示区分
+            Dim icdenpyoNo As String            'IC伝票No
+            Dim nohinshoNo As String            '納品書番号
+            Dim hinmokugyoNo As String          '品目情報行番号
+            Dim ordergyoNo As String            'オーダー情報行番号
+            Dim customercode As String          '得意先コード
         End Structure
         Private Shared m_ImpData() As ImportDataType
 
@@ -512,9 +513,10 @@ Namespace OMS.Data
                             '品目情報をセット
                             m_ImpData(UBound(m_ImpData)).siyosha = currentSiyosha                                   '使用者
                             m_ImpData(UBound(m_ImpData)).status = currentStatus                                     '品目ステータス
-                            'm_ImpData(UBound(m_ImpData)).customeritemNo = currentCustomeritemNo                     '旧体系部品番号(客先品目No)
-                            m_ImpData(UBound(m_ImpData)).customeritemNo = wkcustomeritemNo                     '旧体系部品番号(客先品目No)
-                            m_ImpData(UBound(m_ImpData)).itemNo = itemNo                                        'ASTI品番
+                            'm_ImpData(UBound(m_ImpData)).customeritemNo = currentCustomeritemNo                    '旧体系部品番号(客先品目No)
+                            m_ImpData(UBound(m_ImpData)).customeritemNo = currentCustomeritemNo                     '旧体系部品番号(客先品目No)
+                            m_ImpData(UBound(m_ImpData)).customeritemNoConv = wkcustomeritemNo                      'ハイフォン加工後の客先品目No
+                            m_ImpData(UBound(m_ImpData)).itemNo = itemNo                                            'ASTI品番
                             m_ImpData(UBound(m_ImpData)).nonyuplat = currentNonyuplat                               '納入プラットフォーム
                             m_ImpData(UBound(m_ImpData)).yokisyuuyousuu = currentYokisyuuyousuu                     '荷姿収容数
                             m_ImpData(UBound(m_ImpData)).yokibangou = currentYokibangou                             '荷姿コード
@@ -560,9 +562,10 @@ Namespace OMS.Data
                             '品目情報をセット
                             m_ImpData(UBound(m_ImpData)).siyosha = currentSiyosha                                   '使用者
                             m_ImpData(UBound(m_ImpData)).status = currentStatus                                     '品目ステータス
-                            'm_ImpData(UBound(m_ImpData)).customeritemNo = currentCustomeritemNo                     '旧体系部品番号(客先品目No)
-                            m_ImpData(UBound(m_ImpData)).customeritemNo = wkcustomeritemNo                     '旧体系部品番号(客先品目No)
-                            m_ImpData(UBound(m_ImpData)).itemNo = itemNo                                        'ASTI品番
+                            'm_ImpData(UBound(m_ImpData)).customeritemNo = currentCustomeritemNo                    '旧体系部品番号(客先品目No)
+                            m_ImpData(UBound(m_ImpData)).customeritemNo = currentCustomeritemNo                     '旧体系部品番号(客先品目No)
+                            m_ImpData(UBound(m_ImpData)).customeritemNoConv = wkcustomeritemNo                      'ハイフォン加工後の客先品目No
+                            m_ImpData(UBound(m_ImpData)).itemNo = itemNo                                            'ASTI品番
                             m_ImpData(UBound(m_ImpData)).nonyuplat = currentNonyuplat                               '納入プラットフォーム
                             m_ImpData(UBound(m_ImpData)).yokisyuuyousuu = currentYokisyuuyousuu                     '荷姿収容数
                             m_ImpData(UBound(m_ImpData)).yokibangou = currentYokibangou                             '荷姿コード
@@ -592,7 +595,7 @@ Namespace OMS.Data
 
             'デバック用に取込したデータをワークテーブル(YAMAHA_IMP_ORDERS)に保存
             'SaveImportDataToWorkTable(tran, m_ImpData, impfilestageId, newId, UserId, pgId)
-            'SaveImportDataToWorkTable2(tran, m_ImpData, impfilestageId, newId, UserId, pgId)
+            SaveImportDataToWorkTable2(tran, m_ImpData, impfilestageId, newId, UserId, pgId)
 
             '-----------------
             '取込データを加工
@@ -3990,6 +3993,7 @@ Namespace OMS.Data
             Dim arrPublicationDate(dataCount - 1) As DateTime
             Dim arrPublicationTime(dataCount - 1) As Object
             Dim arrCustomerItemNo(dataCount - 1) As String
+            Dim arrCustomerItemNoConv(dataCount - 1) As String
             Dim arrItemNo(dataCount - 1) As String
 
             Dim arrImpFileStageId(dataCount - 1) As Long
@@ -4044,6 +4048,7 @@ Namespace OMS.Data
                 arrIcdenpyoNo(i) = impDataList(i).icdenpyoNo
                 arrNohinshoNo(i) = impDataList(i).nohinshoNo
 
+                arrCustomerItemNoConv(i) = impDataList(i).customeritemNoConv
                 arrItemNo(i) = impDataList(i).itemNo
 
                 arrImpRunId(i) = newId
@@ -4082,17 +4087,17 @@ Namespace OMS.Data
 
             Dim sql As String = "
                 INSERT INTO yamaha_imp_orders (
-                    imp_file_stage_id, hinmoku_gyo_no, order_gyo_no, customer_code, siyosha, status, customer_item_no, nonyuplat,
-                    yokisyuuyousuu, yokibangou, ordersikibetu_no, nonyusijibi, nonyujikan,
+                    imp_file_stage_id, hinmoku_gyo_no, order_gyo_no, customer_code, siyosha, status, customer_item_no, customer_item_no_conv, item_no,
+                    nonyuplat, yokisyuuyousuu, yokibangou, ordersikibetu_no, nonyusijibi, nonyujikan,
                     nonyusijisu, cardkubun, naijikubun, icdenpyo_no, nohinsho_no,
                     publication_date, publication_time, imp_run_id, active_flag,
-                    created_at, created_user_id, created_pg_id, item_no
+                    created_at, created_user_id, created_pg_id
                 ) VALUES (
-                    :p_imp_file_stage_id, :p_hinmoku_gyo_no, :p_order_gyo_no, :p_customer_code, :p_siyosha, :p_status, :p_customer_item_no, :p_nonyuplat,
-                    :p_yokisyuuyousuu, :p_yokibangou, :p_ordersikibetu_no, :p_nonyusijibi, :p_nonyujikan,
+                    :p_imp_file_stage_id, :p_hinmoku_gyo_no, :p_order_gyo_no, :p_customer_code, :p_siyosha, :p_status, :p_customer_item_no, :p_customer_item_no_conv, :p_item_no,
+                    :p_nonyuplat, :p_yokisyuuyousuu, :p_yokibangou, :p_ordersikibetu_no, :p_nonyusijibi, :p_nonyujikan,
                     :p_nonyusijisu, :p_cardkubun, :p_naijikubun, :p_icdenpyo_no, :p_nohinsho_no,
                     :p_publication_date, :p_publication_time, :p_imp_run_id, :p_active_flag,
-                    :p_created_at, :p_created_user_id, :p_created_pg_id, :p_item_no
+                    :p_created_at, :p_created_user_id, :p_created_pg_id
                 )"
 
             Using cmd As New OracleCommand(sql, tran.Connection)
@@ -4108,6 +4113,8 @@ Namespace OMS.Data
                 cmd.Parameters.Add("p_siyosha", OracleDbType.Varchar2, arrSiyosha, ParameterDirection.Input)
                 cmd.Parameters.Add("p_status", OracleDbType.Varchar2, arrStatus, ParameterDirection.Input)
                 cmd.Parameters.Add("p_customer_item_no", OracleDbType.Varchar2, arrCustomerItemNo, ParameterDirection.Input)
+                cmd.Parameters.Add("p_customer_item_no_conv", OracleDbType.Varchar2, arrCustomerItemNoConv, ParameterDirection.Input)
+                cmd.Parameters.Add("p_item_no", OracleDbType.Varchar2, arrItemNo, ParameterDirection.Input)
                 cmd.Parameters.Add("p_nonyuplat", OracleDbType.Varchar2, arrNonyuplat, ParameterDirection.Input)
                 cmd.Parameters.Add("p_yokisyuuyousuu", OracleDbType.Int32, arrYokisyuuyousuu, ParameterDirection.Input)
                 cmd.Parameters.Add("p_yokibangou", OracleDbType.Varchar2, arrYokibangou, ParameterDirection.Input)
@@ -4128,7 +4135,7 @@ Namespace OMS.Data
                 cmd.Parameters.Add("p_created_at", OracleDbType.Date, arrNowTime, ParameterDirection.Input)
                 cmd.Parameters.Add("p_created_user_id", OracleDbType.Varchar2, arrCreatedUserId, ParameterDirection.Input)
                 cmd.Parameters.Add("p_created_pg_id", OracleDbType.Varchar2, arrCreatedPgId, ParameterDirection.Input)
-                cmd.Parameters.Add("p_item_no", OracleDbType.Varchar2, arrItemNo, ParameterDirection.Input)
+
 
                 cmd.ExecuteNonQuery()
 

@@ -3792,11 +3792,11 @@ Namespace OMS.Data
                     cmd.Transaction = tran
 
                     For Each row As DataRow In dtConfirmed.Rows
-                            ' DBのNullチェック
-                            If row.IsNull("ship_plan_date") OrElse row.IsNull("customer_item_no") Then Continue For
+                        ' DBのNullチェック
+                        If row.IsNull("ship_plan_date") OrElse row.IsNull("customer_item_no") Then Continue For
 
-                            Dim currentShipPlanDate As Date = Convert.ToDateTime(row("ship_plan_date"))
-                            Dim customerItemNo As String = row("customer_item_no").ToString()
+                        Dim currentShipPlanDate As Date = Convert.ToDateTime(row("ship_plan_date"))
+                        Dim customerItemNo As String = row("customer_item_no").ToString()
 
                         ' 2つの日付を関数呼び出して設定
                         Dim p_NextDay As Date = GetNextDay(tran, currentShipPlanDate)
@@ -3812,9 +3812,9 @@ Namespace OMS.Data
 
                         ' SQLパラメータの値を更新して実行
                         cmd.Parameters("p_AssignDate").Value = p_AssignDate
-                            cmd.Parameters("p_customerItemNo").Value = customerItemNo
-                            cmd.ExecuteNonQuery()
-                        Next
+                        cmd.Parameters("p_customerItemNo").Value = customerItemNo
+                        cmd.ExecuteNonQuery()
+                    Next
 
                     ' すべての更新が成功したらコミット
                     'tx.Commit()
