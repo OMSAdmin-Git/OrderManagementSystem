@@ -1557,7 +1557,7 @@ Namespace OMS.Data
             errorMessage = String.Empty
 
             ' 引数のパターンリストが空、または件数が0の場合はエラー
-            If patternList Is Nothing OrElse patternList.Count = 0 Then
+            If PatternList Is Nothing OrElse PatternList.Count = 0 Then
                 errorMessage = "変換パターンリストが指定されていません。"
                 Return False
             End If
@@ -1565,7 +1565,7 @@ Namespace OMS.Data
             Dim orgCustomerItemNo As String = pCustomerItemNo
 
             'パターンの数だけループ処理
-            For Each currentPattern As String In patternList
+            For Each currentPattern As String In PatternList
 
                 pCustomerItemNo = orgCustomerItemNo
                 '客先品目Noにハイフォンをつける
@@ -3264,7 +3264,7 @@ Namespace OMS.Data
                         'curList.Add(row.ItemNo, row)
 
                         Dim row As New OrderSummaryRow With {
-                            .ItemNo = itemNo,
+                            .itemNo = itemNo,
                             .EarliestDueDate = dueDate,
                             .TotalDemandQty = Convert.ToDecimal(dr("total_demand_qty"))
                         }
@@ -3638,7 +3638,7 @@ Namespace OMS.Data
                         Dim dueDate As DateTime = Convert.ToDateTime(dr("earliest_pre_daily_delivery_date"))
 
                         Dim row As New OrderSummaryRow With {
-                            .ItemNo = itemNo,
+                            .itemNo = itemNo,
                             .EarliestDueDate = dueDate,
                             .TotalDemandQty = Convert.ToDecimal(dr("total_stra_order_backlog"))
                         }
@@ -3808,7 +3808,7 @@ Namespace OMS.Data
                             Continue For
                         End If
 
-                        Dim currentShipScheduledDate As Date = Convert.ToDateTime(row("due_date"))
+                        Dim currentShipScheduledDate As Date = Convert.ToDateTime(row("ship_plan_date"))
                         Dim customerItemNo As String = row("customer_item_no").ToString()
 
                         ' 2つの日付を関数呼び出して設定
@@ -3824,12 +3824,12 @@ Namespace OMS.Data
                         End If
 
                         ' SQLパラメータの値を更新して実行
-                        cmd.Parameters(":p_AssignDate").Value = p_AssignDate
-                        cmd.Parameters(":p_customerItemNo").Value = customerItemNo
+                        cmd.Parameters("p_AssignDate").Value = p_AssignDate
+                        cmd.Parameters("p_customerItemNo").Value = customerItemNo
                         cmd.Parameters(":p_monthDt").Value = p_monthDt
 
                         cmd.ExecuteNonQuery()
-                        Next
+                    Next
 
                     ' すべての更新が成功したらコミット
                     'tx.Commit()
@@ -5085,31 +5085,31 @@ Namespace OMS.Data
             'Using conn As New OracleConnection(connectionString)
             Using cmd As New OracleCommand(sql, conn)
 
-                    ' ODP.NETではデフォルトでパラメータが位置順（名前ではなく）でバインドされるため、
-                    ' 名前で一致させる設定を True にしておくと安全です。
-                    cmd.BindByName = True
+                ' ODP.NETではデフォルトでパラメータが位置順（名前ではなく）でバインドされるため、
+                ' 名前で一致させる設定を True にしておくと安全です。
+                cmd.BindByName = True
 
-                    ' 3. 外部からの変数をパラメータとして追加
-                    ' OracleDbType.Date や OracleDbType.Varchar2 を明示的に指定します
-                    cmd.Parameters.Add(New OracleParameter("updatedAt", OracleDbType.Date)).Value = updatedAt
-                    cmd.Parameters.Add(New OracleParameter("loginUserId", OracleDbType.Varchar2, 9)).Value = loginUserId
+                ' 3. 外部からの変数をパラメータとして追加
+                ' OracleDbType.Date や OracleDbType.Varchar2 を明示的に指定します
+                cmd.Parameters.Add(New OracleParameter("updatedAt", OracleDbType.Date)).Value = updatedAt
+                cmd.Parameters.Add(New OracleParameter("loginUserId", OracleDbType.Varchar2, 9)).Value = loginUserId
 
-                    Try
+                Try
                     ' 4. データベース接続の開始とSQLの実行
                     'conn.Open()
                     Dim rowsAffected As Integer = cmd.ExecuteNonQuery()
 
-                        Console.WriteLine($"{rowsAffected} 件のレコードを更新しました。")
+                    Console.WriteLine($"{rowsAffected} 件のレコードを更新しました。")
 
-                    Catch ex As OracleException
-                        ' エラーハンドリング
-                        rt = ($"Oracle エラーが発生しました: {ex.Message}")
-                        Throw
-                    Catch ex As Exception
-                        rt = ($"予期せぬエラーが発生しました: {ex.Message}")
-                        Throw
-                    End Try
-                End Using
+                Catch ex As OracleException
+                    ' エラーハンドリング
+                    rt = ($"Oracle エラーが発生しました: {ex.Message}")
+                    Throw
+                Catch ex As Exception
+                    rt = ($"予期せぬエラーが発生しました: {ex.Message}")
+                    Throw
+                End Try
+            End Using
             'End Using
             Return rt
         End Function
