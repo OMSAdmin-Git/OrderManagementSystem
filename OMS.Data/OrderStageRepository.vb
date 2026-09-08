@@ -1557,7 +1557,7 @@ Namespace OMS.Data
             errorMessage = String.Empty
 
             ' 引数のパターンリストが空、または件数が0の場合はエラー
-            If patternList Is Nothing OrElse patternList.Count = 0 Then
+            If PatternList Is Nothing OrElse PatternList.Count = 0 Then
                 errorMessage = "変換パターンリストが指定されていません。"
                 Return False
             End If
@@ -1565,7 +1565,7 @@ Namespace OMS.Data
             Dim orgCustomerItemNo As String = pCustomerItemNo
 
             'パターンの数だけループ処理
-            For Each currentPattern As String In patternList
+            For Each currentPattern As String In PatternList
 
                 pCustomerItemNo = orgCustomerItemNo
                 '客先品目Noにハイフォンをつける
@@ -2766,6 +2766,7 @@ Namespace OMS.Data
         ''' <summary>
         ''' 一致するデータの STATUS を 'REPLACED'洗替済データ に更新する
         ''' YamahaRobotex用
+        ''' customer_order_no 先頭文字が 'R' 以外、total_ship_qty が 0 以外
         ''' </summary>
         '''  ''' <param name="tran">トランザクション</param>
         ''' <param name="impFileStageId">処理対象の一時取込ファイルID</param>
@@ -3133,6 +3134,13 @@ Namespace OMS.Data
 
             Dim dt As New DataTable()
 
+            'Const sql As String =
+            '            "  SELECT * FROM orders_stage " &
+            '            "  WHERE imp_file_stage_id = :p_imp_file_stage_id " &
+            '            "  AND order_type = 2 " &
+            '            "  AND active_flag = 'Y' " &
+            '            "  AND (info_type IS NULL OR info_type = 'I') " &
+            '            "  ORDER BY imp_file_stage_id ASC, item_no ASC, due_date ASC "
             Const sql As String =
                         "  SELECT * FROM orders_stage " &
                         "  WHERE imp_file_stage_id = :p_imp_file_stage_id " &
@@ -3140,6 +3148,7 @@ Namespace OMS.Data
                         "  AND active_flag = 'Y' " &
                         "  AND (info_type IS NULL OR info_type = 'I') " &
                         "  ORDER BY imp_file_stage_id ASC, item_no ASC, due_date ASC "
+
 
             Using cmd As New OracleCommand(sql, tran.Connection)
 
@@ -3255,7 +3264,7 @@ Namespace OMS.Data
                         'curList.Add(row.ItemNo, row)
 
                         Dim row As New OrderSummaryRow With {
-                            .ItemNo = itemNo,
+                            .itemNo = itemNo,
                             .EarliestDueDate = dueDate,
                             .TotalDemandQty = Convert.ToDecimal(dr("total_demand_qty"))
                         }
@@ -3629,7 +3638,7 @@ Namespace OMS.Data
                         Dim dueDate As DateTime = Convert.ToDateTime(dr("earliest_pre_daily_delivery_date"))
 
                         Dim row As New OrderSummaryRow With {
-                            .ItemNo = itemNo,
+                            .itemNo = itemNo,
                             .EarliestDueDate = dueDate,
                             .TotalDemandQty = Convert.ToDecimal(dr("total_stra_order_backlog"))
                         }
@@ -3741,17 +3750,17 @@ Namespace OMS.Data
             ' ブロック 1) 確定レコードを検索し DataTable に取得
             ' ==========================================
             Dim selectSql As String = "
-                SELECT customer_item_no, ship_plan_date 
-                FROM order_stage 
+                SELECT customer_item_no, due_date 
+                FROM orders_stage 
                 WHERE order_type = 2 
-                  AND customerSettingId = :p_customerSettingId 
+                  AND customer_Setting_Id = :p_customerSettingId 
                   AND active_flag = 'Y' 
                   AND status = 'IMPORTED'
             "
 
             'Using conn As New OracleConnection(connectionString)
             Using cmd As New OracleCommand(selectSql, tran.Connection)
-                cmd.Parameters.Add(New OracleParameter("p_customerSettingId", OracleDbType.Int64)).Value = customerSettingId
+                cmd.Parameters.Add(New OracleParameter(":p_customerSettingId", OracleDbType.Int64)).Value = customerSettingId
 
                 Using adapter As New OracleDataAdapter(cmd)
                     Try
@@ -3769,20 +3778,22 @@ Namespace OMS.Data
             ' ブロック 2) DataTable をループして内示レコードを更新
             ' ==========================================
             Dim updateSql As String = "
-                UPDATE order_stage 
-                SET ship_plan_date = :p_AssignDate 
+                UPDATE orders_stage 
+                SET ship_scheduled_date = :p_AssignDate 
                 WHERE order_type = 1 
-                  AND customerSettingId = :p_customerSettingId 
+                  AND customer_setting_id = :p_customerSettingId 
                   AND active_flag = 'Y' 
                   AND customer_item_no = :p_customerItemNo
-            "
+                  AND TO_CHAR(due_date, 'YYYYMM') = TO_CHAR(:p_monthDt, 'YYYYMM')
+                "
 
             'Using conn As New OracleConnection(connectionString)
             Using cmd As New OracleCommand(updateSql, tran.Connection)
                 ' ループ内でパラメータ値を書き換えるため、先に定義を登録しておきます
-                cmd.Parameters.Add(New OracleParameter("p_AssignDate", OracleDbType.Date))
-                cmd.Parameters.Add(New OracleParameter("p_customerSettingId", OracleDbType.Int64)).Value = customerSettingId
-                cmd.Parameters.Add(New OracleParameter("p_customerItemNo", OracleDbType.Varchar2, 45))
+                cmd.Parameters.Add(New OracleParameter(":p_AssignDate", OracleDbType.Date))
+                cmd.Parameters.Add(New OracleParameter(":p_customerSettingId", OracleDbType.Int64)).Value = customerSettingId
+                cmd.Parameters.Add(New OracleParameter(":p_customerItemNo", OracleDbType.Varchar2, 45))
+                cmd.Parameters.Add(New OracleParameter(":p_monthDt", OracleDbType.Date))
 
                 Try
                     'conn.Open()
@@ -3793,18 +3804,20 @@ Namespace OMS.Data
 
                     For Each row As DataRow In dtConfirmed.Rows
                         ' DBのNullチェック
-                        If row.IsNull("ship_plan_date") OrElse row.IsNull("customer_item_no") Then Continue For
+                        If row.IsNull("due_date") OrElse row.IsNull("customer_item_no") Then
+                            Continue For
+                        End If
 
                         Dim currentShipPlanDate As Date = Convert.ToDateTime(row("ship_plan_date"))
                         Dim customerItemNo As String = row("customer_item_no").ToString()
 
                         ' 2つの日付を関数呼び出して設定
-                        Dim p_NextDay As Date = GetNextDay(tran, currentShipPlanDate)
-                        Dim p_EndOfMonth As Date = GetEndOfMonth(tran, currentShipPlanDate)
-
+                        Dim p_NextDay As Date = GetNextDay(tran, currentShipScheduledDate)
+                        Dim p_EndOfMonth As Date = GetEndOfMonth(tran, currentShipScheduledDate)
+                        Dim p_monthDt As Date = row("due_date")
                         ' 条件判定して代入日付を決定
                         Dim p_AssignDate As Date
-                        If (currentShipPlanDate > p_EndOfMonth) Then
+                        If (currentShipScheduledDate >= p_EndOfMonth) Then
                             p_AssignDate = p_EndOfMonth
                         Else
                             p_AssignDate = p_NextDay
@@ -3813,6 +3826,8 @@ Namespace OMS.Data
                         ' SQLパラメータの値を更新して実行
                         cmd.Parameters("p_AssignDate").Value = p_AssignDate
                         cmd.Parameters("p_customerItemNo").Value = customerItemNo
+                        cmd.Parameters(":p_monthDt").Value = p_monthDt
+
                         cmd.ExecuteNonQuery()
                     Next
 
@@ -5070,31 +5085,31 @@ Namespace OMS.Data
             'Using conn As New OracleConnection(connectionString)
             Using cmd As New OracleCommand(sql, conn)
 
-                    ' ODP.NETではデフォルトでパラメータが位置順（名前ではなく）でバインドされるため、
-                    ' 名前で一致させる設定を True にしておくと安全です。
-                    cmd.BindByName = True
+                ' ODP.NETではデフォルトでパラメータが位置順（名前ではなく）でバインドされるため、
+                ' 名前で一致させる設定を True にしておくと安全です。
+                cmd.BindByName = True
 
-                    ' 3. 外部からの変数をパラメータとして追加
-                    ' OracleDbType.Date や OracleDbType.Varchar2 を明示的に指定します
-                    cmd.Parameters.Add(New OracleParameter("updatedAt", OracleDbType.Date)).Value = updatedAt
-                    cmd.Parameters.Add(New OracleParameter("loginUserId", OracleDbType.Varchar2, 9)).Value = loginUserId
+                ' 3. 外部からの変数をパラメータとして追加
+                ' OracleDbType.Date や OracleDbType.Varchar2 を明示的に指定します
+                cmd.Parameters.Add(New OracleParameter("updatedAt", OracleDbType.Date)).Value = updatedAt
+                cmd.Parameters.Add(New OracleParameter("loginUserId", OracleDbType.Varchar2, 9)).Value = loginUserId
 
-                    Try
+                Try
                     ' 4. データベース接続の開始とSQLの実行
                     'conn.Open()
                     Dim rowsAffected As Integer = cmd.ExecuteNonQuery()
 
-                        Console.WriteLine($"{rowsAffected} 件のレコードを更新しました。")
+                    Console.WriteLine($"{rowsAffected} 件のレコードを更新しました。")
 
-                    Catch ex As OracleException
-                        ' エラーハンドリング
-                        rt = ($"Oracle エラーが発生しました: {ex.Message}")
-                        Throw
-                    Catch ex As Exception
-                        rt = ($"予期せぬエラーが発生しました: {ex.Message}")
-                        Throw
-                    End Try
-                End Using
+                Catch ex As OracleException
+                    ' エラーハンドリング
+                    rt = ($"Oracle エラーが発生しました: {ex.Message}")
+                    Throw
+                Catch ex As Exception
+                    rt = ($"予期せぬエラーが発生しました: {ex.Message}")
+                    Throw
+                End Try
+            End Using
             'End Using
             Return rt
         End Function

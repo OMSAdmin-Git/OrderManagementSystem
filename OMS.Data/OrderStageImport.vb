@@ -1,24 +1,25 @@
 ﻿Imports System.Configuration
 Imports System.Data
+Imports System.Globalization
 Imports System.IO
+Imports System.Runtime.InteropServices
+Imports System.Runtime.InteropServices.ComTypes
 Imports System.Text
 Imports System.Web
 Imports ClosedXML.Excel
+Imports CsvHelper
+Imports CsvHelper.Configuration
+Imports DocumentFormat.OpenXml.Drawing.Diagrams
 Imports DocumentFormat.OpenXml.Drawing.Spreadsheet
 Imports DocumentFormat.OpenXml.Math
 Imports DocumentFormat.OpenXml.Office2016.Drawing.ChartDrawing
+Imports DocumentFormat.OpenXml.Presentation
 Imports DocumentFormat.OpenXml.Spreadsheet
 Imports DocumentFormat.OpenXml.Wordprocessing
 Imports Microsoft.SqlServer
 Imports Microsoft.VisualBasic.ApplicationServices
 Imports OMS.Common
 Imports Oracle.ManagedDataAccess.Client
-Imports CsvHelper
-Imports CsvHelper.Configuration
-Imports System.Globalization
-Imports System.Runtime.InteropServices
-Imports DocumentFormat.OpenXml.Drawing.Diagrams
-Imports DocumentFormat.OpenXml.Presentation
 
 Namespace OMS.Data
     Public Class OrderStageImport
@@ -3286,8 +3287,15 @@ Namespace OMS.Data
                     Throw New ApplicationException($"ファイル{Path.GetFileName(strWorkFile)}が Yamaha robotex 内示/確定/ASTI内示 フォーマットではありません。")
                 End If
 
-                ' ファイル読み込み Yamaha Robotex 内示/確定/ASTI 追加内示 
-                Dim dt = YamahaRobotexCreateNewDataSetFromCsv(strWorkFile, ft)
+                Dim dt As DataTable
+                ' ASTI 内示 Excel 形式の場合
+                If (ft = YamahaRobotexType.ASTIInternalNotification2) Then
+                    ' Excel形式のCSVをDataTableに変換
+                    dt = OrderProductionPlanExcelFile.OrderExcelAstiFileYamaharobotex(strWorkFile)
+                Else
+                    ' ファイル読み込み Yamaha Robotex 内示/確定/ASTI 追加内示 
+                    dt = YamahaRobotexCreateNewDataSetFromCsv(strWorkFile, ft)
+                End If
 
                 Dim sysDate = DateTime.Now      ' システム日付
                 'Dim dt = Utils.ConvertCsvToDataTable(filename)
@@ -3320,6 +3328,7 @@ Namespace OMS.Data
                     If (customerItemNo = "") Then
                         errMsg = "客先品目Noが不正な値です。"
                         errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                        ErrFlg = True
                     End If
 
                     Dim ddate = row("希望納期")
@@ -3327,6 +3336,7 @@ Namespace OMS.Data
                         ddate = CDate("1900/01/01").ToString("yyyyMMdd")
                         errMsg = "希望納期が不正な値です。"
                         errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                        ErrFlg = True
                     End If
                     dtcvt = DateTime.ParseExact(ddate, "yyyyMMdd", Nothing)
                     ' 月初稼働日
@@ -3337,6 +3347,7 @@ Namespace OMS.Data
                         dqty = 0
                         errMsg = "需要数が不正な値です。"
                         errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                        ErrFlg = True
                     End If
                     demandQty = Long.Parse(dqty)
 
@@ -3350,6 +3361,7 @@ Namespace OMS.Data
                         selfFcstFlag = "N"
                         errMsg = "ASTI追加内示フラグが不正な値です。"
                         errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                        ErrFlg = True
                     End If
 
                     selfFcstDeleteFlag = row("ASTI追加内示削除フラグ")
@@ -3357,6 +3369,7 @@ Namespace OMS.Data
                         selfFcstDeleteFlag = "N"
                         errMsg = "ASTI追加内示削除フラグが不正な値です。"
                         errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                        ErrFlg = True
                     End If
 
                     ' ###### DEBUG
@@ -3368,19 +3381,23 @@ Namespace OMS.Data
                     ' Field 検索
                     If (reps.GetShipTo(customerCode, deliverycode, shipto, errMsg) = False) Then
                         errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                        ErrFlg = True
                     End If
 
                     If (reps.GetProductCode(customerCode, customerItemNo, productCode, itemNo, errMsg) = False) Then
                         errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                        ErrFlg = True
                     End If
                     If (reps.GetDemandUnit(productCode, demandunit, errMsg) = False) Then
                         errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                        ErrFlg = True
                     End If
                     If (reps.GetCurrencyCode(customerCode, currencycode, errMsg) = False) Then
                         errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
                     End If
                     If (reps.GetShipStockLocation(productCode, shipstocklocation, errMsg) = False) Then
                         errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                        ErrFlg = True
                     End If
                     If (reps.GetProratedType(CustomerSettingId, FolderType, proratedType, errMsg) = False) Then
                         errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
@@ -3411,7 +3428,7 @@ Namespace OMS.Data
                     orderStageRow.OrderType = orderType                             ' /内示(1) 確定(2)
                     orderStageRow.ProratedType = proratedType                       ' / 日割り(1)
                     orderStageRow.CustomerInfoType = ""                             ' null
-                    orderStageRow.InfoType = ""                                     ' null
+                    orderStageRow.InfoType = "I"                                    ' "I" 新規追加
                     orderStageRow.SelfFcstDeleteFlag = "N"                          ' /'N'
                     orderStageRow.ReconcileType = reconciletype                     ' IMP_RULE_MST.RECONCILE_TYPE
                     orderStageRow.ImpRunId = impRunId                               ' IMP_RUN.IMP_RUN_ID
@@ -3422,6 +3439,7 @@ Namespace OMS.Data
                     ' 内示: 当月の稼動日初日 確定: "R" + 客先発注No それ以外: 当月の稼動日初日 
                     orderStageRow.CustomerOrderNo = If(ft = YamahaRobotexType.UnofficialNotice, firstWorkingDay.ToString("yyyyMMdd"), If(ft = YamahaRobotexType.Confirmed, "R" & row("客先発注No"), firstWorkingDay.ToString("yyyyMMdd")))
 
+                    firstWorkingDay = calen.GetFirstWorkingDay(calType, dtcvt)
                     orderStageRow.DueDate = dtcvt
                     orderStageRow.CustomerItemNo = customerItemNo
                     orderStageRow.DemandQty = demandQty
@@ -3481,6 +3499,11 @@ Namespace OMS.Data
                 Return YamahaRobotexType.Unknown
             End If
 
+            ' ASTI 内示ファイルが Excel 形式の場合
+            If (Path.GetExtension(filename).ToLower() = ".xlsx") Then
+                Return YamahaRobotexType.ASTIInternalNotification2
+            End If
+
             Try
                 ' 先頭行のみを読み込み
                 Dim firstLine As String = ""
@@ -3513,20 +3536,20 @@ Namespace OMS.Data
 
         End Function
 
-        Public Shared Function OrdersStageSaved(ByVal tran As OracleTransaction,
-                                            ByVal CustomerSettingId As Long,
-                                            ByVal impfilestageId As Long,
-                                            ByVal FolderType As Integer,
-                                            ByVal ReconcileFlag As String,
-                                            ByVal FcstReconcileFlag As String,
-                                            ByVal blnHandFlag As Boolean,
-                                            ByVal UserId As String,
-                                            ByVal pgId As String,
-                                            ByVal rowsForTemp2 As List(Of OrdersStageRow)) As OrderStageImport
+        'Public Shared Function OrdersStageSaved(ByVal tran As OracleTransaction,
+        '                                    ByVal CustomerSettingId As Long,
+        '                                    ByVal impfilestageId As Long,
+        '                                    ByVal FolderType As Integer,
+        '                                    ByVal ReconcileFlag As String,
+        '                                    ByVal FcstReconcileFlag As String,
+        '                                    ByVal blnHandFlag As Boolean,
+        '                                    ByVal UserId As String,
+        '                                    ByVal pgId As String,
+        '                                    ByVal rowsForTemp2 As List(Of OrdersStageRow)) As OrderStageImport
 
-            Return OrdersStageSaved(tran, CustomerSettingId, impfilestageId, FolderType, ReconcileFlag, FcstReconcileFlag, blnHandFlag, UserId, pgId, rowsForTemp2, -1)
+        '    Return OrdersStageSaved(tran, CustomerSettingId, impfilestageId, FolderType, ReconcileFlag, FcstReconcileFlag, blnHandFlag, UserId, pgId, rowsForTemp2, -1)
 
-        End Function
+        'End Function
 
         Public Shared Function OrdersStageSaved(ByVal tran As OracleTransaction,
                                             ByVal CustomerSettingId As Long,
@@ -3658,20 +3681,15 @@ Namespace OMS.Data
                     '--
 
                 End If
-                    '-----------------------------------------------
+                '-----------------------------------------------
 
+                '-----------------------------------------------
+                '--------
+                '確定加工
+                '--------
 
-
-
-
-
-                    '-----------------------------------------------
-                    '--------
-                    '確定加工
-                    '--------
-
-                    '打切処理
-                    _oderStageRepo.UpdateClese(tran, impfilestageId, 2)
+                '打切処理
+                _oderStageRepo.UpdateClese(tran, impfilestageId, 2)
 
                 '取消処理
                 _oderStageRepo.UpdateCancel(tran, impfilestageId, 2)
@@ -3710,13 +3728,12 @@ Namespace OMS.Data
                                                          pgId)
 
 
-
                         ' Yamaha robotex 指示日更新
                         '
                         ' 残った内示の指示日は確定指示日の翌日とする。
                         ' ただし、確定指示日が月末日の場合、
                         ' 確定指示日と同じ日付とする
-                        If (spprocesstype <> 3) Then
+                        If (spprocesstype = 3) Then
                             _oderStageRepo.ResetShipScheduledateYamahaRobotex(tran,
                                                        CustomerSettingId,
                                                        impfilestageId,
@@ -3734,9 +3751,6 @@ Namespace OMS.Data
                 _oderStageRepo.UpdateKakuteiNewOrders(tran, impfilestageId)
 
                 '-----------------------------------------------
-
-
-
 
 
                 '-----------------------------------------------
@@ -4141,6 +4155,234 @@ Namespace OMS.Data
 
             End Using
         End Sub
+
+        ' Yamaha robotex 内示受注ファイル読み込み 変換
+        Public Enum YamahaRobotexType
+            Unknown = -1                    ' ファイルタイプエラー
+            UnofficialNotice = 0            ' 内示ファイル
+            Confirmed = 1                   ' 確定受注ファイル
+            ASTIInternalNotification = 2    ' ASTI追加内示ファイル  
+            ASTIInternalNotification2 = 3   ' ASTI追加内示ファイル Excel形式 
+        End Enum
+        ''' <summary>
+        ''' Yamaha robotex 受注ファイル を読み ASTI追加内示形式のデータ構成に変換する
+        ''' 
+        ''' 内示の場合 横並びのCSVデータテーブルを、4列の縦並びデータテーブルに展開・変換します。
+        ''' </summary>
+        ''' <param name="filename">Yamaha robotex 内示受注データファイル</param>
+        ''' <returns>部品番号、部品名称、日付、需要数 の4列で構成された新しいDataTable</returns>
+        Public Shared Function YamahaRobotexCreateNewDataSetFromCsv(filename As String, type As YamahaRobotexType) As DataTable
+
+            ' CSVをDataTableに変換
+            Dim dt = ConvertCsvToDataTable(filename)
+
+            '' 0. 新しいDataTableの構造（列）を作成 長期内示か判断するフラグを追加 (変換後データ)
+            '' 内示 および 確定 データを ASTI 追加内示形式の データ構成に並び替える
+            Dim astiN As New DataTable()
+            astiN.Columns.Add("取引先コード", GetType(String))
+            astiN.Columns.Add("客先発注No", GetType(String))
+            astiN.Columns.Add("受注日", GetType(String))            ' "20250701" 等の形式
+            astiN.Columns.Add("希望納期", GetType(String))          ' "20250701" 等の形式
+            astiN.Columns.Add("客先品目No", GetType(String))
+            astiN.Columns.Add("需要数", GetType(String))
+            astiN.Columns.Add("通貨コード", GetType(String))
+            astiN.Columns.Add("製品コード", GetType(String))
+            astiN.Columns.Add("納入先コード", GetType(String))
+            astiN.Columns.Add("分割区分", GetType(String))
+            astiN.Columns.Add("受注区分", GetType(String))
+            astiN.Columns.Add("コメント", GetType(String))
+            astiN.Columns.Add("情報区分", GetType(String))
+            astiN.Columns.Add("ASTI追加内示フラグ", GetType(String))
+            astiN.Columns.Add("ASTI追加内示削除フラグ", GetType(String))
+
+            Select Case type
+                Case YamahaRobotexType.UnofficialNotice
+                    ' 内示
+
+
+                    ' 条件に合う行だけを抽出
+                    Dim sourceDt = RemoveRowsWithoutThisTime(dt)
+
+                    ' 1. 固定の列名を定義 (元データ)
+                    Dim fixedColumns As New HashSet(Of String) From {"部品番号", "部品名称", "Column1", "日付"}
+
+                    ' 2. 元のDataTableの列名から、年月ヘッダー（可変）だけを自動抽出 してヘッダー項目に追加
+                    '    長期内示 の日付は 可変長
+                    Dim dateHeaders As New List(Of String)()
+                    For Each col As DataColumn In sourceDt.Columns
+                        If Not fixedColumns.Contains(col.ColumnName) Then
+                            dateHeaders.Add(col.ColumnName)
+                        End If
+                    Next
+                    ' 3. 新しいDataTableの構造（列）を作成
+                    Dim fileDt As New DataTable()
+                    fileDt.Columns.Add("部品番号", GetType(String))
+                    fileDt.Columns.Add("部品名称", GetType(String))
+                    fileDt.Columns.Add("日付", GetType(String))      ' "20250701" 等の形式
+                    fileDt.Columns.Add("需要数", GetType(String))
+                    fileDt.Columns.Add("長期内示", GetType(String))
+
+                    ' 3. 元のデータが空の場合は、空の構造だけを返す
+                    If sourceDt.Rows.Count = 0 Then
+                        Return astiN
+                    End If
+
+                    ' 内示ファイルの場合の処理
+                    ' 4. LINQの SelectMany を使って動的な年月列の数だけ行を展開
+                    Dim newRows = sourceDt.AsEnumerable().SelectMany(
+                    Function(row)
+                        ' Select の引数に index を追加して、何番目の日付（数量）かを判定
+                        Return dateHeaders.Select(
+                            Function(header, index)
+                                Dim newRow As DataRow = fileDt.NewRow()
+                                newRow("部品番号") = row("部品番号")
+                                newRow("部品名称") = row("部品名称")
+
+                                ' 取得したヘッダー名（可変）に "01" を付加
+                                newRow("日付") = header & "01"
+
+                                ' 需要数の安全な数値化
+                                Dim qty As String = 0
+                                If row(header) IsNot DBNull.Value Then
+                                    'Integer.TryParse(row(header).ToString(), qty)
+                                    qty = row(header).ToString()
+                                End If
+                                newRow("需要数") = qty
+
+                                ' 数量の順番に応じて長期内示フラグを設定
+                                ' indexは0から始まるので、0〜3（1〜4番目）は "N"、4〜7（5番目以降）は "Y"
+                                If index < 4 Then
+                                    newRow("長期内示") = "N"
+                                Else
+                                    newRow("長期内示") = "Y"
+                                End If
+
+                                Return newRow
+                            End Function)
+                    End Function)
+
+                    ' 5. 展開した行データを新しいDataTableに追加
+                    Dim cnt = newRows.Count
+                    For Each row As DataRow In newRows
+                        Dim astiRowDt As DataRow = astiN.NewRow()
+                        astiRowDt("客先品目No") = row("部品番号")
+                        astiRowDt("コメント") = row("部品名称")
+                        astiRowDt("需要数") = row("需要数")
+                        astiRowDt("希望納期") = row("日付")
+                        astiRowDt("ASTI追加内示フラグ") = "N"
+                        astiRowDt("ASTI追加内示削除フラグ") = "N"
+                        'astiRowDt("取引先コード") = "5977"
+                        astiN.Rows.Add(astiRowDt)
+                    Next
+                    'Dim cnt2 = newDt.Rows.Count
+
+                Case YamahaRobotexType.Confirmed
+                    ' 確定
+
+                    ' 確定受注ファイルの場合の処理
+                    Dim sourceDt = dt
+
+                    ' 3. 新しいDataTableの構造（列）を作成
+                    Dim fileDt As New DataTable()
+                    fileDt.Columns.Add("部品番号", GetType(String))
+                    fileDt.Columns.Add("部品名称", GetType(String))
+                    fileDt.Columns.Add("納入指示日", GetType(String))
+                    fileDt.Columns.Add("納入指示数", GetType(String))
+                    fileDt.Columns.Add("オーダーＮｏ", GetType(String))
+                    fileDt.Columns.Add("納入場所", GetType(String))
+                    fileDt.Columns.Add("支給先", GetType(String))
+                    fileDt.Columns.Add("カード発行日", GetType(String))
+                    fileDt.Columns.Add("発注理由", GetType(String))
+                    fileDt.Columns.Add("特注管理No", GetType(String))
+
+                    Dim newRows = sourceDt.AsEnumerable().Select(
+                    Function(row)
+                        Dim newRow As DataRow = fileDt.NewRow()
+                        newRow("部品番号") = row("部品番号")
+                        newRow("部品名称") = row("部品名称")
+                        Dim dd As Date
+                        Date.TryParse(row("納入指示日").ToString(), dd)
+                        newRow("納入指示日") = dd.ToString("yyyyMMdd")
+                        Dim qty As String = ""
+                        'Integer.TryParse(row("納入指示数").ToString(), qty)
+                        If row("納入指示数") IsNot DBNull.Value Then
+                            qty = row("納入指示数").ToString()
+                        End If
+                        newRow("納入指示数") = qty
+                        newRow("オーダーＮｏ") = row("オーダーＮｏ")
+
+                        '5.納入場所
+                        '6.支給先
+                        '7.カード発行日
+                        '8.発注理由
+                        '9.特注管理No
+                        Return newRow
+                    End Function)
+                    ' 5. 展開した行データを新しいDataTableに追加
+                    Dim cnt = newRows.Count
+                    For Each row As DataRow In newRows
+                        Dim astiRowDt As DataRow = astiN.NewRow()
+                        astiRowDt("客先品目No") = row("部品番号")
+                        astiRowDt("コメント") = row("部品名称")
+                        astiRowDt("希望納期") = row("納入指示日")
+                        astiRowDt("需要数") = row("納入指示数")
+                        astiRowDt("客先発注No") = row("オーダーＮｏ")
+                        astiRowDt("ASTI追加内示フラグ") = "N"
+                        astiRowDt("ASTI追加内示削除フラグ") = "N"
+                        'Dim qty As String = ""
+                        'If row("需要数（需要単位ベース）") IsNot DBNull.Value Then
+                        '    qty = row("需要数（需要単位ベース）").ToString()
+                        'End If
+                        'astiRowDt("需要数") = qty
+
+                        'astiRowDt("取引先コード") = "5977"
+                        astiN.Rows.Add(astiRowDt)
+                    Next
+
+                Case YamahaRobotexType.ASTIInternalNotification
+                    ' 追加内示
+
+                    If dt.Columns.Contains("希望納期（納入予定日)") Then
+                        ' 2. 存在する場合、列名を変更
+                        dt.Columns("希望納期（納入予定日)").ColumnName = "希望納期"
+                    End If
+                    If dt.Columns.Contains("需要数（需要単位ベース）") Then
+                        ' 2. 存在する場合、列名を変更
+                        dt.Columns("需要数（需要単位ベース）").ColumnName = "需要数"
+                    End If
+
+                    '受注日、希望納期
+                    For Each row As DataRow In dt.Rows
+                        Dim result As DateTime
+                        Dim formats As String() = {"yyyy/M/d", "yyyyMd", "yyyy/M/d h:m:s"}
+
+                        Dim ddate = row("受注日")
+                        If (Date.TryParseExact(ddate, formats, CultureInfo.InvariantCulture, DateTimeStyles.None, result)) Then
+                            row("受注日") = result.ToString("yyyyMMdd")
+                        Else
+                            row("受注日") = CDate("1900/01/01").ToString("yyyyMMdd")
+                        End If
+
+                        ddate = row("希望納期")
+                        If (Date.TryParseExact(ddate, formats, CultureInfo.InvariantCulture, DateTimeStyles.None, result)) Then
+                            row("希望納期") = result.ToString("yyyyMMdd")
+                        Else
+                            row("希望納期") = CDate("1900/01/01").ToString("yyyyMMdd")
+                        End If
+                    Next
+
+                    ' ASTI追加内示ファイルの場合の処理 (File 読み込み DataTable(ASTI追加内示形式)をそのまま返す)
+                    astiN = dt
+                Case YamahaRobotexType.ASTIInternalNotification2
+                    'astiN = OrderProductionPlanExcelFile.OrderExcelAstiFileYamaharobotex(filename)
+
+                Case Else
+                    Throw New ArgumentException("不明な YamahaRobotex File 形式 です。", NameOf(type))
+            End Select
+
+            ' 6. 変換後のDataTableを返す
+            Return astiN
+        End Function
 
     End Class
 
