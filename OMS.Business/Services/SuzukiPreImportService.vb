@@ -151,7 +151,10 @@ Namespace Services
                                         .UpdatedUserId = userId,
                                         .UpdatedPgId = "OrderImport(Stage)"
                                     }
-                                    stageRepo.Insert(conn, tran, stageRow)
+                                    Dim stageInsErr = stageRepo.Insert(conn, tran, stageRow)
+                                    If Not String.IsNullOrEmpty(stageInsErr) Then
+                                        Throw New Exception($"取込ファイルワーク登録エラー: {stageInsErr}")
+                                    End If
                                     tran.Commit()
 
                                     validFilesCount += 1
@@ -171,9 +174,22 @@ Namespace Services
 
                         ' --- CSV / TXT ファイル処理 (SPIRITS EDI / 取込処理) ---
                         ' 種別判定
-                        Dim infoCode = SuzukiCsvParser.PeekInfoTypeCode(workFilePath)
+                        Dim diagMsg As String = ""
+                        Dim infoCode = SuzukiCsvParser.PeekInfoTypeCode(workFilePath, diagMsg)
                         If String.IsNullOrEmpty(infoCode) OrElse infoCode.Length <> 4 Then
-                            logger.Write($"[SUZUKI_IMPORT] Invalid or missing INFO_TYPE_CODE in file: {fileName}")
+                            errorFilesCount += 1
+                            logger.Write($"[SUZUKI_IMPORT] Invalid or missing INFO_TYPE_CODE in file: {fileName}. Detail: {diagMsg}")
+
+                            Dim userErrMsg = $"【{fileName}】取込対象データを1件も取得できませんでした。フォーマット（情報区分コード等）を確認してください。"
+                            If webErrors IsNot Nothing Then
+                                webErrors.Add(userErrMsg)
+                            End If
+
+                            Dim errList As New List(Of String)()
+                            errList.Add($"ヘッダまたは情報区分コードが不正です。4桁のSPIRITS情報区分コード(0600等)を指定してください。{diagMsg}")
+                            ExportErrorsToCsv(folderPath, fileName, errList, isBatch)
+
+                            MoveBackErrorFile(workFilePath, folderPath, fileName, userId)
                             Continue For
                         End If
 
@@ -203,7 +219,10 @@ Namespace Services
                                     .UpdatedUserId = userId,
                                     .UpdatedPgId = "OrderImport(Stage)"
                                 }
-                                stageRepo.Insert(conn, tran, stageRow)
+                                Dim stageInsErr = stageRepo.Insert(conn, tran, stageRow)
+                                If Not String.IsNullOrEmpty(stageInsErr) Then
+                                    Throw New Exception($"取込ファイルワーク登録エラー: {stageInsErr}")
+                                End If
                                 
                                 ' Fetch the generated ID
                                 Dim fetchedRow = stageRepo.GetImpFilesStageFilename(conn, tran, fileName, folderPath)
@@ -227,19 +246,16 @@ Namespace Services
                                     logger.Write($"[SUZUKI_IMPORT] Found {errorRows.Count} part matching errors in {fileName}")
                                     ExportErrorsToCsv(folderPath, fileName, errorRows, isBatch, webErrors)
                                     MoveBackErrorFile(workFilePath, folderPath, fileName, userId)
-                                    DeleteErrorRows(conn, tran, infoCode)
+                                    tran.Rollback()
+                                    Continue For
                                 Else
                                     validFilesCount += 1
-                                    ' 正常取込完了: 仕様書通り、ファイルはWORKフォルダに保持し、Stage 2の[保存]または[破棄]時に移動する
+                                    tran.Commit()
+                                    processCount += 1
                                     logger.Write($"[SUZUKI_IMPORT] File staged successfully in WORK: {fileName}")
-                                End If
-
-                                tran.Commit()
-                                processCount += 1
-                                logger.Write($"[SUZUKI_IMPORT] Successfully imported file: {fileName}")
-
-                                If outStageRows IsNot Nothing Then
-                                    outStageRows.Add(stageRow)
+                                    If outStageRows IsNot Nothing Then
+                                        outStageRows.Add(stageRow)
+                                    End If
                                 End If
                             Catch ex As Exception
                                 tran.Rollback()
@@ -277,11 +293,13 @@ Namespace Services
             Return processCount
         End Function
 
-        Private Sub ProcessFileByInfoCode(conn As OracleConnection, tran As OracleTransaction, filePath As String, infoCode As String, userId As String, impRunId As Long, impFileStageId As Long)
+        Private Function ProcessFileByInfoCode(conn As OracleConnection, tran As OracleTransaction, filePath As String, infoCode As String, userId As String, impRunId As Long, impFileStageId As Long) As Integer
+            Dim insertedCount As Integer = 0
             Select Case infoCode
                 Case "0501", "0502"
                     Dim repo As New Spirits0501And0502Repository(_connectionString)
                     Dim rows = SuzukiCsvParser.ParseSpirits0501And0502(filePath)
+                    If rows.Count = 0 Then Throw New Exception($"有効なデータ行（{infoCode}）が1件も取得できませんでした。列数やフォーマットを確認してください。")
                     For Each r In rows
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
@@ -293,12 +311,13 @@ Namespace Services
                         r.UpdatedAt = DateTime.Now
                     Next
                     Dim dbErr = repo.InsertRange(conn, tran, rows)
-
                     If Not String.IsNullOrEmpty(dbErr) Then Throw New Exception(dbErr)
+                    insertedCount = rows.Count
 
                 Case "0600", "0630"
                     Dim repo As New Spirits0600And0630Repository(_connectionString)
                     Dim rows = SuzukiCsvParser.Parse0600And0630(filePath)
+                    If rows.Count = 0 Then Throw New Exception($"有効なデータ行（{infoCode}）が1件も取得できませんでした。列数やフォーマットを確認してください。")
                     For Each r In rows
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
@@ -310,12 +329,13 @@ Namespace Services
                         r.UpdatedAt = DateTime.Now
                     Next
                     Dim dbErr = repo.InsertRange(conn, tran, rows)
-
                     If Not String.IsNullOrEmpty(dbErr) Then Throw New Exception(dbErr)
+                    insertedCount = rows.Count
 
                 Case "0602"
                     Dim repo As New Spirits0602Repository(_connectionString)
                     Dim rows = SuzukiCsvParser.Parse0602(filePath)
+                    If rows.Count = 0 Then Throw New Exception($"有効なデータ行（{infoCode}）が1件も取得できませんでした。列数やフォーマットを確認してください。")
                     For Each r In rows
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
@@ -327,12 +347,13 @@ Namespace Services
                         r.UpdatedAt = DateTime.Now
                     Next
                     Dim dbErr = repo.InsertRange(conn, tran, rows)
-
                     If Not String.IsNullOrEmpty(dbErr) Then Throw New Exception(dbErr)
+                    insertedCount = rows.Count
 
                 Case "0650"
                     Dim repo As New Spirits0650Repository(_connectionString)
                     Dim rows = SuzukiCsvParser.ParseSpirits0650(filePath)
+                    If rows.Count = 0 Then Throw New Exception($"有効なデータ行（{infoCode}）が1件も取得できませんでした。列数やフォーマットを確認してください。")
                     For Each r In rows
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
@@ -344,12 +365,13 @@ Namespace Services
                         r.UpdatedAt = DateTime.Now
                     Next
                     Dim dbErr = repo.InsertRange(conn, tran, rows)
-
                     If Not String.IsNullOrEmpty(dbErr) Then Throw New Exception(dbErr)
+                    insertedCount = rows.Count
 
                 Case "0651"
                     Dim repo As New Spirits0651Repository(_connectionString)
                     Dim rows = SuzukiCsvParser.ParseSpirits0651(filePath)
+                    If rows.Count = 0 Then Throw New Exception($"有効なデータ行（{infoCode}）が1件も取得できませんでした。列数やフォーマットを確認してください。")
                     For Each r In rows
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
@@ -361,12 +383,13 @@ Namespace Services
                         r.UpdatedAt = DateTime.Now
                     Next
                     Dim dbErr = repo.InsertRange(conn, tran, rows)
-
                     If Not String.IsNullOrEmpty(dbErr) Then Throw New Exception(dbErr)
+                    insertedCount = rows.Count
 
                 Case "0740"
                     Dim repo As New Spirits0740Repository(_connectionString)
                     Dim rows = SuzukiCsvParser.ParseSpirits0740(filePath)
+                    If rows.Count = 0 Then Throw New Exception($"有効なデータ行（{infoCode}）が1件も取得できませんでした。列数やフォーマットを確認してください。")
                     For Each r In rows
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
@@ -378,12 +401,13 @@ Namespace Services
                         r.UpdatedAt = DateTime.Now
                     Next
                     Dim dbErr = repo.InsertRange(conn, tran, rows)
-
                     If Not String.IsNullOrEmpty(dbErr) Then Throw New Exception(dbErr)
+                    insertedCount = rows.Count
 
                 Case "0813"
                     Dim repo As New Spirits0813Repository(_connectionString)
                     Dim rows = SuzukiCsvParser.ParseSpirits0813(filePath)
+                    If rows.Count = 0 Then Throw New Exception($"有効なデータ行（{infoCode}）が1件も取得できませんでした。列数やフォーマットを確認してください。")
                     For Each r In rows
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
@@ -395,15 +419,13 @@ Namespace Services
                         r.UpdatedAt = DateTime.Now
                     Next
                     Dim dbErr = repo.InsertRange(conn, tran, rows)
-
                     If Not String.IsNullOrEmpty(dbErr) Then Throw New Exception(dbErr)
-
-
-
+                    insertedCount = rows.Count
 
                 Case "0814"
                     Dim repo As New Spirits0814Repository(_connectionString)
                     Dim rows = SuzukiCsvParser.ParseSpirits0814(filePath)
+                    If rows.Count = 0 Then Throw New Exception($"有効なデータ行（{infoCode}）が1件も取得できませんでした。列数やフォーマットを確認してください。")
                     For Each r In rows
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
@@ -415,12 +437,13 @@ Namespace Services
                         r.UpdatedAt = DateTime.Now
                     Next
                     Dim dbErr = repo.InsertRange(conn, tran, rows)
-
                     If Not String.IsNullOrEmpty(dbErr) Then Throw New Exception(dbErr)
+                    insertedCount = rows.Count
 
                 Case "6604", "6634"
                     Dim repo As New Spirits6604And6634Repository(_connectionString)
                     Dim rows = SuzukiCsvParser.ParseSpirits6604And6634(filePath)
+                    If rows.Count = 0 Then Throw New Exception($"有効なデータ行（{infoCode}）が1件も取得できませんでした。列数やフォーマットを確認してください。")
                     For Each r In rows
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
@@ -432,12 +455,13 @@ Namespace Services
                         r.UpdatedAt = DateTime.Now
                     Next
                     Dim dbErr = repo.InsertRange(conn, tran, rows)
-
                     If Not String.IsNullOrEmpty(dbErr) Then Throw New Exception(dbErr)
+                    insertedCount = rows.Count
 
                 Case "6624"
                     Dim repo As New Spirits6624Repository(_connectionString)
                     Dim rows = SuzukiCsvParser.ParseSpirits6624(filePath)
+                    If rows.Count = 0 Then Throw New Exception($"有効なデータ行（{infoCode}）が1件も取得できませんでした。列数やフォーマットを確認してください。")
                     For Each r In rows
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
@@ -449,12 +473,13 @@ Namespace Services
                         r.UpdatedAt = DateTime.Now
                     Next
                     Dim dbErr = repo.InsertRange(conn, tran, rows)
-
                     If Not String.IsNullOrEmpty(dbErr) Then Throw New Exception(dbErr)
+                    insertedCount = rows.Count
 
                 Case "663N", "663S", "664T"
                     Dim repo As New Spirits663NAnd663SAnd66Repository(_connectionString)
                     Dim rows = SuzukiCsvParser.ParseSpirits663NAnd663SAnd664T(filePath)
+                    If rows.Count = 0 Then Throw New Exception($"有効なデータ行（{infoCode}）が1件も取得できませんでした。列数やフォーマットを確認してください。")
                     For Each r In rows
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
@@ -466,10 +491,11 @@ Namespace Services
                         r.UpdatedAt = DateTime.Now
                     Next
                     Dim dbErr = repo.InsertRange(conn, tran, rows)
-
                     If Not String.IsNullOrEmpty(dbErr) Then Throw New Exception(dbErr)
+                    insertedCount = rows.Count
             End Select
-        End Sub
+            Return insertedCount
+        End Function
 
         Private Function GetTargetTableName(infoCode As String) As String
             Select Case infoCode
@@ -647,6 +673,9 @@ Namespace Services
                 Dim newFileName = $"{baseName}_{userId}_{timeStamp}{Path.GetExtension(originalFileName)}"
                 Dim targetPath = Path.Combine(sourceFolder, newFileName)
                 File.Copy(workFilePath, targetPath, True)
+                If File.Exists(targetPath) Then
+                    File.Delete(workFilePath)
+                End If
             Catch ex As Exception
             End Try
         End Sub

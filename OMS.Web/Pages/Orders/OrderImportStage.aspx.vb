@@ -448,15 +448,13 @@ Namespace Pages.Orders
             ' 画面へバインド（DataKeyNames="FilePath" 必須）
             Session("OrderImportSearchResults") = results
 
-            If errors.Count > 0 Then
-                lblError.Text = String.Join("<br/>", errors.Select(Function(s) Server.HtmlEncode(s)))
-            End If
-
             If anyFound AndAlso results.Count > 0 Then
                 lblResult.Text = $"取込準備：対象ファイルが【 {results.Count} 件 】見つかりました。"
             Else
                 If errors.Count = 0 Then
                     lblResult.Text = "取込準備：対象ファイルが見つかりませんでした。"
+                Else
+                    lblError.Text = String.Join("<br/>", errors.Distinct().Select(Function(s) Server.HtmlEncode(s)))
                 End If
                 ' 対象がなければ以降のDB登録処理はスキップしてPRGリダイレクト
                 RedirectAfterPost(lblResult.Text, lblError.Text)
@@ -532,13 +530,7 @@ Namespace Pages.Orders
 
             If errors.Count > 0 Then
                 ' 既存のエラー表示欄(lblError)に改行区切りでエラーを出力 (Render errors directly to page)
-                Dim alreadyText = lblError.Text
-                Dim addText = String.Join("<br/>", errors.Select(Function(s) Server.HtmlEncode(s)))
-                If String.IsNullOrEmpty(alreadyText) Then
-                    lblError.Text = addText
-                Else
-                    lblError.Text = alreadyText & "<br/>" & addText
-                End If
+                lblError.Text = String.Join("<br/>", errors.Distinct().Select(Function(s) Server.HtmlEncode(s)))
 
                 ' 【将来用】モーダルポップアップ表示（必要に応じてコメント解除して利用可能）
                 ' Dim errDt As New DataTable()

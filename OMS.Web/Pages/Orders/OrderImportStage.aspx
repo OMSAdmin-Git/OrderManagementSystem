@@ -1,4 +1,4 @@
-﻿<%@ Page Language="vb" AutoEventWireup="false" CodeBehind="OrderImportStage.aspx.vb" Inherits="OMS.Web.Pages.Orders.OrderImportStage" MaintainScrollPositionOnPostback="true" %>
+<%@ Page Language="vb" AutoEventWireup="false" CodeBehind="OrderImportStage.aspx.vb" Inherits="OMS.Web.Pages.Orders.OrderImportStage" MaintainScrollPositionOnPostback="true" %>
 
 <!DOCTYPE html>
 
@@ -78,6 +78,29 @@
             justify-content: flex-end;
             background-color: #f9f9f9;
         }
+        .loading-dialog {
+            background-color: #fff;
+            padding: 30px 45px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+        .spinner {
+            width: 44px;
+            height: 44px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #0056b3;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
     <script type="text/javascript">
         function showErrorModal() {
@@ -87,6 +110,14 @@
         function closeErrorModal() {
             var modal = document.getElementById('<%= errorModalOverlay.ClientID %>');
             if (modal) modal.style.display = 'none';
+        }
+        function onStageImportClick(btn) {
+            var overlay = document.getElementById('loadingOverlay');
+            if (overlay) overlay.style.display = 'flex';
+            setTimeout(function () {
+                btn.disabled = true;
+            }, 50);
+            return true;
         }
     </script>
 
@@ -201,7 +232,7 @@
             </div>
             <!-- アクションボタン -->
             <div class="action-buttons">
-                <asp:Button ID="btnStageImport" runat="server" CssClass="btn-asti btn-asti-process" Text="取込準備" OnClick="btnStageImport_Click" />
+                <asp:Button ID="btnStageImport" runat="server" CssClass="btn-asti btn-asti-process" Text="取込準備" OnClick="btnStageImport_Click" OnClientClick="return onStageImportClick(this);" />
             </div>
             <!-- 実行結果 -->
             <div>
@@ -243,10 +274,19 @@
                         </div>
                     </div>
                     <div class="modal-footer-custom">
-                        <button type="button" class="btn-asti btn-asti-process" onclick="closeErrorModal();">閉じる</button>
+                        <button type="button" class="btn-cancel" onclick="closeErrorModal();">閉じる</button>
                     </div>
                 </div>
             </div>
+
+            <!-- 処理中ローディング表示 (Loading Overlay) -->
+            <div id="loadingOverlay" class="modal-overlay">
+                <div class="loading-dialog">
+                    <div class="spinner"></div>
+                    <div style="font-size: 16px; font-weight: 600; color: #333;">データ取込準備中... しばらくお待ちください</div>
+                </div>
+            </div>
+
         </div>
     </form>
 </body>
