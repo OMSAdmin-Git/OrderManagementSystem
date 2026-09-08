@@ -3808,7 +3808,7 @@ Namespace OMS.Data
                             Continue For
                         End If
 
-                        Dim currentShipPlanDate As Date = Convert.ToDateTime(row("ship_plan_date"))
+                        Dim currentShipScheduledDate As Date = Convert.ToDateTime(row("ship_plan_date"))
                         Dim customerItemNo As String = row("customer_item_no").ToString()
 
                         ' 2つの日付を関数呼び出して設定
