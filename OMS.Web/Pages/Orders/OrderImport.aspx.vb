@@ -660,6 +660,23 @@ Namespace Pages.Orders
 
                                 ElseIf mapResult Is Nothing AndAlso spprocesstype = 1 AndAlso folderType = 4 Then
                                     '特殊加工:スズキ フォルダ区分:混合
+                                    Dim suzukiService As New OMS.Business.Services.SuzukiDataImportService(Utils.GetConnectionString())
+                                    Dim suzukiSuccess As Boolean = suzukiService.ExecuteStageImportToOrdersStage(
+                                        tran.Connection,
+                                        tran,
+                                        customerSettingId,
+                                        customerCode,
+                                        impfilestageId,
+                                        folderType,
+                                        UserId,
+                                        pgId,
+                                        errors,
+                                        rowsForTemp2
+                                    )
+                                    If Not suzukiSuccess Then
+                                        ErrFlg = True
+                                        Continue For
+                                    End If
 
                                 ElseIf mapResult Is Nothing AndAlso spprocesstype = 2 AndAlso folderType = 4 Then
                                     '特殊加工:ヤマハ(IM以外) フォルダ区分:混合
@@ -1607,6 +1624,11 @@ Namespace Pages.Orders
 
                                                 '正規データ更新 (ORDERSテーブルのIMP_FILE_IDを更新する)
                                                 _oderStageRepo.UpdateOrdersImpFileId(tran, newimpfileid, impFileStageId)
+
+                                                'スズキ専用テーブルのステータス更新 (STATUS = 'REGISTERED')
+                                                If customerCode = "5455" Then
+                                                    _oderStageRepo.UpdateSuzukiStagingStatusRegistered(tran, impFileStageId, UserId, pgId)
+                                                End If
 
                                                 'foundInThisCustomer = True
 

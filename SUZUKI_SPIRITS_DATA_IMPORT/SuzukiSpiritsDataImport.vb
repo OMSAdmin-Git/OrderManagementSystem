@@ -1,4 +1,4 @@
-Imports System.Configuration
+﻿Imports System.Configuration
 Imports System.IO
 Imports OMS.Business.Services
 Imports OMS.Common
@@ -51,17 +51,23 @@ Namespace SUZUKI_SPIRITS_DATA_IMPORT
             Console.WriteLine($"[INFO] Target Folder: {targetFolder}")
             Console.WriteLine($"[INFO] Customer Setting ID: {customerSettingId}")
 
-            If String.IsNullOrWhiteSpace(targetFolder) OrElse Not Directory.Exists(targetFolder) Then
-                Console.WriteLine($"[WARN] Target folder does not exist or is not specified: '{targetFolder}'")
-                Environment.ExitCode = 1
-                Return
-            End If
-
             Try
-                Dim service As New SuzukiPreImportService()
-                Dim count As Integer = service.ExecuteImport(targetFolder, customerSettingId, folderType, userId, isBatch)
+                ' 1. Stage 1 (Pre-Import): フォルダが存在する場合はファイル取込を実行
+                If Not String.IsNullOrWhiteSpace(targetFolder) AndAlso Directory.Exists(targetFolder) Then
+                    Console.WriteLine("[INFO] Step 1: Checking and executing Pre-Import (Stage 1)...")
+                    Dim preService As New SuzukiPreImportService()
+                    Dim preCount As Integer = preService.ExecuteImport(targetFolder, customerSettingId, folderType, userId, isBatch)
+                    Console.WriteLine($"[INFO] Pre-Import processed {preCount} file(s).")
+                Else
+                    Console.WriteLine($"[INFO] Target folder not specified or does not exist: '{targetFolder}'. Skipping Pre-Import.")
+                End If
 
-                Console.WriteLine($"[SUCCESS] Processed {count} file(s) successfully.")
+                ' 2. Stage 2 (Order Registration & Reconciliation) を実行
+                Console.WriteLine("[INFO] Step 2: Executing Order Registration & Reconciliation (Stage 2)...")
+                Dim importService As New SuzukiDataImportService()
+                Dim registeredCount As Integer = importService.ExecuteOrderRegistration(customerSettingId, folderType, 0, userId, isBatch)
+
+                Console.WriteLine($"[SUCCESS] Order Registration completed successfully. Registered {registeredCount} order(s).")
                 Environment.ExitCode = 0
             Catch ex As Exception
                 Console.WriteLine($"[ERROR] Import failed: {ex.Message}")

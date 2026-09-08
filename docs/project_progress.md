@@ -33,15 +33,15 @@ Is the current progress far away from the requirements? **No, the project is app
 | **7** | 更新チェック (無効) | Active Flag Invalidation | 🟢 **DONE** | `UpdateActiveFlags` sets `ACTIVE_FLAG = 'N'` for matching publication timestamps. |
 | **8** | 品番割り当て (品番) | ASTI Part Matching + Z-Suffix | 🟢 **DONE** | `PRDSLSODRM` lookup implemented. Z-suffix rule (`FCUSTITEMNO` ending with `'Z'`) for codes `6604`, `6624`, `6634`, `663N`, `663S`, `664T` defined. |
 | **9** | エラーチェック/削除 | Pre-Import Error Handling | 🟢 **DONE** | `Row(n)` Excel error generation, error file backup (`[Original]_[User]_[Time].csv`), and physical `DELETE` of unmatched error rows completed. |
-| **10** | 受注登録移行 | Stage 1 $\rightarrow$ Stage 2 Transition | ⏳ **PENDING** | Connect Pre-Import CLI execution to Order Registration processing pipeline in `SUZUKI_SPIRITS_DATA_IMPORT`. |
-| **11** | 受注ワーク削除 | Stage Cleaning (`ORDERS_STAGE`) | ⏳ **PENDING** | Purge `ORDERS_STAGE` for current target customer before transform. |
-| **12** | 受注データチェック | Order Data Code Filtering | ⏳ **PENDING** | Filter order-related `INFO_TYPE_CODE`s (`0600`, `0602`, `0630`, `0650`, `0651`, `0813`, `0814`, `6604`, `6624`, `663N`, `663S`). |
-| **13** | 受注ワーク挿入 | `ORDERS_STAGE` Transform | ⏳ **PENDING** | Insert into `ORDERS_STAGE` with Oracle `ADD_WORKING_DAYS2('00001', [DUE_DATE], 0)` due date formatting (`yyyy/MM/dd`) and prorated conversion. |
-| **14** | 受注ワーク更新 | Special Demand Adjustments | ⏳ **PENDING** | Code-specific adjustments (`0630` quantity addition, `663N` due date update, `663S` quantity update), Profit Center resolution from `USRDEFFLDF`. |
-| **15** | ファイル移動/settle | Post-Stage File Settlement | ⏳ **PENDING** | Move completed files, register `IMP_FILES` (`STATUS = 'PARSED'`), delete from `IMP_FILES_STAGE`. |
-| **16** | 加工処理 | Ship-To Conversion & Consumption | ⏳ **PENDING** | Wash replacement (`内示加工`), backlog reconciliation (`受注残加工`), and delivery instruction consumption (`納入指示加工` - `0650/0651 -> 0600`, `0814 -> 0813`, `6624 -> 6604`). |
-| **17** | 本番表更新 | Master Production Commitment | ⏳ **PENDING** | Commit staging rows from `ORDERS_STAGE` into master `ORDERS` table and audit log `ORDER_HISTORY`. |
-| **18** | 完了処理/STRA | Completion Logging & STRA | ⏳ **PENDING** | Update `IMP_RUN` (`STATUS = 'COMPLETED'`) and trigger STRA due date setting (`STRA納期設定`). |
+| **10** | 受注登録移行 | Stage 1 $\rightarrow$ Stage 2 Transition | 🟢 **DONE** | Connected Pre-Import CLI execution to Order Registration processing pipeline in `SUZUKI_SPIRITS_DATA_IMPORT`. |
+| **11** | 受注ワーク削除 | Stage Cleaning (`ORDERS_STAGE`) | 🟢 **DONE** | Purge `ORDERS_STAGE` for current target customer (`5455`) and folder type `4` (`DeleteOrdersStageForSuzuki`). |
+| **12** | 受注データチェック | Order Data Code Filtering | 🟢 **DONE** | Active records extracted and filtered for `0600`, `0602`, `0650`, `0651`, `0813`, `0814`, `6604`, `6624`. |
+| **13** | 受注ワーク挿入 | `ORDERS_STAGE` Transform | 🟢 **DONE** | Transformed to `ORDERS_STAGE` with calendar working due date (`GetWorkingDueDateCached`), unit/wh caching, and prorated mapping. |
+| **14** | 受注ワーク更新 | Special Demand Adjustments | 🟢 **DONE** | Profit Center resolution via `USRDEFFLDF` / `CUSTOMER_SETTING_MST`. Code adjustments: `0630` quantity addition, `663N` due date update, `663S` quantity update (with fallback to `ORDERS`). |
+| **15** | ファイル移動/settle | Post-Stage File Settlement | 🟢 **DONE** | Web UI and Batch mode manage WORK/ to COMPLETED/ file movements and staging status updates (`STATUS = 'REGISTERED'`). |
+| **16** | 加工処理 | Ship-To Conversion & Consumption | 🟢 **DONE** | Suzuki destination conversion (`SUZUKI_SPIRITS_CONVERSION_MST`), wash replacement (`ReplaceNaijiRelationSuzuki` with `0602` skipped), backlog reconciliation, and forecast consumption (`ReconcileForecastSuzuki`). |
+| **17** | 本番表更新 | Master Production Commitment | 🟢 **DONE** | Commit valid rows from `ORDERS_STAGE` into master `ORDERS` and `ORDER_HISTORY` with extended Phase 2 columns. |
+| **18** | 完了処理/STRA | Completion Logging & STRA | 🟢 **DONE** | Upstream execution logging, error CSV generation, and batch `STRA納期設定` orchestration (`ExecuteStraDeliveryDateSetting`). |
 
 ---
 

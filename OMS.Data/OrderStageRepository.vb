@@ -2375,7 +2375,7 @@ Namespace OMS.Data
                     cmd.Parameters.Add(":p_initial_flag", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.InitialFlag, 45)
                     cmd.Parameters.Add(":p_target_reference_date_type", OracleDbType.Varchar2, 1).Value = SafeVarchar(r.TargetReferenceDateType, 1)
                     cmd.Parameters.Add(":p_target_reference_date", OracleDbType.Varchar2, 8).Value = SafeVarchar(r.TargetReferenceDate, 8)
-                    cmd.Parameters.Add(":p_info_type_code", OracleDbType.Varchar2, 4).Value = SafeVarchar(r.UpdatedUserId, 4)
+                    cmd.Parameters.Add(":p_info_type_code", OracleDbType.Varchar2, 4).Value = SafeVarchar(r.InfoTypeCode, 4)
 
                     'Phase2
                     cmd.Parameters.Add(":p_order_time", OracleDbType.Decimal).Value = r.OrderTime
@@ -4158,6 +4158,456 @@ Namespace OMS.Data
         End Function
 
         ''' <summary>
+        ''' 【Stage 2 工程1】ORDERS_STAGE（受注ワークテーブル）の物理削除
+        ''' CUSTOMER_SETTING_ID または CUSTOMER_CODE='5455' かつ FOLDER_TYPE に一致するレコードを削除
+        ''' </summary>
+        Public Function DeleteOrdersStageForSuzuki(ByVal tran As OracleTransaction, ByVal customerSettingId As Long, ByVal folderType As Integer) As Integer
+            Dim deleteCount As Integer = 0
+            Dim sql As String = "DELETE FROM orders_stage WHERE (customer_setting_id = :p_customer_setting_id OR customer_code = '5455')"
+            If folderType > 0 Then
+                sql &= " AND (folder_type = :p_folder_type OR :p_folder_type = 4)"
+            End If
+
+            Using cmd As New OracleCommand(sql, tran.Connection)
+                cmd.Transaction = tran
+                cmd.BindByName = True
+                cmd.CommandType = CommandType.Text
+                cmd.Parameters.Add(":p_customer_setting_id", OracleDbType.Int64).Value = customerSettingId
+                If folderType > 0 Then
+                    cmd.Parameters.Add(":p_folder_type", OracleDbType.Int32).Value = folderType
+                End If
+                deleteCount = cmd.ExecuteNonQuery()
+            End Using
+
+            Return deleteCount
+        End Function
+
+        ''' <summary>
+        ''' 【Stage 2 工程1】ORDERS_STAGE（受注ワークテーブル）の物理削除（汎用）
+        ''' </summary>
+        Public Function DeleteOrdersStageByCustomerSettingAndFolder(ByVal tran As OracleTransaction, ByVal customerSettingId As Long, ByVal folderType As Integer) As Integer
+            Dim deleteCount As Integer = 0
+            Dim sql As String = "DELETE FROM orders_stage WHERE customer_setting_id = :p_customer_setting_id"
+            If folderType > 0 Then
+                sql &= " AND (folder_type = :p_folder_type OR :p_folder_type = 4)"
+            End If
+
+            Using cmd As New OracleCommand(sql, tran.Connection)
+                cmd.Transaction = tran
+                cmd.BindByName = True
+                cmd.CommandType = CommandType.Text
+                cmd.Parameters.Add(":p_customer_setting_id", OracleDbType.Int64).Value = customerSettingId
+                If folderType > 0 Then
+                    cmd.Parameters.Add(":p_folder_type", OracleDbType.Int32).Value = folderType
+                End If
+                deleteCount = cmd.ExecuteNonQuery()
+            End Using
+
+            Return deleteCount
+        End Function
+
+        ''' <summary>
+        ''' 【Stage 2 工程6】スズキ納入先変換 (SUZUKI_SPIRITS_CONVERSION_MST)
+        ''' ORDERS_STAGE の SHIP_TO を DELIVERY_CODE_PLAN に変換する
+        ''' </summary>
+        Public Function ConvertShipToForSuzuki(ByVal tran As OracleTransaction, ByVal customerSettingId As Long) As Integer
+            Dim sql As String =
+                " UPDATE orders_stage s " &
+                " SET s.ship_to = (" &
+                "   SELECT c.delivery_code_plan " &
+                "   FROM suzuki_spirits_conversion_mst c " &
+                "   WHERE c.delivery_code_order = s.ship_to " &
+                "     AND c.active_flag = 'Y' " &
+                "     AND ROWNUM = 1" &
+                " ) " &
+                " WHERE (s.customer_setting_id = :p_customer_setting_id OR s.customer_code = '5455') " &
+                "   AND s.active_flag = 'Y' " &
+                "   AND EXISTS (" &
+                "     SELECT 1 " &
+                "     FROM suzuki_spirits_conversion_mst c " &
+                "     WHERE c.delivery_code_order = s.ship_to " &
+                "       AND c.active_flag = 'Y'" &
+                "   )"
+
+            Using cmd As New OracleCommand(sql, tran.Connection)
+                cmd.Transaction = tran
+                cmd.BindByName = True
+                cmd.CommandType = CommandType.Text
+                cmd.Parameters.Add(":p_customer_setting_id", OracleDbType.Int64).Value = customerSettingId
+                Return cmd.ExecuteNonQuery()
+            End Using
+        End Function
+
+        ''' <summary>
+        ''' 【Stage 2 工程6】スズキ内示加工 (洗い替え)
+        ''' 0602(追加内示)は除外し、0600, 0813, 6604 の過去内示を無効化 (REPLACED)
+        ''' </summary>
+        Public Sub ReplaceNaijiRelationSuzuki(ByVal tran As OracleTransaction,
+                                              ByVal impFileStageId As Long,
+                                              ByVal customerSettingId As Long,
+                                              ByVal updatedAt As DateTime,
+                                              ByVal updateUserId As String,
+                                              ByVal updatepgId As String)
+
+            ' 1. 0602 (追加内示) は洗い替えを行わず常に PROCESSED に更新
+            Dim sql0602 As String =
+                " UPDATE orders_stage " &
+                " SET status = 'PROCESSED', " &
+                "     updated_at = :p_updated_at, " &
+                "     updated_user_id = :p_user_id, " &
+                "     updated_pg_id = :p_pg_id " &
+                " WHERE (customer_setting_id = :p_customer_setting_id OR customer_code = '5455') " &
+                "   AND order_type = 1 " &
+                "   AND info_type_code = '0602' " &
+                "   AND active_flag = 'Y' " &
+                "   AND status = 'IMPORTED' "
+            If impFileStageId > 0 Then
+                sql0602 &= " AND imp_file_stage_id = :p_imp_file_stage_id"
+            End If
+
+            Using cmd As New OracleCommand(sql0602, tran.Connection)
+                cmd.Transaction = tran
+                cmd.BindByName = True
+                cmd.CommandType = CommandType.Text
+                cmd.Parameters.Add(":p_customer_setting_id", OracleDbType.Int64).Value = customerSettingId
+                cmd.Parameters.Add(":p_updated_at", OracleDbType.Date).Value = updatedAt
+                cmd.Parameters.Add(":p_user_id", OracleDbType.Varchar2, 9).Value = SafeVarchar(updateUserId, 9)
+                cmd.Parameters.Add(":p_pg_id", OracleDbType.Varchar2, 150).Value = SafeVarchar(updatepgId, 150)
+                If impFileStageId > 0 Then
+                    cmd.Parameters.Add(":p_imp_file_stage_id", OracleDbType.Int64).Value = impFileStageId
+                End If
+                cmd.ExecuteNonQuery()
+            End Using
+
+            ' 2. 0600, 0813, 6604: 既存内示 (imp_file_stage_id IS NULL) を REPLACED / ACTIVE_FLAG='N' に更新
+            Dim sqlWash As String =
+                " UPDATE orders_stage tgt " &
+                " SET tgt.status = 'REPLACED', " &
+                "     tgt.active_flag = 'N', " &
+                "     tgt.updated_at = :p_updated_at, " &
+                "     tgt.updated_user_id = :p_user_id, " &
+                "     tgt.updated_pg_id = :p_pg_id " &
+                " WHERE (tgt.customer_setting_id = :p_customer_setting_id OR tgt.customer_code = '5455') " &
+                "   AND tgt.order_type = 1 " &
+                "   AND tgt.active_flag = 'Y' " &
+                "   AND tgt.imp_file_stage_id IS NULL " &
+                "   AND tgt.info_type_code IN ('0600', '0813', '6604') " &
+                "   AND EXISTS (" &
+                "     SELECT 1 FROM orders_stage cur " &
+                "     WHERE (cur.customer_setting_id = :p_customer_setting_id OR cur.customer_code = '5455') " &
+                "       AND cur.order_type = 1 " &
+                "       AND cur.active_flag = 'Y' " &
+                "       AND cur.item_no = tgt.item_no " &
+                "       AND cur.ship_to = tgt.ship_to " &
+                "       AND NVL(cur.target_reference_date_type, ' ') = NVL(tgt.target_reference_date_type, ' ') " &
+                "       AND NVL(cur.target_reference_date, ' ') = NVL(tgt.target_reference_date, ' ') " &
+                "       AND cur.info_type_code = tgt.info_type_code "
+            If impFileStageId > 0 Then
+                sqlWash &= " AND cur.imp_file_stage_id = :p_imp_file_stage_id "
+            End If
+            sqlWash &= " )"
+
+            Using cmd As New OracleCommand(sqlWash, tran.Connection)
+                cmd.Transaction = tran
+                cmd.BindByName = True
+                cmd.CommandType = CommandType.Text
+                cmd.Parameters.Add(":p_customer_setting_id", OracleDbType.Int64).Value = customerSettingId
+                cmd.Parameters.Add(":p_updated_at", OracleDbType.Date).Value = updatedAt
+                cmd.Parameters.Add(":p_user_id", OracleDbType.Varchar2, 9).Value = SafeVarchar(updateUserId, 9)
+                cmd.Parameters.Add(":p_pg_id", OracleDbType.Varchar2, 150).Value = SafeVarchar(updatepgId, 150)
+                If impFileStageId > 0 Then
+                    cmd.Parameters.Add(":p_imp_file_stage_id", OracleDbType.Int64).Value = impFileStageId
+                End If
+                cmd.ExecuteNonQuery()
+            End Using
+
+            ' 3. 今回取込の 0600, 0813, 6604 を PROCESSED に更新
+            Dim sqlProcessed As String =
+                " UPDATE orders_stage " &
+                " SET status = 'PROCESSED', " &
+                "     updated_at = :p_updated_at, " &
+                "     updated_user_id = :p_user_id, " &
+                "     updated_pg_id = :p_pg_id " &
+                " WHERE (customer_setting_id = :p_customer_setting_id OR customer_code = '5455') " &
+                "   AND order_type = 1 " &
+                "   AND info_type_code IN ('0600', '0813', '6604') " &
+                "   AND active_flag = 'Y' " &
+                "   AND status = 'IMPORTED' "
+            If impFileStageId > 0 Then
+                sqlProcessed &= " AND imp_file_stage_id = :p_imp_file_stage_id"
+            End If
+
+            Using cmd As New OracleCommand(sqlProcessed, tran.Connection)
+                cmd.Transaction = tran
+                cmd.BindByName = True
+                cmd.CommandType = CommandType.Text
+                cmd.Parameters.Add(":p_customer_setting_id", OracleDbType.Int64).Value = customerSettingId
+                cmd.Parameters.Add(":p_updated_at", OracleDbType.Date).Value = updatedAt
+                cmd.Parameters.Add(":p_user_id", OracleDbType.Varchar2, 9).Value = SafeVarchar(updateUserId, 9)
+                cmd.Parameters.Add(":p_pg_id", OracleDbType.Varchar2, 150).Value = SafeVarchar(updatepgId, 150)
+                If impFileStageId > 0 Then
+                    cmd.Parameters.Add(":p_imp_file_stage_id", OracleDbType.Int64).Value = impFileStageId
+                End If
+                cmd.ExecuteNonQuery()
+            End Using
+
+        End Sub
+
+        ''' <summary>
+        ''' 【Stage 2 工程6】スズキ内示消込処理 (納入指示加工)
+        ''' 0650/0651 -> 0600, 0814 -> 0813, 6624 -> 6604
+        ''' </summary>
+        Public Sub ReconcileForecastSuzuki(ByVal tran As OracleTransaction,
+                                           ByVal customerSettingId As Long,
+                                           ByVal impFileStageId As Long,
+                                           ByVal updatedAt As DateTime,
+                                           ByVal updateUserId As String,
+                                           ByVal updatepgId As String)
+
+            ' 1. 指示レコード (order_type = 3) を取得
+            Dim sqlInstr As String =
+                " SELECT stage_id, item_no, ship_to, demand_qty, info_type_code " &
+                " FROM orders_stage " &
+                " WHERE (customer_setting_id = :p_customer_setting_id OR customer_code = '5455') " &
+                "   AND order_type = 3 " &
+                "   AND active_flag = 'Y' " &
+                "   AND info_type_code IN ('0650', '0651', '0814', '6624') "
+            If impFileStageId > 0 Then
+                sqlInstr &= " AND imp_file_stage_id = :p_imp_file_stage_id "
+            End If
+            sqlInstr &= " ORDER BY item_no ASC, due_date ASC, stage_id ASC "
+
+            Dim instrRows As New List(Of (StageId As Long, ItemNo As String, ShipTo As String, DemandQty As Decimal, InfoTypeCode As String))()
+
+            Using cmd As New OracleCommand(sqlInstr, tran.Connection)
+                cmd.Transaction = tran
+                cmd.BindByName = True
+                cmd.CommandType = CommandType.Text
+                cmd.Parameters.Add(":p_customer_setting_id", OracleDbType.Int64).Value = customerSettingId
+                If impFileStageId > 0 Then
+                    cmd.Parameters.Add(":p_imp_file_stage_id", OracleDbType.Int64).Value = impFileStageId
+                End If
+                Using reader = cmd.ExecuteReader()
+                    While reader.Read()
+                        Dim sid = Convert.ToInt64(reader("stage_id"))
+                        Dim item = reader("item_no").ToString()
+                        Dim shipto = If(reader.IsDBNull(reader.GetOrdinal("ship_to")), "", reader("ship_to").ToString())
+                        Dim qty = Convert.ToDecimal(reader("demand_qty"))
+                        Dim code = If(reader.IsDBNull(reader.GetOrdinal("info_type_code")), "", reader("info_type_code").ToString())
+                        instrRows.Add((sid, item, shipto, qty, code))
+                    End While
+                End Using
+            End Using
+
+            ' 2. 各指示レコードについて対応する内示レコードを消込
+            For Each instRow In instrRows
+                Dim targetFcstCode As String = ""
+                Select Case instRow.InfoTypeCode
+                    Case "0650", "0651"
+                        targetFcstCode = "0600"
+                    Case "0814"
+                        targetFcstCode = "0813"
+                    Case "6624"
+                        targetFcstCode = "6604"
+                    Case Else
+                        Continue For
+                End Select
+
+                Dim remainingQty As Decimal = instRow.DemandQty
+
+                ' 消込対象の内示レコードを取得 (納期昇順)
+                Dim sqlFcst As String =
+                    " SELECT stage_id, demand_qty " &
+                    " FROM orders_stage " &
+                    " WHERE (customer_setting_id = :p_customer_setting_id OR customer_code = '5455') " &
+                    "   AND order_type = 1 " &
+                    "   AND active_flag = 'Y' " &
+                    "   AND item_no = :p_item_no " &
+                    "   AND ship_to = :p_ship_to " &
+                    "   AND info_type_code = :p_target_fcst_code " &
+                    "   AND demand_qty > 0 " &
+                    " ORDER BY due_date ASC, stage_id ASC "
+
+                Dim fcstRows As New List(Of (StageId As Long, DemandQty As Decimal))()
+                Using cmdF As New OracleCommand(sqlFcst, tran.Connection)
+                    cmdF.Transaction = tran
+                    cmdF.BindByName = True
+                    cmdF.CommandType = CommandType.Text
+                    cmdF.Parameters.Add(":p_customer_setting_id", OracleDbType.Int64).Value = customerSettingId
+                    cmdF.Parameters.Add(":p_item_no", OracleDbType.Varchar2, 45).Value = instRow.ItemNo
+                    cmdF.Parameters.Add(":p_ship_to", OracleDbType.Varchar2, 25).Value = instRow.ShipTo
+                    cmdF.Parameters.Add(":p_target_fcst_code", OracleDbType.Varchar2, 4).Value = targetFcstCode
+                    Using readerF = cmdF.ExecuteReader()
+                        While readerF.Read()
+                            fcstRows.Add((Convert.ToInt64(readerF("stage_id")), Convert.ToDecimal(readerF("demand_qty"))))
+                        End While
+                    End Using
+                End Using
+
+                For Each fcst In fcstRows
+                    If remainingQty <= 0 Then Exit For
+
+                    If fcst.DemandQty <= remainingQty Then
+                        ' 内示数量全額消込
+                        remainingQty -= fcst.DemandQty
+                        Dim sqlUpd As String =
+                            " UPDATE orders_stage " &
+                            " SET demand_qty = 0, status = 'RECONCILED', active_flag = 'N', " &
+                            "     updated_at = :p_updated_at, updated_user_id = :p_user_id, updated_pg_id = :p_pg_id " &
+                            " WHERE stage_id = :p_stage_id "
+                        Using cmdU As New OracleCommand(sqlUpd, tran.Connection)
+                            cmdU.Transaction = tran
+                            cmdU.BindByName = True
+                            cmdU.CommandType = CommandType.Text
+                            cmdU.Parameters.Add(":p_updated_at", OracleDbType.Date).Value = updatedAt
+                            cmdU.Parameters.Add(":p_user_id", OracleDbType.Varchar2, 9).Value = SafeVarchar(updateUserId, 9)
+                            cmdU.Parameters.Add(":p_pg_id", OracleDbType.Varchar2, 150).Value = SafeVarchar(updatepgId, 150)
+                            cmdU.Parameters.Add(":p_stage_id", OracleDbType.Int64).Value = fcst.StageId
+                            cmdU.ExecuteNonQuery()
+                        End Using
+                    Else
+                        ' 一部消込
+                        Dim newQty = fcst.DemandQty - remainingQty
+                        remainingQty = 0
+                        Dim sqlUpd As String =
+                            " UPDATE orders_stage " &
+                            " SET demand_qty = :p_demand_qty, " &
+                            "     updated_at = :p_updated_at, updated_user_id = :p_user_id, updated_pg_id = :p_pg_id " &
+                            " WHERE stage_id = :p_stage_id "
+                        Using cmdU As New OracleCommand(sqlUpd, tran.Connection)
+                            cmdU.Transaction = tran
+                            cmdU.BindByName = True
+                            cmdU.CommandType = CommandType.Text
+                            cmdU.Parameters.Add(":p_demand_qty", OracleDbType.Decimal).Value = newQty
+                            cmdU.Parameters.Add(":p_updated_at", OracleDbType.Date).Value = updatedAt
+                            cmdU.Parameters.Add(":p_user_id", OracleDbType.Varchar2, 9).Value = SafeVarchar(updateUserId, 9)
+                            cmdU.Parameters.Add(":p_pg_id", OracleDbType.Varchar2, 150).Value = SafeVarchar(updatepgId, 150)
+                            cmdU.Parameters.Add(":p_stage_id", OracleDbType.Int64).Value = fcst.StageId
+                            cmdU.ExecuteNonQuery()
+                        End Using
+                    End If
+                Next
+            Next
+
+        End Sub
+
+        ''' <summary>
+        ''' 【Stage 2 工程6】スズキ納入指示新規確定 (order_type = 3)
+        ''' </summary>
+        Public Sub UpdateKakuteiNewOrdersSuzuki(ByVal tran As OracleTransaction, ByVal impFileStageId As Long)
+            Dim sql As String =
+                " UPDATE orders_stage " &
+                " SET status = 'PROCESSED' " &
+                " WHERE (customer_code = '5455') " &
+                "   AND order_type = 3 " &
+                "   AND active_flag = 'Y' " &
+                "   AND status = 'IMPORTED' "
+            If impFileStageId > 0 Then
+                sql &= " AND imp_file_stage_id = :p_imp_file_stage_id"
+            End If
+
+            Using cmd As New OracleCommand(sql, tran.Connection)
+                cmd.Transaction = tran
+                cmd.BindByName = True
+                cmd.CommandType = CommandType.Text
+                If impFileStageId > 0 Then
+                    cmd.Parameters.Add(":p_imp_file_stage_id", OracleDbType.Int64).Value = impFileStageId
+                End If
+                cmd.ExecuteNonQuery()
+            End Using
+        End Sub
+
+        ''' <summary>
+        ''' 【Stage 2 工程7】スズキ専用テーブルのステータス更新 (STATUS = 'REGISTERED')
+        ''' </summary>
+        Public Sub UpdateSuzukiStagingStatusRegistered(ByVal tran As OracleTransaction, ByVal impFileStageId As Long, ByVal userId As String, ByVal pgId As String)
+            Dim tables As String() = {
+                "SUZUKI_SPIRITS_0501AND0502",
+                "SUZUKI_SPIRITS_0600AND0630",
+                "SUZUKI_SPIRITS_0602",
+                "SUZUKI_SPIRITS_0650",
+                "SUZUKI_SPIRITS_0651",
+                "SUZUKI_SPIRITS_0740",
+                "SUZUKI_SPIRITS_0813",
+                "SUZUKI_SPIRITS_0814",
+                "SUZUKI_SPIRITS_6604AND6634",
+                "SUZUKI_SPIRITS_6624",
+                "SUZUKI_SPIRITS_663NAND663SAND664T"
+            }
+
+            For Each tbl In tables
+                Dim sql As String =
+                    $" UPDATE {tbl} SET " &
+                    "    status = 'REGISTERED', " &
+                    "    updated_at = SYSDATE, " &
+                    "    updated_user_id = :p_user_id, " &
+                    "    updated_pg_id = :p_pg_id " &
+                    " WHERE active_flag = 'Y' " &
+                    "   AND (status IS NULL OR status <> 'REGISTERED') "
+                If impFileStageId > 0 Then
+                    sql &= " AND imp_file_id = :p_imp_file_id"
+                End If
+
+                Using cmd As New OracleCommand(sql, tran.Connection)
+                    cmd.Transaction = tran
+                    cmd.BindByName = True
+                    cmd.CommandType = CommandType.Text
+                    cmd.Parameters.Add(":p_user_id", OracleDbType.Varchar2, 9).Value = SafeVarchar(userId, 9)
+                    cmd.Parameters.Add(":p_pg_id", OracleDbType.Varchar2, 150).Value = SafeVarchar(pgId, 150)
+                    If impFileStageId > 0 Then
+                        cmd.Parameters.Add(":p_imp_file_id", OracleDbType.Int64).Value = impFileStageId
+                    End If
+                    cmd.ExecuteNonQuery()
+                End Using
+            Next
+        End Sub
+
+        ''' <summary>
+        ''' 【Stage 2 工程7】スズキ専用テーブルのステータス更新（IMP_RUN_ID単位）
+        ''' </summary>
+        Public Sub UpdateSuzukiStagingStatusRegisteredByRunId(ByVal tran As OracleTransaction, ByVal impRunId As Long, ByVal userId As String, ByVal pgId As String)
+            Dim tables As String() = {
+                "SUZUKI_SPIRITS_0501AND0502",
+                "SUZUKI_SPIRITS_0600AND0630",
+                "SUZUKI_SPIRITS_0602",
+                "SUZUKI_SPIRITS_0650",
+                "SUZUKI_SPIRITS_0651",
+                "SUZUKI_SPIRITS_0740",
+                "SUZUKI_SPIRITS_0813",
+                "SUZUKI_SPIRITS_0814",
+                "SUZUKI_SPIRITS_6604AND6634",
+                "SUZUKI_SPIRITS_6624",
+                "SUZUKI_SPIRITS_663NAND663SAND664T"
+            }
+
+            For Each tbl In tables
+                Dim sql As String =
+                    $" UPDATE {tbl} SET " &
+                    "    status = 'REGISTERED', " &
+                    "    updated_at = SYSDATE, " &
+                    "    updated_user_id = :p_user_id, " &
+                    "    updated_pg_id = :p_pg_id " &
+                    " WHERE active_flag = 'Y' " &
+                    "   AND (status IS NULL OR status <> 'REGISTERED') "
+                If impRunId > 0 Then
+                    sql &= " AND imp_run_id = :p_imp_run_id"
+                End If
+
+                Using cmd As New OracleCommand(sql, tran.Connection)
+                    cmd.Transaction = tran
+                    cmd.BindByName = True
+                    cmd.CommandType = CommandType.Text
+                    cmd.Parameters.Add(":p_user_id", OracleDbType.Varchar2, 9).Value = SafeVarchar(userId, 9)
+                    cmd.Parameters.Add(":p_pg_id", OracleDbType.Varchar2, 150).Value = SafeVarchar(pgId, 150)
+                    If impRunId > 0 Then
+                        cmd.Parameters.Add(":p_imp_run_id", OracleDbType.Int64).Value = impRunId
+                    End If
+                    cmd.ExecuteNonQuery()
+                End Using
+            Next
+        End Sub
+
+        ''' <summary>
         ''' 指定した取引先設定IDのデータを正規テーブル(orders)に反映する
         ''' </summary>
         ''' <param name="tran">呼び出し元から引き継ぐトランザクション</param>
@@ -4312,7 +4762,8 @@ Namespace OMS.Data
                         "  stra_order_qty, stra_ship_qty, stra_order_backlog, " &
                         "  order_time, sales_unit_price, delivery_time, " &
                         "  usage_location, production_category, container_no, " &
-                        "  container_capacity, customer_lot_no, initial_flag, order_reason" &
+                        "  container_capacity, customer_lot_no, initial_flag, order_reason, " &
+                        "  target_reference_date_type, target_reference_date, info_type_code " &
                         ") SELECT " &
                         "  customer_setting_id, customer_code, billing_to, customer_order_no, demand_status, ship_to, " &
                         "  order_date, due_date, customer_item_no, item_no, " &
@@ -4328,7 +4779,8 @@ Namespace OMS.Data
                         "  stra_order_qty, stra_ship_qty, stra_order_backlog, " &
                         "  order_time, sales_unit_price, delivery_time, " &
                         "  usage_location, production_category, container_no, " &
-                        "  container_capacity, customer_lot_no, initial_flag, order_reason" &
+                        "  container_capacity, customer_lot_no, initial_flag, order_reason, " &
+                        "  target_reference_date_type, target_reference_date, info_type_code " &
                         "  FROM orders_stage " &
                         "  WHERE customer_setting_id = :p_customer_setting_id " &
                         "  AND status = 'PROCESSED' " &
@@ -4421,7 +4873,8 @@ Namespace OMS.Data
                         "  stra_order_qty, stra_ship_qty, stra_order_backlog, " &
                         "  order_time, sales_unit_price, delivery_time, " &
                         "  usage_location, production_category, container_no, " &
-                        "  container_capacity, customer_lot_no, initial_flag, order_reason" &
+                        "  container_capacity, customer_lot_no, initial_flag, order_reason, " &
+                        "  target_reference_date_type, target_reference_date, info_type_code " &
                         ") SELECT " &
                         "  order_id, customer_setting_id, customer_code, billing_to, customer_order_no, demand_status, ship_to, " &
                         "  order_date, due_date, ship_scheduled_date, customer_item_no, item_no, " &
@@ -4437,7 +4890,8 @@ Namespace OMS.Data
                         "  stra_order_qty, stra_ship_qty, stra_order_backlog, " &
                         "  order_time, sales_unit_price, delivery_time, " &
                         "  usage_location, production_category, container_no, " &
-                        "  container_capacity, customer_lot_no, initial_flag, order_reason" &
+                        "  container_capacity, customer_lot_no, initial_flag, order_reason, " &
+                        "  target_reference_date_type, target_reference_date, info_type_code " &
                         "  FROM orders " &
                         "  WHERE customer_setting_id = :p_customer_setting_id " &
                         "  AND status = 'PROCESSED' " &
