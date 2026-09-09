@@ -3,20 +3,20 @@
 > **Project Name:** Suzuki (SPIRITS) Order Import System (`受注取込_スピリッツ`)  
 > **Target Modules:** `SUZUKI_SPIRITS_DATA_PRE_IMPORT` & `SUZUKI_SPIRITS_DATA_IMPORT`  
 > **Repository:** `OrderManagementSystem-master`  
-> **Last Updated:** 2026-08-07  
-> **Status:** 🟢 Phase 1 Core Service Layer & Staging Pipeline (~50% Overall Completion)  
+> **Last Updated:** 2026-09-09  
+> **Status:** 🟢 Phase 1 & Phase 2 Pipeline Complete (100% Requirements Completion)  
 
 ---
 
 ## 📈 Executive Summary & Gap Assessment
 
-Is the current progress far away from the requirements? **No, the project is approximately 50% complete with a solid architectural foundation.**
+Is the current progress far away from the requirements? **No, the pipeline is 100% complete and fully verified across both stages.**
 
 - **Stage 1: Pre-Import & Staging (Steps 1–9)** $\rightarrow$ **100% Complete**  
-  File scanning, WORK folder management (`SUZUKI-AT`), invalidation (`ACTIVE_FLAG = 'N'`), part matching against `PRDSLSODRM`, `Row(n)` Excel error reports, error file backups (`[Original]_[User]_[Time].csv`), and physical deletion of unmatched error rows are fully functional for **all 11 `INFO_TYPE_CODE` formats**.
+  File scanning, WORK folder management (`SUZUKI-AT`), invalidation (`ACTIVE_FLAG = 'N'`), part matching against `PRDSLSODRM`, `Row(n)` error reporting, error file backups (`[Original]_[User]_[Time].csv`), physical deletion of unmatched error rows, Sakai-san's 4-rule pre-import handling, and accurate column index resolution for all 11 `INFO_TYPE_CODE` formats (including `6624` at col 7) are fully functional and tested.
 
-- **Stage 2: Order Registration & Master Commitment (Steps 10–18)** $\rightarrow$ **0% Complete / Pending**  
-  `ORDERS_STAGE` transformation, Oracle `ADD_WORKING_DAYS2` working calendar due date calculation, `SUZUKI_SPIRITS_CONVERSION_MST` ship-to mapping, and final commitment to master tables `ORDERS` and `ORDER_HISTORY` are scheduled for Phase 2 integration.
+- **Stage 2: Order Registration & Master Commitment (Steps 10–18)** $\rightarrow$ **100% Complete**  
+  `ORDERS_STAGE` transformation, Oracle `ADD_WORKING_DAYS2` working calendar due date calculation, `SUZUKI_SPIRITS_CONVERSION_MST` ship-to mapping, reconciliation (`内示加工`, `受注残加工`, `納入指示加工`), and commitment to master tables `ORDERS` and `ORDER_HISTORY` are fully implemented and verified in `SuzukiDataImportService.vb` and Web/CLI execution.
 
 ---
 
@@ -31,8 +31,8 @@ Is the current progress far away from the requirements? **No, the project is app
 | **5** | ワーク登録 | `IMP_FILES_STAGE` Registration | 🟢 **DONE** | `IMP_FILES_STAGE` metadata registered (`STATUS = 'DISCOVERED'`). |
 | **6** | 専用テーブル挿入 | Suzuki Dedicated Table Insert | 🟢 **DONE** | Implemented for **all 11 formats** (`0501`, `0502`, `0600`, `0630`, `0602`, `0650`, `0651`, `0740`, `0813`, `0814`, `6604`, `6634`, `6624`, `663N`, `663S`, `664T`). |
 | **7** | 更新チェック (無効) | Active Flag Invalidation | 🟢 **DONE** | `UpdateActiveFlags` sets `ACTIVE_FLAG = 'N'` for matching publication timestamps. |
-| **8** | 品番割り当て (品番) | ASTI Part Matching + Z-Suffix | 🟢 **DONE** | `PRDSLSODRM` lookup implemented. Z-suffix rule (`FCUSTITEMNO` ending with `'Z'`) for codes `6604`, `6624`, `6634`, `663N`, `663S`, `664T` defined. |
-| **9** | エラーチェック/削除 | Pre-Import Error Handling | 🟢 **DONE** | `Row(n)` Excel error generation, error file backup (`[Original]_[User]_[Time].csv`), and physical `DELETE` of unmatched error rows completed. |
+| **8** | 品番割り当て (品番) | ASTI Part Matching + Z-Suffix | 🟢 **DONE** | `PRDSLSODRM` lookup implemented. Z-suffix rule (`FPRDCD` ending with `'Z'`) for codes `6604`, `6624`, `6634`, `663N`, `663S`, `664T` and `FCUSTCD = '5455'` verified. |
+| **9** | エラーチェック/削除 | Pre-Import Error Handling | 🟢 **DONE** | Implemented Sakai-san's 4-rule flow (0 rows $\rightarrow$ Rule 1, all valid $\rightarrow$ Rule 2, partial part error $\rightarrow$ Rule 3, all part error $\rightarrow$ Rule 4). Fixed `6624` CSV column index (col 7). `Row(n)` errors, error file backup (`[Original]_[User]_[Time].csv`), and physical `DELETE` of unmatched error rows completed. |
 | **10** | 受注登録移行 | Stage 1 $\rightarrow$ Stage 2 Transition | 🟢 **DONE** | Connected Pre-Import CLI execution to Order Registration processing pipeline in `SUZUKI_SPIRITS_DATA_IMPORT`. |
 | **11** | 受注ワーク削除 | Stage Cleaning (`ORDERS_STAGE`) | 🟢 **DONE** | Purge `ORDERS_STAGE` for current target customer (`5455`) and folder type `4` (`DeleteOrdersStageForSuzuki`). |
 | **12** | 受注データチェック | Order Data Code Filtering | 🟢 **DONE** | Active records extracted and filtered for `0600`, `0602`, `0650`, `0651`, `0813`, `0814`, `6604`, `6624`. |

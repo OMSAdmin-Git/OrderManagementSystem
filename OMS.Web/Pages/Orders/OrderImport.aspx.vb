@@ -344,7 +344,7 @@ Namespace Pages.Orders
                         Dim spprocesstype As Integer
 
 
-                        Dim cnt As Integer = 0
+                        'Dim cnt As Integer = 0
                         Dim errcnt As Integer = 0
 
                         ' 取引先ファイル選択行を走査
@@ -612,7 +612,8 @@ Namespace Pages.Orders
 
 
                                 'マッピングマスタ取得処理
-                                Dim mapError As String = ""
+                                'Dim mapError As String = ""
+                                'Dim blnflg As Boolean = False
                                 Dim mapResult As OMS.Data.OrderStageImport.MappingResult = OMS.Data.OrderStageImport.ResolveMapping(_mappingRepo, customerSettingId, folderType, errors)
 
                                 'Phase2対応 spprocesstype=1or2or3はマッピングマスタを使用しない
@@ -658,6 +659,8 @@ Namespace Pages.Orders
                                                                 rowsForTemp2,
                                                                 mapResult)
 
+                                    'blnflg = True
+
                                 ElseIf mapResult Is Nothing AndAlso spprocesstype = 1 AndAlso folderType = 4 Then
                                     '特殊加工:スズキ フォルダ区分:混合
                                     Dim suzukiService As New OMS.Business.Services.SuzukiDataImportService(Utils.GetConnectionString())
@@ -677,6 +680,8 @@ Namespace Pages.Orders
                                         ErrFlg = True
                                         Continue For
                                     End If
+
+                                    'blnflg = True
 
                                 ElseIf mapResult Is Nothing AndAlso spprocesstype = 2 AndAlso folderType = 4 Then
                                     '特殊加工:ヤマハ(IM以外) フォルダ区分:混合
@@ -700,6 +705,8 @@ Namespace Pages.Orders
                                                                 errors,
                                                                 rowsForTemp2)
 
+                                    'blnflg = True
+
                                 ElseIf mapResult Is Nothing AndAlso spprocesstype = 3 AndAlso folderType <> 4 Then
                                     ' Yamaha robotex 内示/確定/ASTI内示取得
                                     OMS.Data.OrderStageImport.YamahaRobotexOrdersStageImport(tran,
@@ -718,6 +725,8 @@ Namespace Pages.Orders
                                                                                             pgId,
                                                                                             errors,
                                                                                             rowsForTemp2)
+                                    'blnflg = True
+
                                 ElseIf mapResult Is Nothing Then
 
                                     'errors.Add($"顧客設定ID:{customerSettingId} - {mapError}")
@@ -768,8 +777,10 @@ Namespace Pages.Orders
 
                                 Else
 
+                                    'If blnflg = True Then
                                     '取込対象が一件も無い場合、
                                     nodata.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　対象データが1件も無いため破棄してください。")
+                                    'End If
 
                                 End If
 
