@@ -3536,21 +3536,6 @@ Namespace OMS.Data
 
         End Function
 
-        'Public Shared Function OrdersStageSaved(ByVal tran As OracleTransaction,
-        '                                    ByVal CustomerSettingId As Long,
-        '                                    ByVal impfilestageId As Long,
-        '                                    ByVal FolderType As Integer,
-        '                                    ByVal ReconcileFlag As String,
-        '                                    ByVal FcstReconcileFlag As String,
-        '                                    ByVal blnHandFlag As Boolean,
-        '                                    ByVal UserId As String,
-        '                                    ByVal pgId As String,
-        '                                    ByVal rowsForTemp2 As List(Of OrdersStageRow)) As OrderStageImport
-
-        '    Return OrdersStageSaved(tran, CustomerSettingId, impfilestageId, FolderType, ReconcileFlag, FcstReconcileFlag, blnHandFlag, UserId, pgId, rowsForTemp2, -1)
-
-        'End Function
-
         Public Shared Function OrdersStageSaved(ByVal tran As OracleTransaction,
                                             ByVal CustomerSettingId As Long,
                                             ByVal impfilestageId As Long,
@@ -3613,14 +3598,6 @@ Namespace OMS.Data
                                                         }
 
                 _impFileStageRepo.UpdateRange(tran, rowsForTemp3)
-                '-----------------------------------------------
-
-
-                'デバック用
-                'tran.Commit()
-
-
-
                 '-----------------------------------------------
                 rowsForTemp2.Clear()
 
