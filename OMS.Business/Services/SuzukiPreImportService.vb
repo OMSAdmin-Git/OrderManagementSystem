@@ -1,4 +1,4 @@
-Imports System.Configuration
+﻿Imports System.Configuration
 Imports System.Data
 Imports System.IO
 Imports System.Text
@@ -237,13 +237,13 @@ Namespace Services
                                 ProcessFileByInfoCode(conn, tran, workFilePath, infoCode, userId, impRunId, impFileStageId)
 
                                 ' 品番更新 (PRDSLSODRM)
-                                UpdateAstiPartNumbers(conn, tran, infoCode)
+                                UpdateAstiPartNumbers(conn, tran, infoCode, impFileStageId)
 
                                 ' 無効化チェック (ACTIVE_FLAG = 'N')
                                 UpdateActiveFlags(conn, tran, infoCode)
 
                                 ' エラーチェック (ASTI品番未設定行)
-                                Dim errorRows = FindPartMatchingErrors(conn, tran, infoCode, workFilePath)
+                                Dim errorRows = FindPartMatchingErrors(conn, tran, infoCode, workFilePath, impFileStageId)
                                 If errorRows.Count > 0 Then
                                     errorFilesCount += 1
 
@@ -285,7 +285,7 @@ Namespace Services
                                         CopyErrorBackupFile(workFilePath, folderPath, fileName, userId)
 
                                         ' 3. スズキ特殊テーブルの該当データは削除する
-                                        DeleteErrorRows(conn, tran, infoCode)
+                                        DeleteErrorRows(conn, tran, infoCode, impFileStageId)
                                     End If
                                 Else
                                     ' --- Rule 2: 全件正常の場合 ---
@@ -314,13 +314,13 @@ Namespace Services
                         logger.Write($"[SUZUKI_IMPORT] File Error: {ex.Message}")
                     End Try
                 Next
-                
+
                 ' Step 10: Transition to Order Registration (Batch Mode Only)
                 If isBatch Then
                     Dim importService As New SuzukiDataImportService(_connectionString)
                     importService.ExecuteOrderRegistration(customerSettingId, folderType, impRunId, userId)
                 End If
-                
+
                 ' 実行管理更新
                 Using tran As OracleTransaction = conn.BeginTransaction()
                     Try
@@ -557,7 +557,36 @@ Namespace Services
             End Select
         End Function
 
-        Private Sub UpdateAstiPartNumbers(conn As OracleConnection, tran As OracleTransaction, infoCode As String)
+        Public Shared Function GetCustomerItemNoColumnIndex(infoCode As String) As Integer
+            Select Case infoCode
+                Case "0501", "0502"
+                    Return 10
+                Case "0600", "0630"
+                    Return 10
+                Case "0602"
+                    Return 8
+                Case "0650"
+                    Return 8
+                Case "0651"
+                    Return 8
+                Case "0740"
+                    Return 6
+                Case "0813"
+                    Return 9
+                Case "0814"
+                    Return 9
+                Case "6604", "6634"
+                    Return 9
+                Case "6624"
+                    Return 7
+                Case "663N", "663S", "664T"
+                    Return 11
+                Case Else
+                    Return 10
+            End Select
+        End Function
+
+        Private Sub UpdateAstiPartNumbers(conn As OracleConnection, tran As OracleTransaction, infoCode As String, impFileStageId As Long)
             Dim tableName = GetTargetTableName(infoCode)
             If String.IsNullOrEmpty(tableName) Then Return
 
@@ -566,22 +595,28 @@ Namespace Services
             Dim sql As New StringBuilder()
             sql.AppendLine($"UPDATE {tableName} t")
             sql.AppendLine("SET t.item_no = (")
-            sql.AppendLine("  SELECT p.FPRDCD FROM PRDSLSODRM p")
-            sql.AppendLine("  WHERE p.FCUSTCD = '5455'")
+            sql.AppendLine("  SELECT TRIM(p.FPRDCD) FROM PRDSLSODRM p")
+            sql.AppendLine("  WHERE TRIM(p.FCUSTCD) = '5455'")
             sql.AppendLine("    AND TRIM(p.FCUSTITEMNO) = TRIM(t.customer_item_no)")
 
             If isZSuffix Then
-                sql.AppendLine("    AND UPPER(p.FPRDCD) LIKE '%Z'")
+                sql.AppendLine("    AND UPPER(TRIM(p.FPRDCD)) LIKE '%Z'")
             Else
-                sql.AppendLine("    AND UPPER(p.FPRDCD) NOT LIKE '%Z'")
+                sql.AppendLine("    AND UPPER(TRIM(p.FPRDCD)) NOT LIKE '%Z'")
             End If
 
             sql.AppendLine("    FETCH FIRST 1 ROWS ONLY")
             sql.AppendLine(")")
             sql.AppendLine("WHERE t.active_flag = 'Y' AND t.item_no IS NULL")
+            If impFileStageId > 0 Then
+                sql.AppendLine("  AND t.imp_file_id = :p_imp_file_id")
+            End If
 
             Using cmd As New OracleCommand(sql.ToString(), conn)
                 cmd.Transaction = tran
+                If impFileStageId > 0 Then
+                    cmd.Parameters.Add(":p_imp_file_id", OracleDbType.Int64).Value = impFileStageId
+                End If
                 cmd.ExecuteNonQuery()
             End Using
         End Sub
@@ -617,15 +652,22 @@ Namespace Services
             End Using
         End Sub
 
-        Private Function FindPartMatchingErrors(conn As OracleConnection, tran As OracleTransaction, infoCode As String, csvFilePath As String) As List(Of String)
+        Private Function FindPartMatchingErrors(conn As OracleConnection, tran As OracleTransaction, infoCode As String, csvFilePath As String, impFileStageId As Long) As List(Of String)
             Dim result As New List(Of String)()
             Dim tableName = GetTargetTableName(infoCode)
             If String.IsNullOrEmpty(tableName) Then Return result
 
             Dim unmatchedItems As New HashSet(Of String)(StringComparer.OrdinalIgnoreCase)
             Dim sql = $"SELECT DISTINCT customer_item_no FROM {tableName} WHERE active_flag = 'Y' AND item_no IS NULL"
+            If impFileStageId > 0 Then
+                sql &= " AND imp_file_id = :p_imp_file_id"
+            End If
+
             Using cmd As New OracleCommand(sql, conn)
                 cmd.Transaction = tran
+                If impFileStageId > 0 Then
+                    cmd.Parameters.Add(":p_imp_file_id", OracleDbType.Int64).Value = impFileStageId
+                End If
                 Using reader = cmd.ExecuteReader()
                     While reader.Read()
                         If Not reader.IsDBNull(0) Then
@@ -636,37 +678,18 @@ Namespace Services
             End Using
 
             If unmatchedItems.Count > 0 AndAlso File.Exists(csvFilePath) Then
-                Dim colIdx As Integer
-                Select Case infoCode
-                    Case "0600", "0630", "0650"
-                        colIdx = 10
-                    Case "0602", "0651", "0740"
-                        colIdx = 8
-                    Case "0814", "6604", "6624", "6634"
-                        colIdx = 9
-                    Case "663N", "663S", "664T"
-                        colIdx = 7
-                    Case "0501", "0502"
-                        colIdx = 11
-                    Case "0813"
-                        colIdx = 6
+                Dim colIdx = GetCustomerItemNoColumnIndex(infoCode)
+                Dim lines = SuzukiCsvParser.ReadLinesAutoEncoding(csvFilePath)
 
-                    Case Else
-                        colIdx = 10
-                End Select
-
-                Dim lines = File.ReadAllLines(csvFilePath, Encoding.GetEncoding("shift-jis"))
                 For lineIdx As Integer = 0 To lines.Length - 1
                     Dim line = lines(lineIdx)
                     If String.IsNullOrWhiteSpace(line) Then Continue For
 
-                    Dim cols = line.Split(","c)
-                    If colIdx < cols.Length Then
-                        Dim custItemNo = cols(colIdx).Trim(" "c, """"c)
-                        If Not String.IsNullOrEmpty(custItemNo) AndAlso unmatchedItems.Contains(custItemNo) Then
-                            Dim csvRowNumber = lineIdx + 1
-                            result.Add($"Row({csvRowNumber}): 品目No及び製品コードが取得できません。")
-                        End If
+                    Dim cols = SuzukiCsvParser.SplitCsvLine(line)
+                    Dim custItemNo = SuzukiCsvParser.CleanCol(cols, colIdx)
+                    If Not String.IsNullOrEmpty(custItemNo) AndAlso unmatchedItems.Contains(custItemNo) Then
+                        Dim csvRowNumber = lineIdx + 1
+                        result.Add($"Row({csvRowNumber}): 品目No及び製品コードが取得できません。")
                     End If
                 Next
             End If
@@ -706,14 +729,10 @@ Namespace Services
 
         Private Sub MoveBackErrorFile(workFilePath As String, sourceFolder As String, originalFileName As String, userId As String)
             Try
-                Dim baseName = Path.GetFileNameWithoutExtension(originalFileName)
-                Dim match = Text.RegularExpressions.Regex.Match(baseName, "^(.*?)(?:_[a-zA-Z0-9\-]+_\d{8}_\d{6})+$")
-                If match.Success Then
-                    baseName = match.Groups(1).Value
-                End If
-
+                Dim nameNoExt = Path.GetFileNameWithoutExtension(originalFileName)
+                Dim ext = Path.GetExtension(originalFileName)
                 Dim timeStamp = DateTime.Now.ToString("yyyyMMdd_HHmmss")
-                Dim newFileName = $"{baseName}_{userId}_{timeStamp}{Path.GetExtension(originalFileName)}"
+                Dim newFileName = $"{nameNoExt}_{userId}_{timeStamp}{ext}"
                 Dim targetPath = Path.Combine(sourceFolder, newFileName)
                 File.Copy(workFilePath, targetPath, True)
                 If File.Exists(targetPath) Then
@@ -725,27 +744,30 @@ Namespace Services
 
         Private Sub CopyErrorBackupFile(workFilePath As String, sourceFolder As String, originalFileName As String, userId As String)
             Try
-                Dim baseName = Path.GetFileNameWithoutExtension(originalFileName)
-                Dim match = Text.RegularExpressions.Regex.Match(baseName, "^(.*?)(?:_[a-zA-Z0-9\-]+_\d{8}_\d{6})+$")
-                If match.Success Then
-                    baseName = match.Groups(1).Value
-                End If
-
+                Dim nameNoExt = Path.GetFileNameWithoutExtension(originalFileName)
+                Dim ext = Path.GetExtension(originalFileName)
                 Dim timeStamp = DateTime.Now.ToString("yyyyMMdd_HHmmss")
-                Dim newFileName = $"{baseName}_{userId}_{timeStamp}{Path.GetExtension(originalFileName)}"
+                Dim newFileName = $"{nameNoExt}_{userId}_{timeStamp}{ext}"
                 Dim targetPath = Path.Combine(sourceFolder, newFileName)
                 File.Copy(workFilePath, targetPath, True)
             Catch ex As Exception
             End Try
         End Sub
 
-        Private Sub DeleteErrorRows(conn As OracleConnection, tran As OracleTransaction, infoCode As String)
+        Private Sub DeleteErrorRows(conn As OracleConnection, tran As OracleTransaction, infoCode As String, impFileStageId As Long)
             Dim tableName = GetTargetTableName(infoCode)
             If String.IsNullOrEmpty(tableName) Then Return
 
             Dim sql = $"DELETE FROM {tableName} WHERE active_flag = 'Y' AND item_no IS NULL"
+            If impFileStageId > 0 Then
+                sql &= " AND imp_file_id = :p_imp_file_id"
+            End If
+
             Using cmd As New OracleCommand(sql, conn)
                 cmd.Transaction = tran
+                If impFileStageId > 0 Then
+                    cmd.Parameters.Add(":p_imp_file_id", OracleDbType.Int64).Value = impFileStageId
+                End If
                 cmd.ExecuteNonQuery()
             End Using
         End Sub

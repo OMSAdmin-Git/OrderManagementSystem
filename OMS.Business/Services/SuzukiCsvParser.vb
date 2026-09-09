@@ -1,4 +1,4 @@
-Imports System.Globalization
+﻿Imports System.Globalization
 Imports System.IO
 Imports System.Text
 Imports CsvHelper
@@ -738,7 +738,7 @@ Namespace Services
 
 #Region "ヘルパーメソッド"
 
-        Private Shared Function SplitCsvLine(line As String) As String()
+        Friend Shared Function SplitCsvLine(line As String) As String()
             Dim result As New List(Of String)()
             Dim inQuotes As Boolean = False
             Dim current As New StringBuilder()
@@ -760,7 +760,7 @@ Namespace Services
         ''' <summary>
         ''' 文字コード（UTF-8 BOM有無 / Shift-JIS）を自動判別して全行読み込みます。
         ''' </summary>
-        Private Shared Function ReadLinesAutoEncoding(filePath As String) As String()
+        Friend Shared Function ReadLinesAutoEncoding(filePath As String) As String()
             Dim lines As New List(Of String)()
             Using reader As New StreamReader(filePath, Encoding.GetEncoding("shift-jis"), True)
                 While Not reader.EndOfStream
@@ -776,7 +776,7 @@ Namespace Services
             Return lines.ToArray()
         End Function
 
-        Private Shared Function CleanCol(cols As String(), idx As Integer) As String
+        Friend Shared Function CleanCol(cols As String(), idx As Integer) As String
             If idx >= cols.Length Then Return String.Empty
             Return cols(idx).Trim(" "c, """"c)
         End Function

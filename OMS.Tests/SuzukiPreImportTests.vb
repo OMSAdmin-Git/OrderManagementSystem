@@ -1,4 +1,4 @@
-Imports System.IO
+﻿Imports System.IO
 Imports System.Text
 Imports Microsoft.VisualStudio.TestTools.UnitTesting
 Imports OMS.Business.Services
@@ -156,6 +156,48 @@ Public Class SuzukiPreImportTests
         Finally
             If File.Exists(tempFile) Then File.Delete(tempFile)
         End Try
+    End Sub
+
+    <TestMethod>
+    Public Sub ParseSpirits6624_ParsesCustomerItemNoAtColumn7Correctly()
+        Dim tempFile = Path.GetTempFileName()
+        Try
+            Dim sb As New StringBuilder()
+            ' ヘッダ行 (39列)
+            sb.AppendLine("""情報区分コード"",""書面タイトル区分"",""支払方法等文言区分"",""発注者コード"",""受注者コード"",""受注者事業所コード"",""発行日"",""部品番号"",""部品番号識別－１"",""部品番号識別－２"",""部品名称"",""荷姿コード"",""収容数"",""仕入先コード"",""仕入先工場コード"",""仕入先出荷場所"",""納入先コード"",""納入先工場コード"",""納入場所"",""直納・直送区分"",""発行番号"",""発行番号識別－１"",""発行番号識別－２"",""納入指示区分"",""注文データ区分"",""納入日区分"",""数量区分"",""納入指示日"",""納入指示時刻"",""出荷指示日"",""納入指示数"",""手配担当"",""発注理由"",""初物区分"",""発行注釈"",""供給ライン"",""供給工程"",""工事番号"",""包装区分""")
+            ' 6624 データ行: 列7が "36611-96J01-000", 列9が "0"
+            sb.AppendLine("""6624"",""H2"",""H2"",""SUZUKI"",""3754"","""",""20260716"",""36611-96J01-000"",""00"",""0"",""WIRE,TRIM SENSOR"",""PB"",""00050"",""3754"",""A00"","""",""P300"","""",""P300"",""H"",""D31108G"","""","""",""5"",""4"",""5"",""1"",""20261012"",""0000"","""",""000010"",""ﾃｷN2  1"",""74"","""",""2A99-000JP"","".A-14"",""ED70A4 98"","""",""""")
+            File.WriteAllText(tempFile, sb.ToString(), Encoding.GetEncoding("shift-jis"))
+
+            Dim rows = SuzukiCsvParser.ParseSpirits6624(tempFile)
+            Assert.AreEqual(1, rows.Count, "6624データ行が1件パースされる必要があります")
+            Assert.AreEqual("6624", rows(0).InfoTypeCode)
+            Assert.AreEqual("36611-96J01-000", rows(0).CustomerItemNo, "6624の部品番号は列7 (36611-96J01-000) である必要があります")
+            Assert.AreEqual("00", rows(0).CustomerItemNoProcessNo1)
+            Assert.AreEqual("0", rows(0).CustomerItemNoProcessNo2)
+        Finally
+            If File.Exists(tempFile) Then File.Delete(tempFile)
+        End Try
+    End Sub
+
+    <TestMethod>
+    Public Sub GetCustomerItemNoColumnIndex_ReturnsExpectedIndexForEachInfoCode()
+        Assert.AreEqual(10, SuzukiPreImportService.GetCustomerItemNoColumnIndex("0501"))
+        Assert.AreEqual(10, SuzukiPreImportService.GetCustomerItemNoColumnIndex("0502"))
+        Assert.AreEqual(10, SuzukiPreImportService.GetCustomerItemNoColumnIndex("0600"))
+        Assert.AreEqual(10, SuzukiPreImportService.GetCustomerItemNoColumnIndex("0630"))
+        Assert.AreEqual(8, SuzukiPreImportService.GetCustomerItemNoColumnIndex("0602"))
+        Assert.AreEqual(8, SuzukiPreImportService.GetCustomerItemNoColumnIndex("0650"))
+        Assert.AreEqual(8, SuzukiPreImportService.GetCustomerItemNoColumnIndex("0651"))
+        Assert.AreEqual(6, SuzukiPreImportService.GetCustomerItemNoColumnIndex("0740"))
+        Assert.AreEqual(9, SuzukiPreImportService.GetCustomerItemNoColumnIndex("0813"))
+        Assert.AreEqual(9, SuzukiPreImportService.GetCustomerItemNoColumnIndex("0814"))
+        Assert.AreEqual(9, SuzukiPreImportService.GetCustomerItemNoColumnIndex("6604"))
+        Assert.AreEqual(9, SuzukiPreImportService.GetCustomerItemNoColumnIndex("6634"))
+        Assert.AreEqual(7, SuzukiPreImportService.GetCustomerItemNoColumnIndex("6624"), "6624 must be index 7")
+        Assert.AreEqual(11, SuzukiPreImportService.GetCustomerItemNoColumnIndex("663N"), "663N must be index 11")
+        Assert.AreEqual(11, SuzukiPreImportService.GetCustomerItemNoColumnIndex("663S"), "663S must be index 11")
+        Assert.AreEqual(11, SuzukiPreImportService.GetCustomerItemNoColumnIndex("664T"), "664T must be index 11")
     End Sub
 
 End Class
