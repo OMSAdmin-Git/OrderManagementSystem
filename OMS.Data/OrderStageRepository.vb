@@ -3352,6 +3352,7 @@ Namespace OMS.Data
         End Sub
         ''' <summary>
         ''' 内示消込処理を実行する YamahaRobotex用
+        ''' OrderNo 先頭文字が 'R' を取り除き、残りの OrderNo の桁数が6桁のものを対象
         ''' </summary>
         ''' <param name="tran">トランザクション</param>
         ''' <param name="customerSettingId">処理中の取引先設定ID</param>
