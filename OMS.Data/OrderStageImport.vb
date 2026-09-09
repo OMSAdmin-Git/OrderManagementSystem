@@ -3718,29 +3718,40 @@ Namespace OMS.Data
                         '--------------------------------
                         '確定データで内示消込
                         '--------------------------------
-                        _oderStageRepo.ReconcileForecast(tran,
-                                                         CustomerSettingId,
-                                                         impfilestageId,
-                                                         2,
-                                                         ReconcileType,
-                                                         Now,
-                                                         UserId,
-                                                         pgId)
+                        ' 通常
+                        If (spprocesstype <> 3) Then
+                            _oderStageRepo.ReconcileForecast(tran,
+                                                             CustomerSettingId,
+                                                             impfilestageId,
+                                                             2,
+                                                             ReconcileType,
+                                                             Now,
+                                                             UserId,
+                                                             pgId)
 
+                        Else
+                            ' Yamaha Robotex
+                            _oderStageRepo.ReconcileForecastYamahaRobotex(tran,
+                                                             CustomerSettingId,
+                                                             impfilestageId,
+                                                             2,
+                                                             ReconcileType,
+                                                             Now,
+                                                             UserId,
+                                                             pgId)
 
-                        ' Yamaha robotex 指示日更新
-                        '
-                        ' 残った内示の指示日は確定指示日の翌日とする。
-                        ' ただし、確定指示日が月末日の場合、
-                        ' 確定指示日と同じ日付とする
-                        If (spprocesstype = 3) Then
+                            ' Yamaha robotex 指示日更新
+                            '
+                            ' 残った内示の指示日は確定指示日の翌日とする。
+                            ' ただし、確定指示日が月末日の場合、
+                            ' 確定指示日と同じ日付とする
                             _oderStageRepo.ResetShipScheduledateYamahaRobotex(tran,
-                                                       CustomerSettingId,
-                                                       impfilestageId,
-                                                       ReconcileType,
-                                                       Now,
-                                                       UserId,
-                                                       pgId)
+                                                   CustomerSettingId,
+                                                   impfilestageId,
+                                                   ReconcileType,
+                                                   Now,
+                                                   UserId,
+                                                   pgId)
                         End If
                     End If
                 End If

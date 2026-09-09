@@ -3350,6 +3350,183 @@ Namespace OMS.Data
             End Using
 
         End Sub
+        ''' <summary>
+        ''' 内示消込処理を実行する YamahaRobotex用
+        ''' </summary>
+        ''' <param name="tran">トランザクション</param>
+        ''' <param name="customerSettingId">処理中の取引先設定ID</param>
+        ''' <param name="impFileStageId">処理中の取込ワークファイルID</param>
+        ''' <param name="orderType">受注区分（2:確定 or 3:納入指示）</param>
+        ''' <param name="reconcileType">消込条件（1:順次, 2:同月まで, 3:同月のみ）</param>
+        ''' <param name="updatedAt">更新日時</param>
+        ''' <param name="updateUserId">更新ユーザーID</param>
+        ''' <param name="updatepgId">更新プログラムID</param>
+        Public Sub ReconcileForecastYamahaRobotex(ByVal tran As OracleTransaction,
+                                                    ByVal customerSettingId As Long,
+                                                    ByVal impFileStageId As Long,
+                                                    ByVal orderType As Integer,
+                                                    ByVal reconcileType As Integer,
+                                                    ByVal updatedAt As DateTime,
+                                                    ByVal updateUserId As String,
+                                                    ByVal updatepgId As String)
+
+
+            ' --- 1. 今回取込データの集計（品目ごとの需要数の合計を取得、納期は最も古いものを採用） ---
+            Dim curList As New Dictionary(Of String, OrderSummaryRow)
+
+            Dim curSelect As String = ""
+            Dim curWhere As String = ""
+            Dim curGroupBy As String = ""
+            Select Case reconcileType
+                Case 1
+                    curSelect = " MIN(due_date) AS earliest_due_date,"
+                    'curWhere = ""
+                    If orderType = 2 Then
+                        curWhere = " AND (info_type IS NULL OR info_type = 'I')"
+                    End If
+                    curGroupBy = ""
+                Case 2
+                    curSelect = " MAX(due_date) AS earliest_due_date,"
+                    'curWhere = " AND (info_type IS NULL OR info_type = 'I')"
+                    If orderType = 2 Then
+                        curWhere = " AND (info_type IS NULL OR info_type = 'I')"
+                    End If
+                    curGroupBy = ""
+                Case 3
+                    ' YamahaRobotexでは、消込条件は「同月のみ」
+                    curSelect = " TRUNC(due_date, 'MM') AS earliest_due_date,"
+                    'curWhere = ""
+                    If orderType = 2 Then
+                        curWhere = " AND (info_type IS NULL OR info_type = 'I')"
+                    End If
+                    curGroupBy = " ,TRUNC(due_date, 'MM')"
+                Case Else
+                    curSelect = " MIN(due_date) AS earliest_due_date,"
+                    'curWhere = ""
+                    If orderType = 2 Then
+                        curWhere = " AND (info_type IS NULL OR info_type = 'I')"
+                    End If
+                    curGroupBy = ""
+            End Select
+
+
+            Dim cursql As String = $"
+                SELECT
+                    item_no,
+                    {curSelect}
+                    SUM(demand_qty) AS total_demand_qty
+                FROM orders_stage
+                WHERE imp_file_stage_id = :p_imp_file_stage_id
+                    AND order_type = :p_order_type
+                    AND status = 'IMPORTED'
+                    AND active_flag = 'Y'
+                    -- ↓ YamahaRobotex 追加した条件（先頭の'R'を除去した後の桁数が6桁）
+                    AND LENGTH(REGEXP_REPLACE(order_no, '^R')) = 6
+                    {curWhere}
+                GROUP BY order_type,item_no
+                    {curGroupBy}
+                ORDER BY item_no ASC"
+
+            Using cmdCur As New OracleCommand(cursql, tran.Connection)
+                cmdCur.Transaction = tran
+                cmdCur.BindByName = True
+                cmdCur.CommandType = CommandType.Text
+                cmdCur.Parameters.Clear()
+
+                cmdCur.Parameters.Add(":p_imp_file_stage_id", OracleDbType.Long).Value = impFileStageId
+                cmdCur.Parameters.Add(":p_order_type", OracleDbType.Int32).Value = orderType
+
+                Using dr As OracleDataReader = cmdCur.ExecuteReader()
+                    While dr.Read()
+
+                        Dim itemNo As String = dr("item_no").ToString()
+                        Dim dueDate As DateTime = Convert.ToDateTime(dr("earliest_due_date"))
+
+                        Dim row As New OrderSummaryRow With {
+                            .ItemNo = itemNo,
+                            .EarliestDueDate = dueDate,
+                            .TotalDemandQty = Convert.ToDecimal(dr("total_demand_qty"))
+                        }
+                        Dim dictKey As String = itemNo
+                        If reconcileType = 3 Then
+                            ' 品目No_202310 のような形式で月ごとに枠を管理する
+                            dictKey = $"{itemNo}_{dueDate:yyyyMM}"
+                        End If
+
+                        curList.Add(dictKey, row)
+
+                    End While
+                End Using
+            End Using
+
+            ' --- 2. 今回取込データの内示データを古い順に取得
+            Dim pastSql As String = $"
+                    SELECT p.rowid, p.item_no, p.demand_qty, p.due_date
+                    FROM orders_stage p
+                    WHERE p.order_type = 1 
+                      AND p.active_flag = 'Y' 
+                      AND p.self_fcst_flag = 'N' 
+                    ORDER BY p.item_no, p.due_date, p.rowid"
+
+            Using cmdPast As New OracleCommand(pastSql, tran.Connection)
+                cmdPast.Transaction = tran
+                cmdPast.BindByName = True
+                cmdPast.CommandType = CommandType.Text
+                cmdPast.Parameters.Clear()
+
+                Using drPast As OracleDataReader = cmdPast.ExecuteReader()
+                    While drPast.Read()
+                        Dim itemNo As String = drPast("item_no").ToString()
+                        Dim forecastDate As DateTime = Convert.ToDateTime(drPast("due_date"))
+
+                        Dim dictKey As String = itemNo
+                        If reconcileType = 3 Then
+                            dictKey = $"{itemNo}_{forecastDate:yyyyMM}"
+                        End If
+
+                        ' Dictionaryに該当品目（かつ該当月）の消込枠があるか確認
+                        If curList.ContainsKey(dictKey) Then
+                            Dim summary = curList(dictKey)
+
+                            ' --- 消込対象かどうかの判定 (reconcileTypeによる比較) ---
+                            Dim isTarget As Boolean = False
+                            ' 年月のみで比較するための変数作成
+                            Dim fcstMonth As DateTime = New DateTime(forecastDate.Year, forecastDate.Month, 1)
+                            Dim curMonth As DateTime = New DateTime(summary.EarliestDueDate.Year, summary.EarliestDueDate.Month, 1)
+
+                            Select Case reconcileType
+                                Case 1 : isTarget = True ' 1:順次（全対象）
+                                Case 2 : isTarget = (fcstMonth <= curMonth) ' 2:同月まで
+                                Case 3 : isTarget = (fcstMonth = curMonth)  ' 3:同月のみ
+                            End Select
+
+                            ' 対象であり、かつまだ消込枠(注文合計)が残っている場合のみ処理
+                            If isTarget AndAlso summary.TotalDemandQty > 0 Then
+                                Dim rid As String = drPast("rowid").ToString()
+                                Dim pastQty As Decimal = Convert.ToDecimal(drPast("demand_qty"))
+                                Dim remainLimit As Decimal = summary.TotalDemandQty ' 現在の消込可能残数
+
+                                Dim newDemandQty As Decimal = 0
+
+                                ' --- 消込計算ロジック ---
+                                If pastQty > remainLimit Then
+                                    ' 内示残数の方が大きい場合：内示を一部減らし、消込枠を使い切る
+                                    newDemandQty = pastQty - remainLimit
+                                    summary.TotalDemandQty = 0
+                                Else
+                                    ' 消込枠の方が多い場合：この内示レコードを0にし、残った枠を次の納期分へ
+                                    newDemandQty = 0
+                                    summary.TotalDemandQty -= pastQty
+                                End If
+
+                                ' --- データベース更新 (rowid指定でピンポイント更新) ---
+                                UpdateOrderRow(tran, rid, newDemandQty, updatedAt, updateUserId, updatepgId)
+                            End If
+                        End If
+                    End While
+                End Using
+            End Using
+        End Sub
 
         ''' <summary>
         ''' レコード更新用(rowid指定でピンポイント更新)
