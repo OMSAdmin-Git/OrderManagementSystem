@@ -3439,8 +3439,8 @@ Namespace OMS.Data
                     ' 内示: 当月の稼動日初日 確定: "R" + 客先発注No それ以外: 当月の稼動日初日 
                     orderStageRow.CustomerOrderNo = If(ft = YamahaRobotexType.UnofficialNotice, firstWorkingDay.ToString("yyyyMMdd"), If(ft = YamahaRobotexType.Confirmed, "R" & row("客先発注No"), firstWorkingDay.ToString("yyyyMMdd")))
 
-                    firstWorkingDay = calen.GetFirstWorkingDay(calType, dtcvt)
-                    orderStageRow.DueDate = dtcvt
+                    'firstWorkingDay = calen.GetFirstWorkingDay(calType, dtcvt)
+                    orderStageRow.DueDate = firstWorkingDay
                     orderStageRow.CustomerItemNo = customerItemNo
                     orderStageRow.DemandQty = demandQty
                     orderStageRow.Remarks = comment
