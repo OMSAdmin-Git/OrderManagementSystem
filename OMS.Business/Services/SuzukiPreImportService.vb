@@ -51,18 +51,29 @@ Namespace Services
                 Return 0
             End If
 
-            ' 2. ユーザー専用のWORKフォルダを確保（WORK/[UserID]/[取引先CD]/[FolderType]）
+            ' 2. ユーザー専用のWORKフォルダ及びCOMPLETEDフォルダを確保
             Dim workRoot = ConfigurationManager.AppSettings("WorkFolderRoot")
             If String.IsNullOrWhiteSpace(workRoot) Then workRoot = "C:\ASTI\DATA\WORK"
+            Dim completedRoot = ConfigurationManager.AppSettings("CompletedFolderRoot")
+            If String.IsNullOrWhiteSpace(completedRoot) Then completedRoot = "C:\ASTI\DATA\COMPLETED"
+
             Dim customerCode = GetCustomerCode(customerSettingId)
             Dim userWorkDir = Path.Combine(workRoot, userId, customerCode, folderType.ToString())
             Utils.EnsureDirectory(userWorkDir)
+            Dim userCompletedDir = Path.Combine(completedRoot, userId, customerCode, folderType.ToString())
+            Utils.EnsureDirectory(userCompletedDir)
 
-            ' 1. 取込対象フォルダ（source folder）内の CSV を検索（サブフォルダは除外）
-            Dim sourceFiles = If(Directory.Exists(folderPath), Directory.GetFiles(folderPath, "*.csv", SearchOption.TopDirectoryOnly), Array.Empty(Of String)())
+            ' 1. 取込対象フォルダ（source folder）内の CSV / Excel / TXT を検索（サブフォルダは除外）
+            Dim sourceFiles = If(Directory.Exists(folderPath),
+                Directory.EnumerateFiles(folderPath, "*.*", SearchOption.TopDirectoryOnly) _
+                    .Where(Function(f)
+                        Dim ext = Path.GetExtension(f).ToLowerInvariant()
+                        Return ext = ".csv" OrElse ext = ".xlsx" OrElse ext = ".txt"
+                    End Function).ToArray(),
+                Array.Empty(Of String)())
 
             If sourceFiles.Length = 0 Then
-                logger.Write("[SUZUKI_IMPORT] No CSV files found in source folder.")
+                logger.Write("[SUZUKI_IMPORT] No import target files (.csv, .xlsx, .txt) found in source folder.")
                 totalFilesCount = 0
                 validFilesCount = 0
                 errorFilesCount = 0
@@ -113,16 +124,78 @@ Namespace Services
                 For Each workFilePath In workFiles
                     Try
                         Dim fileName = Path.GetFileName(workFilePath)
+                        Dim fileExt = Path.GetExtension(workFilePath).ToLowerInvariant()
 
-                        ' 種別判定
-                        Dim infoCode = SuzukiCsvParser.PeekInfoTypeCode(workFilePath)
-                        If String.IsNullOrEmpty(infoCode) OrElse infoCode.Length <> 4 Then
-                            logger.Write($"[SUZUKI_IMPORT] Invalid or missing INFO_TYPE_CODE in file: {fileName}")
+                        ' --- ASTI追加内示 / Excel ファイル (.xlsx) のステージング処理 ---
+                        If fileExt = ".xlsx" Then
+                            Using tran As OracleTransaction = conn.BeginTransaction()
+                                Try
+                                    Dim rFlag = If(Not String.IsNullOrEmpty(reconcileFlag), reconcileFlag, If(isBatch, "Y", "N"))
+                                    Dim fFlag = If(Not String.IsNullOrEmpty(fcstReconcileFlag), fcstReconcileFlag, If(isBatch, "Y", "N"))
+
+                                    Dim stageRow As New ImpFilesStageRow() With {
+                                        .CustomerSettingId = customerSettingId,
+                                        .FolderType = CShort(folderType),
+                                        .FolderPath = folderPath,
+                                        .FileName = fileName,
+                                        .StagedFolderPath = userWorkDir,
+                                        .StagedFileName = fileName,
+                                        .ReconcileFlag = rFlag,
+                                        .FcstReconcileFlag = fFlag,
+                                        .HandFlag = "Y",
+                                        .Status = "DISCOVERED",
+                                        .CreatedAt = DateTime.Now,
+                                        .CreatedUserId = userId,
+                                        .CreatedPgId = "OrderImport(Stage)",
+                                        .UpdatedAt = DateTime.Now,
+                                        .UpdatedUserId = userId,
+                                        .UpdatedPgId = "OrderImport(Stage)"
+                                    }
+                                    Dim stageInsErr = stageRepo.Insert(conn, tran, stageRow)
+                                    If Not String.IsNullOrEmpty(stageInsErr) Then
+                                        Throw New Exception($"取込ファイルワーク登録エラー: {stageInsErr}")
+                                    End If
+                                    tran.Commit()
+
+                                    validFilesCount += 1
+                                    processCount += 1
+                                    If outStageRows IsNot Nothing Then
+                                        outStageRows.Add(stageRow)
+                                    End If
+                                    logger.Write($"[SUZUKI_IMPORT] Successfully staged Excel file (HAND_FLAG=Y): {fileName}")
+                                Catch ex As Exception
+                                    tran.Rollback()
+                                    errorFilesCount += 1
+                                    logger.Write($"[SUZUKI_IMPORT] Error staging Excel file {fileName}: {ex.Message}")
+                                End Try
+                            End Using
                             Continue For
                         End If
 
+                        ' --- CSV / TXT ファイル処理 (SPIRITS EDI / 取込処理) ---
+                        ' 種別判定
+                        Dim diagMsg As String = ""
+                        Dim infoCode = SuzukiCsvParser.PeekInfoTypeCode(workFilePath, diagMsg)
+                        If String.IsNullOrEmpty(infoCode) OrElse infoCode.Length <> 4 Then
+                            errorFilesCount += 1
+                            logger.Write($"[SUZUKI_IMPORT] Invalid or missing INFO_TYPE_CODE in file: {fileName}. Detail: {diagMsg}")
 
-                        
+                            Dim userErrMsg = $"【{fileName}】対象データが1件もありません。"
+                            If webErrors IsNot Nothing Then
+                                webErrors.Add(userErrMsg)
+                            End If
+
+                            Dim errList As New List(Of String)()
+                            errList.Add("対象データが1件もありません。")
+                            If Not String.IsNullOrEmpty(diagMsg) Then
+                                errList.Add(diagMsg)
+                            End If
+                            ExportErrorsToCsv(folderPath, fileName, errList, isBatch)
+
+                            MoveBackErrorFile(workFilePath, folderPath, fileName, userId)
+                            Continue For
+                        End If
+
                         Dim impFileStageId As Long = 0
 
                         Using tran As OracleTransaction = conn.BeginTransaction()
@@ -149,7 +222,10 @@ Namespace Services
                                     .UpdatedUserId = userId,
                                     .UpdatedPgId = "OrderImport(Stage)"
                                 }
-                                stageRepo.Insert(conn, tran, stageRow)
+                                Dim stageInsErr = stageRepo.Insert(conn, tran, stageRow)
+                                If Not String.IsNullOrEmpty(stageInsErr) Then
+                                    Throw New Exception($"取込ファイルワーク登録エラー: {stageInsErr}")
+                                End If
                                 
                                 ' Fetch the generated ID
                                 Dim fetchedRow = stageRepo.GetImpFilesStageFilename(conn, tran, fileName, folderPath)
@@ -161,37 +237,68 @@ Namespace Services
                                 ProcessFileByInfoCode(conn, tran, workFilePath, infoCode, userId, impRunId, impFileStageId)
 
                                 ' 品番更新 (PRDSLSODRM)
-                                UpdateAstiPartNumbers(conn, tran, infoCode)
+                                UpdateAstiPartNumbers(conn, tran, infoCode, impFileStageId)
 
                                 ' 無効化チェック (ACTIVE_FLAG = 'N')
                                 UpdateActiveFlags(conn, tran, infoCode)
 
-                                ' エラーチェック
-                                Dim errorRows = FindPartMatchingErrors(conn, tran, infoCode, workFilePath)
+                                ' エラーチェック (ASTI品番未設定行)
+                                Dim errorRows = FindPartMatchingErrors(conn, tran, infoCode, workFilePath, impFileStageId)
                                 If errorRows.Count > 0 Then
                                     errorFilesCount += 1
-                                    logger.Write($"[SUZUKI_IMPORT] Found {errorRows.Count} part matching errors in {fileName}")
-                                    ExportErrorsToCsv(folderPath, fileName, errorRows, isBatch, webErrors)
-                                    MoveBackErrorFile(workFilePath, folderPath, fileName, userId)
-                                    DeleteErrorRows(conn, tran, infoCode)
+
+                                    ' 有効件数の確認 (Check valid rows count)
+                                    Dim validRowsCount As Integer = 0
+                                    Dim tableName = GetTargetTableName(infoCode)
+                                    If Not String.IsNullOrEmpty(tableName) Then
+                                        Dim sqlCount = $"SELECT COUNT(1) FROM {tableName} WHERE imp_file_id = :p_imp_file_id AND active_flag = 'Y' AND item_no IS NOT NULL"
+                                        Using countCmd As New OracleCommand(sqlCount, conn)
+                                            countCmd.Transaction = tran
+                                            countCmd.Parameters.Add(":p_imp_file_id", OracleDbType.Int64).Value = impFileStageId
+                                            Dim cnt = countCmd.ExecuteScalar()
+                                            If cnt IsNot Nothing AndAlso Not DBNull.Value.Equals(cnt) Then
+                                                validRowsCount = Convert.ToInt32(cnt)
+                                            End If
+                                        End Using
+                                    End If
+
+                                    logger.Write($"[SUZUKI_IMPORT] Found {errorRows.Count} part matching errors in {fileName} (valid rows: {validRowsCount})")
+
+                                    If validRowsCount = 0 Then
+                                        ' --- Rule 4: 全件がASTI品番エラーの場合 ---
+                                        ' エラーリストの最後に「対象データが1件もありません。」を追加
+                                        errorRows.Add("対象データが1件もありません。")
+                                        ExportErrorsToCsv(folderPath, fileName, errorRows, isBatch, webErrors)
+
+                                        ' workに移動したファイルは元のフォルダへ戻す (※workフォルダには残らない)
+                                        MoveBackErrorFile(workFilePath, folderPath, fileName, userId)
+
+                                        ' スズキ特殊テーブルの該当データは削除 (ロールバック)
+                                        tran.Rollback()
+                                        Continue For
+                                    Else
+                                        ' --- Rule 3: 一部の行がASTI品番エラーの場合 ---
+                                        ' 1. エラーリストへ追加 (CSV出力 & 画面エラーリスト)
+                                        ExportErrorsToCsv(folderPath, fileName, errorRows, isBatch, webErrors)
+
+                                        ' 2. 取込元フォルダにファイル名にuseridとtimestampをつけてコピー (※コピーなのでworkフォルダに残る)
+                                        CopyErrorBackupFile(workFilePath, folderPath, fileName, userId)
+
+                                        ' 3. スズキ特殊テーブルの該当データは削除する
+                                        DeleteErrorRows(conn, tran, infoCode, impFileStageId)
+                                    End If
                                 Else
-                                    validFilesCount += 1
+                                    ' --- Rule 2: 全件正常の場合 ---
+                                    logger.Write($"[SUZUKI_IMPORT] File staged successfully in WORK: {fileName}")
                                 End If
 
+                                ' 正常データおよびIMP_FILES_STAGEを確定
                                 tran.Commit()
+                                validFilesCount += 1
                                 processCount += 1
-                                logger.Write($"[SUZUKI_IMPORT] Successfully imported file: {fileName}")
 
-                                ' ワークフォルダのファイル後処理 (Stage 1: エラー時もWORKフォルダから削除せず保持)
-                                If File.Exists(workFilePath) Then
-                                    Try
-                                        ' 発見されたステージング行を結果リストに追加
-                                        If outStageRows IsNot Nothing Then
-                                            outStageRows.Add(stageRow)
-                                        End If
-                                    Catch ex As Exception
-                                        logger.Write($"[SUZUKI_IMPORT] Post-processing error for {fileName}: {ex.Message}")
-                                    End Try
+                                If outStageRows IsNot Nothing Then
+                                    outStageRows.Add(stageRow)
                                 End If
                             Catch ex As Exception
                                 tran.Rollback()
@@ -207,13 +314,13 @@ Namespace Services
                         logger.Write($"[SUZUKI_IMPORT] File Error: {ex.Message}")
                     End Try
                 Next
-                
+
                 ' Step 10: Transition to Order Registration (Batch Mode Only)
                 If isBatch Then
                     Dim importService As New SuzukiDataImportService(_connectionString)
                     importService.ExecuteOrderRegistration(customerSettingId, folderType, impRunId, userId)
                 End If
-                
+
                 ' 実行管理更新
                 Using tran As OracleTransaction = conn.BeginTransaction()
                     Try
@@ -229,199 +336,209 @@ Namespace Services
             Return processCount
         End Function
 
-        Private Sub ProcessFileByInfoCode(conn As OracleConnection, tran As OracleTransaction, filePath As String, infoCode As String, userId As String, impRunId As Long, impFileStageId As Long)
+        Private Function ProcessFileByInfoCode(conn As OracleConnection, tran As OracleTransaction, filePath As String, infoCode As String, userId As String, impRunId As Long, impFileStageId As Long) As Integer
+            Dim insertedCount As Integer = 0
             Select Case infoCode
                 Case "0501", "0502"
                     Dim repo As New Spirits0501And0502Repository(_connectionString)
                     Dim rows = SuzukiCsvParser.ParseSpirits0501And0502(filePath)
+                    If rows.Count = 0 Then Throw New Exception("対象データが1件もありません。")
                     For Each r In rows
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
                         r.CreatedUserId = userId
-                        r.CreatedPgId = "OrderImport(Execute)"
+                        r.CreatedPgId = "OrderImport(Stage)"
                         r.CreatedAt = DateTime.Now
                         r.UpdatedUserId = userId
-                        r.UpdatedPgId = "OrderImport(Execute)"
+                        r.UpdatedPgId = "OrderImport(Stage)"
                         r.UpdatedAt = DateTime.Now
                     Next
                     Dim dbErr = repo.InsertRange(conn, tran, rows)
-
                     If Not String.IsNullOrEmpty(dbErr) Then Throw New Exception(dbErr)
+                    insertedCount = rows.Count
 
                 Case "0600", "0630"
                     Dim repo As New Spirits0600And0630Repository(_connectionString)
                     Dim rows = SuzukiCsvParser.Parse0600And0630(filePath)
+                    If rows.Count = 0 Then Throw New Exception("対象データが1件もありません。")
                     For Each r In rows
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
                         r.CreatedUserId = userId
-                        r.CreatedPgId = "OrderImport(Execute)"
+                        r.CreatedPgId = "OrderImport(Stage)"
                         r.CreatedAt = DateTime.Now
                         r.UpdatedUserId = userId
-                        r.UpdatedPgId = "OrderImport(Execute)"
+                        r.UpdatedPgId = "OrderImport(Stage)"
                         r.UpdatedAt = DateTime.Now
                     Next
                     Dim dbErr = repo.InsertRange(conn, tran, rows)
-
                     If Not String.IsNullOrEmpty(dbErr) Then Throw New Exception(dbErr)
+                    insertedCount = rows.Count
 
                 Case "0602"
                     Dim repo As New Spirits0602Repository(_connectionString)
                     Dim rows = SuzukiCsvParser.Parse0602(filePath)
+                    If rows.Count = 0 Then Throw New Exception("対象データが1件もありません。")
                     For Each r In rows
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
                         r.CreatedUserId = userId
-                        r.CreatedPgId = "OrderImport(Execute)"
+                        r.CreatedPgId = "OrderImport(Stage)"
                         r.CreatedAt = DateTime.Now
                         r.UpdatedUserId = userId
-                        r.UpdatedPgId = "OrderImport(Execute)"
+                        r.UpdatedPgId = "OrderImport(Stage)"
                         r.UpdatedAt = DateTime.Now
                     Next
                     Dim dbErr = repo.InsertRange(conn, tran, rows)
-
                     If Not String.IsNullOrEmpty(dbErr) Then Throw New Exception(dbErr)
+                    insertedCount = rows.Count
 
                 Case "0650"
                     Dim repo As New Spirits0650Repository(_connectionString)
                     Dim rows = SuzukiCsvParser.ParseSpirits0650(filePath)
+                    If rows.Count = 0 Then Throw New Exception("対象データが1件もありません。")
                     For Each r In rows
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
                         r.CreatedUserId = userId
-                        r.CreatedPgId = "OrderImport(Execute)"
+                        r.CreatedPgId = "OrderImport(Stage)"
                         r.CreatedAt = DateTime.Now
                         r.UpdatedUserId = userId
-                        r.UpdatedPgId = "OrderImport(Execute)"
+                        r.UpdatedPgId = "OrderImport(Stage)"
                         r.UpdatedAt = DateTime.Now
                     Next
                     Dim dbErr = repo.InsertRange(conn, tran, rows)
-
                     If Not String.IsNullOrEmpty(dbErr) Then Throw New Exception(dbErr)
+                    insertedCount = rows.Count
 
                 Case "0651"
                     Dim repo As New Spirits0651Repository(_connectionString)
                     Dim rows = SuzukiCsvParser.ParseSpirits0651(filePath)
+                    If rows.Count = 0 Then Throw New Exception("対象データが1件もありません。")
                     For Each r In rows
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
                         r.CreatedUserId = userId
-                        r.CreatedPgId = "OrderImport(Execute)"
+                        r.CreatedPgId = "OrderImport(Stage)"
                         r.CreatedAt = DateTime.Now
                         r.UpdatedUserId = userId
-                        r.UpdatedPgId = "OrderImport(Execute)"
+                        r.UpdatedPgId = "OrderImport(Stage)"
                         r.UpdatedAt = DateTime.Now
                     Next
                     Dim dbErr = repo.InsertRange(conn, tran, rows)
-
                     If Not String.IsNullOrEmpty(dbErr) Then Throw New Exception(dbErr)
+                    insertedCount = rows.Count
 
                 Case "0740"
                     Dim repo As New Spirits0740Repository(_connectionString)
                     Dim rows = SuzukiCsvParser.ParseSpirits0740(filePath)
+                    If rows.Count = 0 Then Throw New Exception("対象データが1件もありません。")
                     For Each r In rows
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
                         r.CreatedUserId = userId
-                        r.CreatedPgId = "OrderImport(Execute)"
+                        r.CreatedPgId = "OrderImport(Stage)"
                         r.CreatedAt = DateTime.Now
                         r.UpdatedUserId = userId
-                        r.UpdatedPgId = "OrderImport(Execute)"
+                        r.UpdatedPgId = "OrderImport(Stage)"
                         r.UpdatedAt = DateTime.Now
                     Next
                     Dim dbErr = repo.InsertRange(conn, tran, rows)
-
                     If Not String.IsNullOrEmpty(dbErr) Then Throw New Exception(dbErr)
+                    insertedCount = rows.Count
 
                 Case "0813"
                     Dim repo As New Spirits0813Repository(_connectionString)
                     Dim rows = SuzukiCsvParser.ParseSpirits0813(filePath)
+                    If rows.Count = 0 Then Throw New Exception("対象データが1件もありません。")
                     For Each r In rows
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
                         r.CreatedUserId = userId
-                        r.CreatedPgId = "OrderImport(Execute)"
+                        r.CreatedPgId = "OrderImport(Stage)"
                         r.CreatedAt = DateTime.Now
                         r.UpdatedUserId = userId
-                        r.UpdatedPgId = "OrderImport(Execute)"
+                        r.UpdatedPgId = "OrderImport(Stage)"
                         r.UpdatedAt = DateTime.Now
                     Next
                     Dim dbErr = repo.InsertRange(conn, tran, rows)
-
                     If Not String.IsNullOrEmpty(dbErr) Then Throw New Exception(dbErr)
-
-
-
+                    insertedCount = rows.Count
 
                 Case "0814"
                     Dim repo As New Spirits0814Repository(_connectionString)
                     Dim rows = SuzukiCsvParser.ParseSpirits0814(filePath)
+                    If rows.Count = 0 Then Throw New Exception("対象データが1件もありません。")
                     For Each r In rows
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
                         r.CreatedUserId = userId
-                        r.CreatedPgId = "OrderImport(Execute)"
+                        r.CreatedPgId = "OrderImport(Stage)"
                         r.CreatedAt = DateTime.Now
                         r.UpdatedUserId = userId
-                        r.UpdatedPgId = "OrderImport(Execute)"
+                        r.UpdatedPgId = "OrderImport(Stage)"
                         r.UpdatedAt = DateTime.Now
                     Next
                     Dim dbErr = repo.InsertRange(conn, tran, rows)
-
                     If Not String.IsNullOrEmpty(dbErr) Then Throw New Exception(dbErr)
+                    insertedCount = rows.Count
 
                 Case "6604", "6634"
                     Dim repo As New Spirits6604And6634Repository(_connectionString)
                     Dim rows = SuzukiCsvParser.ParseSpirits6604And6634(filePath)
+                    If rows.Count = 0 Then Throw New Exception("対象データが1件もありません。")
                     For Each r In rows
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
                         r.CreatedUserId = userId
-                        r.CreatedPgId = "OrderImport(Execute)"
+                        r.CreatedPgId = "OrderImport(Stage)"
                         r.CreatedAt = DateTime.Now
                         r.UpdatedUserId = userId
-                        r.UpdatedPgId = "OrderImport(Execute)"
+                        r.UpdatedPgId = "OrderImport(Stage)"
                         r.UpdatedAt = DateTime.Now
                     Next
                     Dim dbErr = repo.InsertRange(conn, tran, rows)
-
                     If Not String.IsNullOrEmpty(dbErr) Then Throw New Exception(dbErr)
+                    insertedCount = rows.Count
 
                 Case "6624"
                     Dim repo As New Spirits6624Repository(_connectionString)
                     Dim rows = SuzukiCsvParser.ParseSpirits6624(filePath)
+                    If rows.Count = 0 Then Throw New Exception("対象データが1件もありません。")
                     For Each r In rows
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
                         r.CreatedUserId = userId
-                        r.CreatedPgId = "OrderImport(Execute)"
+                        r.CreatedPgId = "OrderImport(Stage)"
                         r.CreatedAt = DateTime.Now
                         r.UpdatedUserId = userId
-                        r.UpdatedPgId = "OrderImport(Execute)"
+                        r.UpdatedPgId = "OrderImport(Stage)"
                         r.UpdatedAt = DateTime.Now
                     Next
                     Dim dbErr = repo.InsertRange(conn, tran, rows)
-
                     If Not String.IsNullOrEmpty(dbErr) Then Throw New Exception(dbErr)
+                    insertedCount = rows.Count
 
                 Case "663N", "663S", "664T"
                     Dim repo As New Spirits663NAnd663SAnd66Repository(_connectionString)
                     Dim rows = SuzukiCsvParser.ParseSpirits663NAnd663SAnd664T(filePath)
+                    If rows.Count = 0 Then Throw New Exception("対象データが1件もありません。")
                     For Each r In rows
                         r.ImpRunId = impRunId
                         r.ImpFileId = impFileStageId
                         r.CreatedUserId = userId
-                        r.CreatedPgId = "OrderImport(Execute)"
+                        r.CreatedPgId = "OrderImport(Stage)"
                         r.CreatedAt = DateTime.Now
                         r.UpdatedUserId = userId
-                        r.UpdatedPgId = "OrderImport(Execute)"
+                        r.UpdatedPgId = "OrderImport(Stage)"
                         r.UpdatedAt = DateTime.Now
                     Next
                     Dim dbErr = repo.InsertRange(conn, tran, rows)
-
                     If Not String.IsNullOrEmpty(dbErr) Then Throw New Exception(dbErr)
+                    insertedCount = rows.Count
             End Select
-        End Sub
+            Return insertedCount
+        End Function
 
         Private Function GetTargetTableName(infoCode As String) As String
             Select Case infoCode
@@ -440,7 +557,36 @@ Namespace Services
             End Select
         End Function
 
-        Private Sub UpdateAstiPartNumbers(conn As OracleConnection, tran As OracleTransaction, infoCode As String)
+        Public Shared Function GetCustomerItemNoColumnIndex(infoCode As String) As Integer
+            Select Case infoCode
+                Case "0501", "0502"
+                    Return 10
+                Case "0600", "0630"
+                    Return 10
+                Case "0602"
+                    Return 8
+                Case "0650"
+                    Return 8
+                Case "0651"
+                    Return 8
+                Case "0740"
+                    Return 6
+                Case "0813"
+                    Return 9
+                Case "0814"
+                    Return 9
+                Case "6604", "6634"
+                    Return 9
+                Case "6624"
+                    Return 7
+                Case "663N", "663S", "664T"
+                    Return 11
+                Case Else
+                    Return 10
+            End Select
+        End Function
+
+        Private Sub UpdateAstiPartNumbers(conn As OracleConnection, tran As OracleTransaction, infoCode As String, impFileStageId As Long)
             Dim tableName = GetTargetTableName(infoCode)
             If String.IsNullOrEmpty(tableName) Then Return
 
@@ -449,22 +595,28 @@ Namespace Services
             Dim sql As New StringBuilder()
             sql.AppendLine($"UPDATE {tableName} t")
             sql.AppendLine("SET t.item_no = (")
-            sql.AppendLine("  SELECT p.FPRDCD FROM PRDSLSODRM p")
-            sql.AppendLine("  WHERE p.FCUSTCD = '5455'")
+            sql.AppendLine("  SELECT TRIM(p.FPRDCD) FROM PRDSLSODRM p")
+            sql.AppendLine("  WHERE TRIM(p.FCUSTCD) = '5455'")
             sql.AppendLine("    AND TRIM(p.FCUSTITEMNO) = TRIM(t.customer_item_no)")
 
             If isZSuffix Then
-                sql.AppendLine("    AND UPPER(p.FPRDCD) LIKE '%Z'")
+                sql.AppendLine("    AND UPPER(TRIM(p.FPRDCD)) LIKE '%Z'")
             Else
-                sql.AppendLine("    AND UPPER(p.FPRDCD) NOT LIKE '%Z'")
+                sql.AppendLine("    AND UPPER(TRIM(p.FPRDCD)) NOT LIKE '%Z'")
             End If
 
             sql.AppendLine("    FETCH FIRST 1 ROWS ONLY")
             sql.AppendLine(")")
             sql.AppendLine("WHERE t.active_flag = 'Y' AND t.item_no IS NULL")
+            If impFileStageId > 0 Then
+                sql.AppendLine("  AND t.imp_file_id = :p_imp_file_id")
+            End If
 
             Using cmd As New OracleCommand(sql.ToString(), conn)
                 cmd.Transaction = tran
+                If impFileStageId > 0 Then
+                    cmd.Parameters.Add(":p_imp_file_id", OracleDbType.Int64).Value = impFileStageId
+                End If
                 cmd.ExecuteNonQuery()
             End Using
         End Sub
@@ -500,15 +652,22 @@ Namespace Services
             End Using
         End Sub
 
-        Private Function FindPartMatchingErrors(conn As OracleConnection, tran As OracleTransaction, infoCode As String, csvFilePath As String) As List(Of String)
+        Private Function FindPartMatchingErrors(conn As OracleConnection, tran As OracleTransaction, infoCode As String, csvFilePath As String, impFileStageId As Long) As List(Of String)
             Dim result As New List(Of String)()
             Dim tableName = GetTargetTableName(infoCode)
             If String.IsNullOrEmpty(tableName) Then Return result
 
             Dim unmatchedItems As New HashSet(Of String)(StringComparer.OrdinalIgnoreCase)
             Dim sql = $"SELECT DISTINCT customer_item_no FROM {tableName} WHERE active_flag = 'Y' AND item_no IS NULL"
+            If impFileStageId > 0 Then
+                sql &= " AND imp_file_id = :p_imp_file_id"
+            End If
+
             Using cmd As New OracleCommand(sql, conn)
                 cmd.Transaction = tran
+                If impFileStageId > 0 Then
+                    cmd.Parameters.Add(":p_imp_file_id", OracleDbType.Int64).Value = impFileStageId
+                End If
                 Using reader = cmd.ExecuteReader()
                     While reader.Read()
                         If Not reader.IsDBNull(0) Then
@@ -519,37 +678,18 @@ Namespace Services
             End Using
 
             If unmatchedItems.Count > 0 AndAlso File.Exists(csvFilePath) Then
-                Dim colIdx As Integer
-                Select Case infoCode
-                    Case "0600", "0630", "0650"
-                        colIdx = 10
-                    Case "0602", "0651", "0740"
-                        colIdx = 8
-                    Case "0814", "6604", "6624", "6634"
-                        colIdx = 9
-                    Case "663N", "663S", "664T"
-                        colIdx = 7
-                    Case "0501", "0502"
-                        colIdx = 11
-                    Case "0813"
-                        colIdx = 6
+                Dim colIdx = GetCustomerItemNoColumnIndex(infoCode)
+                Dim lines = SuzukiCsvParser.ReadLinesAutoEncoding(csvFilePath)
 
-                    Case Else
-                        colIdx = 10
-                End Select
-
-                Dim lines = File.ReadAllLines(csvFilePath, Encoding.GetEncoding("shift-jis"))
                 For lineIdx As Integer = 0 To lines.Length - 1
                     Dim line = lines(lineIdx)
                     If String.IsNullOrWhiteSpace(line) Then Continue For
 
-                    Dim cols = line.Split(","c)
-                    If colIdx < cols.Length Then
-                        Dim custItemNo = cols(colIdx).Trim(" "c, """"c)
-                        If Not String.IsNullOrEmpty(custItemNo) AndAlso unmatchedItems.Contains(custItemNo) Then
-                            Dim csvRowNumber = lineIdx + 1
-                            result.Add($"Row({csvRowNumber}): 品目No及び製品コードが取得できません。")
-                        End If
+                    Dim cols = SuzukiCsvParser.SplitCsvLine(line)
+                    Dim custItemNo = SuzukiCsvParser.CleanCol(cols, colIdx)
+                    If Not String.IsNullOrEmpty(custItemNo) AndAlso unmatchedItems.Contains(custItemNo) Then
+                        Dim csvRowNumber = lineIdx + 1
+                        result.Add($"Row({csvRowNumber}): 品目No及び製品コードが取得できません。")
                     End If
                 Next
             End If
@@ -589,27 +729,45 @@ Namespace Services
 
         Private Sub MoveBackErrorFile(workFilePath As String, sourceFolder As String, originalFileName As String, userId As String)
             Try
-                Dim baseName = Path.GetFileNameWithoutExtension(originalFileName)
-                Dim match = Text.RegularExpressions.Regex.Match(baseName, "^(.*?)(?:_[a-zA-Z0-9\-]+_\d{8}_\d{6})+$")
-                If match.Success Then
-                    baseName = match.Groups(1).Value
-                End If
-
+                Dim nameNoExt = Path.GetFileNameWithoutExtension(originalFileName)
+                Dim ext = Path.GetExtension(originalFileName)
                 Dim timeStamp = DateTime.Now.ToString("yyyyMMdd_HHmmss")
-                Dim newFileName = $"{baseName}_{userId}_{timeStamp}{Path.GetExtension(originalFileName)}"
+                Dim newFileName = $"{nameNoExt}_{userId}_{timeStamp}{ext}"
+                Dim targetPath = Path.Combine(sourceFolder, newFileName)
+                File.Copy(workFilePath, targetPath, True)
+                If File.Exists(targetPath) Then
+                    File.Delete(workFilePath)
+                End If
+            Catch ex As Exception
+            End Try
+        End Sub
+
+        Private Sub CopyErrorBackupFile(workFilePath As String, sourceFolder As String, originalFileName As String, userId As String)
+            Try
+                Dim nameNoExt = Path.GetFileNameWithoutExtension(originalFileName)
+                Dim ext = Path.GetExtension(originalFileName)
+                Dim timeStamp = DateTime.Now.ToString("yyyyMMdd_HHmmss")
+                Dim newFileName = $"{nameNoExt}_{userId}_{timeStamp}{ext}"
                 Dim targetPath = Path.Combine(sourceFolder, newFileName)
                 File.Copy(workFilePath, targetPath, True)
             Catch ex As Exception
             End Try
         End Sub
 
-        Private Sub DeleteErrorRows(conn As OracleConnection, tran As OracleTransaction, infoCode As String)
+        Private Sub DeleteErrorRows(conn As OracleConnection, tran As OracleTransaction, infoCode As String, impFileStageId As Long)
             Dim tableName = GetTargetTableName(infoCode)
             If String.IsNullOrEmpty(tableName) Then Return
 
             Dim sql = $"DELETE FROM {tableName} WHERE active_flag = 'Y' AND item_no IS NULL"
+            If impFileStageId > 0 Then
+                sql &= " AND imp_file_id = :p_imp_file_id"
+            End If
+
             Using cmd As New OracleCommand(sql, conn)
                 cmd.Transaction = tran
+                If impFileStageId > 0 Then
+                    cmd.Parameters.Add(":p_imp_file_id", OracleDbType.Int64).Value = impFileStageId
+                End If
                 cmd.ExecuteNonQuery()
             End Using
         End Sub

@@ -13,26 +13,66 @@ Namespace Services
     Public Class SuzukiCsvParser
 
         ''' <summary>
-        ''' CSV ファイルの1行目（1列目の INFO_TYPE_CODE）を読み取って種別コードを返します。
+        ''' CSV ファイルの1行目またはデータ行（1列目の INFO_TYPE_CODE）を読み取って種別コードを返します。
         ''' </summary>
         Public Shared Function PeekInfoTypeCode(filePath As String) As String
-            If Not File.Exists(filePath) Then Return String.Empty
+            Dim dummyDiag As String = ""
+            Return PeekInfoTypeCode(filePath, dummyDiag)
+        End Function
 
-            Dim encoding As Encoding = Encoding.GetEncoding("shift-jis")
-            Using reader As New StreamReader(filePath, encoding)
+        ''' <summary>
+        ''' CSV ファイルの1列目（INFO_TYPE_CODE）を読み取って種別コードを返し、無効時は詳細診断メッセージを返します。
+        ''' </summary>
+        Public Shared Function PeekInfoTypeCode(filePath As String, ByRef diagnosticMsg As String) As String
+            diagnosticMsg = ""
+            If Not File.Exists(filePath) Then
+                diagnosticMsg = "ファイルが存在しません。"
+                Return String.Empty
+            End If
+
+            ' UTF-8 (BOM有無) または Shift-JIS を自動判別
+            Using reader As New StreamReader(filePath, Encoding.GetEncoding("shift-jis"), True)
+                Dim lineNum As Integer = 0
                 While Not reader.EndOfStream
                     Dim line As String = reader.ReadLine()
+                    lineNum += 1
                     If String.IsNullOrWhiteSpace(line) Then Continue While
+
+                    ' BOM除去 (NET Framework 4.8 NLS言語比較対策として先頭文字を直接比較)
+                    If line.Length > 0 AndAlso line(0) = ChrW(&HFEFF) Then
+                        line = line.Substring(1)
+                    End If
 
                     Dim tokens As String() = SplitCsvLine(line)
                     If tokens.Length > 0 Then
                         Dim val As String = tokens(0).Trim(" "c, """"c)
+
+                        ' 4桁の英数字コード判定 (例: 0600, 0630, 6604 等)
                         If val.Length = 4 AndAlso val.All(Function(c) Char.IsLetterOrDigit(c)) Then
                             Return val
+                        End If
+
+                        ' ヘッダ行（「情報区分コード」など）が含まれている場合はスキップして次の行（データ行）を確認
+                        If val.Contains("情報区分") OrElse val.Contains("情報") OrElse val.Contains("コード") Then
+                            Continue While
+                        End If
+
+                        ' 3桁コード等の欠損（例: Excel保存による "0600" -> 600 の先頭0落ち）の検出
+                        If (val.Length = 3 OrElse val.Length = 2) AndAlso val.All(Function(c) Char.IsDigit(c)) Then
+                            diagnosticMsg = $"行 {lineNum}: 1列目[情報区分コード]の値 '{val}' は{val.Length}桁です。Excel保存等で先頭の「0」が欠落した可能性があります。"
+                            Return String.Empty
+                        End If
+
+                        If Not String.IsNullOrEmpty(val) AndAlso String.IsNullOrEmpty(diagnosticMsg) Then
+                            diagnosticMsg = $"行 {lineNum}: 1列目[情報区分コード]の値 '{val}' が有効な4桁コードではありません。"
                         End If
                     End If
                 End While
             End Using
+
+            If String.IsNullOrEmpty(diagnosticMsg) Then
+                diagnosticMsg = "データ行が存在しないか、有効な情報区分コードが見つかりません。"
+            End If
 
             Return String.Empty
         End Function
@@ -42,7 +82,7 @@ Namespace Services
         ''' </summary>
         Public Shared Function Parse0600And0630(filePath As String) As List(Of Spirits0600And0630Row)
             Dim list As New List(Of Spirits0600And0630Row)()
-            Dim lines As String() = File.ReadAllLines(filePath, Encoding.GetEncoding("shift-jis"))
+            Dim lines As String() = ReadLinesAutoEncoding(filePath)
 
             For Each line In lines
                 If String.IsNullOrWhiteSpace(line) Then Continue For
@@ -105,7 +145,7 @@ Namespace Services
         ''' </summary>
         Public Shared Function Parse0602(filePath As String) As List(Of Spirits0602Row)
             Dim list As New List(Of Spirits0602Row)()
-            Dim lines As String() = File.ReadAllLines(filePath, Encoding.GetEncoding("shift-jis"))
+            Dim lines As String() = ReadLinesAutoEncoding(filePath)
 
             For Each line In lines
                 If String.IsNullOrWhiteSpace(line) Then Continue For
@@ -158,7 +198,7 @@ Namespace Services
         ''' </summary>
         Public Shared Function ParseSpirits0501And0502(filePath As String) As List(Of Spirits0501And0502Row)
             Dim list As New List(Of Spirits0501And0502Row)()
-            Dim lines As String() = File.ReadAllLines(filePath, Encoding.GetEncoding("shift-jis"))
+            Dim lines As String() = ReadLinesAutoEncoding(filePath)
 
             For Each line In lines
                 If String.IsNullOrWhiteSpace(line) Then Continue For
@@ -207,7 +247,7 @@ Namespace Services
         ''' </summary>
         Public Shared Function ParseSpirits0650(filePath As String) As List(Of Spirits0650Row)
             Dim list As New List(Of Spirits0650Row)()
-            Dim lines As String() = File.ReadAllLines(filePath, Encoding.GetEncoding("shift-jis"))
+            Dim lines As String() = ReadLinesAutoEncoding(filePath)
 
             For Each line In lines
                 If String.IsNullOrWhiteSpace(line) Then Continue For
@@ -272,7 +312,7 @@ Namespace Services
         ''' </summary>
         Public Shared Function ParseSpirits0651(filePath As String) As List(Of Spirits0651Row)
             Dim list As New List(Of Spirits0651Row)()
-            Dim lines As String() = File.ReadAllLines(filePath, Encoding.GetEncoding("shift-jis"))
+            Dim lines As String() = ReadLinesAutoEncoding(filePath)
 
             For Each line In lines
                 If String.IsNullOrWhiteSpace(line) Then Continue For
@@ -337,7 +377,7 @@ Namespace Services
         ''' </summary>
         Public Shared Function ParseSpirits0740(filePath As String) As List(Of Spirits0740Row)
             Dim list As New List(Of Spirits0740Row)()
-            Dim lines As String() = File.ReadAllLines(filePath, Encoding.GetEncoding("shift-jis"))
+            Dim lines As String() = ReadLinesAutoEncoding(filePath)
 
             For Each line In lines
                 If String.IsNullOrWhiteSpace(line) Then Continue For
@@ -390,7 +430,7 @@ Namespace Services
         ''' </summary>
         Public Shared Function ParseSpirits0813(filePath As String) As List(Of Spirits0813Row)
             Dim list As New List(Of Spirits0813Row)()
-            Dim lines As String() = File.ReadAllLines(filePath, Encoding.GetEncoding("shift-jis"))
+            Dim lines As String() = ReadLinesAutoEncoding(filePath)
 
             For Each line In lines
                 If String.IsNullOrWhiteSpace(line) Then Continue For
@@ -461,7 +501,7 @@ Namespace Services
         ''' </summary>
         Public Shared Function ParseSpirits0814(filePath As String) As List(Of Spirits0814Row)
             Dim list As New List(Of Spirits0814Row)()
-            Dim lines As String() = File.ReadAllLines(filePath, Encoding.GetEncoding("shift-jis"))
+            Dim lines As String() = ReadLinesAutoEncoding(filePath)
 
             For Each line In lines
                 If String.IsNullOrWhiteSpace(line) Then Continue For
@@ -532,7 +572,7 @@ Namespace Services
         ''' </summary>
         Public Shared Function ParseSpirits6604And6634(filePath As String) As List(Of Spirits6604And6634Row)
             Dim list As New List(Of Spirits6604And6634Row)()
-            Dim lines As String() = File.ReadAllLines(filePath, Encoding.GetEncoding("shift-jis"))
+            Dim lines As String() = ReadLinesAutoEncoding(filePath)
 
             For Each line In lines
                 If String.IsNullOrWhiteSpace(line) Then Continue For
@@ -588,7 +628,7 @@ Namespace Services
         ''' </summary>
         Public Shared Function ParseSpirits6624(filePath As String) As List(Of Spirits6624Row)
             Dim list As New List(Of Spirits6624Row)()
-            Dim lines As String() = File.ReadAllLines(filePath, Encoding.GetEncoding("shift-jis"))
+            Dim lines As String() = ReadLinesAutoEncoding(filePath)
 
             For Each line In lines
                 If String.IsNullOrWhiteSpace(line) Then Continue For
@@ -653,7 +693,7 @@ Namespace Services
         ''' </summary>
         Public Shared Function ParseSpirits663NAnd663SAnd664T(filePath As String) As List(Of Spirits663NAnd663SAnd66Row)
             Dim list As New List(Of Spirits663NAnd663SAnd66Row)()
-            Dim lines As String() = File.ReadAllLines(filePath, Encoding.GetEncoding("shift-jis"))
+            Dim lines As String() = ReadLinesAutoEncoding(filePath)
 
             For Each line In lines
                 If String.IsNullOrWhiteSpace(line) Then Continue For
@@ -698,7 +738,7 @@ Namespace Services
 
 #Region "ヘルパーメソッド"
 
-        Private Shared Function SplitCsvLine(line As String) As String()
+        Friend Shared Function SplitCsvLine(line As String) As String()
             Dim result As New List(Of String)()
             Dim inQuotes As Boolean = False
             Dim current As New StringBuilder()
@@ -717,7 +757,26 @@ Namespace Services
             Return result.ToArray()
         End Function
 
-        Private Shared Function CleanCol(cols As String(), idx As Integer) As String
+        ''' <summary>
+        ''' 文字コード（UTF-8 BOM有無 / Shift-JIS）を自動判別して全行読み込みます。
+        ''' </summary>
+        Friend Shared Function ReadLinesAutoEncoding(filePath As String) As String()
+            Dim lines As New List(Of String)()
+            Using reader As New StreamReader(filePath, Encoding.GetEncoding("shift-jis"), True)
+                While Not reader.EndOfStream
+                    Dim l = reader.ReadLine()
+                    If l IsNot Nothing Then
+                        If l.Length > 0 AndAlso l(0) = ChrW(&HFEFF) Then
+                            l = l.Substring(1)
+                        End If
+                        lines.Add(l)
+                    End If
+                End While
+            End Using
+            Return lines.ToArray()
+        End Function
+
+        Friend Shared Function CleanCol(cols As String(), idx As Integer) As String
             If idx >= cols.Length Then Return String.Empty
             Return cols(idx).Trim(" "c, """"c)
         End Function

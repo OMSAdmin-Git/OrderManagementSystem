@@ -1,16 +1,16 @@
-﻿Imports System.Configuration
+Imports System.Configuration
 Imports System.IO
 Imports OMS.Business.Services
 Imports OMS.Common
 Imports OMS.Data
 
-Namespace SUZUKI_SPIRITS_DATA_PRE_IMPORT
+Namespace SUZUKI_SPIRITS_DATA_IMPORT
 
-    Module Program
+    Module SuzukiSpiritsDataImport
 
         Sub Main(args As String())
             Console.WriteLine("==============================================")
-            Console.WriteLine(" SUZUKI_SPIRITS_DATA_PRE_IMPORT Console Runner ")
+            Console.WriteLine(" SUZUKI_SPIRITS_DATA_IMPORT Console Runner ")
             Console.WriteLine("==============================================")
 
             Dim userId As String = "SUZUKI-AT"

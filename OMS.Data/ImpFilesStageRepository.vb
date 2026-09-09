@@ -1,4 +1,4 @@
-﻿
+
 Imports Oracle.ManagedDataAccess.Client
 Imports System.Data
 Imports System.Text
@@ -88,6 +88,7 @@ Namespace OMS.Data
             End If
 
             Using cmd As New OracleCommand(sb.ToString(), conn)
+                If tran IsNot Nothing Then cmd.Transaction = tran
                 cmd.BindByName = True
                 cmd.CommandType = CommandType.Text
                 If prm.Count > 0 Then cmd.Parameters.AddRange(prm.ToArray())
@@ -440,6 +441,7 @@ Namespace OMS.Data
                 End If
 
                 Using cmd As New OracleCommand(sb.ToString(), conn)
+                    If tran IsNot Nothing Then cmd.Transaction = tran
                     cmd.BindByName = True
                     cmd.CommandType = CommandType.Text
                     If prm.Count > 0 Then cmd.Parameters.AddRange(prm.ToArray())

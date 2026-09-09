@@ -1,4 +1,4 @@
-﻿Imports System
+Imports System
 Imports System.Data
 Imports System.IO
 Imports System.Configuration
@@ -94,8 +94,18 @@ Namespace Pages.Orders
                 ' 検索候補（顧客コード／PC／ユニット名）を初期化
                 LoadSearchConditionLists()
 
-                ' 初期表示（一覧）
+                ' 初期表示（一覧：すべてのチェックボックスは未選択状態でバインドされる）
                 BindSelectCustomersGrid()
+
+                ' PRGパターン: リダイレクト前のメッセージがあれば表示してクリア
+                If Session("StageImport_ResultMsg") IsNot Nothing Then
+                    lblResult.Text = Session("StageImport_ResultMsg").ToString()
+                    Session.Remove("StageImport_ResultMsg")
+                End If
+                If Session("StageImport_ErrorMsg") IsNot Nothing Then
+                    lblError.Text = Session("StageImport_ErrorMsg").ToString()
+                    Session.Remove("StageImport_ErrorMsg")
+                End If
             End If
         End Sub
 #End Region
@@ -149,6 +159,30 @@ Namespace Pages.Orders
 #End Region
 
 #Region "GridView バインド / イベント"
+        ''' <summary>
+        ''' スズキバッチ専用マスタ（取引先コード5455 / PC未設定）を画面上で非表示にするか判定
+        ''' デフォルトは非表示(True)。Web.configの OrderImportStage.HideBatchSuzukiCustomer で上書き可能。
+        ''' (例: false に設定すると画面上に表示されるようになります)
+        ''' </summary>
+        Private Function ShouldHideBatchSuzukiCustomer() As Boolean
+            Dim configVal As String = ConfigurationManager.AppSettings("OrderImportStage.HideBatchSuzukiCustomer")
+            If Not String.IsNullOrWhiteSpace(configVal) Then
+                Dim parsed As Boolean
+                If Boolean.TryParse(configVal, parsed) Then
+                    Return parsed
+                End If
+            End If
+            Return True ' デフォルト: 非表示
+        End Function
+
+        ''' <summary>
+        ''' スズキ(5455)のバッチ専用マスタ（PC未設定）であるか判定
+        ''' </summary>
+        Private Function IsBatchOnlySuzukiCustomer(customerCode As String, profitCenter As String) As Boolean
+            Return String.Equals(customerCode?.Trim(), "5455", StringComparison.OrdinalIgnoreCase) AndAlso
+                   String.IsNullOrWhiteSpace(profitCenter)
+        End Function
+
         ' 顧客候補の一覧をバインド
         Private Sub BindSelectCustomersGrid(
             Optional ByVal customerCode As String = Nothing,
@@ -166,6 +200,21 @@ Namespace Pages.Orders
                 activeFlag:="Y"
             )
 
+            ' スズキ(5455/PC未設定)バッチ専用マスタの非表示フィルタリング
+            If ShouldHideBatchSuzukiCustomer() AndAlso dt IsNot Nothing AndAlso dt.Rows.Count > 0 Then
+                Dim filteredRows = dt.AsEnumerable().Where(Function(r)
+                    Dim code As String = r.Field(Of String)("CustomerCode")
+                    Dim pc As String = r.Field(Of String)("ProfitCenter")
+                    Return Not IsBatchOnlySuzukiCustomer(code, pc)
+                End Function)
+
+                If filteredRows.Any() Then
+                    dt = filteredRows.CopyToDataTable()
+                Else
+                    dt = dt.Clone()
+                End If
+            End If
+
             gvSelectCustomers.DataSource = dt
             gvSelectCustomers.DataBind()
         End Sub
@@ -173,11 +222,11 @@ Namespace Pages.Orders
         ' GridViewヘッダーバインド
         Protected Sub gvSelectCustomers_RowDataBound(sender As Object, e As GridViewRowEventArgs) Handles gvSelectCustomers.RowDataBound
             If e.Row.RowType = DataControlRowType.DataRow Then
-                Dim chk As CheckBox = TryCast(e.Row.FindControl("chkDueDateSetting"), CheckBox)
+                Dim chk As CheckBox = TryCast(e.Row.FindControl("chkStageImport"), CheckBox)
                 If chk IsNot Nothing Then
                     ' 個別のチェック操作時にヘッダー状態を更新
                     chk.InputAttributes("onclick") =
-                        $"OMS.Grid.updateHeader('{gvSelectCustomers.ClientID}', 'chkDueDateSettingAll', 'chkDueDateSetting');"
+                        $"OMS.Grid.updateHeader('{gvSelectCustomers.ClientID}', 'chkStageImportAll', 'chkStageImport');"
                 End If
             End If
         End Sub
@@ -192,8 +241,25 @@ Namespace Pages.Orders
 
             Dim loginUserId As String = PageHelpers.GetUserId(Me)
             If String.IsNullOrWhiteSpace(loginUserId) Then
-                lblError.Text = "ユーザーIDが取得できませんでした。再ログインしてください。"
-                Exit Sub
+                RedirectAfterPost("", "ユーザーIDが取得できませんでした。再ログインしてください。")
+                Return
+            End If
+
+            ' 処理対象が選択されているか確認
+            Dim hasSelectedCustomer As Boolean = False
+            For Each r As GridViewRow In gvSelectCustomers.Rows
+                If r.RowType = DataControlRowType.DataRow Then
+                    Dim chk As CheckBox = TryCast(r.FindControl("chkStageImport"), CheckBox)
+                    If chk IsNot Nothing AndAlso chk.Checked Then
+                        hasSelectedCustomer = True
+                        Exit For
+                    End If
+                End If
+            Next
+
+            If Not hasSelectedCustomer Then
+                RedirectAfterPost("", "処理対象を選択してください。")
+                Return
             End If
 
             Dim results As New List(Of ImpFilesStageResult)()
@@ -300,7 +366,7 @@ Namespace Pages.Orders
                                         .LastWriteTime = DateTime.Now,
                                         .ReconcileFlag = sRow.ReconcileFlag,
                                         .FcstReconcileFlag = sRow.FcstReconcileFlag,
-                                        .HandFlag = "N",
+                                        .HandFlag = If(Not String.IsNullOrEmpty(sRow.HandFlag), sRow.HandFlag, "N"),
                                         .SpProcessType = spprocesstype
                                     })
                                 Next
@@ -382,18 +448,17 @@ Namespace Pages.Orders
             ' 画面へバインド（DataKeyNames="FilePath" 必須）
             Session("OrderImportSearchResults") = results
 
-            If errors.Count > 0 Then
-                lblError.Text = String.Join("<br/>", errors.Select(Function(s) Server.HtmlEncode(s)))
-            End If
-
             If anyFound AndAlso results.Count > 0 Then
                 lblResult.Text = $"取込準備：対象ファイルが【 {results.Count} 件 】見つかりました。"
             Else
                 If errors.Count = 0 Then
                     lblResult.Text = "取込準備：対象ファイルが見つかりませんでした。"
+                Else
+                    lblError.Text = String.Join("<br/>", errors.Distinct().Select(Function(s) Server.HtmlEncode(s)))
                 End If
-                ' 対象がなければ以降のDB登録処理はスキップ
-                Exit Sub
+                ' 対象がなければ以降のDB登録処理はスキップしてPRGリダイレクト
+                RedirectAfterPost(lblResult.Text, lblError.Text)
+                Return
             End If
 
             ' GridViewの選択状態（DropDownList）を読み取り、IMP_FILES_STAGE へ登録（Y/N管理）
@@ -465,13 +530,7 @@ Namespace Pages.Orders
 
             If errors.Count > 0 Then
                 ' 既存のエラー表示欄(lblError)に改行区切りでエラーを出力 (Render errors directly to page)
-                Dim alreadyText = lblError.Text
-                Dim addText = String.Join("<br/>", errors.Select(Function(s) Server.HtmlEncode(s)))
-                If String.IsNullOrEmpty(alreadyText) Then
-                    lblError.Text = addText
-                Else
-                    lblError.Text = alreadyText & "<br/>" & addText
-                End If
+                lblError.Text = String.Join("<br/>", errors.Distinct().Select(Function(s) Server.HtmlEncode(s)))
 
                 ' 【将来用】モーダルポップアップ表示（必要に応じてコメント解除して利用可能）
                 ' Dim errDt As New DataTable()
@@ -484,6 +543,24 @@ Namespace Pages.Orders
                 ' ScriptManager.RegisterStartupScript(Me, Me.GetType(), "ShowErrorModalScript", "showErrorModal();", True)
             End If
 
+            ' PRG (Post/Redirect/Get) パターン: 二重送信（F5再送）防止のためリダイレクト
+            RedirectAfterPost(lblResult.Text, lblError.Text)
+
+        End Sub
+
+        ''' <summary>
+        ''' PRG (Post/Redirect/Get) パターン用ヘルパー
+        ''' メッセージをSessionに格納し、同一URLへGETリダイレクトする
+        ''' </summary>
+        Private Sub RedirectAfterPost(resultMsg As String, errorMsg As String)
+            If Not String.IsNullOrEmpty(resultMsg) Then
+                Session("StageImport_ResultMsg") = resultMsg
+            End If
+            If Not String.IsNullOrEmpty(errorMsg) Then
+                Session("StageImport_ErrorMsg") = errorMsg
+            End If
+            Response.Redirect(Request.RawUrl, False)
+            Context.ApplicationInstance.CompleteRequest()
         End Sub
 #End Region
 
