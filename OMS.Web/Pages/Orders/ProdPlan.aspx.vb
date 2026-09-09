@@ -522,16 +522,6 @@ Namespace Pages.Orders
                                                     endDate = Get3WeekOfThisMonth(shipScheduledDate)
                                                 Case 3
                                                     '   3(納期の4週前)  ：  出荷予定日4週前～出荷予定日1週前  （例：出荷予定日が2026/3/13の場合、2/13～3/6）→ 2/12 ～ 3/14
-
-                                                    ' 1.初期 -> NG (②-3では OKらしい)
-                                                    'startDate = Get4WeeksBefore(shipScheduledDate)
-                                                    'endDate = Get1WeeksBefore(shipScheduledDate)
-
-                                                    ' 2. 調整したが ②-3 で1week多くなる
-                                                    'startDate = Get4WeeksBefore(shipScheduledDate)
-                                                    'endDate = GetWeekendSaturday(shipScheduledDate)
-
-                                                    ' 4. ②-3 用 仕様に合っている
                                                     startDate = Get4WeeksBefore(shipScheduledDate)
                                                     endDate = startDate.AddDays(28 - 1)
 
@@ -624,12 +614,9 @@ Namespace Pages.Orders
                                             ' 営業日日数
                                             Dim businessDay = businessDayList.Count
 
-                                            ''Order_Stage テーブルに 対象月の稼働日でレコードを作成
-                                            'Dim ordersStage = New List(Of OrdersStageRow)()
                                             ' 抽出しているレコードの Calender 該当日を取得
                                             Dim targetDay = ordersStageRows.Join(businessDayList, Function(ord) ord.ShipScheduledDate, Function(bus) bus.DefDate, Function(ord, bus) bus).ToList()
                                             ' Base order record
-                                            'Dim baseOrder = New OrdersStageRow(ordersStageRow)
                                             For Each bday In businessDayList
                                                 ' すでにレコードがある日付
                                                 If (targetDay.Any(Function(x) x.DefDate = bday.DefDate)) Then
@@ -668,187 +655,185 @@ Namespace Pages.Orders
                                             '                                            tran = conn.BeginTransaction()
                                             '                                            ' #### DEBUG
                                             '#End If
-                                            ' 分割方法確認 (SPLIT_METHOD_TYPE)
-                                            Select Case (splitMethodType)
+                                            ' 需要数 0 対応 2026/09/09
+                                            If (qty <> 0) Then
+                                                ' 分割方法確認 (SPLIT_METHOD_TYPE)
+                                                Select Case (splitMethodType)
                                                 ' 何もしない
-                                                Case 0, 6
-                                                    ' 元の DemandQty を戻す
-                                                    For Each osr In ordersStageRows
-                                                        Dim tg = ordersStage.Find(Function(x) x.ShipScheduledDate = osr.ShipScheduledDate)
-                                                        tg.DemandQty = osr.DemandQty
-                                                    Next
+                                                    Case 0, 6
+                                                        ' 元の DemandQty を戻す
+                                                        For Each osr In ordersStageRows
+                                                            Dim tg = ordersStage.Find(Function(x) x.ShipScheduledDate = osr.ShipScheduledDate)
+                                                            tg.DemandQty = osr.DemandQty
+                                                        Next
                                                 '日割り
-                                                Case 1
-                                                    Dim ans = GetRoundCalc(qty, businessDay, unit, splitRationType)
-                                                    Dim roundup = ans.roundedUp     ' 注文/day
-                                                    Dim days = ans.days             ' 期間
-                                                    Dim fraction = ans.fraction     ' 端数
+                                                    Case 1
+                                                        Dim ans = GetRoundCalc(qty, businessDay, unit, splitRationType)
+                                                        Dim roundup = ans.roundedUp     ' 注文/day
+                                                        Dim days = ans.days             ' 期間
+                                                        Dim fraction = ans.fraction     ' 端数
+                                                        For cnt = 0 To days - 1
+                                                            'Dim setDay = GetDesignationDay(calender, "W", cnt)
+                                                            Dim setDay = businessDayList(cnt).DefDate
 
-                                                    For cnt = 0 To days - 1
-                                                        'Dim setDay = GetDesignationDay(calender, "W", cnt)
-                                                        Dim setDay = businessDayList(cnt).DefDate
-
-                                                        Dim dqty = roundup
-                                                        If (fraction <> 0) Then
-                                                            ' 先頭端数の時
-                                                            If (cnt = 0) And (carryToType = 1) Then
-                                                                dqty = fraction
+                                                            Dim dqty = roundup
+                                                            If (fraction <> 0) Then
+                                                                ' 先頭端数の時
+                                                                If (cnt = 0) And (carryToType = 1) Then
+                                                                    dqty = fraction
+                                                                End If
+                                                                ' 先後尾端数の時
+                                                                If (cnt = days - 1) And (carryToType = 2) Then
+                                                                    dqty = fraction
+                                                                End If
                                                             End If
-                                                            ' 先後尾端数の時
-                                                            If (cnt = days - 1) And (carryToType = 2) Then
-                                                                dqty = fraction
-                                                            End If
-                                                        End If
-                                                        Dim tg = ordersStage.Find(Function(x) x.ShipScheduledDate = setDay)
-                                                        tg.DemandQty = dqty
-                                                        tg.ShipPlanDate = setDay
-                                                        'tg.CustomerOrderLineNo = "" ' ????? 仕様不明
-                                                        ' 分割比
-                                                        If (splitRationType = 2) Then
-                                                            If (cnt = 0) Then
-                                                                tg.DemandQty += roundup
-                                                            End If
-                                                        End If
-                                                    Next
-                                                '4分割
-                                                Case 2
-                                                    Dim ans = GetRoundCalc(qty, 4, unit, splitRationType)
-                                                    Dim roundup = ans.roundedUp     ' 注文/day
-                                                    Dim days = ans.days + If(splitRationType = 1, -1, -2)           ' 期間
-                                                    Dim fraction = ans.fraction     ' 端数
-                                                    For cnt = 0 To 3
-                                                        ' 1.
-                                                        'Dim setDay = GetDesignationDay(calender, "W", cnt * (businessDay / 4))
-
-                                                        ' 2.
-                                                        'Dim offsetDays As Integer = Convert.ToInt32(Math.Round(cnt * (businessDay / 4), MidpointRounding.AwayFromZero))
-                                                        'Dim offsetDays = Convert.ToInt32(Math.Round(CDbl(cnt) * CDbl(businessDay) / CDbl(4), MidpointRounding.))
-                                                        'Dim setDay = GetDesignationDay(calender, "W", offsetDays)
-
-                                                        ' 3. 稼働日配列から 切り上げで 取得
-                                                        Dim offsetDays = Math.Ceiling(CDbl(businessDay) / CDbl(4))
-                                                        Dim setDay = businessDayList(cnt * offsetDays).DefDate
-
-                                                        Dim dqty = roundup
-                                                        ' 先頭端数の時
-                                                        If (cnt = 0) And (carryToType = 1) And (fraction <> 0) Then
-                                                            dqty = fraction
-                                                        End If
-                                                        ' 先後尾端数の時
-                                                        If (cnt = 3) And (carryToType = 2) And (fraction <> 0) Then
-                                                            dqty = fraction
-                                                        End If
-                                                        Dim tg = ordersStage.Find(Function(x) x.ShipScheduledDate = setDay)
-                                                        tg.DemandQty = dqty
-                                                        tg.ShipPlanDate = setDay
-                                                        'tg.CustomerOrderLineNo = "" ' ????? 仕様不明
-                                                        ' 分割比
-                                                        If (splitRationType = 2) Then
-                                                            If (cnt = 0) Then
-                                                                tg.DemandQty += roundup
-                                                            End If
-                                                        End If
-                                                    Next
-
-                                                '3分割
-                                                Case 3
-                                                    Dim ans = GetRoundCalc3D(qty, 4, unit, splitRationType)
-                                                    Dim roundup = ans.roundedUp     ' 注文/day
-                                                    Dim days = ans.days             ' 期間
-                                                    Dim fraction = ans.fraction     ' 端数
-
-                                                    For cnt = 0 To 3 ' 日付は月 4分割 のため
-                                                        'Dim setDay = GetDesignationDay(calender, "W", cnt * (businessDay / 4))
-
-
-                                                        Dim offsetDays = Math.Ceiling(CDbl(businessDay) / CDbl(4))
-                                                        Dim setDay = businessDayList(cnt * offsetDays).DefDate
-
-
-                                                        Dim dqty = roundup
-                                                        ' 先頭端数の時
-                                                        If (cnt = 0) And (carryToType = 1) And (fraction <> 0) Then
-                                                            dqty = fraction
-                                                        End If
-                                                        ' 先後尾端数の時
-                                                        If (cnt = 3) And (carryToType = 2) And (fraction <> 0) Then
-                                                            dqty = fraction
-                                                        End If
-
-                                                        ' 第2週をパス
-                                                        If (cnt = 1) Then
-                                                            Continue For
-                                                        End If
-                                                        Dim tg = ordersStage.Find(Function(x) x.ShipScheduledDate = setDay)
-                                                        tg.ShipPlanDate = setDay
-                                                        tg.DemandQty = dqty
-                                                        'tg.CustomerOrderLineNo = "" ' ????? 仕様不明
-                                                        If (splitRationType = 2) Then
-                                                            If (cnt = 0) Then
-                                                                tg.DemandQty += roundup
-                                                            End If
-                                                        End If
-                                                    Next
-
-                                                '2分割
-                                                Case 4
-                                                    Dim ans = GetRoundCalc(qty, 2, unit, splitRationType)
-                                                    Dim roundup = ans.roundedUp     ' 注文/day
-                                                    Dim days = ans.days             ' 期間
-                                                    Dim fraction = ans.fraction     ' 端数
-                                                    'If (splitRationType = 2) Then
-                                                    '    days -= 1
-                                                    'End If
-                                                    For cnt = 0 To 1
-                                                        'Dim setDay = GetDesignationDay(calender, "W", cnt * (businessDay / 2))
-                                                        Dim offsetDays = Math.Ceiling(CDbl(businessDay) / CDbl(2))
-                                                        Dim setDay = businessDayList(cnt * offsetDays).DefDate
-                                                        Dim dqty = roundup
-                                                        ' 先頭端数の時
-                                                        If (cnt = 0) And (carryToType = 1) And (fraction <> 0) Then
-                                                            dqty = fraction
-                                                        End If
-                                                        ' 先後尾端数の時
-                                                        If (cnt = 1) And (carryToType = 2) And (fraction <> 0) Then
-                                                            dqty = fraction
-                                                        End If
-                                                        Dim tg = ordersStage.Find(Function(x) x.ShipScheduledDate = setDay)
-                                                        tg.DemandQty = dqty
-                                                        tg.ShipPlanDate = setDay
-                                                        'tg.CustomerOrderLineNo = "" ' ????? 仕様不明
-                                                        ' 分割比
-                                                        If (splitRationType = 2) Then
-                                                            If (cnt = 0) Then
-                                                                tg.DemandQty += roundup
-                                                            End If
-                                                        End If
-                                                    Next
-                                                '週まるめ
-                                                Case 5
-                                                    ' 月内の 週数
-                                                    Dim wCount = GetWeeksInMonth(ordersStageRow.ShipScheduledDate)
-                                                    Dim weekStart = startDate
-                                                    ' 週 回数
-                                                    For i As Integer = 0 To wCount - 1
-                                                        'Dim wOrders = orderRows.FindAll(Function(x) x.ShipScheduledDate >= wStartDate And x.ShipScheduledDate <= wEndDate)
-                                                        'Dim wOrders = ordersStageRows.FindAll(Function(x) x.ShipScheduledDate >= wStartDate And x.ShipScheduledDate <= wEndDate)
-                                                        Dim wOrders = ordersStageRows.FindAll(Function(x) x.ShipScheduledDate >= weekStart And x.ShipScheduledDate <= DateSerial(DateAndTime.Year(weekStart), DateAndTime.Month(weekStart), DateAndTime.Day(weekStart) + 6))
-                                                        Dim dqty = wOrders.Sum(Function(x) x.DemandQty)
-                                                        ' 週単位で 週内の DemandQty に 0代入 
-                                                        wOrders.ForEach(Sub(x) x.DemandQty = 0)
-                                                        ' その週の先頭営業日を取得 
-                                                        '@@@@ 4/1 水曜日の場合  現状 [要確認]
-                                                        If (dqty <> 0) Then
-                                                            Dim setDay = GetDateWeekBusinessDay(calender, weekStart)
                                                             Dim tg = ordersStage.Find(Function(x) x.ShipScheduledDate = setDay)
                                                             tg.DemandQty = dqty
                                                             tg.ShipPlanDate = setDay
                                                             'tg.CustomerOrderLineNo = "" ' ????? 仕様不明
-                                                        End If
-                                                        ' 次の週 
-                                                        weekStart = DateSerial(DateAndTime.Year(weekStart), DateAndTime.Month(weekStart), DateAndTime.Day(weekStart) + 7)
-                                                    Next
-                                            End Select
+                                                            ' 分割比
+                                                            If (splitRationType = 2) Then
+                                                                If (cnt = 0) Then
+                                                                    tg.DemandQty += roundup
+                                                                End If
+                                                            End If
+                                                        Next
+                                                '4分割
+                                                    Case 2
+                                                        Dim ans = GetRoundCalc(qty, 4, unit, splitRationType)
+                                                        Dim roundup = ans.roundedUp     ' 注文/day
+                                                        Dim days = ans.days + If(splitRationType = 1, -1, -2)           ' 期間
+                                                        Dim fraction = ans.fraction     ' 端数
+                                                        For cnt = 0 To 3
+                                                            ' 1.
+                                                            'Dim setDay = GetDesignationDay(calender, "W", cnt * (businessDay / 4))
+
+                                                            ' 2.
+                                                            'Dim offsetDays As Integer = Convert.ToInt32(Math.Round(cnt * (businessDay / 4), MidpointRounding.AwayFromZero))
+                                                            'Dim offsetDays = Convert.ToInt32(Math.Round(CDbl(cnt) * CDbl(businessDay) / CDbl(4), MidpointRounding.))
+                                                            'Dim setDay = GetDesignationDay(calender, "W", offsetDays)
+
+                                                            ' 3. 稼働日配列から 切り上げで 取得
+                                                            Dim offsetDays = Math.Ceiling(CDbl(businessDay) / CDbl(4))
+                                                            Dim setDay = businessDayList(cnt * offsetDays).DefDate
+
+                                                            Dim dqty = roundup
+                                                            ' 先頭端数の時
+                                                            If (cnt = 0) And (carryToType = 1) And (fraction <> 0) Then
+                                                                dqty = fraction
+                                                            End If
+                                                            ' 先後尾端数の時
+                                                            If (cnt = 3) And (carryToType = 2) And (fraction <> 0) Then
+                                                                dqty = fraction
+                                                            End If
+                                                            Dim tg = ordersStage.Find(Function(x) x.ShipScheduledDate = setDay)
+                                                            tg.DemandQty = dqty
+                                                            tg.ShipPlanDate = setDay
+                                                            'tg.CustomerOrderLineNo = "" ' ????? 仕様不明
+                                                            ' 分割比
+                                                            If (splitRationType = 2) Then
+                                                                If (cnt = 0) Then
+                                                                    tg.DemandQty += roundup
+                                                                End If
+                                                            End If
+                                                        Next
+
+                                                '3分割
+                                                    Case 3
+                                                        Dim ans = GetRoundCalc3D(qty, 4, unit, splitRationType)
+                                                        Dim roundup = ans.roundedUp     ' 注文/day
+                                                        Dim days = ans.days             ' 期間
+                                                        Dim fraction = ans.fraction     ' 端数
+
+                                                        For cnt = 0 To 3 ' 日付は月 4分割 のため
+                                                            'Dim setDay = GetDesignationDay(calender, "W", cnt * (businessDay / 4))
+
+
+                                                            Dim offsetDays = Math.Ceiling(CDbl(businessDay) / CDbl(4))
+                                                            Dim setDay = businessDayList(cnt * offsetDays).DefDate
+
+
+                                                            Dim dqty = roundup
+                                                            ' 先頭端数の時
+                                                            If (cnt = 0) And (carryToType = 1) And (fraction <> 0) Then
+                                                                dqty = fraction
+                                                            End If
+                                                            ' 先後尾端数の時
+                                                            If (cnt = 3) And (carryToType = 2) And (fraction <> 0) Then
+                                                                dqty = fraction
+                                                            End If
+
+                                                            ' 第2週をパス
+                                                            If (cnt = 1) Then
+                                                                Continue For
+                                                            End If
+                                                            Dim tg = ordersStage.Find(Function(x) x.ShipScheduledDate = setDay)
+                                                            tg.ShipPlanDate = setDay
+                                                            tg.DemandQty = dqty
+                                                            'tg.CustomerOrderLineNo = "" ' ????? 仕様不明
+                                                            If (splitRationType = 2) Then
+                                                                If (cnt = 0) Then
+                                                                    tg.DemandQty += roundup
+                                                                End If
+                                                            End If
+                                                        Next
+
+                                                '2分割
+                                                    Case 4
+                                                        Dim ans = GetRoundCalc(qty, 2, unit, splitRationType)
+                                                        Dim roundup = ans.roundedUp     ' 注文/day
+                                                        Dim days = ans.days             ' 期間
+                                                        Dim fraction = ans.fraction     ' 端数
+                                                        'If (splitRationType = 2) Then
+                                                        '    days -= 1
+                                                        'End If
+                                                        For cnt = 0 To 1
+                                                            'Dim setDay = GetDesignationDay(calender, "W", cnt * (businessDay / 2))
+                                                            Dim offsetDays = Math.Ceiling(CDbl(businessDay) / CDbl(2))
+                                                            Dim setDay = businessDayList(cnt * offsetDays).DefDate
+                                                            Dim dqty = roundup
+                                                            ' 先頭端数の時
+                                                            If (cnt = 0) And (carryToType = 1) And (fraction <> 0) Then
+                                                                dqty = fraction
+                                                            End If
+                                                            ' 先後尾端数の時
+                                                            If (cnt = 1) And (carryToType = 2) And (fraction <> 0) Then
+                                                                dqty = fraction
+                                                            End If
+                                                            Dim tg = ordersStage.Find(Function(x) x.ShipScheduledDate = setDay)
+                                                            tg.DemandQty = dqty
+                                                            tg.ShipPlanDate = setDay
+                                                            'tg.CustomerOrderLineNo = "" ' ????? 仕様不明
+                                                            ' 分割比
+                                                            If (splitRationType = 2) Then
+                                                                If (cnt = 0) Then
+                                                                    tg.DemandQty += roundup
+                                                                End If
+                                                            End If
+                                                        Next
+                                                '週まるめ
+                                                    Case 5
+                                                        ' 月内の 週数
+                                                        Dim wCount = GetWeeksInMonth(ordersStageRow.ShipScheduledDate)
+                                                        Dim weekStart = startDate
+                                                        ' 週 回数
+                                                        For i As Integer = 0 To wCount - 1
+                                                            Dim wOrders = ordersStageRows.FindAll(Function(x) x.ShipScheduledDate >= weekStart And x.ShipScheduledDate <= DateSerial(DateAndTime.Year(weekStart), DateAndTime.Month(weekStart), DateAndTime.Day(weekStart) + 6))
+                                                            Dim dqty = wOrders.Sum(Function(x) x.DemandQty)
+                                                            ' 週単位で 週内の DemandQty に 0代入 
+                                                            wOrders.ForEach(Sub(x) x.DemandQty = 0)
+                                                            ' その週の先頭営業日を取得 
+                                                            If (dqty <> 0) Then
+                                                                Dim setDay = GetDateWeekBusinessDay(calender, weekStart)
+                                                                Dim tg = ordersStage.Find(Function(x) x.ShipScheduledDate = setDay)
+                                                                tg.DemandQty = dqty
+                                                                tg.ShipPlanDate = setDay
+                                                            End If
+                                                            ' 次の週 
+                                                            weekStart = DateSerial(DateAndTime.Year(weekStart), DateAndTime.Month(weekStart), DateAndTime.Day(weekStart) + 7)
+                                                        Next
+                                                End Select
+                                            End If
                                             '
                                             ' orderStageRow は DB から取得した内容 (処理経過で Dqty などは 変更される)
                                             ' 最終的に生成されるのは ordersStage で 開始日から終了日までの営業日レコードデータが
@@ -1022,7 +1007,7 @@ Namespace Pages.Orders
                 '---------------------------- 
                 ' Insert 登録済みの ProdPlanStageからPlodPlan へ登録
                 '----------------------------
-                '   OrdersRow の Listを取得   OrderStage のDataTable を OrderStageRow のクラス変換をして OrdersRow へ変換する
+                '   OrdersRow の Listを取得   ProdPlanStage のDataTable を OrderStageRow のクラス変換をして PlodPlan へ変換する
                 Dim registerdOrders = OrdersStageRow.ToOrdersRow(reps.ToClass(reps.GetRegisteredOrders(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, idSelectList)))
                 errors.Add(repo.InsertRange(conn, tran, OrderRepository.OrdersTable.ProductPlan, registerdOrders))
                 '#If DEBUG Then
@@ -2025,6 +2010,10 @@ Namespace Pages.Orders
 
             ' tunit単位で切り上げ計算
             Dim roundedUpValue As Double = Math.Ceiling(dailyAvg / tunit) * tunit
+            ' QTY 0 の場合 0 dev エラーが発生する対策 2026/9/9
+            If (roundedUpValue = 0) Then
+                Return (roundedUpValue, 0, 0)
+            End If
 
             ' 割当日数と端数の計算
             Dim dcnt As Integer = total \ CInt(roundedUpValue) ' 「\」は整数除算（余り切り捨て）

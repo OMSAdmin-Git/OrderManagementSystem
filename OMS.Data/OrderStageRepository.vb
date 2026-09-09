@@ -3421,8 +3421,8 @@ Namespace OMS.Data
                     AND order_type = :p_order_type
                     AND status = 'IMPORTED'
                     AND active_flag = 'Y'
-                    -- ↓ YamahaRobotex 追加した条件（先頭の'R'を除去した後の桁数が6桁）
-                    AND LENGTH(REGEXP_REPLACE(order_no, '^R')) = 6
+                    -- ↓ YamahaRobotex 追加した条件（客先発注No 先頭の'R'を除去した後の桁数が6桁）
+                    AND LENGTH(REGEXP_REPLACE(customer_order_no, '^R')) = 6
                     {curWhere}
                 GROUP BY order_type,item_no
                     {curGroupBy}
@@ -3986,25 +3986,25 @@ Namespace OMS.Data
                             Continue For
                         End If
 
-                        Dim currentShipScheduledDate As Date = Convert.ToDateTime(row("ship_plan_date"))
+                        Dim currentShipScheduledDate As Date = Convert.ToDateTime(row("due_date"))
                         Dim customerItemNo As String = row("customer_item_no").ToString()
 
                         ' 2つの日付を関数呼び出して設定
-                        Dim p_NextDay As Date = GetNextDay(tran, currentShipScheduledDate)
-                        Dim p_EndOfMonth As Date = GetEndOfMonth(tran, currentShipScheduledDate)
-                        Dim p_monthDt As Date = row("due_date")
+                        Dim nextDay As Date = GetNextDay(tran, currentShipScheduledDate)
+                        Dim endOfMonth As Date = GetEndOfMonth(tran, currentShipScheduledDate)
+                        Dim monthDt As Date = row("due_date")
                         ' 条件判定して代入日付を決定
                         Dim p_AssignDate As Date
-                        If (currentShipScheduledDate >= p_EndOfMonth) Then
-                            p_AssignDate = p_EndOfMonth
+                        If (currentShipScheduledDate >= endOfMonth) Then
+                            p_AssignDate = endOfMonth
                         Else
-                            p_AssignDate = p_NextDay
+                            p_AssignDate = nextDay
                         End If
 
                         ' SQLパラメータの値を更新して実行
-                        cmd.Parameters("p_AssignDate").Value = p_AssignDate
-                        cmd.Parameters("p_customerItemNo").Value = customerItemNo
-                        cmd.Parameters(":p_monthDt").Value = p_monthDt
+                        cmd.Parameters(":p_AssignDate").Value = p_AssignDate
+                        cmd.Parameters(":p_customerItemNo").Value = customerItemNo
+                        cmd.Parameters(":p_monthDt").Value = monthDt
 
                         cmd.ExecuteNonQuery()
                     Next
