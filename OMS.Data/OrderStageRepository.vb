@@ -2912,34 +2912,34 @@ Namespace OMS.Data
             End Using
 
         End Sub
-        ''' <summary>
-        ''' 今回取り込んだ内示データのステータスを 'PROCESSED'加工済データ に更新する
-        ''' YamahaRobotex 用
-        ''' </summary>
-        '''  ''' <param name="tran">トランザクション</param>
-        ''' <param name="impFileStageId">処理対象の一時取込ファイルID</param>
-        Public Sub UpdateNaijiStatusProcessedYamahaRobotex(ByVal tran As OracleTransaction, ByVal impFileStageId As Long)
+        '''' <summary>
+        '''' 今回取り込んだ内示データのステータスを 'PROCESSED'加工済データ に更新する
+        '''' YamahaRobotex 用
+        '''' </summary>
+        ''''  ''' <param name="tran">トランザクション</param>
+        '''' <param name="impFileStageId">処理対象の一時取込ファイルID</param>
+        'Public Sub UpdateNaijiStatusProcessedYamahaRobotex(ByVal tran As OracleTransaction, ByVal impFileStageId As Long)
 
-            ' 今回のimp_file_stage_idに一致するデータの STATUS を 'PROCESSED'加工済データ に更新
-            Const sql As String =
-                        " UPDATE orders_stage " &
-                        " SET status = 'PROCESSED' " &
-                        " WHERE 1=1 " &
-                        " AND imp_file_stage_id = :p_imp_file_stage_id " &
-                        " AND order_type = 1"
+        '    ' 今回のimp_file_stage_idに一致するデータの STATUS を 'PROCESSED'加工済データ に更新
+        '    Const sql As String =
+        '                " UPDATE orders_stage " &
+        '                " SET status = 'PROCESSED' " &
+        '                " WHERE 1=1 " &
+        '                " AND imp_file_stage_id = :p_imp_file_stage_id " &
+        '                " AND order_type = 1"
 
-            Using cmd As New OracleCommand(sql, tran.Connection)
-                cmd.Transaction = tran
-                cmd.BindByName = True
-                cmd.CommandType = CommandType.Text
-                cmd.Parameters.Clear()
+        '    Using cmd As New OracleCommand(sql, tran.Connection)
+        '        cmd.Transaction = tran
+        '        cmd.BindByName = True
+        '        cmd.CommandType = CommandType.Text
+        '        cmd.Parameters.Clear()
 
-                cmd.Parameters.Add(":p_imp_file_stage_id", OracleDbType.Int64).Value = impFileStageId
+        '        cmd.Parameters.Add(":p_imp_file_stage_id", OracleDbType.Int64).Value = impFileStageId
 
-                cmd.ExecuteNonQuery()
-            End Using
+        '        cmd.ExecuteNonQuery()
+        '    End Using
 
-        End Sub
+        'End Sub
 
         ''' <summary>
         ''' 打切処理    INFO_TYPE='N'打切 を'PROCESSED'加工済データに更新する
@@ -3957,7 +3957,8 @@ Namespace OMS.Data
             ' ==========================================
             Dim updateSql As String = "
                 UPDATE orders_stage 
-                SET ship_scheduled_date = :p_AssignDate 
+                SET ship_scheduled_date = :p_AssignDate, 
+                    due_date = :p_AssignDate 
                 WHERE order_type = 1 
                   AND customer_setting_id = :p_customerSettingId 
                   AND active_flag = 'Y' 
@@ -4030,7 +4031,7 @@ Namespace OMS.Data
         Private Function GetNextDay(tran As OracleTransaction, baseDate As Date) As Date
 
             Dim cal = New CalenderRepository(Utils.GetConnectionString())
-            Return cal.AddWorkingDays(tran.Connection, tran, "00001", baseDate, 1)
+            Return cal.AddWorkingDays2("00001", baseDate, 1)
 
         End Function
         ''' <summary>
@@ -4042,7 +4043,7 @@ Namespace OMS.Data
 
             Dim lastDay As Date = New Date(Date.Today.Year, Date.Today.Month, Date.DaysInMonth(Date.Today.Year, Date.Today.Month))
             Dim cal = New CalenderRepository(Utils.GetConnectionString())
-            Return cal.AddWorkingDays(tran.Connection, tran, "00001", baseDate, 0)
+            Return cal.AddWorkingDays2("00001", lastDay, 0)
 
         End Function
 

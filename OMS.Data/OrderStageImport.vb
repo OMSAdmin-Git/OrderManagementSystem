@@ -3636,7 +3636,7 @@ Namespace OMS.Data
                         _oderStageRepo.ReplaceNaijiRelationYamahaRobotex(tran, impfilestageId, CustomerSettingId, Now, UserId, pgId)
 
                         'ステータス更新
-                        _oderStageRepo.UpdateNaijiStatusProcessedYamahaRobotex(tran, impfilestageId)
+                        _oderStageRepo.UpdateNaijiStatusProcessed(tran, impfilestageId)
                     End If
 
                     '2026/05/26 酒井 フェーズ2 受注残対応
