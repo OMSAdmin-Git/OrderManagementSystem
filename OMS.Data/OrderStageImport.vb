@@ -1242,6 +1242,8 @@ Namespace OMS.Data
             Dim errMsg As String
 
             Dim itemstatus As Integer
+            Dim infotypecode As String
+
 
             Dim isTruncated As Boolean = False
 
@@ -1336,6 +1338,7 @@ Namespace OMS.Data
                                 profitcenterCSM = ""
                                 profitcenter = ""
                                 itemstatus = 0
+                                infotypecode = ""
 
                                 errMsg = ""
 
@@ -1367,12 +1370,26 @@ Namespace OMS.Data
                                 errMsg = ""
 
                                 'Phase2対応
-                                If spprocessType <> 2 Then
+                                'If spprocessType <> 2 Then
+                                If spprocessType = 0 Then
                                     If _oderStageRepo.GetProductCode(customerCode, customeritemNo, productcode, itemNo, errMsg) = False Then
                                         'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
                                         'ErrFlg = True
                                     End If
-                                Else
+
+
+                                ElseIf spprocessType = 1 Then
+                                    '特殊処理=1は、スズキ
+                                    If mapResult.nSuzukiInfoTypeCode > -1 Then
+                                        infotypecode = If(csv.ColumnCount > mapResult.nSuzukiInfoTypeCode AndAlso mapResult.nSuzukiInfoTypeCode > -1, csv.GetField(mapResult.nSuzukiInfoTypeCode).Trim(), "")
+                                    End If
+                                    If _oderStageRepo.GetProductCode1(customerCode, customeritemNo, infotypecode, itemNo, errMsg) = False Then
+                                        'errors.add($"取引先コード：{customercode}　取込ファイル：[{torikomifile} ]　row {fileidx}：{errmsg}")
+                                        'errflg = true
+                                    End If
+
+                                ElseIf spprocessType = 2 Then
+
                                     '特殊加工=2は、ヤマハ(IM以外)
                                     '品目ステータスを取得
                                     If mapResult.nYamahaItemStatus > -1 Then
@@ -1581,12 +1598,25 @@ Namespace OMS.Data
                                 errMsg = ""
 
                                 'Phase2対応
-                                If spprocessType <> 2 Then
+                                'If spprocessType <> 2 Then
+                                If spprocessType = 0 Then
                                     If _oderStageRepo.GetProductCode(customerCode, customeritemNo, productcode, itemNo, errMsg) = False Then
                                         errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
                                         ErrFlg = True
                                     End If
-                                Else
+
+                                ElseIf spprocessType = 1 Then
+                                    '特殊加工=1は、スズキ
+                                    'スズキ情報区分コードを取得
+                                    If mapResult.nSuzukiInfoTypeCode > -1 Then
+                                        infotypecode = If(csv.ColumnCount > mapResult.nSuzukiInfoTypeCode AndAlso mapResult.nSuzukiInfoTypeCode > -1, csv.GetField(mapResult.nSuzukiInfoTypeCode).Trim(), "")
+                                    End If
+                                    If _oderStageRepo.GetProductCode1(customerCode, customeritemNo, infotypecode, itemNo, errMsg) = False Then
+                                        errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                                        ErrFlg = True
+                                    End If
+
+                                ElseIf spprocessType = 2 Then
                                     '特殊加工=2は、ヤマハ(IM以外)
                                     '品目ステータスを取得
                                     If mapResult.nYamahaItemStatus > -1 Then
@@ -1927,6 +1957,7 @@ Namespace OMS.Data
                                 profitcenterCSM = ""
                                 profitcenter = ""
                                 itemstatus = 0
+                                infotypecode = ""
 
                                 errMsg = ""
 
@@ -1959,12 +1990,26 @@ Namespace OMS.Data
                                 errMsg = ""
 
                                 'Phase2対応
-                                If spprocessType <> 2 Then
+                                'If spprocessType <> 2 Then
+                                If spprocessType = 0 Then
                                     If _oderStageRepo.GetProductCode(customerCode, customeritemNo, productcode, itemNo, errMsg) = False Then
                                         'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
                                         'ErrFlg = True
                                     End If
-                                Else
+
+                                ElseIf spprocessType = 1 Then
+                                    '特殊加工=1は、スズキ
+                                    'スズキ情報区分コードを取得
+                                    If mapResult.nSuzukiInfoTypeCode > 0 Then
+                                        infotypecode = If(mapResult.nSuzukiInfoTypeCode > 0, xlRow.Cell(mapResult.nSuzukiInfoTypeCode).GetValue(Of String)().Trim(), "")
+                                    End If
+
+                                    If _oderStageRepo.GetProductCode1(customerCode, customeritemNo, infotypecode, itemNo, errMsg) = False Then
+                                        'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                                        'ErrFlg = True
+                                    End If
+
+                                ElseIf spprocessType = 2 Then
                                     '特殊加工=2は、ヤマハ(IM以外)
                                     '品目ステータスを取得
                                     If mapResult.nYamahaItemStatus > 0 Then
@@ -2178,12 +2223,25 @@ Namespace OMS.Data
                                 errMsg = ""
 
                                 'Phase2対応
-                                If spprocessType <> 2 Then
+                                'If spprocessType <> 2 Then
+                                If spprocessType = 0 Then
                                     If _oderStageRepo.GetProductCode(customerCode, customeritemNo, productcode, itemNo, errMsg) = False Then
                                         errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
                                         ErrFlg = True
                                     End If
-                                Else
+
+                                ElseIf spprocessType = 1 Then
+                                    '特殊加工=1は、スズキ
+                                    'スズキ情報区分コードを取得
+                                    If mapResult.nSuzukiInfoTypeCode > 0 Then
+                                        infotypecode = If(mapResult.nSuzukiInfoTypeCode > 0, xlRow.Cell(mapResult.nSuzukiInfoTypeCode).GetValue(Of String)().Trim(), "")
+                                    End If
+                                    If _oderStageRepo.GetProductCode1(customerCode, customeritemNo, infotypecode, itemNo, errMsg) = False Then
+                                        errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                                        ErrFlg = True
+                                    End If
+
+                                ElseIf spprocessType = 2 Then
                                     '特殊加工=2は、ヤマハ(IM以外)
                                     '品目ステータスを取得
                                     If mapResult.nYamahaItemStatus > 0 Then
