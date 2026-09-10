@@ -221,7 +221,7 @@ Namespace Services
                     .ContractorCode = CleanCol(cols, 4),
                     .ContractorOfficeCode = CleanCol(cols, 5),
                     .PublicationDate = If(cols.Length > 6, ParseDate(CleanCol(cols, 6)), Nothing),
-                    .PublicationTime = CleanCol(cols, 7),
+                    .PublicationTime = If(cols.Length > 7, ParseInt(CleanCol(cols, 7)), Nothing),
                     .TargetReferenceDateType = CleanCol(cols, 8),
                     .TargetReferenceDate = CleanCol(cols, 9),
                     .CustomerItemNo = CleanCol(cols, 10),
@@ -418,7 +418,7 @@ Namespace Services
                     .OrderQty = If(cols.Length > 22, ParseLong(CleanCol(cols, 22)), Nothing),
                     .AcceptanceDate = If(cols.Length > 23, ParseDate(CleanCol(cols, 23)), Nothing),
                     .AcceptanceTime = CleanCol(cols, 24),
-                    .AcceptanceQty = CleanCol(cols, 25),
+                    .AcceptanceQty = If(cols.Length > 25, ParseDecimal(CleanCol(cols, 25)), Nothing),
                     .DeliveryNo = CleanCol(cols, 26),
                     .ActiveFlag = "Y",
                     .CreatedAt = DateTime.Now
@@ -810,6 +810,14 @@ Namespace Services
             If String.IsNullOrWhiteSpace(val) Then Return Nothing
             Dim res As Long
             If Long.TryParse(val.Trim(), res) Then Return res
+            Return Nothing
+        End Function
+
+        Private Shared Function ParseDecimal(val As String) As Decimal?
+            If String.IsNullOrWhiteSpace(val) Then Return Nothing
+            Dim res As Decimal
+            If Decimal.TryParse(val.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, res) Then Return res
+            If Decimal.TryParse(val.Trim(), res) Then Return res
             Return Nothing
         End Function
 
