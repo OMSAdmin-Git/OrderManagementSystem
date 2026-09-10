@@ -3439,8 +3439,8 @@ Namespace OMS.Data
                     ' 内示: 当月の稼動日初日 確定: "R" + 客先発注No それ以外: 当月の稼動日初日 
                     orderStageRow.CustomerOrderNo = If(ft = YamahaRobotexType.UnofficialNotice, firstWorkingDay.ToString("yyyyMMdd"), If(ft = YamahaRobotexType.Confirmed, "R" & row("客先発注No"), firstWorkingDay.ToString("yyyyMMdd")))
 
-                    firstWorkingDay = calen.GetFirstWorkingDay(calType, dtcvt)
-                    orderStageRow.DueDate = dtcvt
+                    'firstWorkingDay = calen.GetFirstWorkingDay(calType, dtcvt)
+                    orderStageRow.DueDate = firstWorkingDay
                     orderStageRow.CustomerItemNo = customerItemNo
                     orderStageRow.DemandQty = demandQty
                     orderStageRow.Remarks = comment
@@ -3536,21 +3536,6 @@ Namespace OMS.Data
 
         End Function
 
-        'Public Shared Function OrdersStageSaved(ByVal tran As OracleTransaction,
-        '                                    ByVal CustomerSettingId As Long,
-        '                                    ByVal impfilestageId As Long,
-        '                                    ByVal FolderType As Integer,
-        '                                    ByVal ReconcileFlag As String,
-        '                                    ByVal FcstReconcileFlag As String,
-        '                                    ByVal blnHandFlag As Boolean,
-        '                                    ByVal UserId As String,
-        '                                    ByVal pgId As String,
-        '                                    ByVal rowsForTemp2 As List(Of OrdersStageRow)) As OrderStageImport
-
-        '    Return OrdersStageSaved(tran, CustomerSettingId, impfilestageId, FolderType, ReconcileFlag, FcstReconcileFlag, blnHandFlag, UserId, pgId, rowsForTemp2, -1)
-
-        'End Function
-
         Public Shared Function OrdersStageSaved(ByVal tran As OracleTransaction,
                                             ByVal CustomerSettingId As Long,
                                             ByVal impfilestageId As Long,
@@ -3613,14 +3598,6 @@ Namespace OMS.Data
                                                         }
 
                 _impFileStageRepo.UpdateRange(tran, rowsForTemp3)
-                '-----------------------------------------------
-
-
-                'デバック用
-                'tran.Commit()
-
-
-
                 '-----------------------------------------------
                 rowsForTemp2.Clear()
 

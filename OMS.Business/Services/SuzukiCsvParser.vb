@@ -170,6 +170,8 @@ Namespace Services
                     .CriticalSafetyPartsCode = CleanCol(cols, 11),
                     .PackagingCode = CleanCol(cols, 12),
                     .Capacity = ParseInt(CleanCol(cols, 13)),
+                    .CustomerOrderNo = CleanCol(cols, 14),
+                    .CustomerOrderNoProcessNo = CleanCol(cols, 15),
                     .DeliveryType = CleanCol(cols, 16),
                     .SupplierCode = CleanCol(cols, 17),
                     .SupplierFactoryCode = CleanCol(cols, 18),
@@ -178,10 +180,13 @@ Namespace Services
                     .DeliveryFactoryCode = CleanCol(cols, 21),
                     .ArrangeManager = CleanCol(cols, 22),
                     .PurchaseManager = CleanCol(cols, 23),
+                    .OrderNotes = If(cols.Length > 24, CleanCol(cols, 24), String.Empty),
+                    .Reserve = If(cols.Length > 25, CleanCol(cols, 25), String.Empty),
                     .OrderDataType = If(cols.Length > 26, CleanCol(cols, 26), String.Empty),
                     .DeliveryDateType = If(cols.Length > 27, CleanCol(cols, 27), String.Empty),
                     .ProductionMonthType = If(cols.Length > 28, CleanCol(cols, 28), String.Empty),
                     .DeliveryDate = If(cols.Length > 29, ParseDate(CleanCol(cols, 29)), Nothing),
+                    .DeliveryTime = If(cols.Length > 30, CleanCol(cols, 30), String.Empty),
                     .OrderQty = If(cols.Length > 31, ParseLong(CleanCol(cols, 31)), Nothing),
                     .ActiveFlag = "Y",
                     .CreatedAt = DateTime.Now
@@ -216,7 +221,7 @@ Namespace Services
                     .ContractorCode = CleanCol(cols, 4),
                     .ContractorOfficeCode = CleanCol(cols, 5),
                     .PublicationDate = If(cols.Length > 6, ParseDate(CleanCol(cols, 6)), Nothing),
-                    .PublicationTime = CleanCol(cols, 7),
+                    .PublicationTime = If(cols.Length > 7, ParseInt(CleanCol(cols, 7)), Nothing),
                     .TargetReferenceDateType = CleanCol(cols, 8),
                     .TargetReferenceDate = CleanCol(cols, 9),
                     .CustomerItemNo = CleanCol(cols, 10),
@@ -413,7 +418,7 @@ Namespace Services
                     .OrderQty = If(cols.Length > 22, ParseLong(CleanCol(cols, 22)), Nothing),
                     .AcceptanceDate = If(cols.Length > 23, ParseDate(CleanCol(cols, 23)), Nothing),
                     .AcceptanceTime = CleanCol(cols, 24),
-                    .AcceptanceQty = CleanCol(cols, 25),
+                    .AcceptanceQty = If(cols.Length > 25, ParseDecimal(CleanCol(cols, 25)), Nothing),
                     .DeliveryNo = CleanCol(cols, 26),
                     .ActiveFlag = "Y",
                     .CreatedAt = DateTime.Now
@@ -805,6 +810,14 @@ Namespace Services
             If String.IsNullOrWhiteSpace(val) Then Return Nothing
             Dim res As Long
             If Long.TryParse(val.Trim(), res) Then Return res
+            Return Nothing
+        End Function
+
+        Private Shared Function ParseDecimal(val As String) As Decimal?
+            If String.IsNullOrWhiteSpace(val) Then Return Nothing
+            Dim res As Decimal
+            If Decimal.TryParse(val.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, res) Then Return res
+            If Decimal.TryParse(val.Trim(), res) Then Return res
             Return Nothing
         End Function
 

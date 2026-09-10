@@ -167,6 +167,10 @@ Namespace Services
                                     tran.Rollback()
                                     errorFilesCount += 1
                                     logger.Write($"[SUZUKI_IMPORT] Error staging Excel file {fileName}: {ex.Message}")
+                                    Dim errList As New List(Of String)()
+                                    errList.Add($"Excel取込エラー: {ex.Message}")
+                                    ExportErrorsToCsv(folderPath, fileName, errList, isBatch, webErrors)
+                                    MoveBackErrorFile(workFilePath, folderPath, fileName, userId)
                                 End Try
                             End Using
                             Continue For
@@ -226,7 +230,7 @@ Namespace Services
                                 If Not String.IsNullOrEmpty(stageInsErr) Then
                                     Throw New Exception($"取込ファイルワーク登録エラー: {stageInsErr}")
                                 End If
-                                
+
                                 ' Fetch the generated ID
                                 Dim fetchedRow = stageRepo.GetImpFilesStageFilename(conn, tran, fileName, folderPath)
                                 If fetchedRow IsNot Nothing AndAlso fetchedRow.ImpFileStageId > 0 Then
@@ -643,7 +647,7 @@ Namespace Services
                 sql.AppendLine("      AND new_t.publication_time = old_t.publication_time")
             End If
 
-            sql.AppendLine($"      AND new_t.created_at > old_t.created_at")
+            sql.AppendLine($"      AND (new_t.created_at > old_t.created_at OR (new_t.created_at = old_t.created_at AND new_t.info_type_id > old_t.info_type_id))")
             sql.AppendLine($"  )")
 
             Using cmd As New OracleCommand(sql.ToString(), conn)

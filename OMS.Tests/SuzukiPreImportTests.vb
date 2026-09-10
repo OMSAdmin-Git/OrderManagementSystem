@@ -85,6 +85,25 @@ Public Class SuzukiPreImportTests
     End Sub
 
     <TestMethod>
+    Public Sub Parse0602_ParsesFullItemNameAndOrderNo_260716()
+        Dim samplePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "CSV_Example", "03_CSV変換後", "0602-260716.csv")
+        If Not File.Exists(samplePath) Then
+            samplePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "CSV_Example", "03_CSV変換後", "0602-260716.csv")
+        End If
+        If Not File.Exists(samplePath) Then
+            Return
+        End If
+
+        Dim rows = SuzukiCsvParser.Parse0602(samplePath)
+        Assert.IsTrue(rows.Count > 0, "Parsed rows count should be greater than 0")
+        Dim rowWithWire = rows.FirstOrDefault(Function(r) r.CustomerItemName.Contains("WIRE BATTERY"))
+        Assert.IsNotNull(rowWithWire, "Row with WIRE BATTERY should exist")
+        Assert.AreEqual("WIRE BATTERY PLUS LEAD", rowWithWire.CustomerItemName)
+        Assert.AreEqual("SH01TC95017", rowWithWire.CustomerOrderNo)
+        Assert.AreEqual("", rowWithWire.CustomerOrderNoProcessNo)
+    End Sub
+
+    <TestMethod>
     Public Sub PeekInfoTypeCode_WithMangled3DigitCode_ReturnsEmptyAndDiagnostic()
         Dim tempFile = Path.GetTempFileName()
         Try

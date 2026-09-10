@@ -32,7 +32,12 @@
   - `docs/STAGE2_TESTING_GUIDE.md`: Stage 2 testing guide, CSV classification (easiest to test, dependencies, pairs), and test execution methods.
   - `docs/*.pdf`: Official ASTI specification sheets (`SUZUKI_SPIRITS_DATA_PRE_IMPORT.pdf`, `SUZUKI_SPIRITS_DATA_IMPORT.pdf`, `SUZUKI_SPIRITS_DATA_MAPPING.pdf`, `受注ファイル取込ページ.pdf`, `内示加工.pdf`, `受注残加工.pdf`, `納入指示加工.pdf`, `STRA納期設定ページ_受注取込後.pdf`).
 
-## Decisions, Fixes & Gotchas
+- [2026-09-09] **Stage 1 Parser & Pre-Import Bug Fixes**:
+  - **`ParseDecimal` & 0740 `AcceptanceQty`**: Added `ParseDecimal` helper in `SuzukiCsvParser.vb` to safely handle blank values and prevent runtime `InvalidCastException`.
+  - **0501/0502 `PublicationTime`**: Updated to use `ParseInt(CleanCol(cols, 7))` preventing `InvalidCastException` when publication time is blank.
+  - **`ImpFilesStageRepository` Staging Sort**: Added `ORDER BY imp_file_stage_id DESC` in `GetImpFilesStage` to guarantee `GetImpFilesStageFilename` returns the newest staging row on duplicate file re-imports.
+  - **Excel (`.xlsx`) Staging Error Handling**: In `SuzukiPreImportService.vb`, added `webErrors` notification and `MoveBackErrorFile` upon staging failures.
+  - **Invalidation Tie-Breaker**: In `UpdateActiveFlags`, added `new_t.info_type_id > old_t.info_type_id` fallback when `created_at` timestamps match within the same clock second.
 - [2026-09-09] **Error File Suffix Chaining (No Regex Stripping)**: In `SuzukiPreImportService.vb` (`MoveBackErrorFile` & `CopyErrorBackupFile`), removed regex stripping so that existing `_{userId}_{timestamp}` suffixes are retained and chained upon re-importing failed files (e.g. `file_astf01_20260909_092520_astf01_20260909_093045.csv`). This matches the original system (`OrderImport.aspx.vb`) and serves as an audit trail showing repeated import attempts without correction.
 - [2026-09-08] **Pre-Import 4-Rule Error Flow**: Implemented exact requirements from Sakai-san:
   - **Rule 1 (0 lines read)**: Adds `「対象データが1件もありません。」` to error list, moves file back to source folder as `{originalName}_{userId}_{timestamp}`, purges from `WORK/`, and rolls back.
