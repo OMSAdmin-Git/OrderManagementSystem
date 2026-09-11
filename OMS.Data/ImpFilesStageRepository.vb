@@ -1,4 +1,4 @@
-
+﻿
 Imports Oracle.ManagedDataAccess.Client
 Imports System.Data
 Imports System.Text
@@ -86,6 +86,8 @@ Namespace OMS.Data
                 sb.AppendLine("AND imp_file_stage_id = :p_impFileStageId ")
                 prm.Add(New OracleParameter(":p_impFileStageId", OracleDbType.Int64) With {.Value = pImpFileStageId})
             End If
+
+            sb.AppendLine("ORDER BY imp_file_stage_id DESC ")
 
             Using cmd As New OracleCommand(sb.ToString(), conn)
                 If tran IsNot Nothing Then cmd.Transaction = tran

@@ -167,6 +167,10 @@ Namespace Services
                                     tran.Rollback()
                                     errorFilesCount += 1
                                     logger.Write($"[SUZUKI_IMPORT] Error staging Excel file {fileName}: {ex.Message}")
+                                    Dim errList As New List(Of String)()
+                                    errList.Add($"Excel取込エラー: {ex.Message}")
+                                    ExportErrorsToCsv(folderPath, fileName, errList, isBatch, webErrors)
+                                    MoveBackErrorFile(workFilePath, folderPath, fileName, userId)
                                 End Try
                             End Using
                             Continue For
@@ -226,7 +230,7 @@ Namespace Services
                                 If Not String.IsNullOrEmpty(stageInsErr) Then
                                     Throw New Exception($"取込ファイルワーク登録エラー: {stageInsErr}")
                                 End If
-                                
+
                                 ' Fetch the generated ID
                                 Dim fetchedRow = stageRepo.GetImpFilesStageFilename(conn, tran, fileName, folderPath)
                                 If fetchedRow IsNot Nothing AndAlso fetchedRow.ImpFileStageId > 0 Then
@@ -240,7 +244,7 @@ Namespace Services
                                 UpdateAstiPartNumbers(conn, tran, infoCode, impFileStageId)
 
                                 ' 無効化チェック (ACTIVE_FLAG = 'N')
-                                UpdateActiveFlags(conn, tran, infoCode)
+                                UpdateActiveFlags(conn, tran, infoCode, impFileStageId)
 
                                 ' エラーチェック (ASTI品番未設定行)
                                 Dim errorRows = FindPartMatchingErrors(conn, tran, infoCode, workFilePath, impFileStageId)
@@ -621,7 +625,7 @@ Namespace Services
             End Using
         End Sub
 
-        Private Sub UpdateActiveFlags(conn As OracleConnection, tran As OracleTransaction, infoCode As String)
+        Private Sub UpdateActiveFlags(conn As OracleConnection, tran As OracleTransaction, infoCode As String, impFileStageId As Long)
             Dim tableName = GetTargetTableName(infoCode)
             If String.IsNullOrEmpty(tableName) Then Return
 
@@ -629,9 +633,18 @@ Namespace Services
             sql.AppendLine($"UPDATE {tableName} old_t")
             sql.AppendLine("SET old_t.active_flag = 'N'")
             sql.AppendLine("WHERE old_t.active_flag = 'Y'")
+            If impFileStageId > 0 Then
+                ' 現在取込中のファイルの行は無効化対象外とする (Do not invalidate rows within current file)
+                sql.AppendLine("  AND old_t.imp_file_id <> :p_imp_file_id")
+            End If
             sql.AppendLine($"  AND EXISTS (")
             sql.AppendLine($"    SELECT 1 FROM {tableName} new_t")
             sql.AppendLine($"    WHERE new_t.customer_item_no = old_t.customer_item_no")
+
+            If impFileStageId > 0 Then
+                ' 新規追加されたファイルの行とマッチング (Match against newly added file rows)
+                sql.AppendLine("      AND new_t.imp_file_id = :p_imp_file_id")
+            End If
 
             If infoCode = "0740" Then
                 sql.AppendLine("      AND new_t.acceptance_date = old_t.acceptance_date")
@@ -643,11 +656,18 @@ Namespace Services
                 sql.AppendLine("      AND new_t.publication_time = old_t.publication_time")
             End If
 
-            sql.AppendLine($"      AND new_t.created_at > old_t.created_at")
+            If impFileStageId > 0 Then
+                sql.AppendLine($"      AND new_t.created_at >= old_t.created_at")
+            Else
+                sql.AppendLine($"      AND new_t.created_at > old_t.created_at")
+            End If
             sql.AppendLine($"  )")
 
             Using cmd As New OracleCommand(sql.ToString(), conn)
                 cmd.Transaction = tran
+                If impFileStageId > 0 Then
+                    cmd.Parameters.Add(":p_imp_file_id", OracleDbType.Int64).Value = impFileStageId
+                End If
                 cmd.ExecuteNonQuery()
             End Using
         End Sub
