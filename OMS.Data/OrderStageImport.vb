@@ -3615,8 +3615,8 @@ Namespace OMS.Data
             Dim cnt As Integer = 0
 
             Dim ReconcileType As Integer = 1
-            If rowsForTemp2.Count > 0 Then
-                ReconcileType = rowsForTemp2(0).ReconcileType
+            If rowsForTemp2.Count > 0 AndAlso rowsForTemp2(0).ReconcileType.HasValue Then
+                ReconcileType = rowsForTemp2(0).ReconcileType.Value
             End If
 
             '-----------------

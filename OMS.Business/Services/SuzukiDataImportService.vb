@@ -235,34 +235,42 @@ Namespace Services
             Dim dateCache As New Dictionary(Of Date, Date)()
             Dim unitCache As New Dictionary(Of String, (DemandUnit As String, ShipWh As String))()
 
+            ' 消込条件区分(reconcile_type)の取得 (デフォルト: 1)
+            Dim ruleReconcileType As Short = 1
+            Dim reconcileErrMsg As String = ""
+            Dim tempReconcile As Integer = 1
+            If _orderStageRepo.GetReconcileType(customerSettingId, CLng(folderType), tempReconcile, reconcileErrMsg) Then
+                ruleReconcileType = CShort(tempReconcile)
+            End If
+
             ' 1. 0600 (確定受注データ・月次内示)
-            LoadSpirits0600(conn, tran, impFileId, impRunId, customerSettingId, billingTo, currencyCode, dateCache, unitCache, userId, pgId, outRows)
+            LoadSpirits0600(conn, tran, impFileId, impRunId, customerSettingId, billingTo, currencyCode, dateCache, unitCache, userId, pgId, ruleReconcileType, outRows)
 
             ' 2. 0602 (確定受注データ・追加内示)
-            LoadSpirits0602(conn, tran, impFileId, impRunId, customerSettingId, billingTo, currencyCode, dateCache, unitCache, userId, pgId, outRows)
+            LoadSpirits0602(conn, tran, impFileId, impRunId, customerSettingId, billingTo, currencyCode, dateCache, unitCache, userId, pgId, ruleReconcileType, outRows)
 
             ' 3. 0650 (納入指示データ・通常)
-            LoadSpirits0650(conn, tran, impFileId, impRunId, customerSettingId, billingTo, currencyCode, dateCache, unitCache, userId, pgId, outRows)
+            LoadSpirits0650(conn, tran, impFileId, impRunId, customerSettingId, billingTo, currencyCode, dateCache, unitCache, userId, pgId, ruleReconcileType, outRows)
 
             ' 4. 0651 (納入指示データ・臨時)
-            LoadSpirits0651(conn, tran, impFileId, impRunId, customerSettingId, billingTo, currencyCode, dateCache, unitCache, userId, pgId, outRows)
+            LoadSpirits0651(conn, tran, impFileId, impRunId, customerSettingId, billingTo, currencyCode, dateCache, unitCache, userId, pgId, ruleReconcileType, outRows)
 
             ' 5. 0813 (支給品情報データ)
-            LoadSpirits0813(conn, tran, impFileId, impRunId, customerSettingId, billingTo, currencyCode, dateCache, unitCache, userId, pgId, outRows)
+            LoadSpirits0813(conn, tran, impFileId, impRunId, customerSettingId, billingTo, currencyCode, dateCache, unitCache, userId, pgId, ruleReconcileType, outRows)
 
             ' 6. 0814 (支給品納入指示データ)
-            LoadSpirits0814(conn, tran, impFileId, impRunId, customerSettingId, billingTo, currencyCode, dateCache, unitCache, userId, pgId, outRows)
+            LoadSpirits0814(conn, tran, impFileId, impRunId, customerSettingId, billingTo, currencyCode, dateCache, unitCache, userId, pgId, ruleReconcileType, outRows)
 
             ' 7. 6604 (注文データ・内示)
-            LoadSpirits6604(conn, tran, impFileId, impRunId, customerSettingId, billingTo, currencyCode, dateCache, unitCache, userId, pgId, outRows)
+            LoadSpirits6604(conn, tran, impFileId, impRunId, customerSettingId, billingTo, currencyCode, dateCache, unitCache, userId, pgId, ruleReconcileType, outRows)
 
             ' 8. 6624 (注文データ・確定/指示)
-            LoadSpirits6624(conn, tran, impFileId, impRunId, customerSettingId, billingTo, currencyCode, dateCache, unitCache, userId, pgId, outRows)
+            LoadSpirits6624(conn, tran, impFileId, impRunId, customerSettingId, billingTo, currencyCode, dateCache, unitCache, userId, pgId, ruleReconcileType, outRows)
         End Sub
 
 #Region "スズキ専用テーブル別 データ抽出メソッド"
 
-        Private Sub LoadSpirits0600(conn As OracleConnection, tran As OracleTransaction, impFileId As Long, impRunId As Long, customerSettingId As Long, billingTo As String, currencyCode As String, dateCache As Dictionary(Of Date, Date), unitCache As Dictionary(Of String, (DemandUnit As String, ShipWh As String)), userId As String, pgId As String, outRows As List(Of OrdersStageRow))
+        Private Sub LoadSpirits0600(conn As OracleConnection, tran As OracleTransaction, impFileId As Long, impRunId As Long, customerSettingId As Long, billingTo As String, currencyCode As String, dateCache As Dictionary(Of Date, Date), unitCache As Dictionary(Of String, (DemandUnit As String, ShipWh As String)), userId As String, pgId As String, ruleReconcileType As Short, outRows As List(Of OrdersStageRow))
             Dim sql = "SELECT * FROM SUZUKI_SPIRITS_0600AND0630 WHERE info_type_code = '0600' AND active_flag = 'Y' AND (status IS NULL OR status <> 'REGISTERED')"
             If impFileId > 0 Then sql &= " AND imp_file_id = :p_imp_file_id"
             If impRunId > 0 Then sql &= " AND imp_run_id = :p_imp_run_id"
@@ -308,6 +316,7 @@ Namespace Services
                             .PreDailyDeliveryDate = delDate,
                             .ImpFileStageId = If(r.IsDBNull(r.GetOrdinal("imp_file_id")), Nothing, Convert.ToInt64(r("imp_file_id"))),
                             .OrderType = 1,
+                            .ReconcileType = ruleReconcileType,
                             .ProratedType = prorated,
                             .CustomerInfoType = "0600",
                             .InfoType = "0",
@@ -333,7 +342,7 @@ Namespace Services
             End Using
         End Sub
 
-        Private Sub LoadSpirits0602(conn As OracleConnection, tran As OracleTransaction, impFileId As Long, impRunId As Long, customerSettingId As Long, billingTo As String, currencyCode As String, dateCache As Dictionary(Of Date, Date), unitCache As Dictionary(Of String, (DemandUnit As String, ShipWh As String)), userId As String, pgId As String, outRows As List(Of OrdersStageRow))
+        Private Sub LoadSpirits0602(conn As OracleConnection, tran As OracleTransaction, impFileId As Long, impRunId As Long, customerSettingId As Long, billingTo As String, currencyCode As String, dateCache As Dictionary(Of Date, Date), unitCache As Dictionary(Of String, (DemandUnit As String, ShipWh As String)), userId As String, pgId As String, ruleReconcileType As Short, outRows As List(Of OrdersStageRow))
             Dim sql = "SELECT * FROM SUZUKI_SPIRITS_0602 WHERE active_flag = 'Y' AND (status IS NULL OR status <> 'REGISTERED')"
             If impFileId > 0 Then sql &= " AND imp_file_id = :p_imp_file_id"
             If impRunId > 0 Then sql &= " AND imp_run_id = :p_imp_run_id"
@@ -379,6 +388,7 @@ Namespace Services
                             .PreDailyDeliveryDate = delDate,
                             .ImpFileStageId = If(r.IsDBNull(r.GetOrdinal("imp_file_id")), Nothing, Convert.ToInt64(r("imp_file_id"))),
                             .OrderType = 1,
+                            .ReconcileType = ruleReconcileType,
                             .ProratedType = prorated,
                             .CustomerInfoType = "0602",
                             .InfoType = "0",
@@ -404,7 +414,7 @@ Namespace Services
             End Using
         End Sub
 
-        Private Sub LoadSpirits0650(conn As OracleConnection, tran As OracleTransaction, impFileId As Long, impRunId As Long, customerSettingId As Long, billingTo As String, currencyCode As String, dateCache As Dictionary(Of Date, Date), unitCache As Dictionary(Of String, (DemandUnit As String, ShipWh As String)), userId As String, pgId As String, outRows As List(Of OrdersStageRow))
+        Private Sub LoadSpirits0650(conn As OracleConnection, tran As OracleTransaction, impFileId As Long, impRunId As Long, customerSettingId As Long, billingTo As String, currencyCode As String, dateCache As Dictionary(Of Date, Date), unitCache As Dictionary(Of String, (DemandUnit As String, ShipWh As String)), userId As String, pgId As String, ruleReconcileType As Short, outRows As List(Of OrdersStageRow))
             Dim sql = "SELECT * FROM SUZUKI_SPIRITS_0650 WHERE active_flag = 'Y' AND (status IS NULL OR status <> 'REGISTERED')"
             If impFileId > 0 Then sql &= " AND imp_file_id = :p_imp_file_id"
             If impRunId > 0 Then sql &= " AND imp_run_id = :p_imp_run_id"
@@ -450,6 +460,7 @@ Namespace Services
                             .PreDailyDeliveryDate = delDate,
                             .ImpFileStageId = If(r.IsDBNull(r.GetOrdinal("imp_file_id")), Nothing, Convert.ToInt64(r("imp_file_id"))),
                             .OrderType = 3,
+                            .ReconcileType = ruleReconcileType,
                             .ProratedType = prorated,
                             .CustomerInfoType = "0650",
                             .InfoType = "0",
@@ -476,7 +487,7 @@ Namespace Services
             End Using
         End Sub
 
-        Private Sub LoadSpirits0651(conn As OracleConnection, tran As OracleTransaction, impFileId As Long, impRunId As Long, customerSettingId As Long, billingTo As String, currencyCode As String, dateCache As Dictionary(Of Date, Date), unitCache As Dictionary(Of String, (DemandUnit As String, ShipWh As String)), userId As String, pgId As String, outRows As List(Of OrdersStageRow))
+        Private Sub LoadSpirits0651(conn As OracleConnection, tran As OracleTransaction, impFileId As Long, impRunId As Long, customerSettingId As Long, billingTo As String, currencyCode As String, dateCache As Dictionary(Of Date, Date), unitCache As Dictionary(Of String, (DemandUnit As String, ShipWh As String)), userId As String, pgId As String, ruleReconcileType As Short, outRows As List(Of OrdersStageRow))
             Dim sql = "SELECT * FROM SUZUKI_SPIRITS_0651 WHERE active_flag = 'Y' AND (status IS NULL OR status <> 'REGISTERED')"
             If impFileId > 0 Then sql &= " AND imp_file_id = :p_imp_file_id"
             If impRunId > 0 Then sql &= " AND imp_run_id = :p_imp_run_id"
@@ -522,6 +533,7 @@ Namespace Services
                             .PreDailyDeliveryDate = delDate,
                             .ImpFileStageId = If(r.IsDBNull(r.GetOrdinal("imp_file_id")), Nothing, Convert.ToInt64(r("imp_file_id"))),
                             .OrderType = 3,
+                            .ReconcileType = ruleReconcileType,
                             .ProratedType = prorated,
                             .CustomerInfoType = "0651",
                             .InfoType = "0",
@@ -548,7 +560,7 @@ Namespace Services
             End Using
         End Sub
 
-        Private Sub LoadSpirits0813(conn As OracleConnection, tran As OracleTransaction, impFileId As Long, impRunId As Long, customerSettingId As Long, billingTo As String, currencyCode As String, dateCache As Dictionary(Of Date, Date), unitCache As Dictionary(Of String, (DemandUnit As String, ShipWh As String)), userId As String, pgId As String, outRows As List(Of OrdersStageRow))
+        Private Sub LoadSpirits0813(conn As OracleConnection, tran As OracleTransaction, impFileId As Long, impRunId As Long, customerSettingId As Long, billingTo As String, currencyCode As String, dateCache As Dictionary(Of Date, Date), unitCache As Dictionary(Of String, (DemandUnit As String, ShipWh As String)), userId As String, pgId As String, ruleReconcileType As Short, outRows As List(Of OrdersStageRow))
             Dim sql = "SELECT * FROM SUZUKI_SPIRITS_0813 WHERE active_flag = 'Y' AND (status IS NULL OR status <> 'REGISTERED')"
             If impFileId > 0 Then sql &= " AND imp_file_id = :p_imp_file_id"
             If impRunId > 0 Then sql &= " AND imp_run_id = :p_imp_run_id"
@@ -594,6 +606,7 @@ Namespace Services
                             .PreDailyDeliveryDate = delDate,
                             .ImpFileStageId = If(r.IsDBNull(r.GetOrdinal("imp_file_id")), Nothing, Convert.ToInt64(r("imp_file_id"))),
                             .OrderType = 1,
+                            .ReconcileType = ruleReconcileType,
                             .ProratedType = prorated,
                             .CustomerInfoType = "0813",
                             .InfoType = "0",
@@ -620,7 +633,7 @@ Namespace Services
             End Using
         End Sub
 
-        Private Sub LoadSpirits0814(conn As OracleConnection, tran As OracleTransaction, impFileId As Long, impRunId As Long, customerSettingId As Long, billingTo As String, currencyCode As String, dateCache As Dictionary(Of Date, Date), unitCache As Dictionary(Of String, (DemandUnit As String, ShipWh As String)), userId As String, pgId As String, outRows As List(Of OrdersStageRow))
+        Private Sub LoadSpirits0814(conn As OracleConnection, tran As OracleTransaction, impFileId As Long, impRunId As Long, customerSettingId As Long, billingTo As String, currencyCode As String, dateCache As Dictionary(Of Date, Date), unitCache As Dictionary(Of String, (DemandUnit As String, ShipWh As String)), userId As String, pgId As String, ruleReconcileType As Short, outRows As List(Of OrdersStageRow))
             Dim sql = "SELECT * FROM SUZUKI_SPIRITS_0814 WHERE active_flag = 'Y' AND (status IS NULL OR status <> 'REGISTERED')"
             If impFileId > 0 Then sql &= " AND imp_file_id = :p_imp_file_id"
             If impRunId > 0 Then sql &= " AND imp_run_id = :p_imp_run_id"
@@ -666,6 +679,7 @@ Namespace Services
                             .PreDailyDeliveryDate = delDate,
                             .ImpFileStageId = If(r.IsDBNull(r.GetOrdinal("imp_file_id")), Nothing, Convert.ToInt64(r("imp_file_id"))),
                             .OrderType = 3,
+                            .ReconcileType = ruleReconcileType,
                             .ProratedType = prorated,
                             .CustomerInfoType = "0814",
                             .InfoType = "0",
@@ -692,7 +706,7 @@ Namespace Services
             End Using
         End Sub
 
-        Private Sub LoadSpirits6604(conn As OracleConnection, tran As OracleTransaction, impFileId As Long, impRunId As Long, customerSettingId As Long, billingTo As String, currencyCode As String, dateCache As Dictionary(Of Date, Date), unitCache As Dictionary(Of String, (DemandUnit As String, ShipWh As String)), userId As String, pgId As String, outRows As List(Of OrdersStageRow))
+        Private Sub LoadSpirits6604(conn As OracleConnection, tran As OracleTransaction, impFileId As Long, impRunId As Long, customerSettingId As Long, billingTo As String, currencyCode As String, dateCache As Dictionary(Of Date, Date), unitCache As Dictionary(Of String, (DemandUnit As String, ShipWh As String)), userId As String, pgId As String, ruleReconcileType As Short, outRows As List(Of OrdersStageRow))
             Dim sql = "SELECT * FROM SUZUKI_SPIRITS_6604AND6634 WHERE info_type_code = '6604' AND active_flag = 'Y' AND (status IS NULL OR status <> 'REGISTERED')"
             If impFileId > 0 Then sql &= " AND imp_file_id = :p_imp_file_id"
             If impRunId > 0 Then sql &= " AND imp_run_id = :p_imp_run_id"
@@ -738,6 +752,7 @@ Namespace Services
                             .PreDailyDeliveryDate = delDate,
                             .ImpFileStageId = If(r.IsDBNull(r.GetOrdinal("imp_file_id")), Nothing, Convert.ToInt64(r("imp_file_id"))),
                             .OrderType = 1,
+                            .ReconcileType = ruleReconcileType,
                             .ProratedType = prorated,
                             .CustomerInfoType = "6604",
                             .InfoType = "0",
@@ -762,7 +777,7 @@ Namespace Services
             End Using
         End Sub
 
-        Private Sub LoadSpirits6624(conn As OracleConnection, tran As OracleTransaction, impFileId As Long, impRunId As Long, customerSettingId As Long, billingTo As String, currencyCode As String, dateCache As Dictionary(Of Date, Date), unitCache As Dictionary(Of String, (DemandUnit As String, ShipWh As String)), userId As String, pgId As String, outRows As List(Of OrdersStageRow))
+        Private Sub LoadSpirits6624(conn As OracleConnection, tran As OracleTransaction, impFileId As Long, impRunId As Long, customerSettingId As Long, billingTo As String, currencyCode As String, dateCache As Dictionary(Of Date, Date), unitCache As Dictionary(Of String, (DemandUnit As String, ShipWh As String)), userId As String, pgId As String, ruleReconcileType As Short, outRows As List(Of OrdersStageRow))
             Dim sql = "SELECT * FROM SUZUKI_SPIRITS_6624 WHERE active_flag = 'Y' AND (status IS NULL OR status <> 'REGISTERED')"
             If impFileId > 0 Then sql &= " AND imp_file_id = :p_imp_file_id"
             If impRunId > 0 Then sql &= " AND imp_run_id = :p_imp_run_id"
@@ -808,6 +823,7 @@ Namespace Services
                             .PreDailyDeliveryDate = delDate,
                             .ImpFileStageId = If(r.IsDBNull(r.GetOrdinal("imp_file_id")), Nothing, Convert.ToInt64(r("imp_file_id"))),
                             .OrderType = 3,
+                            .ReconcileType = ruleReconcileType,
                             .ProratedType = prorated,
                             .CustomerInfoType = "6624",
                             .InfoType = "0",
@@ -1139,9 +1155,9 @@ Namespace Services
         ''' </summary>
         Private Sub ValidateStagedRows(rows As List(Of OrdersStageRow), defaultSettingId As Long, errors As List(Of String))
             For Each r In rows
-                ' 1. プロフィットセンター未解決チェック (初期のデフォルト設定IDのまま残っているか)
-                If r.CustomerSettingId = defaultSettingId Then
-                    errors.Add($"品目No: {r.ItemNo} のプロフィットセンター(PC)が特定できません。")
+                ' 1. 取引先設定IDチェック
+                If r.CustomerSettingId <= 0 Then
+                    errors.Add($"品目No: {r.ItemNo} の取引先設定IDが特定できません。")
                 End If
 
                 ' 2. 必須項目チェック

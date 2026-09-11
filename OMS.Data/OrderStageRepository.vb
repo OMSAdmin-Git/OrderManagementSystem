@@ -4421,23 +4421,31 @@ Namespace OMS.Data
 
         ''' <summary>
         ''' 【Stage 2 工程1】ORDERS_STAGE（受注ワークテーブル）の物理削除
-        ''' CUSTOMER_SETTING_ID または CUSTOMER_CODE='5455' かつ FOLDER_TYPE に一致するレコードを削除
+        ''' CUSTOMER_SETTING_ID または CUSTOMER_CODE='5455' かつ FOLDER_TYPE (ORDER_TYPE) に一致するレコードを削除
         ''' </summary>
         Public Function DeleteOrdersStageForSuzuki(ByVal tran As OracleTransaction, ByVal customerSettingId As Long, ByVal folderType As Integer) As Integer
             Dim deleteCount As Integer = 0
-            Dim sql As String = "DELETE FROM orders_stage WHERE (customer_setting_id = :p_customer_setting_id OR customer_code = '5455')"
-            If folderType > 0 Then
-                sql &= " AND (folder_type = :p_folder_type OR :p_folder_type = 4)"
-            End If
+            Dim whereOrderType As String = ""
+            Select Case folderType
+                Case 1
+                    whereOrderType = " AND order_type = 1"
+                Case 2
+                    whereOrderType = " AND order_type = 2"
+                Case 3
+                    whereOrderType = " AND order_type = 3"
+                Case 4
+                    whereOrderType = "" ' 混在のため全種別削除
+                Case Else
+                    whereOrderType = ""
+            End Select
+
+            Dim sql As String = "DELETE FROM orders_stage WHERE (customer_setting_id = :p_customer_setting_id OR customer_code = '5455')" & whereOrderType
 
             Using cmd As New OracleCommand(sql, tran.Connection)
                 cmd.Transaction = tran
                 cmd.BindByName = True
                 cmd.CommandType = CommandType.Text
                 cmd.Parameters.Add(":p_customer_setting_id", OracleDbType.Int64).Value = customerSettingId
-                If folderType > 0 Then
-                    cmd.Parameters.Add(":p_folder_type", OracleDbType.Int32).Value = folderType
-                End If
                 deleteCount = cmd.ExecuteNonQuery()
             End Using
 
@@ -4449,19 +4457,27 @@ Namespace OMS.Data
         ''' </summary>
         Public Function DeleteOrdersStageByCustomerSettingAndFolder(ByVal tran As OracleTransaction, ByVal customerSettingId As Long, ByVal folderType As Integer) As Integer
             Dim deleteCount As Integer = 0
-            Dim sql As String = "DELETE FROM orders_stage WHERE customer_setting_id = :p_customer_setting_id"
-            If folderType > 0 Then
-                sql &= " AND (folder_type = :p_folder_type OR :p_folder_type = 4)"
-            End If
+            Dim whereOrderType As String = ""
+            Select Case folderType
+                Case 1
+                    whereOrderType = " AND order_type = 1"
+                Case 2
+                    whereOrderType = " AND order_type = 2"
+                Case 3
+                    whereOrderType = " AND order_type = 3"
+                Case 4
+                    whereOrderType = "" ' 混在のため全種別削除
+                Case Else
+                    whereOrderType = ""
+            End Select
+
+            Dim sql As String = "DELETE FROM orders_stage WHERE customer_setting_id = :p_customer_setting_id" & whereOrderType
 
             Using cmd As New OracleCommand(sql, tran.Connection)
                 cmd.Transaction = tran
                 cmd.BindByName = True
                 cmd.CommandType = CommandType.Text
                 cmd.Parameters.Add(":p_customer_setting_id", OracleDbType.Int64).Value = customerSettingId
-                If folderType > 0 Then
-                    cmd.Parameters.Add(":p_folder_type", OracleDbType.Int32).Value = folderType
-                End If
                 deleteCount = cmd.ExecuteNonQuery()
             End Using
 
@@ -4784,12 +4800,10 @@ Namespace OMS.Data
         ''' </summary>
         Public Sub UpdateSuzukiStagingStatusRegistered(ByVal tran As OracleTransaction, ByVal impFileStageId As Long, ByVal userId As String, ByVal pgId As String)
             Dim tables As String() = {
-                "SUZUKI_SPIRITS_0501AND0502",
                 "SUZUKI_SPIRITS_0600AND0630",
                 "SUZUKI_SPIRITS_0602",
                 "SUZUKI_SPIRITS_0650",
                 "SUZUKI_SPIRITS_0651",
-                "SUZUKI_SPIRITS_0740",
                 "SUZUKI_SPIRITS_0813",
                 "SUZUKI_SPIRITS_0814",
                 "SUZUKI_SPIRITS_6604AND6634",
@@ -4829,12 +4843,10 @@ Namespace OMS.Data
         ''' </summary>
         Public Sub UpdateSuzukiStagingStatusRegisteredByRunId(ByVal tran As OracleTransaction, ByVal impRunId As Long, ByVal userId As String, ByVal pgId As String)
             Dim tables As String() = {
-                "SUZUKI_SPIRITS_0501AND0502",
                 "SUZUKI_SPIRITS_0600AND0630",
                 "SUZUKI_SPIRITS_0602",
                 "SUZUKI_SPIRITS_0650",
                 "SUZUKI_SPIRITS_0651",
-                "SUZUKI_SPIRITS_0740",
                 "SUZUKI_SPIRITS_0813",
                 "SUZUKI_SPIRITS_0814",
                 "SUZUKI_SPIRITS_6604AND6634",

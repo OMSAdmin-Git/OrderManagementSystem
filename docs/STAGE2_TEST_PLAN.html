@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suzuki SPIRITS Stage 2 Test Plan & Execution Guide</title>
+    <style>
+        :root {
+            --primary: #1e3a8a;
+            --primary-light: #3b82f6;
+            --primary-bg: #eff6ff;
+            --success: #166534;
+            --success-bg: #dcfce7;
+            --warning: #854d0e;
+            --warning-bg: #fef9c3;
+            --danger: #991b1b;
+            --danger-bg: #fee2e2;
+            --neutral-dark: #0f172a;
+            --neutral-body: #334155;
+            --neutral-light: #f8fafc;
+            --border: #e2e8f0;
+            --border-dark: #cbd5e1;
+            --code-bg: #1e293b;
+            --code-text: #f1f5f9;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            color: var(--neutral-body);
+            background-color: #f1f5f9;
+            line-height: 1.6;
+            padding: 2rem 1rem;
+        }
+
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            padding: 2.5rem;
+        }
+
+        header {
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 1.5rem;
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .header-title h1 {
+            color: var(--neutral-dark);
+            font-size: 1.85rem;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .header-title p {
+            color: #64748b;
+            font-size: 0.95rem;
+            margin-top: 0.25rem;
+        }
+
+        .btn-print {
+            background-color: var(--primary);
+            color: #ffffff;
+            border: none;
+            padding: 0.6rem 1.25rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: background-color 0.15s ease;
+        }
+
+        .btn-print:hover {
+            background-color: #1d4ed8;
+        }
+
+        .meta-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            background-color: var(--neutral-light);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem 1.25rem;
+            margin-bottom: 2rem;
+        }
+
+        .meta-item {
+            font-size: 0.88rem;
+        }
+
+        .meta-label {
+            color: #64748b;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
+        }
+
+        .meta-value {
+            color: var(--neutral-dark);
+            font-weight: 600;
+            margin-top: 0.15rem;
+        }
+
+        h2 {
+            color: var(--neutral-dark);
+            font-size: 1.35rem;
+            font-weight: 700;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.4rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        h3 {
+            color: var(--neutral-dark);
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        p {
+            margin-bottom: 1rem;
+        }
+
+        .badge {
+            display: inline-block;
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 0.2rem 0.55rem;
+            border-radius: 9999px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .badge-easy {
+            background-color: var(--success-bg);
+            color: var(--success);
+            border: 1px solid #bbf7d0;
+        }
+
+        .badge-medium {
+            background-color: var(--warning-bg);
+            color: var(--warning);
+            border: 1px solid #fef08a;
+        }
+
+        .badge-modifier {
+            background-color: var(--danger-bg);
+            color: var(--danger);
+            border: 1px solid #fecaca;
+        }
+
+        .test-card {
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.25rem 1.5rem;
+            margin-bottom: 1.5rem;
+            background: #ffffff;
+            transition: border-color 0.15s ease;
+        }
+
+        .test-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .test-card-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--neutral-dark);
+        }
+
+        .checklist {
+            list-style: none;
+            margin-top: 0.75rem;
+            padding-left: 0;
+        }
+
+        .checklist li {
+            position: relative;
+            padding-left: 1.75rem;
+            margin-bottom: 0.4rem;
+            font-size: 0.92rem;
+        }
+
+        .checklist li::before {
+            content: "☐";
+            position: absolute;
+            left: 0;
+            top: -0.1rem;
+            font-size: 1.15rem;
+            color: #64748b;
+        }
+
+        pre, code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.88rem;
+        }
+
+        pre {
+            background-color: var(--code-bg);
+            color: var(--code-text);
+            padding: 1rem 1.25rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 0.75rem 0 1rem 0;
+        }
+
+        p code, li code, td code {
+            background-color: #f1f5f9;
+            color: #b91c1c;
+            padding: 0.15rem 0.35rem;
+            border-radius: 4px;
+            font-size: 0.85em;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0 1.5rem 0;
+            font-size: 0.9rem;
+        }
+
+        th, td {
+            padding: 0.65rem 0.85rem;
+            border: 1px solid var(--border);
+            text-align: left;
+        }
+
+        th {
+            background-color: var(--neutral-light);
+            color: var(--neutral-dark);
+            font-weight: 600;
+        }
+
+        tr:nth-child(even) {
+            background-color: #fafafa;
+        }
+
+        .callout {
+            background-color: var(--primary-bg);
+            border-left: 4px solid var(--primary-light);
+            padding: 0.85rem 1.2rem;
+            border-radius: 0 8px 8px 0;
+            margin: 1rem 0;
+            font-size: 0.92rem;
+        }
+
+        .callout strong {
+            color: var(--primary);
+        }
+
+        @media print {
+            body {
+                background: #ffffff;
+                padding: 0;
+                color: #000000;
+            }
+
+            .container {
+                box-shadow: none;
+                border: none;
+                padding: 0;
+                max-width: 100%;
+            }
+
+            .btn-print {
+                display: none;
+            }
+
+            .test-card {
+                break-inside: avoid;
+                page-break-inside: avoid;
+                border: 1px solid #cbd5e1;
+            }
+
+            table {
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+
+            pre {
+                background-color: #f8fafc;
+                color: #0f172a;
+                border: 1px solid #cbd5e1;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <div class="header-title">
+            <h1>🧪 Suzuki SPIRITS Stage 2 Test Plan</h1>
+            <p>Order Registration, Destination Conversion, Reconciliation & Downstream STRA Delivery Scheduling</p>
+        </div>
+        <button class="btn-print" onclick="window.print()">
+            🖨️ Print / Save as PDF
+        </button>
+    </header>
+
+    <div class="meta-grid">
+        <div class="meta-item">
+            <div class="meta-label">Customer</div>
+            <div class="meta-value">5455 (スズキ)</div>
+        </div>
+        <div class="meta-item">
+            <div class="meta-label">Folder Type</div>
+            <div class="meta-value">4 (混在 / Mixed)</div>
+        </div>
+        <div class="meta-item">
+            <div class="meta-label">Database Scope</div>
+            <div class="meta-value">Localhost Only</div>
+        </div>
+        <div class="meta-item">
+            <div class="meta-label">Document Date</div>
+            <div class="meta-value">2026-09-10</div>
+        </div>
+    </div>
+
+    <h2>📁 1. Directory Structure Setup</h2>
+    <p>Sample test files are located in: <code>CSV_Example\03_CSV変換後\</code></p>
+    <p>Ensure your local intake and archive directories exist on your machine:</p>
+    <pre><code>New-Item -ItemType Directory -Force -Path "C:\ASTI\Order\Suzuki"
+New-Item -ItemType Directory -Force -Path "C:\ASTI\DATA\WORK"
+New-Item -ItemType Directory -Force -Path "C:\ASTI\DATA\COMPLETED"</code></pre>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Directory Path</th>
+                <th>Role</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>C:\ASTI\Order\Suzuki\</code></td>
+                <td><strong>Intake (IN)</strong></td>
+                <td>Place test CSV files here for processing.</td>
+            </tr>
+            <tr>
+                <td><code>C:\ASTI\DATA\WORK\</code></td>
+                <td><strong>Work</strong></td>
+                <td>Pre-Import stages files here with <code>IMP_FILES_STAGE.STATUS = 'DISCOVERED'</code>.</td>
+            </tr>
+            <tr>
+                <td><code>C:\ASTI\DATA\COMPLETED\</code></td>
+                <td><strong>Archive (COMPLETED)</strong></td>
+                <td>Files are archived here as <code>[Name]_[User]_[Time].csv</code> upon Stage 2 save.</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>🎯 2. Phased Test Cases</h2>
+
+    <!-- TEST 1 -->
+    <div class="test-card">
+        <div class="test-card-header">
+            <div class="test-card-title">Test 1: Standalone Supplemental Forecast</div>
+            <span class="badge badge-easy">🟢 Easiest #1</span>
+        </div>
+        <p><strong>Target File:</strong> <code>CSV_Example\03_CSV変換後\0602-260716.csv</code> (Size: 1.3 KB)</p>
+        <div class="callout">
+            <strong>Why test this first:</strong> <code>0602</code> is supplemental forecast data. By specification, it <strong>skips wash replacement</strong> and has zero dependencies on existing records. It offers the cleanest end-to-end test.
+        </div>
+        <p><strong>Execution Steps:</strong></p>
+        <ol style="padding-left: 1.5rem; margin-bottom: 0.75rem;">
+            <li>Copy <code>0602-260716.csv</code> into <code>C:\ASTI\Order\Suzuki\</code>.</li>
+            <li>Run CLI: <code>& ".\SUZUKI_SPIRITS_DATA_IMPORT\bin\Debug\SUZUKI_SPIRITS_DATA_IMPORT.exe" /batch</code><br>
+                <em>(Or via Web UI: <code>OrderImportStage.aspx</code> 取込 &rarr; <code>OrderImport.aspx</code> 取込 & 保存)</em></li>
+        </ol>
+        <p><strong>Verification Points:</strong></p>
+        <ul class="checklist">
+            <li>Staging table <code>SUZUKI_SPIRITS_0602</code> updated to <code>STATUS = 'REGISTERED'</code>.</li>
+            <li>New orders inserted into <code>ORDERS</code> with <code>CUSTOMER_CODE = '5455'</code> and <code>CUSTOMER_INFO_TYPE = '0602'</code>.</li>
+            <li>Orders updated to <code>STATUS = 'DUE_SET'</code> with calculated <code>SHIP_DATE</code> and <code>SHIP_SCHEDULED_DATE</code>.</li>
+            <li>Audit records created in <code>ORDER_HISTORY</code>.</li>
+            <li>File moved to <code>C:\ASTI\DATA\COMPLETED\...\0602-260716_*.csv</code>.</li>
+        </ul>
+    </div>
+
+    <!-- TEST 2 -->
+    <div class="test-card">
+        <div class="test-card-header">
+            <div class="test-card-title">Test 2: Main Monthly Forecast & Lead Time Calculation</div>
+            <span class="badge badge-easy">🟢 Standalone</span>
+        </div>
+        <p><strong>Target File:</strong> <code>CSV_Example\03_CSV変換後\0600-260703.csv</code></p>
+        <p><strong>Objective:</strong> Tests standard working-day delivery date calculation (<code>ADD_WORKING_DAYS2</code> calendar <code>00001</code>), unit/warehouse resolution, and Profit Center mapping from <code>USRDEFFLDF</code>.</p>
+        <p><strong>Verification Points:</strong></p>
+        <ul class="checklist">
+            <li><code>CUSTOMER_SETTING_ID</code> resolved to the child Profit Center ID (from <code>USRDEFFLDF.FUSRSTR1</code>).</li>
+            <li><code>DUE_DATE</code> correctly formatted and set to working date.</li>
+            <li>Records committed to <code>ORDERS</code> with <code>ORDER_TYPE = 1</code> and <code>STATUS = 'DUE_SET'</code>.</li>
+        </ul>
+    </div>
+
+    <!-- TEST 3 -->
+    <div class="test-card">
+        <div class="test-card-header">
+            <div class="test-card-title">Test 3: Forecast Wash Replacement (洗替加工)</div>
+            <span class="badge badge-medium">🟡 Multi-Run</span>
+        </div>
+        <p><strong>Target File:</strong> <code>CSV_Example\03_CSV変換後\0600-260709.csv</code> (Subsequent to Test 2)</p>
+        <p><strong>Objective:</strong> Verify that importing a subsequent monthly forecast invalidates older active forecasts for matching items and reference dates.</p>
+        <p><strong>Verification Points:</strong></p>
+        <ul class="checklist">
+            <li>Prior <code>0600</code> records in <code>ORDERS</code> updated to <code>STATUS = 'REPLACED'</code> and <code>ACTIVE_FLAG = 'N'</code>.</li>
+            <li>New <code>0600</code> records become active with <code>STATUS = 'DUE_SET'</code>.</li>
+        </ul>
+    </div>
+
+    <!-- TEST 4 -->
+    <div class="test-card">
+        <div class="test-card-header">
+            <div class="test-card-title">Test 4: Delivery Instruction & Forecast Consumption (納入指示消込)</div>
+            <span class="badge badge-medium">🟡 Pair Test</span>
+        </div>
+        <p><strong>Target File:</strong> <code>CSV_Example\03_CSV変換後\0650-260701.csv</code></p>
+        <p><strong>Objective:</strong> Verify destination conversion via <code>SUZUKI_SPIRITS_CONVERSION_MST</code> and automatic consumption of active <code>0600</code> forecasts.</p>
+        <p><strong>Verification Points:</strong></p>
+        <ul class="checklist">
+            <li><code>0650</code> records inserted as <code>ORDER_TYPE = 3</code>, <code>DEMAND_STATUS = 'O'</code>, <code>DELIVERY_INSTR_FLAG = 'Y'</code>.</li>
+            <li><code>SHIP_TO</code> converted from order delivery code to plan delivery code via conversion master.</li>
+            <li>Matching active <code>0600</code> forecast <code>DEMAND_QTY</code> consumed / reduced.</li>
+            <li>Fully consumed forecasts updated to <code>STATUS = 'RECONCILED'</code> and <code>ACTIVE_FLAG = 'N'</code>.</li>
+        </ul>
+    </div>
+
+    <!-- TEST 5 -->
+    <div class="test-card">
+        <div class="test-card-header">
+            <div class="test-card-title">Test 5: Special Modifier Adjustments (0630, 663N, 663S)</div>
+            <span class="badge badge-modifier">🔴 Modifiers</span>
+        </div>
+        <p><strong>Objective:</strong> Modifier files never insert new orders; they locate an existing order in <code>ORDERS_STAGE</code> or master <code>ORDERS</code> and adjust its attributes.</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Sub-case</th>
+                    <th>Modifier File</th>
+                    <th>Target Record</th>
+                    <th>Expected Adjustment</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>5-A</strong></td>
+                    <td><code>0630-260715.csv</code></td>
+                    <td>Matching <code>0600</code> forecast</td>
+                    <td><code>DEMAND_QTY</code> increased by <code>0630.ORDER_QTY</code></td>
+                </tr>
+                <tr>
+                    <td><strong>5-B</strong></td>
+                    <td><code>663N-260708.csv</code></td>
+                    <td>Matching <code>6624</code> firm order</td>
+                    <td><code>DUE_DATE</code> shifted to new working date</td>
+                </tr>
+                <tr>
+                    <td><strong>5-C</strong></td>
+                    <td><code>663S-260703.csv</code></td>
+                    <td>Matching <code>6624</code> firm order</td>
+                    <td><code>DEMAND_QTY</code> updated to <code>663S.ORDER_QTY</code></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <h2>🔍 3. Database Verification Queries</h2>
+    <p>Run these queries in SQL Developer / SQL*Plus on localhost to confirm the results:</p>
+
+    <h3>1. Verify Staging Table Records (SUZUKI_SPIRITS_*)</h3>
+    <pre><code>SELECT '0602' AS info_code, status, active_flag, COUNT(*) FROM suzuki_spirits_0602 GROUP BY status, active_flag
+UNION ALL
+SELECT '0600', status, active_flag, COUNT(*) FROM suzuki_spirits_0600and0630 WHERE info_type_code = '0600' GROUP BY status, active_flag
+UNION ALL
+SELECT '0650', status, active_flag, COUNT(*) FROM suzuki_spirits_0650 GROUP BY status, active_flag;</code></pre>
+
+    <h3>2. Verify Master Orders (ORDERS)</h3>
+    <pre><code>SELECT 
+    order_id,
+    customer_code,
+    customer_setting_id,
+    customer_info_type,
+    order_type,
+    item_no,
+    ship_to,
+    demand_qty,
+    order_date,
+    due_date,
+    ship_date,
+    ship_scheduled_date,
+    status,
+    active_flag,
+    updated_at
+FROM orders 
+WHERE customer_code = '5455'
+ORDER BY updated_at DESC;</code></pre>
+
+    <h3>3. Verify Order History Audit Trail (ORDER_HISTORY)</h3>
+    <pre><code>SELECT history_id, order_id, customer_code, status, created_at, created_user_id, created_pg_id
+FROM order_history
+WHERE customer_code = '5455'
+ORDER BY history_id DESC;</code></pre>
+
+    <h2>📊 4. Sign-Off & Results Sheet</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Test #</th>
+                <th>File Name</th>
+                <th>Mode</th>
+                <th>Expected Outcome</th>
+                <th>Actual Result</th>
+                <th>Pass / Fail</th>
+                <th>Tester Sign-off</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Test 1</strong></td>
+                <td><code>0602-260716.csv</code></td>
+                <td>CLI / Web</td>
+                <td><code>DUE_SET</code> (skips wash)</td>
+                <td>&nbsp;</td>
+                <td>[ &nbsp; ] PASS</td>
+                <td>&nbsp;</td>
+            </tr>
+            <tr>
+                <td><strong>Test 2</strong></td>
+                <td><code>0600-260703.csv</code></td>
+                <td>CLI / Web</td>
+                <td><code>DUE_SET</code> (lead times computed)</td>
+                <td>&nbsp;</td>
+                <td>[ &nbsp; ] PASS</td>
+                <td>&nbsp;</td>
+            </tr>
+            <tr>
+                <td><strong>Test 3</strong></td>
+                <td><code>0600-260709.csv</code></td>
+                <td>CLI / Web</td>
+                <td>Prior <code>REPLACED</code> / New <code>DUE_SET</code></td>
+                <td>&nbsp;</td>
+                <td>[ &nbsp; ] PASS</td>
+                <td>&nbsp;</td>
+            </tr>
+            <tr>
+                <td><strong>Test 4</strong></td>
+                <td><code>0650-260701.csv</code></td>
+                <td>CLI / Web</td>
+                <td><code>0600</code> Consumed / <code>0650 DUE_SET</code></td>
+                <td>&nbsp;</td>
+                <td>[ &nbsp; ] PASS</td>
+                <td>&nbsp;</td>
+            </tr>
+            <tr>
+                <td><strong>Test 5-A</strong></td>
+                <td><code>0630-260715.csv</code></td>
+                <td>CLI / Web</td>
+                <td><code>0600</code> Qty Incremented</td>
+                <td>&nbsp;</td>
+                <td>[ &nbsp; ] PASS</td>
+                <td>&nbsp;</td>
+            </tr>
+            <tr>
+                <td><strong>Test 5-B</strong></td>
+                <td><code>663N-260708.csv</code></td>
+                <td>CLI / Web</td>
+                <td><code>6624</code> Due Date Shifted</td>
+                <td>&nbsp;</td>
+                <td>[ &nbsp; ] PASS</td>
+                <td>&nbsp;</td>
+            </tr>
+            <tr>
+                <td><strong>Test 5-C</strong></td>
+                <td><code>663S-260703.csv</code></td>
+                <td>CLI / Web</td>
+                <td><code>6624</code> Qty Replaced</td>
+                <td>&nbsp;</td>
+                <td>[ &nbsp; ] PASS</td>
+                <td>&nbsp;</td>
+            </tr>
+        </tbody>
+    </table>
+
+</div>
+
+</body>
+</html>
