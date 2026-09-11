@@ -284,11 +284,12 @@ Namespace Services
                 Using r = cmd.ExecuteReader()
                     While r.Read()
                         Dim itemNo = r("item_no").ToString()
-                        Dim delDate = Convert.ToDateTime(r("delivery_date"))
-                        Dim dueDate = GetWorkingDueDateCached(delDate, dateCache)
+                        Dim delDate = GetSafeDate(r, "delivery_date")
+                        Dim dueDate = If(delDate.HasValue, GetWorkingDueDateCached(delDate.Value, dateCache), CType(Nothing, Date?))
                         Dim unitWh = GetUnitAndWhCached(itemNo, unitCache)
                         Dim dateType = If(r.IsDBNull(r.GetOrdinal("delivery_date_type")), "", r("delivery_date_type").ToString())
                         Dim prorated = If(dateType = "1" OrElse dateType = "4", 2, 1)
+                        Dim orderQty = GetSafeInt64(r, "order_qty")
 
                         outRows.Add(New OrdersStageRow With {
                             .CustomerSettingId = customerSettingId,
@@ -301,7 +302,7 @@ Namespace Services
                             .DueDate = dueDate,
                             .CustomerItemNo = If(r.IsDBNull(r.GetOrdinal("customer_item_no")), "", r("customer_item_no").ToString()),
                             .ItemNo = itemNo,
-                            .DemandQty = Convert.ToInt64(r("order_qty")),
+                            .DemandQty = orderQty,
                             .DemandUnit = unitWh.DemandUnit,
                             .CurrencyCode = currencyCode,
                             .ShipStockLocation = unitWh.ShipWh,
@@ -312,7 +313,7 @@ Namespace Services
                             .DeliveryInstrFlag = "N",
                             .TotalShipQty = Nothing,
                             .TransportMethod = "2",
-                            .PreDailyOrderQty = Convert.ToDecimal(r("order_qty")),
+                            .PreDailyOrderQty = If(orderQty.HasValue, Convert.ToDecimal(orderQty.Value), CType(Nothing, Decimal?)),
                             .PreDailyDeliveryDate = delDate,
                             .ImpFileStageId = If(r.IsDBNull(r.GetOrdinal("imp_file_id")), Nothing, Convert.ToInt64(r("imp_file_id"))),
                             .OrderType = 1,
@@ -356,11 +357,12 @@ Namespace Services
                 Using r = cmd.ExecuteReader()
                     While r.Read()
                         Dim itemNo = r("item_no").ToString()
-                        Dim delDate = Convert.ToDateTime(r("delivery_date"))
-                        Dim dueDate = GetWorkingDueDateCached(delDate, dateCache)
+                        Dim delDate = GetSafeDate(r, "delivery_date")
+                        Dim dueDate = If(delDate.HasValue, GetWorkingDueDateCached(delDate.Value, dateCache), CType(Nothing, Date?))
                         Dim unitWh = GetUnitAndWhCached(itemNo, unitCache)
                         Dim dateType = If(r.IsDBNull(r.GetOrdinal("delivery_date_type")), "", r("delivery_date_type").ToString())
                         Dim prorated = If(dateType = "1" OrElse dateType = "4", 2, 1)
+                        Dim orderQty = GetSafeInt64(r, "order_qty")
 
                         outRows.Add(New OrdersStageRow With {
                             .CustomerSettingId = customerSettingId,
@@ -373,7 +375,7 @@ Namespace Services
                             .DueDate = dueDate,
                             .CustomerItemNo = If(r.IsDBNull(r.GetOrdinal("customer_item_no")), "", r("customer_item_no").ToString()),
                             .ItemNo = itemNo,
-                            .DemandQty = Convert.ToInt64(r("order_qty")),
+                            .DemandQty = orderQty,
                             .DemandUnit = unitWh.DemandUnit,
                             .CurrencyCode = currencyCode,
                             .ShipStockLocation = unitWh.ShipWh,
@@ -384,7 +386,7 @@ Namespace Services
                             .DeliveryInstrFlag = "N",
                             .TotalShipQty = Nothing,
                             .TransportMethod = "2",
-                            .PreDailyOrderQty = Convert.ToDecimal(r("order_qty")),
+                            .PreDailyOrderQty = If(orderQty.HasValue, Convert.ToDecimal(orderQty.Value), CType(Nothing, Decimal?)),
                             .PreDailyDeliveryDate = delDate,
                             .ImpFileStageId = If(r.IsDBNull(r.GetOrdinal("imp_file_id")), Nothing, Convert.ToInt64(r("imp_file_id"))),
                             .OrderType = 1,
@@ -428,11 +430,12 @@ Namespace Services
                 Using r = cmd.ExecuteReader()
                     While r.Read()
                         Dim itemNo = r("item_no").ToString()
-                        Dim delDate = Convert.ToDateTime(r("delivery_date"))
-                        Dim dueDate = GetWorkingDueDateCached(delDate, dateCache)
+                        Dim delDate = GetSafeDate(r, "delivery_date")
+                        Dim dueDate = If(delDate.HasValue, GetWorkingDueDateCached(delDate.Value, dateCache), CType(Nothing, Date?))
                         Dim unitWh = GetUnitAndWhCached(itemNo, unitCache)
                         Dim dateType = If(r.IsDBNull(r.GetOrdinal("delivery_date_type")), "", r("delivery_date_type").ToString())
                         Dim prorated = If(dateType = "1" OrElse dateType = "4", 2, 1)
+                        Dim orderQty = GetSafeInt64(r, "order_qty")
 
                         outRows.Add(New OrdersStageRow With {
                             .CustomerSettingId = customerSettingId,
@@ -445,7 +448,7 @@ Namespace Services
                             .DueDate = dueDate,
                             .CustomerItemNo = If(r.IsDBNull(r.GetOrdinal("customer_item_no")), "", r("customer_item_no").ToString()),
                             .ItemNo = itemNo,
-                            .DemandQty = Convert.ToInt64(r("order_qty")),
+                            .DemandQty = orderQty,
                             .DemandUnit = unitWh.DemandUnit,
                             .CurrencyCode = currencyCode,
                             .ShipStockLocation = unitWh.ShipWh,
@@ -456,7 +459,7 @@ Namespace Services
                             .DeliveryInstrFlag = "Y",
                             .TotalShipQty = 0,
                             .TransportMethod = "2",
-                            .PreDailyOrderQty = Convert.ToDecimal(r("order_qty")),
+                            .PreDailyOrderQty = If(orderQty.HasValue, Convert.ToDecimal(orderQty.Value), CType(Nothing, Decimal?)),
                             .PreDailyDeliveryDate = delDate,
                             .ImpFileStageId = If(r.IsDBNull(r.GetOrdinal("imp_file_id")), Nothing, Convert.ToInt64(r("imp_file_id"))),
                             .OrderType = 3,
@@ -501,11 +504,12 @@ Namespace Services
                 Using r = cmd.ExecuteReader()
                     While r.Read()
                         Dim itemNo = r("item_no").ToString()
-                        Dim delDate = Convert.ToDateTime(r("delivery_date"))
-                        Dim dueDate = GetWorkingDueDateCached(delDate, dateCache)
+                        Dim delDate = GetSafeDate(r, "delivery_date")
+                        Dim dueDate = If(delDate.HasValue, GetWorkingDueDateCached(delDate.Value, dateCache), CType(Nothing, Date?))
                         Dim unitWh = GetUnitAndWhCached(itemNo, unitCache)
                         Dim dateType = If(r.IsDBNull(r.GetOrdinal("delivery_date_type")), "", r("delivery_date_type").ToString())
                         Dim prorated = If(dateType = "1" OrElse dateType = "4", 2, 1)
+                        Dim orderQty = GetSafeInt64(r, "order_qty")
 
                         outRows.Add(New OrdersStageRow With {
                             .CustomerSettingId = customerSettingId,
@@ -518,7 +522,7 @@ Namespace Services
                             .DueDate = dueDate,
                             .CustomerItemNo = If(r.IsDBNull(r.GetOrdinal("customer_item_no")), "", r("customer_item_no").ToString()),
                             .ItemNo = itemNo,
-                            .DemandQty = Convert.ToInt64(r("order_qty")),
+                            .DemandQty = orderQty,
                             .DemandUnit = unitWh.DemandUnit,
                             .CurrencyCode = currencyCode,
                             .ShipStockLocation = unitWh.ShipWh,
@@ -529,7 +533,7 @@ Namespace Services
                             .DeliveryInstrFlag = "Y",
                             .TotalShipQty = 0,
                             .TransportMethod = "2",
-                            .PreDailyOrderQty = Convert.ToDecimal(r("order_qty")),
+                            .PreDailyOrderQty = If(orderQty.HasValue, Convert.ToDecimal(orderQty.Value), CType(Nothing, Decimal?)),
                             .PreDailyDeliveryDate = delDate,
                             .ImpFileStageId = If(r.IsDBNull(r.GetOrdinal("imp_file_id")), Nothing, Convert.ToInt64(r("imp_file_id"))),
                             .OrderType = 3,
@@ -574,11 +578,12 @@ Namespace Services
                 Using r = cmd.ExecuteReader()
                     While r.Read()
                         Dim itemNo = r("item_no").ToString()
-                        Dim delDate = Convert.ToDateTime(r("delivery_date"))
-                        Dim dueDate = GetWorkingDueDateCached(delDate, dateCache)
+                        Dim delDate = GetSafeDate(r, "delivery_date")
+                        Dim dueDate = If(delDate.HasValue, GetWorkingDueDateCached(delDate.Value, dateCache), CType(Nothing, Date?))
                         Dim unitWh = GetUnitAndWhCached(itemNo, unitCache)
                         Dim dateType = If(r.IsDBNull(r.GetOrdinal("delivery_date_type")), "", r("delivery_date_type").ToString())
                         Dim prorated = If(dateType = "1" OrElse dateType = "4", 2, 1)
+                        Dim orderQty = GetSafeInt64(r, "order_qty")
 
                         outRows.Add(New OrdersStageRow With {
                             .CustomerSettingId = customerSettingId,
@@ -591,7 +596,7 @@ Namespace Services
                             .DueDate = dueDate,
                             .CustomerItemNo = If(r.IsDBNull(r.GetOrdinal("customer_item_no")), "", r("customer_item_no").ToString()),
                             .ItemNo = itemNo,
-                            .DemandQty = Convert.ToInt64(r("order_qty")),
+                            .DemandQty = orderQty,
                             .DemandUnit = unitWh.DemandUnit,
                             .CurrencyCode = currencyCode,
                             .ShipStockLocation = unitWh.ShipWh,
@@ -602,7 +607,7 @@ Namespace Services
                             .DeliveryInstrFlag = "N",
                             .TotalShipQty = Nothing,
                             .TransportMethod = "2",
-                            .PreDailyOrderQty = Convert.ToDecimal(r("order_qty")),
+                            .PreDailyOrderQty = If(orderQty.HasValue, Convert.ToDecimal(orderQty.Value), CType(Nothing, Decimal?)),
                             .PreDailyDeliveryDate = delDate,
                             .ImpFileStageId = If(r.IsDBNull(r.GetOrdinal("imp_file_id")), Nothing, Convert.ToInt64(r("imp_file_id"))),
                             .OrderType = 1,
@@ -647,11 +652,12 @@ Namespace Services
                 Using r = cmd.ExecuteReader()
                     While r.Read()
                         Dim itemNo = r("item_no").ToString()
-                        Dim delDate = Convert.ToDateTime(r("delivery_date"))
-                        Dim dueDate = GetWorkingDueDateCached(delDate, dateCache)
+                        Dim delDate = GetSafeDate(r, "delivery_date")
+                        Dim dueDate = If(delDate.HasValue, GetWorkingDueDateCached(delDate.Value, dateCache), CType(Nothing, Date?))
                         Dim unitWh = GetUnitAndWhCached(itemNo, unitCache)
                         Dim dateType = If(r.IsDBNull(r.GetOrdinal("delivery_date_type")), "", r("delivery_date_type").ToString())
                         Dim prorated = If(dateType = "1" OrElse dateType = "4", 2, 1)
+                        Dim orderQty = GetSafeInt64(r, "order_qty")
 
                         outRows.Add(New OrdersStageRow With {
                             .CustomerSettingId = customerSettingId,
@@ -664,7 +670,7 @@ Namespace Services
                             .DueDate = dueDate,
                             .CustomerItemNo = If(r.IsDBNull(r.GetOrdinal("customer_item_no")), "", r("customer_item_no").ToString()),
                             .ItemNo = itemNo,
-                            .DemandQty = Convert.ToInt64(r("order_qty")),
+                            .DemandQty = orderQty,
                             .DemandUnit = unitWh.DemandUnit,
                             .CurrencyCode = currencyCode,
                             .ShipStockLocation = unitWh.ShipWh,
@@ -675,7 +681,7 @@ Namespace Services
                             .DeliveryInstrFlag = "Y",
                             .TotalShipQty = 0,
                             .TransportMethod = "2",
-                            .PreDailyOrderQty = Convert.ToDecimal(r("order_qty")),
+                            .PreDailyOrderQty = If(orderQty.HasValue, Convert.ToDecimal(orderQty.Value), CType(Nothing, Decimal?)),
                             .PreDailyDeliveryDate = delDate,
                             .ImpFileStageId = If(r.IsDBNull(r.GetOrdinal("imp_file_id")), Nothing, Convert.ToInt64(r("imp_file_id"))),
                             .OrderType = 3,
@@ -720,11 +726,12 @@ Namespace Services
                 Using r = cmd.ExecuteReader()
                     While r.Read()
                         Dim itemNo = r("item_no").ToString()
-                        Dim delDate = Convert.ToDateTime(r("delivery_date"))
-                        Dim dueDate = GetWorkingDueDateCached(delDate, dateCache)
+                        Dim delDate = GetSafeDate(r, "delivery_date")
+                        Dim dueDate = If(delDate.HasValue, GetWorkingDueDateCached(delDate.Value, dateCache), CType(Nothing, Date?))
                         Dim unitWh = GetUnitAndWhCached(itemNo, unitCache)
                         Dim dateType = If(r.IsDBNull(r.GetOrdinal("delivery_date_type")), "", r("delivery_date_type").ToString())
                         Dim prorated = If(dateType = "1" OrElse dateType = "4", 2, 1)
+                        Dim orderQty = GetSafeInt64(r, "order_qty")
 
                         outRows.Add(New OrdersStageRow With {
                             .CustomerSettingId = customerSettingId,
@@ -737,7 +744,7 @@ Namespace Services
                             .DueDate = dueDate,
                             .CustomerItemNo = If(r.IsDBNull(r.GetOrdinal("customer_item_no")), "", r("customer_item_no").ToString()),
                             .ItemNo = itemNo,
-                            .DemandQty = Convert.ToInt64(r("order_qty")),
+                            .DemandQty = orderQty,
                             .DemandUnit = unitWh.DemandUnit,
                             .CurrencyCode = currencyCode,
                             .ShipStockLocation = unitWh.ShipWh,
@@ -748,7 +755,7 @@ Namespace Services
                             .DeliveryInstrFlag = "N",
                             .TotalShipQty = Nothing,
                             .TransportMethod = "2",
-                            .PreDailyOrderQty = Convert.ToDecimal(r("order_qty")),
+                            .PreDailyOrderQty = If(orderQty.HasValue, Convert.ToDecimal(orderQty.Value), CType(Nothing, Decimal?)),
                             .PreDailyDeliveryDate = delDate,
                             .ImpFileStageId = If(r.IsDBNull(r.GetOrdinal("imp_file_id")), Nothing, Convert.ToInt64(r("imp_file_id"))),
                             .OrderType = 1,
@@ -791,11 +798,12 @@ Namespace Services
                 Using r = cmd.ExecuteReader()
                     While r.Read()
                         Dim itemNo = r("item_no").ToString()
-                        Dim delDate = Convert.ToDateTime(r("delivery_date"))
-                        Dim dueDate = GetWorkingDueDateCached(delDate, dateCache)
+                        Dim delDate = GetSafeDate(r, "delivery_date")
+                        Dim dueDate = If(delDate.HasValue, GetWorkingDueDateCached(delDate.Value, dateCache), CType(Nothing, Date?))
                         Dim unitWh = GetUnitAndWhCached(itemNo, unitCache)
                         Dim dateType = If(r.IsDBNull(r.GetOrdinal("delivery_date_type")), "", r("delivery_date_type").ToString())
                         Dim prorated = If(dateType = "1" OrElse dateType = "4", 2, 1)
+                        Dim orderQty = GetSafeInt64(r, "order_qty")
 
                         outRows.Add(New OrdersStageRow With {
                             .CustomerSettingId = customerSettingId,
@@ -808,7 +816,7 @@ Namespace Services
                             .DueDate = dueDate,
                             .CustomerItemNo = If(r.IsDBNull(r.GetOrdinal("customer_item_no")), "", r("customer_item_no").ToString()),
                             .ItemNo = itemNo,
-                            .DemandQty = Convert.ToInt64(r("order_qty")),
+                            .DemandQty = orderQty,
                             .DemandUnit = unitWh.DemandUnit,
                             .CurrencyCode = currencyCode,
                             .ShipStockLocation = unitWh.ShipWh,
@@ -819,7 +827,7 @@ Namespace Services
                             .DeliveryInstrFlag = "Y",
                             .TotalShipQty = 0,
                             .TransportMethod = "2",
-                            .PreDailyOrderQty = Convert.ToDecimal(r("order_qty")),
+                            .PreDailyOrderQty = If(orderQty.HasValue, Convert.ToDecimal(orderQty.Value), CType(Nothing, Decimal?)),
                             .PreDailyDeliveryDate = delDate,
                             .ImpFileStageId = If(r.IsDBNull(r.GetOrdinal("imp_file_id")), Nothing, Convert.ToInt64(r("imp_file_id"))),
                             .OrderType = 3,
@@ -937,15 +945,16 @@ Namespace Services
                 Using r = cmd.ExecuteReader()
                     While r.Read()
                         Dim itemNo = r("item_no").ToString().Trim()
-                        Dim delDate = Convert.ToDateTime(r("delivery_date"))
+                        Dim delDate = GetSafeDate(r, "delivery_date")
+                        If Not delDate.HasValue Then Continue While
                         Dim trdType = If(r.IsDBNull(r.GetOrdinal("target_reference_date_type")), "", r("target_reference_date_type").ToString().Trim())
                         Dim trd = If(r.IsDBNull(r.GetOrdinal("target_reference_date")), "", r("target_reference_date").ToString().Trim())
-                        Dim addQty = Convert.ToInt64(r("order_qty"))
+                        Dim addQty = If(GetSafeInt64(r, "order_qty"), 0L)
 
                         Dim target = rows.FirstOrDefault(Function(x) x.InfoTypeCode = "0600" AndAlso
                                                                      x.ItemNo = itemNo AndAlso
                                                                      x.PreDailyDeliveryDate.HasValue AndAlso
-                                                                     x.PreDailyDeliveryDate.Value.Date = delDate.Date AndAlso
+                                                                     x.PreDailyDeliveryDate.Value.Date = delDate.Value.Date AndAlso
                                                                      (x.TargetReferenceDateType Is Nothing OrElse x.TargetReferenceDateType.Trim() = trdType) AndAlso
                                                                      (x.TargetReferenceDate Is Nothing OrElse x.TargetReferenceDate.Trim() = trd))
 
@@ -957,7 +966,7 @@ Namespace Services
                                 cmdOrd.Transaction = tran
                                 cmdOrd.BindByName = True
                                 cmdOrd.Parameters.Add(":p_item_no", OracleDbType.Varchar2).Value = itemNo
-                                cmdOrd.Parameters.Add(":p_del_date", OracleDbType.Date).Value = delDate.Date
+                                cmdOrd.Parameters.Add(":p_del_date", OracleDbType.Date).Value = delDate.Value.Date
                                 cmdOrd.Parameters.Add(":p_trd_type", OracleDbType.Varchar2).Value = If(String.IsNullOrEmpty(trdType), " ", trdType)
                                 cmdOrd.Parameters.Add(":p_trd", OracleDbType.Varchar2).Value = If(String.IsNullOrEmpty(trd), " ", trd)
                                 Using ordR = cmdOrd.ExecuteReader()
@@ -989,13 +998,14 @@ Namespace Services
                 Using r = cmd.ExecuteReader()
                     While r.Read()
                         Dim custOrderNo = If(r.IsDBNull(r.GetOrdinal("customer_order_no")), "", r("customer_order_no").ToString().Trim())
-                        Dim newDelDate = Convert.ToDateTime(r("delivery_date"))
-                        Dim newDueDate = GetWorkingDueDateCached(newDelDate, dateCache)
+                        Dim newDelDate = GetSafeDate(r, "delivery_date")
+                        If Not newDelDate.HasValue Then Continue While
+                        Dim newDueDate = GetWorkingDueDateCached(newDelDate.Value, dateCache)
 
                         Dim target = rows.FirstOrDefault(Function(x) x.InfoTypeCode = "6624" AndAlso x.CustomerOrderNo IsNot Nothing AndAlso x.CustomerOrderNo.Trim() = custOrderNo)
                         If target IsNot Nothing Then
                             target.DueDate = newDueDate
-                            target.PreDailyDeliveryDate = newDelDate
+                            target.PreDailyDeliveryDate = newDelDate.Value
                         Else
                             Using cmdOrd As New OracleCommand("SELECT * FROM orders WHERE customer_code = '5455' AND info_type_code = '6624' AND TRIM(customer_order_no) = :p_ord_no AND active_flag = 'Y'", conn)
                                 cmdOrd.Transaction = tran
@@ -1030,7 +1040,7 @@ Namespace Services
                 Using r = cmd.ExecuteReader()
                     While r.Read()
                         Dim custOrderNo = If(r.IsDBNull(r.GetOrdinal("customer_order_no")), "", r("customer_order_no").ToString().Trim())
-                        Dim newQty = Convert.ToInt64(r("order_qty"))
+                        Dim newQty = If(GetSafeInt64(r, "order_qty"), 0L)
 
                         Dim target = rows.FirstOrDefault(Function(x) x.InfoTypeCode = "6624" AndAlso x.CustomerOrderNo IsNot Nothing AndAlso x.CustomerOrderNo.Trim() = custOrderNo)
                         If target IsNot Nothing Then
@@ -1169,8 +1179,8 @@ Namespace Services
                     errors.Add($"希望納期が不正です (品目No: {r.ItemNo})")
                 End If
 
-                If Not r.DemandQty.HasValue OrElse r.DemandQty.Value <= 0 Then
-                    errors.Add($"需要数が0以下または不正です (品目No: {r.ItemNo})")
+                If Not r.DemandQty.HasValue OrElse r.DemandQty.Value < 0 Then
+                    errors.Add($"需要数が負数または不正です (品目No: {r.ItemNo})")
                 End If
 
                 If String.IsNullOrWhiteSpace(r.ShipTo) Then
