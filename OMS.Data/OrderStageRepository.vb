@@ -4010,15 +4010,37 @@ Namespace OMS.Data
 
             ' ==========================================
             ' ブロック 1) 確定レコードを検索し DataTable に取得
+            ' 
             ' ==========================================
+            'Dim selectSql As String = "
+            '    SELECT customer_item_no,  TO_CHAR(due_date, 'YYYYMM') AS due_month 
+            '    FROM orders_stage 
+            '    WHERE order_type = 2 
+            '      AND customer_Setting_Id = :p_customerSettingId 
+            '      AND active_flag = 'Y' 
+            '      AND status = 'IMPORTED'
+            '    GROUP BY customer_item_no, TO_CHAR(due_date, 'YYYYMM')
+            '"
+
             Dim selectSql As String = "
-                SELECT customer_item_no, due_date 
+                SELECT 
+                    customer_item_no,  
+                    TO_CHAR(due_date, 'YYYYMM') AS due_month,
+                    MIN(due_date) AS due_date -- グループ内の最小（先頭）の日付を取得
                 FROM orders_stage 
                 WHERE order_type = 2 
                   AND customer_Setting_Id = :p_customerSettingId 
                   AND active_flag = 'Y' 
                   AND status = 'IMPORTED'
+                GROUP BY customer_item_no, TO_CHAR(due_date, 'YYYYMM')
             "
+            ' 同じ 月の 異なる customer_item_no は 取得されます
+            ' 異なる月の同じ customer_item_no も 取得されます
+
+            ' 要 確認
+            ' 当月以外の Group も 取得されるので 日付更新もそのデータに対して行われます。
+            ' @@@@@ 仕様からは 当月限定とは記載が無いため そのまま にしてあります。 @@@@@
+            ' @@@@@ 当月限定の場合は下にあるリマークを無効にします 。               @@@@@
 
             'Using conn As New OracleConnection(connectionString)
             Using cmd As New OracleCommand(selectSql, tran.Connection)
@@ -4047,16 +4069,18 @@ Namespace OMS.Data
                   AND customer_setting_id = :p_customerSettingId 
                   AND active_flag = 'Y' 
                   AND customer_item_no = :p_customerItemNo
-                  AND TO_CHAR(due_date, 'YYYYMM') = TO_CHAR(:p_monthDt, 'YYYYMM')
+                  AND TO_CHAR(due_date, 'YYYYMM') = :p_monthDt
                 "
 
             'Using conn As New OracleConnection(connectionString)
             Using cmd As New OracleCommand(updateSql, tran.Connection)
+                ' ★これを追加（名前によるバインドを有効にする）
+                cmd.BindByName = True
                 ' ループ内でパラメータ値を書き換えるため、先に定義を登録しておきます
                 cmd.Parameters.Add(New OracleParameter(":p_AssignDate", OracleDbType.Date))
-                cmd.Parameters.Add(New OracleParameter(":p_customerSettingId", OracleDbType.Int64)).Value = customerSettingId
+                cmd.Parameters.Add(New OracleParameter(":p_customerSettingId", OracleDbType.Int64))
                 cmd.Parameters.Add(New OracleParameter(":p_customerItemNo", OracleDbType.Varchar2, 45))
-                cmd.Parameters.Add(New OracleParameter(":p_monthDt", OracleDbType.Date))
+                cmd.Parameters.Add(New OracleParameter(":p_monthDt", OracleDbType.Varchar2, 6))
 
                 Try
                     'conn.Open()
@@ -4066,6 +4090,7 @@ Namespace OMS.Data
                     cmd.Transaction = tran
 
                     For Each row As DataRow In dtConfirmed.Rows
+
                         ' DBのNullチェック
                         If row.IsNull("due_date") OrElse row.IsNull("customer_item_no") Then
                             Continue For
@@ -4073,11 +4098,18 @@ Namespace OMS.Data
 
                         Dim currentShipScheduledDate As Date = Convert.ToDateTime(row("due_date"))
                         Dim customerItemNo As String = row("customer_item_no").ToString()
+                        Dim dueMonth As String = row("due_month").ToString()
+
+                        '' @@@@@ 当月限定 @@@@@
+                        '' 当月だけ処理する場合
+                        'If (updatedAt.ToString("yyyyMM") <> currentShipScheduledDate.ToString("yyyyMM")) Then
+                        '    Continue For
+                        'End If
 
                         ' 2つの日付を関数呼び出して設定
                         Dim nextDay As Date = GetNextDay(tran, currentShipScheduledDate)
                         Dim endOfMonth As Date = GetEndOfMonth(tran, currentShipScheduledDate)
-                        Dim monthDt As Date = row("due_date")
+                        'Dim monthDt As Date = row("due_month")
                         ' 条件判定して代入日付を決定
                         Dim p_AssignDate As Date
                         If (currentShipScheduledDate >= endOfMonth) Then
@@ -4088,8 +4120,9 @@ Namespace OMS.Data
 
                         ' SQLパラメータの値を更新して実行
                         cmd.Parameters(":p_AssignDate").Value = p_AssignDate
+                        cmd.Parameters(":p_customerSettingId").Value = customerSettingId
                         cmd.Parameters(":p_customerItemNo").Value = customerItemNo
-                        cmd.Parameters(":p_monthDt").Value = monthDt
+                        cmd.Parameters(":p_monthDt").Value = dueMonth
 
                         cmd.ExecuteNonQuery()
                     Next
