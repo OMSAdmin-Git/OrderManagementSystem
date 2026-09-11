@@ -772,19 +772,14 @@
     </PropertyGroup>
     <Error Condition="!Exists('..\packages\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.2.0.1\build\net46\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.2.0.1\build\net46\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.props'))" />
   </Target>
-  <!-- SUZUKI SPIRITS Batch Executable: Include in Publish -->
-  <ItemGroup>
-    <Content Include="bin\SUZUKI_SPIRITS_DATA_IMPORT.exe">
-      <Visible>false</Visible>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="bin\SUZUKI_SPIRITS_DATA_IMPORT.exe.config">
-      <Visible>false</Visible>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
+  <!-- SUZUKI SPIRITS Batch Executable: Automatically build before OMS.Web and include in Publish -->
+  <Target Name="BuildSuzukiBatchBeforeWeb" BeforeTargets="BeforeBuild">
+    <MSBuild Projects="..\SUZUKI_SPIRITS_DATA_IMPORT\SUZUKI_SPIRITS_DATA_IMPORT.vbproj"
+             Targets="Build"
+             Properties="Configuration=$(Configuration);Platform=$(Platform)" />
+  </Target>
   <Target Name="IncludeBatchExeInPublish" BeforeTargets="PipelineCollectFilesPhase;CopyAllFilesToSingleFolderForMsdeploy;CopyAllFilesToSingleFolderForPackage">
-    <ItemGroup>
+    <ItemGroup Condition="Exists('$(MSBuildProjectDirectory)\bin\SUZUKI_SPIRITS_DATA_IMPORT.exe')">
       <FilesForPackagingFromProject Include="$(MSBuildProjectDirectory)\bin\SUZUKI_SPIRITS_DATA_IMPORT.exe">
         <DestinationRelativePath>bin\SUZUKI_SPIRITS_DATA_IMPORT.exe</DestinationRelativePath>
         <FromTarget>IncludeBatchExeInPublish</FromTarget>
