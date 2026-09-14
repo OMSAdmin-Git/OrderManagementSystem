@@ -4040,7 +4040,7 @@ Namespace OMS.Data
             ' 要 確認
             ' 当月以外の Group も 取得されるので 日付更新もそのデータに対して行われます。
             ' @@@@@ 仕様からは 当月限定とは記載が無いため そのまま にしてあります。 @@@@@
-            ' @@@@@ 当月限定の場合は下にあるリマークを無効にします 。               @@@@@
+            ' @@@@@ 当月限定の場合は下(※1)にあるリマークを無効にします 。               @@@@@
 
             'Using conn As New OracleConnection(connectionString)
             Using cmd As New OracleCommand(selectSql, tran.Connection)
@@ -4100,11 +4100,11 @@ Namespace OMS.Data
                         Dim customerItemNo As String = row("customer_item_no").ToString()
                         Dim dueMonth As String = row("due_month").ToString()
 
-                        '' @@@@@ 当月限定 @@@@@
-                        '' 当月だけ処理する場合
-                        'If (updatedAt.ToString("yyyyMM") <> currentShipScheduledDate.ToString("yyyyMM")) Then
-                        '    Continue For
-                        'End If
+                        ' @@@@@ 当月限定 @@@@@
+                        ' 当月だけ処理する場合 (※1)
+                        If (updatedAt.ToString("yyyyMM") <> currentShipScheduledDate.ToString("yyyyMM")) Then
+                            Continue For
+                        End If
 
                         ' 2つの日付を関数呼び出して設定
                         Dim nextDay As Date = GetNextDay(tran, currentShipScheduledDate)
