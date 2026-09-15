@@ -377,3 +377,5 @@ OMS.Web/Web.config
 /STRA_ORDER_BACKLOG_UPDATE/日次バッチ処理 資料.xlsx
 /.gitignore
 /STRA_ORDER_BACKLOG_UPDATE/日次バッチ処理 資料.xlsx
+
+OMS.Web/App_Data/
