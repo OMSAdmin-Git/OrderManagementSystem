@@ -87,6 +87,7 @@
                     <asp:ListItem Text="しない" Value="0"></asp:ListItem>
                     <asp:ListItem Text="スズキ" Value="1"></asp:ListItem>
                     <asp:ListItem Text="ヤマハ" Value="2"></asp:ListItem>
+                    <asp:ListItem Text="ヤマハ(IM)" Value="3"></asp:ListItem>
                 </asp:DropDownList>
             </div>
 
