@@ -369,6 +369,10 @@ Namespace Pages.Orders
                                                                                       }
 
                 'Dim spaceEx As New List(Of Integer) From {29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 42}
+
+                ' #### 2026/09/15 (要チェック)
+                ' このSQLでは 過去日チェックの条件は考慮されないので、エラーレコードも出力される。
+                '
                 Dim sql = " SELECT * 
                             FROM prod_plan_stra_view 
                             WHERE demand_status = 'F' "
