@@ -319,28 +319,6 @@ Namespace Pages.Orders
                                 Continue For
                             End If
 
-                            'For Each orderRow In orderRows
-                            '    Dim dt = reps.GetOrders(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, orderId:=orderRow.OrderId)
-                            '    Dim orderStageRows = reps.ToClass(dt)
-                            '    If orderStageRows Is Nothing Then
-                            '        Exit Try
-                            '    End If
-                            '    Dim orderStageRow = orderStageRows(0)
-
-                            '    errors.Add(repo.UpdateDeadline(conn, tran, OrderRepository.OrdersTable.ProductPlan, orderId:=orderStageRow.OrderId, orderStageRow.ShipScheduledDate, shipDate:=orderStageRow.ShipDate, status:=orderStageRow.Status, updatedAt:=orderStageRow.UpdatedAt, updatedUserId:=orderStageRow.UpdatedUserId, updatedPgId:=orderStageRow.UpdatedPgId))
-                            '    '#If DEBUG Then
-                            '    '                                ' #### DEBUG
-                            '    '                                tran.Commit()
-                            '    '                                tran = conn.BeginTransaction()
-                            '    '                                ' #### DEBUG
-                            '    '#End If
-                            '    If (CheckError(errors)) Then
-                            '        ' エラー DB更新無効
-                            '        DBError(tran)
-                            '        Continue For
-                            '    End If
-                            'Next
-
                             ' 生産計画履追加
                             ' 生産計画データ取得
                             ' CUSTOMER_SETTING_ID(取引先設定ID)
@@ -364,38 +342,42 @@ Namespace Pages.Orders
                             Dim difu = reph.UnNoticeDifferenceToClass(reph.AfterProductionPlanningUnofficialNoticeDifference(conn, tran, customerSettingId))
                             ' 生産計画差異取得(確定/納入指示)
                             Dim difd = reph.InstructionDifferenceToClass(reph.AfterProductionPlanningDeliveryInstructionDifference(conn, tran, customerSettingId))
-                            ' 生産計画差異リスト出力
-                            Dim strPath = Server.MapPath("~/App_Data/Files/")
-                            Dim filename = CreateOorderDiferenceExcelFile(strPath, DiffFileTiminge.AfterProductionPlanning, ProcessingStartDate, difu, difd, customerSettingId)
-                            fileList.Add(filename)
-                            'If (filename <> "") Then
-                            '    Utils.FileTransfer2(Response, Server, filename)
-                            'Else
-                            '    ' Excel ファイル作成 Error
-                            '    errors.Add("STRA納期設定ページ_生産計画後 Excel ファイル作成エラー")
-                            '    If (CheckError(errors)) Then
-                            '        ' エラー DB更新無効
-                            '        DBError(tran)
-                            '        Continue For
-                            '    End If
-                            'End If
+
+                            If (difu.Count <> 0 Or difd.Count <> 0) Then
+                                ' 生産計画差異リスト出力
+                                Dim strPath = Server.MapPath("~/App_Data/Files/")
+                                Dim filename = CreateOorderDiferenceExcelFile(strPath, DiffFileTiminge.AfterProductionPlanning, ProcessingStartDate, difu, difd, customerSettingId)
+                                fileList.Add(filename)
+                                'If (filename <> "") Then
+                                '    Utils.FileTransfer2(Response, Server, filename)
+                                'Else
+                                '    ' Excel ファイル作成 Error
+                                '    errors.Add("STRA納期設定ページ_生産計画後 Excel ファイル作成エラー")
+                                '    If (CheckError(errors)) Then
+                                '        ' エラー DB更新無効
+                                '        DBError(tran)
+                                '        Continue For
+                                '    End If
+                                'End If
+                            Else
+                            End If
                             valid += orderRows.Count
-                        Else
                         End If
                     End If
                     ' 1取引先終了時
                     tran.Commit()
                     tran = conn.BeginTransaction()
                 Next
-                Dim orderFilename = repo.GeOrderZipFilename("生産計画差異リスト", ProcessingStartDate)
-                'Utils.FilesTransfer(Response, Server, fileList, orderFilename)
-                ' 別ページでDownload 処理を行う (FileList file はDownload 処理内で削除する)
-                Dim fileListName = IO.Path.Combine(Server.MapPath("~/App_Data/Files/"), Utils.GetTempFileName("FileList.txt"))
-                Utils.SaveFileList(fileListName, fileList)
-                Dim url As String = $"DownloadProcess.ashx?file={HttpUtility.UrlEncode(orderFilename)}&list={HttpUtility.UrlEncode(fileListName)}"
-                Dim script As String = $"document.getElementById('downloadFrame').src = '{url}';"
-                ClientScript.RegisterStartupScript(Me.GetType(), "downloadScript", script, True)
-
+                If (fileList.Count <> 0) Then
+                    Dim orderFilename = repo.GeOrderZipFilename("生産計画差異リスト", ProcessingStartDate)
+                    'Utils.FilesTransfer(Response, Server, fileList, orderFilename)
+                    ' 別ページでDownload 処理を行う (FileList file はDownload 処理内で削除する)
+                    Dim fileListName = IO.Path.Combine(Server.MapPath("~/App_Data/Files/"), Utils.GetTempFileName("FileList.txt"))
+                    Utils.SaveFileList(fileListName, fileList)
+                    Dim url As String = $"DownloadProcess.ashx?file={HttpUtility.UrlEncode(orderFilename)}&list={HttpUtility.UrlEncode(fileListName)}"
+                    Dim script As String = $"document.getElementById('downloadFrame').src = '{url}';"
+                    ClientScript.RegisterStartupScript(Me.GetType(), "downloadScript", script, True)
+                End If
             Catch ex As Exception
                 Dim err = ex.Message
                 errors.Add(err)
@@ -498,17 +480,29 @@ Namespace Pages.Orders
                         End If
                     End If
                 Next
-                Dim repo = New OrderRepository(Utils.GetConnectionString())
-                Dim orderFilename = repo.GeOrderZipFilename("生産計画差異リスト", ProcessingStartDate)
-                'Utils.FilesTransfer(Response, Server, fileList, orderFilename)
-                ' 別ページでDownload 処理を行う
-                Dim fileListName = IO.Path.Combine(Server.MapPath("~/App_Data/Files/"), Utils.GetTempFileName("FileList.txt"))
-                Utils.SaveFileList(fileListName, fileList)
-                Dim url As String = $"DownloadProcess.ashx?file={HttpUtility.UrlEncode(orderFilename)}&list={HttpUtility.UrlEncode(fileListName)}"
-                Dim script As String = $"document.getElementById('downloadFrame').src = '{url}';"
-                ClientScript.RegisterStartupScript(Me.GetType(), "downloadScript", script, True)
+                If (fileList.Count <> 0) Then
+                    Dim repo = New OrderRepository(Utils.GetConnectionString())
+                    Dim orderFilename = repo.GeOrderZipFilename("生産計画差異リスト", ProcessingStartDate)
+                    'Utils.FilesTransfer(Response, Server, fileList, orderFilename)
+                    ' 別ページでDownload 処理を行う
+                    Dim fileListName = IO.Path.Combine(Server.MapPath("~/App_Data/Files/"), Utils.GetTempFileName("FileList.txt"))
+                    Utils.SaveFileList(fileListName, fileList)
+                    Dim url As String = $"DownloadProcess.ashx?file={HttpUtility.UrlEncode(orderFilename)}&list={HttpUtility.UrlEncode(fileListName)}"
+                    Dim script As String = $"document.getElementById('downloadFrame').src = '{url}';"
+                    ClientScript.RegisterStartupScript(Me.GetType(), "downloadScript", script, True)
+                Else
+                End If
             Catch
             Finally
+                If (errors.Count > 0) Then
+                    'lblError.Text = errors(0)
+                    lblError.Text = String.Join(vbCrLf, errors)
+                End If
+                If (fileList.Count = 0) Then
+                    lblResult.Text = $"受注取込差異データが無かったため出力は行われませんでした。"
+                Else
+                    lblResult.Text = $"受注取込差異データ出力を行いました。"
+                End If
                 tran.Dispose()
                 conn.Close()
                 conn.Dispose()

@@ -1388,7 +1388,7 @@ Namespace OMS.Data
             Optional ByVal formatEx As List(Of (name As String, format As String)) = Nothing,
             Optional ByVal maxCol As Integer = Nothing,
             Optional ByVal spaceEx As List(Of Integer) = Nothing
-        )
+        ) As (err As String, cnt As Integer)
             ' コード → 実値へ解決
             Dim delimiter As String = Utils.MapDelimiter(delimiterCode)
             Dim enclosure As String = Utils.MapQuote(enclosureCode)
@@ -1430,8 +1430,10 @@ Namespace OMS.Data
             Optional ByVal formatEx As List(Of (name As String, format As String)) = Nothing,
             Optional ByVal maxCol As Integer = Nothing,
             Optional ByVal spaceEx As List(Of Integer) = Nothing
-        ) As String
+        ) As (err As String, cnt As Integer)
             Dim rt = ""
+            Dim rowCount As Integer = 0
+
             ' --- 検証（SELECTのみ許可）
             If String.IsNullOrWhiteSpace(sql) OrElse Not sql.TrimStart().StartsWith("SELECT", StringComparison.OrdinalIgnoreCase) Then
                 Throw New ArgumentException("SELECT文のみ許可されます。", NameOf(sql))
@@ -1479,7 +1481,6 @@ Namespace OMS.Data
                                 End If
 
                                 ' --- データ本体（逐次）
-                                Dim rowCount As Integer = 0
                                 While rdr.Read()
                                     Dim cols As New List(Of String)(rdr.FieldCount)
                                     For i As Integer = 0 To rdr.FieldCount - 1
@@ -1538,11 +1539,11 @@ Namespace OMS.Data
             Catch ex As Exception
                 ' ThreadAbortException は 無視する
 
-                Dim m = ex.Message
+                rt = ex.Message
 
             End Try
 
-            Return rt
+            Return (rt, rowCount)
 
         End Function
 

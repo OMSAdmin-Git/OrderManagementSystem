@@ -371,18 +371,20 @@ Namespace Pages.Orders
                             Dim difu = reph.UnNoticeDifferenceToClass(reph.AfterOrderUnofficialNoticeDifference(conn, tran, customerSettingId))
                             ' 受注差異取得(確定/納入指示)
                             Dim difd = reph.InstructionDifferenceToClass(reph.AfterOrderDeliveryInstructionDifference(conn, tran, customerSettingId))
-                            ' 受注差異リスト出力
-                            Dim strPath = Server.MapPath("~/App_Data/Files/")
-                            Dim filename = CreateOorderDiferenceExcelFile(strPath, DiffFileTiminge.AfterReceivingAnOrder, processingStartDate, difu, difd, customerSettingId)
 
-                            fileList.Add(filename)
-                            If (filename = "") Then
-                                ' Excel ファイル作成 Error
-                                errors.Add("Error: Excel 受注差異リスト出力エラー")
+                            If (difu.Count <> 0 Or difd.Count <> 0) Then
+                                ' 受注差異リスト出力
+                                Dim strPath = Server.MapPath("~/App_Data/Files/")
+                                Dim filename = CreateOorderDiferenceExcelFile(strPath, DiffFileTiminge.AfterReceivingAnOrder, processingStartDate, difu, difd, customerSettingId)
+
+                                fileList.Add(filename)
+                                If (filename = "") Then
+                                    ' Excel ファイル作成 Error
+                                    errors.Add("Error: Excel 受注差異リスト出力エラー")
+                                End If
+                            Else
                             End If
-                            'valid += orderRows.Count
                             valid += trgCount
-                        Else
                         End If
                     End If
                     ' 1取引先終了時
@@ -390,15 +392,16 @@ Namespace Pages.Orders
                     tran = conn.BeginTransaction()
                 Next
 
-                Dim orderFilename = repo.GeOrderZipFilename("受注取込差異リスト", processingStartDate)
-                'Utils.FilesTransfer(Response, Server, fileList, orderFilename)
-                ' 別ページでDownload 処理を行う (FileList file はDownload 処理内で削除する)
-                Dim fileListName = IO.Path.Combine(Server.MapPath("~/App_Data/Files/"), Utils.GetTempFileName("FileList.txt"))
-                Utils.SaveFileList(fileListName, fileList)
-                Dim url As String = $"DownloadProcess.ashx?file={HttpUtility.UrlEncode(orderFilename)}&list={HttpUtility.UrlEncode(fileListName)}"
-                Dim script As String = $"document.getElementById('downloadFrame').src = '{url}';"
-                ClientScript.RegisterStartupScript(Me.GetType(), "downloadScript", script, True)
-
+                If (fileList.Count <> 0) Then
+                    Dim orderFilename = repo.GeOrderZipFilename("受注取込差異リスト", processingStartDate)
+                    'Utils.FilesTransfer(Response, Server, fileList, orderFilename)
+                    ' 別ページでDownload 処理を行う (FileList file はDownload 処理内で削除する)
+                    Dim fileListName = IO.Path.Combine(Server.MapPath("~/App_Data/Files/"), Utils.GetTempFileName("FileList.txt"))
+                    Utils.SaveFileList(fileListName, fileList)
+                    Dim url As String = $"DownloadProcess.ashx?file={HttpUtility.UrlEncode(orderFilename)}&list={HttpUtility.UrlEncode(fileListName)}"
+                    Dim script As String = $"document.getElementById('downloadFrame').src = '{url}';"
+                    ClientScript.RegisterStartupScript(Me.GetType(), "downloadScript", script, True)
+                End If
             Catch ex As Exception
                 errors.Add(ex.Message)
             Finally
@@ -566,19 +569,30 @@ Namespace Pages.Orders
                         End If
                     End If
                 Next
-                Dim repo = New OrderRepository(Utils.GetConnectionString())
-                Dim orderFilename = repo.GeOrderZipFilename("受注取込差異リスト", ProcessingStartDate)
-                'Utils.FilesTransfer(Response, Server, fileList, orderFilename)
-                ' 別ページでDownload 処理を行う
-                Dim fileListName = IO.Path.Combine(Server.MapPath("~/App_Data/Files/"), Utils.GetTempFileName("FileList.txt"))
-                Utils.SaveFileList(fileListName, fileList)
-                Dim url As String = $"DownloadProcess.ashx?file={HttpUtility.UrlEncode(orderFilename)}&list={HttpUtility.UrlEncode(fileListName)}"
-                Dim script As String = $"document.getElementById('downloadFrame').src = '{url}';"
-                ClientScript.RegisterStartupScript(Me.GetType(), "downloadScript", script, True)
-
+                If (fileList.Count <> 0) Then
+                    Dim repo = New OrderRepository(Utils.GetConnectionString())
+                    Dim orderFilename = repo.GeOrderZipFilename("受注取込差異リスト", ProcessingStartDate)
+                    'Utils.FilesTransfer(Response, Server, fileList, orderFilename)
+                    ' 別ページでDownload 処理を行う
+                    Dim fileListName = IO.Path.Combine(Server.MapPath("~/App_Data/Files/"), Utils.GetTempFileName("FileList.txt"))
+                    Utils.SaveFileList(fileListName, fileList)
+                    Dim url As String = $"DownloadProcess.ashx?file={HttpUtility.UrlEncode(orderFilename)}&list={HttpUtility.UrlEncode(fileListName)}"
+                    Dim script As String = $"document.getElementById('downloadFrame').src = '{url}';"
+                    ClientScript.RegisterStartupScript(Me.GetType(), "downloadScript", script, True)
+                Else
+                End If
             Catch ex As OracleException
                 errors.Add(ex.Message)
             Finally
+                If (errors.Count > 0) Then
+                    'lblError.Text = errors(0)
+                    lblError.Text = String.Join(vbCrLf, errors)
+                End If
+                If (fileList.Count = 0) Then
+                    lblResult.Text = $"受注取込差異データが無かったため出力は行われませんでした。"
+                Else
+                    lblResult.Text = $"受注取込差異データ出力を行いました。"
+                End If
                 tran.Dispose()
                 conn.Close()
                 conn.Dispose()
