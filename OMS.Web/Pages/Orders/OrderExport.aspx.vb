@@ -125,8 +125,6 @@ Namespace Pages.Orders
             lblResult.Text = ""
             lblError.Text = ""
             'lblError.Text = "開発未着手"
-            Dim fileList As List(Of String) = New List(Of String)()
-            Dim strPath = Server.MapPath("~/App_Data/Files/")
             Dim FileDate = DateTime.Now
             'Dim count = 0
             'Dim valid = 0
@@ -156,6 +154,9 @@ Namespace Pages.Orders
             Dim splitp = New SplitCaseRepository(Utils.GetConnectionString())
             ' 処理対象となる CustomerSettingId リスト
             Dim idList As New List(Of Long)
+
+            Dim fileList As List(Of String) = New List(Of String)()
+            Dim strPath = Server.MapPath("~/App_Data/Files/")
 
             Try
                 '値取得
@@ -477,7 +478,7 @@ Namespace Pages.Orders
                 ' 裏画面 Download
                 'Utils.FilesTransfer(Response, Server, fileList, orderFilename)
 
-                Dim fileListName = Path.Combine(Server.MapPath("~/App_Data/Files/"), Utils.GetTempFileName("FileList.txt"))
+                Dim fileListName = Path.Combine(Server.MapPath(strPath), Utils.GetTempFileName("FileList.txt"))
                 Utils.SaveFileList(fileListName, fileList)
                 Dim url As String = $"DownloadProcess.ashx?file={HttpUtility.UrlEncode(orderFilename)}&list={HttpUtility.UrlEncode(fileListName)}"
                 Dim script As String = $"document.getElementById('downloadFrame').src = '{url}';"
@@ -571,14 +572,13 @@ Namespace Pages.Orders
 
             Try
                 Dim FileDate = DateTime.Now
-                Dim strPath = Server.MapPath("~/App_Data/Files/")
-
-                '出荷状況エラーリスト出力	
+                Dim fileList As List(Of String) = New List(Of String)()
                 Dim repos = New OrderStraRepository(Utils.GetConnectionString())
                 Dim errorRows = repos.GetOrderStage(conn, tran, status:="POST_PLAN_DUE_SET", activeFlag:="N", additionalConditions:=" AND ship_scheduled_date >=  order_date  AND order_type > 1 ")
                 Dim trfilename = ""
-                ' ファイルリスト
-                Dim fileList As List(Of String) = New List(Of String)()
+                Dim strPath = Server.MapPath("~/App_Data/Files/")
+
+                '出荷状況エラーリスト出力	
                 errorCount = errorRows.Rows.Count
                 If (errorCount <> 0) Then
                     errors.Add(OrderProductionPlanExcelFile.ShippingStatusErrorExcelOut(strPath, FileDate, repos.ToClass(errorRows)))
@@ -597,9 +597,9 @@ Namespace Pages.Orders
                     fileList.Add(trfilename)
                 End If
 
+                ' 裏画面 Download
                 If (errorCount <> 0 Or pastErrorCnt <> 0) Then
-                    ' 裏画面 Download
-                    Dim fileListName = Path.Combine(Server.MapPath("~/App_Data/Files/"), Utils.GetTempFileName("FileList.txt"))
+                    Dim fileListName = Path.Combine(Server.MapPath(strPath), Utils.GetTempFileName("FileList.txt"))
                     Dim orderFilename = repo.GeOrderZipFilename("エラーリスト", ProcessingStartDate)
                     Utils.SaveFileList(fileListName, fileList)
                     Dim url As String = $"DownloadProcess.ashx?file={HttpUtility.UrlEncode(orderFilename)}&list={HttpUtility.UrlEncode(fileListName)}"

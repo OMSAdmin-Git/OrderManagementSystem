@@ -148,7 +148,7 @@ Namespace Pages.Orders
             Dim reph = New OrderHistoryRepository(Utils.GetConnectionString())
             ' ファイルリスト
             Dim fileList As List(Of String) = New List(Of String)()
-
+            Dim strPath = Server.MapPath("~/App_Data/Files/")
             Try
                 ' 処理対象 がチェックされている行
                 For Each row In gvSelectCustomers.Rows
@@ -345,7 +345,6 @@ Namespace Pages.Orders
 
                             If (difu.Count <> 0 Or difd.Count <> 0) Then
                                 ' 生産計画差異リスト出力
-                                Dim strPath = Server.MapPath("~/App_Data/Files/")
                                 Dim filename = CreateOorderDiferenceExcelFile(strPath, DiffFileTiminge.AfterProductionPlanning, ProcessingStartDate, difu, difd, customerSettingId)
                                 fileList.Add(filename)
                             Else
@@ -360,7 +359,7 @@ Namespace Pages.Orders
                 If (fileList.Count <> 0) Then
                     Dim orderFilename = repo.GeOrderZipFilename("生産計画差異リスト", ProcessingStartDate)
                     ' 別ページでDownload 処理を行う (FileList file はDownload 処理内で削除する)
-                    Dim fileListName = IO.Path.Combine(Server.MapPath("~/App_Data/Files/"), Utils.GetTempFileName("FileList.txt"))
+                    Dim fileListName = IO.Path.Combine(Server.MapPath(strPath), Utils.GetTempFileName("FileList.txt"))
                     Utils.SaveFileList(fileListName, fileList)
                     Dim url As String = $"DownloadProcess.ashx?file={HttpUtility.UrlEncode(orderFilename)}&list={HttpUtility.UrlEncode(fileListName)}"
                     Dim script As String = $"document.getElementById('downloadFrame').src = '{url}';"
@@ -432,6 +431,7 @@ Namespace Pages.Orders
             Dim reph = New OrderHistoryRepository(Utils.GetConnectionString())
             ' ファイルリスト
             Dim fileList As List(Of String) = New List(Of String)()
+            Dim strPath = Server.MapPath("~/App_Data/Files/")
             Try
                 ' 処理対象 がチェックされている行
                 For Each row In gvSelectCustomers.Rows
@@ -458,7 +458,6 @@ Namespace Pages.Orders
                             Dim difd = reph.InstructionDifferenceToClass(reph.AfterProductionPlanningDeliveryInstructionDifference(conn, tran, customerSettingId))
                             If (difu.Count <> 0 Or difd.Count <> 0) Then
                                 ' 受注差異リスト出力
-                                Dim strPath = Server.MapPath("~/App_Data/Files/")
                                 Dim filename = CreateOorderDiferenceExcelFile(strPath, DiffFileTiminge.AfterProductionPlanning, ProcessingStartDate, difu, difd, customerSettingId)
                                 fileList.Add(filename)
                             End If
@@ -469,7 +468,7 @@ Namespace Pages.Orders
                     Dim repo = New OrderRepository(Utils.GetConnectionString())
                     Dim orderFilename = repo.GeOrderZipFilename("生産計画差異リスト", ProcessingStartDate)
                     ' 別ページでDownload 処理を行う
-                    Dim fileListName = Path.Combine(Server.MapPath("~/App_Data/Files/"), Utils.GetTempFileName("FileList.txt"))
+                    Dim fileListName = Path.Combine(Server.MapPath(strPath), Utils.GetTempFileName("FileList.txt"))
                     Utils.SaveFileList(fileListName, fileList)
                     Dim url As String = $"DownloadProcess.ashx?file={HttpUtility.UrlEncode(orderFilename)}&list={HttpUtility.UrlEncode(fileListName)}"
                     Dim script As String = $"document.getElementById('downloadFrame').src = '{url}';"
