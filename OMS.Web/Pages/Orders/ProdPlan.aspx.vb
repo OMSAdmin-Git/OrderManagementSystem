@@ -18,6 +18,7 @@ Imports OMS.Common
 Imports OMS.Data
 Imports OMS.Web.Pages.Masters
 Imports OMS.Web.Pages.Masters.CustomerSetting
+Imports OMS.Web.Pages.Masters.File
 Imports OMS.Web.Pages.Masters.Folder
 Imports Oracle.ManagedDataAccess.Client
 Imports CheckBox = System.Web.UI.WebControls.CheckBox
@@ -1037,21 +1038,6 @@ Namespace Pages.Orders
                 '----------------------------
                 ' Excel 出力
                 '----------------------------
-                'Dim strPath = Server.MapPath("~/App_Data/Files/")
-                'Dim filename = GetExcelFilename()
-                ''errors.Add(exout.OrderExcelFile(filename, registerdOrders))
-                'errors.Add(ProductPlanExcelOut(IO.Path.Combine(strPath, filename), registerdOrders))
-                'If (CheckError(errors)) Then
-                '    ' エラー
-                'End If
-                '' Excel ファイル転送
-                'If (filename <> "") Then
-                '    Utils.FileTransfer2(Response, Server, IO.Path.Combine(strPath, filename))
-                'Else
-                '    ' Excel ファイル作成 Error
-                '    errors.Add("Error: Excel 生産計画リスト出力エラー")
-                'End If
-
                 Dim fileList As List(Of String) = New List(Of String)()
                 Dim filename = IO.Path.Combine(Server.MapPath("~/App_Data/Files/"), GetExcelFilename())
                 'errors.Add(exout.OrderExcelFile(filename, registerdOrders))
@@ -1062,6 +1048,7 @@ Namespace Pages.Orders
                 ' Excel ファイル転送
                 fileList.Add(filename)
                 Dim orderFilename = repo.GeOrderZipFilename("生産計画_出力日時", ProcessingStartDate)
+
                 ' 別ページでDownload 処理を行う
                 Dim fileListName = IO.Path.Combine(Server.MapPath("~/App_Data/Files/"), Utils.GetTempFileName("FileList.txt"))
                 Utils.SaveFileList(fileListName, fileList)
@@ -1135,6 +1122,7 @@ Namespace Pages.Orders
             lblResult.Text = ""
             Dim errors As New List(Of String)()
             Dim customerSettingIdList As List(Of Long) = New List(Of Long)()
+            Dim ProcessingStartDate As Date = DateTime.Now
             Dim repo As New OrderRepository(Utils.GetConnectionString())
             ' Oracle connection/Transaction
             Dim conn As New OracleConnection(Utils.GetConnectionString())
@@ -1147,7 +1135,7 @@ Namespace Pages.Orders
             ' Customer setting id を収集する
             ' 処理対象 がチェックされている行
             For Each row In gvSelectCustomers.Rows
-                Dim chk = TryCast(row.FindControl("chkDueDateSetting"), WebControls.CheckBox)
+                Dim chk = TryCast(row.FindControl("chkProdPlan"), WebControls.CheckBox)
                 If chk IsNot Nothing Then
                     Dim idx As Integer = row.RowIndex
                     Dim keys = gvSelectCustomers.DataKeys(idx)
@@ -1165,53 +1153,42 @@ Namespace Pages.Orders
                 End If
             Next
 
-            ' Customer Setting ID リスト重複をまとめる
-            Dim idSelectList = idList.Distinct().ToList()
-            Dim strPath = Server.MapPath("~/App_Data/Files/")
-            'Dim path = GetWorkPath()
-            Dim filename = GetExcelFilename()
-            'errors.Add(exout.OrderExcelFile(filename, registerdOrders))
+            Dim count = 0
+            Try
+                ' Customer Setting ID リスト重複をまとめる
+                Dim idSelectList = idList.Distinct().ToList()
+                Dim fileList As List(Of String) = New List(Of String)()
+                Dim filename = IO.Path.Combine(Server.MapPath("~/App_Data/Files/"), GetExcelFilename())
+                Dim registerdOrders = repo.ToClass(repo.GetRegisteredOrders(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, "PLAN_SET", idSelectList))
+                count = registerdOrders.Count
+                If (count <> 0) Then
+                    errors.Add(ProductPlanExcelOut(filename, registerdOrders))
+                    If (CheckError(errors)) Then
 
-            Dim registerdOrders = repo.ToClass(repo.GetRegisteredOrders(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, "PLAN_SET", idSelectList))
-            errors.Add(ProductPlanExcelOut(IO.Path.Combine(strPath, filename), registerdOrders))
-            If (CheckError(errors)) Then
-                ' エラー
-            End If
-            ' Excel ファイル転送
-            If (filename <> "") Then
-                Utils.FileTransfer2(Response, Server, IO.Path.Combine(strPath, filename))
-            Else
-                ' Excel ファイル作成 Error
-                errors.Add("Error: Excel 生産計画リスト出力エラー")
-            End If
+                    End If
+                    fileList.Add(filename)
+
+                    ' 別ページでDownload 処理を行う
+                    Dim planFilename = repo.GeOrderZipFilename("生産計画リスト", ProcessingStartDate)
+                    Dim fileListName = IO.Path.Combine(Server.MapPath("~/App_Data/Files/"), Utils.GetTempFileName("FileList.txt"))
+                    Utils.SaveFileList(fileListName, fileList)
+                    Dim url As String = $"DownloadProcess.ashx?file={HttpUtility.UrlEncode(planFilename)}&list={HttpUtility.UrlEncode(fileListName)}"
+                    Dim script As String = $"document.getElementById('downloadFrame').src = '{url}';"
+                    ' Excel ファイル転送
+                    ClientScript.RegisterStartupScript(Me.GetType(), "downloadScript", script, True)
+                End If
+            Catch ex As Exception
+                lblError.Text = ex.Message
+            Finally
+                If (count = 0) Then
+                    lblResult.Text = $"有効なデータが無かったためExcel出力は行われませんでした。"
+                Else
+                    lblResult.Text = $"生産計画 Excelファイルを出力しました。"
+                End If
+            End Try
 
         End Sub
 
-        '''' <summary>
-        '''' 生産計画 Excel ファイル出力
-        '''' </summary>
-        '''' <param name="conn"></param>
-        '''' <param name="tran"></param>
-        '''' <param name="filename"></param>
-        '''' <returns></returns>
-        'Private Function ProductPlanExcelOut(conn As OracleConnection, tran As OracleTransaction, filename As String) As String
-
-        '    Return ProductPlanExcelOut(conn, tran, OrderRepository.OrdersTable.ProductPlan, filename)
-
-        'End Function
-        '''' <summary>
-        '''' Orders stage の excel 出力
-        '''' </summary>
-        '''' <param name="filename"></param>
-        '''' <param name="registerdOrders"></param>
-        '''' <returns></returns>
-        'Private Function ProductPlanExcelOut(filename As String, registerdOrders As List(Of OrdersStageRow)) As String
-
-        '    Dim excel = New OrderProductionPlanExcelFile()
-        '    Return excel.OrdersStageExcelFile(filename, registerdOrders)
-
-        'End Function
-        'End Function
         ''' <summary>
         ''' Orders stage の excel 出力
         ''' </summary>
@@ -1229,56 +1206,6 @@ Namespace Pages.Orders
 
         End Function
 
-        '''' <summary>
-        '''' 生産計画 Excel ファイル出力
-        '''' </summary>
-        '''' <param name="conn"></param>
-        '''' <param name="tran"></param>
-        '''' <param name="filename"></param>
-        '''' <returns></returns>
-        'Private Function ProductPlanExcelOut(conn As OracleConnection, tran As OracleTransaction, type As OrderRepository.OrdersTable, filename As String) As String
-
-        '    Dim err As String = ""
-        '    Dim customerSettingIdList As List(Of Long) = New List(Of Long)()
-
-        '    ' 一覧で Check されている項目 の CustomerSettingId を収集
-        '    For Each row In gvSelectCustomers.Rows
-        '        Dim chk = TryCast(row.FindControl("chkDueDateSetting"), WebControls.CheckBox)
-        '        If chk IsNot Nothing Then
-        '            If chk.Checked Then
-        '                Dim idx As Integer = row.RowIndex
-        '                Dim keys = gvSelectCustomers.DataKeys(idx)
-        '                Dim customerSettingId As Long
-        '                Dim csidObj = keys("CustomerSettingId")
-        '                If csidObj Is Nothing OrElse Not Long.TryParse(csidObj.ToString(), customerSettingId) Then
-        '                    err += $"Row {idx}：CustomerSettingIdが不正"
-        '                    Continue For
-        '                End If
-        '                customerSettingIdList.Add(customerSettingId)
-        '            End If
-        '        End If
-        '    Next
-
-        '    ' Orders（受注テーブル）
-        '    ' 選択されたデータのCUSTOMER_SETTING_ID（取引先設定ID）が一致する
-        '    ' STATUS（ステータス）が[PLAN_SET]で登録されているレコード
-        '    Dim repo As New OrderRepository(Utils.GetConnectionString())
-        '    Dim additionalConditions As String = Nothing
-        '    customerSettingIdList.Select(Function(x, index) New With {Key index, .Number = x}) _
-        '                         .ToList() _
-        '                         .ForEach(Sub(x)
-        '                                      If x.index = 0 Then
-        '                                          additionalConditions &= $"AND customer_setting_id = {x.Number} " '& Environment.NewLine
-        '                                      Else
-        '                                          additionalConditions &= $"OR customer_setting_id = {x.Number} " '& Environment.NewLine
-        '                                      End If
-        '                                  End Sub)
-        '    Dim registerdOrders = repo.ToClass(repo.GetOrders(conn, tran, status:="PLAN_SET", additionalConditions:=additionalConditions))
-        '    Dim excel = New OrderProductionPlanExcelFile()
-        '    err += excel.OrderExcelFile(filename, registerdOrders)
-        '    Return err
-
-        'End Function
         ''' <summary>
         ''' 生産計画 Excel ファイル名取得
         ''' </summary>
@@ -1300,7 +1227,6 @@ Namespace Pages.Orders
         ''' <param name="e"></param>
         Protected Sub btnImportProdPlanList_Click(sender As Object, e As EventArgs) Handles Button1.Click
 
-
             ' ++++++++++++++++++++++++++++++
             'Dim shipScheduledDate = New DateTime(2026, 3, 13)
             'Dim startDate As Date
@@ -1321,17 +1247,6 @@ Namespace Pages.Orders
             'Dim sd = startDate
 
             ' ++++++++++++++++++++++++++++++
-
-
-
-
-
-
-
-
-
-
-
 
             'lblError.Text = "開発未着手"
             lblError.Text = ""
@@ -1736,7 +1651,7 @@ Namespace Pages.Orders
             Dim thisMonday = GetDateMonday(startDate)
             Dim businessDays = calender.Where(Function(x) x.DefDate >= DateSerial(thisMonday.Year, thisMonday.Month, thisMonday.Day) And x.DefDate <= DateSerial(startDate.Year, startDate.Month, startDate.Day + 7) And x.HolidayFlag = "W").OrderBy(Function(x) x.DefDate).ToList()
             'Dim businessDays = calender.Where(Function(x) x.DefDate <= DateSerial(startDate.Year, startDate.Month, startDate.Day + 7) And x.HolidayFlag = "W").OrderBy(Function(x) x.DefDate).ToList()
-            Dim dt As Date = DateTime.MinValue
+                                                                                                                                                           Dim dt As Date = DateTime.MinValue
             If (businessDays.Count <> 0) Then
                 ' 最も早い営業日を返す
                 dt = businessDays(0).DefDate
@@ -2048,20 +1963,6 @@ Namespace Pages.Orders
             ' 次回の操作のために値をリセット（必要に応じて）
             'hfResult.Value = ""
         End Sub
-
-        '''' <summary>
-        '''' Work path 取得 (ない場合は作成する)
-        '''' </summary>
-        '''' <returns></returns>
-        'Public Function GetWorkPath() As String
-
-        '    Dim rawWork As String = GetWorkFolderRoot()
-        '    Dim workFolder = rawWork & "FileTempFolder"
-        '    If (Not IO.File.Exists(workFolder)) Then
-        '        EnsureDirectory(workFolder)
-        '    End If
-        '    Return workFolder
-        'End Function
 
         ''' <summary>
         ''' 完了 path 取得 (ない場合は作成する)

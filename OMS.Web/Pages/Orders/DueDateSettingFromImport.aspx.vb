@@ -262,109 +262,7 @@ Namespace Pages.Orders
                                 Continue For
                             End If
 
-                            '' conn, tran, connectionString, customerCode, profitCenter
-                            '' STRA 納期設定 受注ワーク
-                            '' 1. SHIP_SCHEDULED_DATE(出荷予定日) ORDERS_STAGE.DUE_DATE - SHPROUTM.FTRANLT- USRDEFFLDF.FUSRDEC1
-                            '' 2. SHIP_DATE(出荷日) ORDERS_STAGE.DUE_DATE - SHPROUTM.FTRANLT
-                            '' 3. SHIP_PLAN_DATE  ORDERS_STAGE.DUE_DATE - SHPROUTM.FTRANLT - USRDEFFLDF.FUSRDEC1
-                            '' 4. STATUS(ステータス) 'DUE_SET'
-                            '' 5. UPDATED_AT(更新日時)
-                            '' 6. UPDATED_USER_ID(更新ユーザーID)
-                            '' 7. UPDATED_PG_ID(更新プログラムID)
-                            '' 8. CUSTOMER_SETTING_ID(取引先設定ID)
-                            '' 対象の受注データテーブルorders の受注ID(ORDER_ID)を 受注ワークから探して
-                            '' 納期設定値を上書きする
-                            ''Dim repu = New UsrDeffIdfRepository(Utils.GetConnectionString())
-                            ''Dim sectm = New SectmRepository(Utils.GetConnectionString())
-                            'Dim shproutm = New ShproutmRepository(Utils.GetConnectionString())
-                            'For Each orderRow In orderRows
-                            '    ' STRAMMIC DB チェック  
-                            '    Dim deliveryCode = orderRow.DeliveryCode
-                            '    errors.Add(shproutm.CheckShippingDestination(conn, tran, customerCode, deliveryCode))
-                            '    If (CheckError(errors)) Then
-                            '        ' エラー DB更新無効
-                            '        DBError(tran)
-                            '        Continue For
-                            '    End If
-
-                            '    Dim itemNo = orderRow.ItemNo
-                            '    'FUSRDEC1 ((A)品揃リードタイム)
-                            '    Dim assortLeadTime = shproutm.GetAssortmentLeadTime(customerCode, profitCenter, itemNo)
-                            '    'FTRANLT(輸送L/T)
-                            '    Dim transferLeadTime = shproutm.GetTransferLeadTime(orderRow.ShipTo, orderRow.ShipStockLocation)
-                            '    Dim orderid = orderRow.OrderId
-                            '    Dim dueDate = orderRow.DueDate
-                            '    '#If DEBUG Then
-                            '    '                                ' #### DEBUG 評価
-                            '    '                                transferLeadTime = 3
-                            '    '                                assortLeadTime = 3
-                            '    '                                ' #### DEBUG
-                            '    '#End If
-                            '    Dim calType = "00001"
-                            '    Dim cal = New CalenderRepository(Utils.GetConnectionString())
-                            '    ' (受注ワークテーブル.希望納期 - 出荷ルートマスター.輸送L/T - ユーザー定義マスタ.(A)品揃リードタイム)
-                            '    Dim shipScaduleDate = cal.AddWorkingDays(conn, tran, calType, dueDate.Value, -(transferLeadTime + assortLeadTime))
-                            '    ' (受注ワークテーブル.希望納期 - 出荷ルートマスター.輸送L/T)
-                            '    Dim shipdate = cal.AddWorkingDays(conn, tran, calType, dueDate.Value, -transferLeadTime)
-                            '    ' (受注ワークテーブル.希望納期 - 出荷ルートマスター.輸送L/T - ユーザー定義マスタ.(A)品揃リードタイム)
-                            '    Dim shipPlanDate = cal.AddWorkingDays(conn, tran, calType, dueDate.Value, -(transferLeadTime + assortLeadTime))
-
-                            '    ' UPDATE(受注ワーク)
-                            '    Dim status = "DUE_SET"
-                            '    Dim updateAt = ProcessingStartDate
-                            '    Dim updateUserId = PageHelpers.GetUserId(Me)
-                            '    Dim updatePgId = "DueDateSetting(Order)"
-                            '    errors.Add(reps.UpdateDeadline(conn, tran, orderId:=orderid, shipScheduledDate:=shipScaduleDate, shipDate:=shipdate, shipPlanDate:=shipPlanDate, status:=status, updatedAt:=updateAt, updatedUserId:=updateUserId, updatedPgId:=updatePgId))
-                            '    '#If DEBUG Then
-                            '    '                                ' #### DEBUG
-                            '    '                                tran.Commit()
-                            '    '                                tran = conn.BeginTransaction()
-                            '    '                                ' #### DEBUG
-                            '    '#End If
-                            '    If (CheckError(errors)) Then
-                            '        ' エラー DB更新無効
-                            '        DBError(tran)
-                            '        Continue For
-                            '    End If
-                            'Next
                             '----------------------------------------------------------
-
-                            '----------------------------------------------------------
-                            '' 正規データ更新 受注データ
-                            '' ORDER_ID（受注ID）をキーとして、ORDERS（受注テーブル）をORDERS_STAGEの値に更新する。
-                            '' SHIP_SCHEDULED_DATE(出荷予定日)
-                            '' SHIP_DATE(出荷日)
-                            '' SHIP_DATE(出荷日)
-                            '' STATUS(ステータス)
-                            '' UPDATED_AT(更新日時)
-                            '' UPDATED_USER_ID(更新ユーザーID)
-                            '' UPDATED_PG_ID(更新プログラムID)
-
-                            '' 2026/06/03 SQL 更新に変更
-                            'errors.Add(repo.OrderUpdate(conn, tran, customerSettingId))
-                            'If (CheckError(errors)) Then
-                            '    ' エラー DB更新無効
-                            '    DBError(tran)
-                            '    Continue For
-                            'End If
-
-                            '' 受注履歴追加
-                            '' 受注データ取得
-                            '' CUSTOMER_SETTING_ID(取引先設定ID)
-                            '' STATUS(ステータス) 'DUE_SET'
-                            'Dim orders = repo.GetOrders(conn, tran, status:="DUE_SET", customerSettingId:=customerSettingId)
-                            'errors.Add(reph.InsertRange(conn, tran, repo.ToClass(orders)))
-                            '' #### DEBUG
-                            ''tran.Commit()
-                            ''tran = conn.BeginTransaction()
-                            '' #### DEBUG
-                            'If (CheckError(errors)) Then
-                            '    ' エラー DB更新無効
-                            '    DBError(tran)
-                            '    Continue For
-                            'End If
-                            '----------------------------------------------------------
-
                             Dim custmer = repo.GetCustomer(customerSettingId)
                             ' 受注差異取得
                             ' 受注差異取得(内示)
@@ -394,7 +292,6 @@ Namespace Pages.Orders
 
                 If (fileList.Count <> 0) Then
                     Dim orderFilename = repo.GeOrderZipFilename("受注取込差異リスト", processingStartDate)
-                    'Utils.FilesTransfer(Response, Server, fileList, orderFilename)
                     ' 別ページでDownload 処理を行う (FileList file はDownload 処理内で削除する)
                     Dim fileListName = IO.Path.Combine(Server.MapPath("~/App_Data/Files/"), Utils.GetTempFileName("FileList.txt"))
                     Utils.SaveFileList(fileListName, fileList)
@@ -557,22 +454,19 @@ Namespace Pages.Orders
                             Dim difu = reph.UnNoticeDifferenceToClass(reph.AfterOrderUnofficialNoticeDifference(conn, tran, customerSettingId))
                             ' 受注差異取得(確定/納入指示)
                             Dim difd = reph.InstructionDifferenceToClass(reph.AfterOrderDeliveryInstructionDifference(conn, tran, customerSettingId))
-                            ' 受注差異リスト出力
-                            Dim strPath = Server.MapPath("~/App_Data/Files/")
-                            Dim filename = CreateOorderDiferenceExcelFile(strPath, DiffFileTiminge.AfterReceivingAnOrder, ProcessingStartDate, difu, difd, customerSettingId)
-                            fileList.Add(filename)
-                            'If (filename <> "") Then
-                            '    Utils.FileTransfer2(Response, Server, filename)
-                            'Else
-                            '    ' Excel ファイル作成 Error
-                            'End If
+                            ' レコードなしの場合出力しない
+                            If (difu.Count <> 0 Or difd.Count <> 0) Then
+                                ' 受注差異リスト出力
+                                Dim strPath = Server.MapPath("~/App_Data/Files/")
+                                Dim filename = CreateOorderDiferenceExcelFile(strPath, DiffFileTiminge.AfterReceivingAnOrder, ProcessingStartDate, difu, difd, customerSettingId)
+                                fileList.Add(filename)
+                            End If
                         End If
                     End If
                 Next
                 If (fileList.Count <> 0) Then
                     Dim repo = New OrderRepository(Utils.GetConnectionString())
                     Dim orderFilename = repo.GeOrderZipFilename("受注取込差異リスト", ProcessingStartDate)
-                    'Utils.FilesTransfer(Response, Server, fileList, orderFilename)
                     ' 別ページでDownload 処理を行う
                     Dim fileListName = IO.Path.Combine(Server.MapPath("~/App_Data/Files/"), Utils.GetTempFileName("FileList.txt"))
                     Utils.SaveFileList(fileListName, fileList)

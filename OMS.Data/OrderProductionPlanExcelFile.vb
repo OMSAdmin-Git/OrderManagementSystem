@@ -89,59 +89,6 @@ Namespace OMS.Data
             (65, 15, "更新ユーザーID"),       'UPDATED_USER_ID         VARCHAR2(9 BYTE)            No
             (66, 15, "更新プログラムID")      'UPDATED_PG_ID           VARCHAR2(150 BYTE)          No
         }
-        '''' <summary>
-        '''' (差異リスト:内示) 
-        '''' Index(Column), Cell width, Title
-        '''' </summary>
-        'Private OrdersStageTitle As New List(Of (index As Integer, width As Integer, tString As String)) From {
-        '    (1, 15, "受注ID"),                'ORDER_ID                NUMBER(10,0)                No
-        '    (2, 15, "取引先設定ID"),          'CUSTOMER_SETTING_ID     NUMBER(10,0)                No
-        '    (3, 15, "取引先コード"),          'CUSTOMER_CODE           VARCHAR2(25 BYTE)           No
-        '    (4, 15, "請求先"),                'BILLING_TO              VARCHAR2(25 BYTE)           Yes
-        '    (5, 15, "客先発注No"),            'CUSTOMER_ORDER_NO       VARCHAR2(40 BYTE)           No
-        '    (6, 15, "需要ステイタス"),        'DEMAND_STATUS           CHAR(1 BYTE)                Yes
-        '    (7, 15, "出荷先"),                'SHIP_TO                 VARCHAR2(25 BYTE)           No
-        '    (8, 15, "受注日"),                'ORDER_DATE              DATE                        Yes
-        '    (9, 15, "希望納期"),              'DUE_DATE                DATE                        No
-        '    (10, 15, "出荷予定日"),           'SHIP_SCHEDULED_DATE     DATE                        Yes
-        '    (11, 15, "客先品目No"),           'CUSTOMER_ITEM_NO        VARCHAR2(20 BYTE)           No
-        '    (12, 15, "品目No"),               'ITEM_NO                 VARCHAR2(20 BYTE)           Yes
-        '    (13, 15, "需要数"),               'DEMAND_QTY              NUMBER(10,0)                No
-        '    (14, 15, "需要単位"),             'DEMAND_UNIT             VARCHAR2(4 BYTE)            Yes
-        '    (15, 15, "通貨コード"),           'CURRENCY_CODE           VARCHAR2(3 BYTE)            Yes
-        '    (16, 15, "出荷在庫場所"),         'SHIP_STOCK_LOCATION     VARCHAR2(25 BYTE)           Yes
-        '    (17, 15, "会社ID"),               'COMPANY_ID              VARCHAR2(25 BYTE)           Yes
-        '    (18, 15, "製品コード"),           'PRODUCT_CODE            VARCHAR2(20 BYTE)           Yes
-        '    (19, 15, "請求基準"),             'BILLING_STANDARD        VARCHAR2(3 BYTE)            Yes
-        '    (20, 15, "出荷プロセスタイプ"),   'SHIP_PROCESS_TYPE       CHAR(1 BYTE)                Yes
-        '    (21, 15, "納入指示フラグ"),       'DELIVERY_INSTR_FLAG     CHAR(1 BYTE)                Yes
-        '    (22, 15, "受注番号"),             'ORDER_NO                VARCHAR2(45 BYTE)           Yes
-        '    (23, 15, "コメント"),             'REMARKS                 VARCHAR2(45 BYTE)           Yes
-        '    (24, 15, "納入先コード"),         'DELIVERY_CODE           VARCHAR2(20 BYTE)           Yes
-        '    (43, 15, "出荷日"),               'SHIP_DATE               DATE                        Yes
-        '    (45, 15, "輸送方法"),             'TRANSPORT_METHOD        VARCHAR2(3 BYTE)            Yes
-        '    (46, 15, "出荷計画日"),           'SHIP_PLAN_DATE          DATE                        Yes
-        '    (47, 15, "客先発注No行番号"),     'CUSTOMER_ORDER_LINE_NO  VARCHAR2(2 BYTE)            Yes
-        '    (48, 15, "日割前受注数"),         'PRE_DAILY_ORDER_QTY     NUMBER(18,6)                Yes
-        '    (49, 15, "日割前納期"),           'PRE_DAILY_DELIVERY_DATE DATE                        Yes
-        '    (50, 15, "取込ファイルID"),       'IMP_FILE_ID             NUMBER(10,0)                No
-        '    (51, 15, "受注区分"),             'ORDER_TYPE              NUMBER(1,0)                 No
-        '    (52, 15, "分割区分"),             'PRORATED_TYPE           NUMBER(1,0)                 No
-        '    (53, 15, "取引先情報区分"),       'CUSTOMER_INFO_TYPE      VARCHAR2(50 BYTE)           Yes
-        '    (54, 15, "情報区分"),             'INFO_TYPE               CHAR(1 BYTE)                Yes
-        '    (55, 15, "自社予測フラグ"),       'SELF_FCST_FLAG          CHAR(1 BYTE)                Yes
-        '    (56, 15, "自社予測削除フラグ"),   'SELF_FCST_DELETE_FLAG   CHAR(1 BYTE)                Yes
-        '    (57, 15, "消込条件区分"),         'RECONCILE_TYPE          NUMBER(1,0)                 Yes
-        '    (58, 15, "取込実行ID"),           'IMP_RUN_ID              VARCHAR2(36 BYTE)           No
-        '    (59, 15, "ステータス"),           'STATUS                  VARCHAR2(20 BYTE)           Yes
-        '    (60, 15, "有効フラグ"),           'ACTIVE_FLAG             CHAR(1 BYTE)                No
-        '    (61, 15, "登録日時"),             'CREATED_AT              DATE                        No
-        '    (62, 15, "登録ユーザーID"),       'CREATED_USER_ID         VARCHAR2(9 BYTE)            No
-        '    (63, 15, "登録プログラムID"),     'CREATED_PG_ID           VARCHAR2(150 BYTE)          No
-        '    (64, 15, "更新日時"),             'UPDATED_AT              DATE                        No
-        '    (65, 15, "更新ユーザーID"),       'UPDATED_USER_ID         VARCHAR2(9 BYTE)            No
-        '    (66, 15, "更新プログラムID")      'UPDATED_PG_ID           VARCHAR2(150 BYTE)          No
-        '}
         ''' <summary>
         ''' (出荷状況エラーリスト) 
         ''' Index(Column), Cell width, Title
@@ -268,6 +215,7 @@ Namespace OMS.Data
             Try
                 'ワークブックを作成
                 Using objWBook As New XLWorkbook
+                    objWBook.Style.Font.SetFontName("MS PGothic")
                     ' (差異リスト:内示) 
                     Dim objSheet1 As IXLWorksheet = objWBook.Worksheets.Add("生産計画")
 
@@ -552,103 +500,6 @@ Namespace OMS.Data
             Return rt
 
         End Function
-        '''' <summary>
-        '''' 生産計画 Excel ファイル出力
-        '''' </summary>
-        '''' <param name="filename"></param>
-        '''' <param name="ordersRow"></param>
-        '''' <returns></returns>
-        'Public Function OrdersStageExcelFile(filename As String, ordersRow As List(Of OrdersStageRow)) As String
-        '    Dim rt = ""
-
-        '    Try
-        '        'ワークブックを作成
-        '        Using objWBook As New XLWorkbook
-        '            ' (差異リスト:内示) 
-        '            Dim objSheet1 As IXLWorksheet = objWBook.Worksheets.Add("生産計画")
-
-        '            For Each itemp In OrdersStageTitle
-        '                objSheet1.Column(itemp.index).Width = itemp.width
-        '                objSheet1.Cell(1, itemp.index).Value = itemp.tString
-        '            Next
-        '            Dim offset = 1  ' Title 行 のかさまし分
-        '            For Each row In ordersRow.Select(Function(val, idx) (item:=val, index:=idx + 1 + offset))
-        '                objSheet1.Cell(row.index, 1).Value = row.item.OrderId
-        '                objSheet1.Cell(row.index, 2).Value = row.item.CustomerSettingId
-        '                objSheet1.Cell(row.index, 3).Value = row.item.CustomerCode
-        '                objSheet1.Cell(row.index, 4).Value = row.item.BillingTo
-        '                objSheet1.Cell(row.index, 5).Value = row.item.CustomerOrderNo
-        '                objSheet1.Cell(row.index, 6).Value = row.item.DemandStatus
-        '                objSheet1.Cell(row.index, 7).Value = row.item.ShipTo
-        '                objSheet1.Cell(row.index, 8).Value = row.item.OrderDate
-        '                objSheet1.Cell(row.index, 9).Value = row.item.DueDate
-        '                objSheet1.Cell(row.index, 10).Value = row.item.ShipScheduledDate
-        '                objSheet1.Cell(row.index, 11).Value = row.item.CustomerItemNo
-        '                objSheet1.Cell(row.index, 12).Value = row.item.ItemNo
-        '                objSheet1.Cell(row.index, 13).Value = row.item.DemandQty
-        '                objSheet1.Cell(row.index, 14).Value = row.item.DemandUnit
-        '                objSheet1.Cell(row.index, 15).Value = row.item.CurrencyCode
-        '                objSheet1.Cell(row.index, 16).Value = row.item.ShipStockLocation
-        '                objSheet1.Cell(row.index, 17).Value = row.item.CompanyId
-        '                objSheet1.Cell(row.index, 18).Value = row.item.ProductCode
-        '                objSheet1.Cell(row.index, 19).Value = row.item.BillingStandard
-        '                objSheet1.Cell(row.index, 20).Value = row.item.ShipProcessType
-        '                objSheet1.Cell(row.index, 21).Value = row.item.DeliveryInstrFlag
-        '                objSheet1.Cell(row.index, 22).Value = row.item.OrderNo
-        '                objSheet1.Cell(row.index, 23).Value = row.item.Remarks
-        '                objSheet1.Cell(row.index, 24).Value = row.item.DeliveryCode
-        '                'objSheet1.Cell(row.index, 25).Value = row.item.OrderTime
-        '                'objSheet1.Cell(row.index, 26).Value = row.item.SalesUnitPrice
-        '                'objSheet1.Cell(row.index, 27).Value = row.item.DeliveryTime
-        '                'objSheet1.Cell(row.index, 28).Value = row.item.UsageLocation
-        '                'objSheet1.Cell(row.index, 29).Value = row.item.TotalShipQty
-        '                'objSheet1.Cell(row.index, 30).Value = row.item.ProductionCategory
-        '                'objSheet1.Cell(row.index, 31).Value = row.item.Char2
-        '                'objSheet1.Cell(row.index, 32).Value = row.item.ContainerNo
-        '                'objSheet1.Cell(row.index, 33).Value = row.item.Char3
-        '                'objSheet1.Cell(row.index, 34).Value = row.item.Char4
-        '                'objSheet1.Cell(row.index, 35).Value = row.item.Char4_2
-        '                'objSheet1.Cell(row.index, 36).Value = row.item.Char5
-        '                'objSheet1.Cell(row.index, 37).Value = row.item.Char5_2
-        '                'objSheet1.Cell(row.index, 38).Value = row.item.Char6
-        '                'objSheet1.Cell(row.index, 39).Value = row.item.OrderReason
-        '                'objSheet1.Cell(row.index, 40).Value = row.item.ContainerCapacity
-        '                'objSheet1.Cell(row.index, 41).Value = row.item.CustomerLotNo
-        '                'objSheet1.Cell(row.index, 42).Value = row.item.InitialFlag
-        '                objSheet1.Cell(row.index, 43).Value = row.item.ShipDate
-        '                'objSheet1.Cell(row.index, 44).Value = row.item.Char50
-        '                objSheet1.Cell(row.index, 45).Value = row.item.TransportMethod
-        '                objSheet1.Cell(row.index, 46).Value = row.item.ShipPlanDate
-        '                objSheet1.Cell(row.index, 47).Value = row.item.CustomerOrderLineNo
-        '                objSheet1.Cell(row.index, 48).Value = row.item.PreDailyOrderQty
-        '                objSheet1.Cell(row.index, 49).Value = row.item.PreDailyDeliveryDate
-        '                objSheet1.Cell(row.index, 50).Value = row.item.ImpFileId
-        '                objSheet1.Cell(row.index, 51).Value = row.item.OrderType
-        '                objSheet1.Cell(row.index, 52).Value = row.item.ProratedType
-        '                objSheet1.Cell(row.index, 53).Value = row.item.CustomerInfoType
-        '                objSheet1.Cell(row.index, 54).Value = row.item.InfoType
-        '                objSheet1.Cell(row.index, 55).Value = row.item.SelfFcstFlag
-        '                objSheet1.Cell(row.index, 56).Value = row.item.SelfFcstDeleteFlag
-        '                objSheet1.Cell(row.index, 57).Value = row.item.ReconcileType
-        '                objSheet1.Cell(row.index, 58).Value = row.item.ImpRunId
-        '                objSheet1.Cell(row.index, 59).Value = row.item.Status
-        '                objSheet1.Cell(row.index, 60).Value = row.item.ActiveFlag
-        '                objSheet1.Cell(row.index, 61).Value = row.item.CreatedAt
-        '                objSheet1.Cell(row.index, 62).Value = row.item.CreatedUserId
-        '                objSheet1.Cell(row.index, 63).Value = row.item.CreatedPgId
-        '                objSheet1.Cell(row.index, 64).Value = row.item.UpdatedAt
-        '                objSheet1.Cell(row.index, 65).Value = row.item.UpdatedUserId
-        '                objSheet1.Cell(row.index, 66).Value = row.item.UpdatedPgId
-        '            Next
-        '            'ファイルに保存 
-        '            objWBook.SaveAs(filename)
-        '        End Using
-        '        rt = ""
-        '    Catch ex As Exception
-        '        rt = "OrderExcelFile error: 生産計画 Excel faile 作成エラー"
-        '    End Try
-        '    Return rt
-
         'End Function
         ''' <summary>
         ''' 出荷状況エラー Excel ファイル出力
@@ -662,6 +513,7 @@ Namespace OMS.Data
             Try
                 'ワークブックを作成
                 Using objWBook As New XLWorkbook
+                    objWBook.Style.Font.SetFontName("MS PGothic")
                     Dim objSheet1 As IXLWorksheet = objWBook.Worksheets.Add(If(flag, "出荷状況エラー", "過去日エラー"))
 
                     For Each itemp In ErrorListExcelTitle
@@ -835,115 +687,6 @@ Namespace OMS.Data
                         If (row.item.ProdMgmtUserID IsNot Nothing) Then
                             objSheet1.Cell(row.index, 55).Value = row.item.ProdMgmtUserID               'ProdMgmtUserID
                         End If
-
-
-
-#If False Then
-                        objSheet1.Cell(row.index, 1).Value = row.item.StageID
-                        objSheet1.Cell(row.index, 2).Value = row.item.ProdPlanID
-                        objSheet1.Cell(row.index, 3).Value = row.item.CustomerSettingID
-                        objSheet1.Cell(row.index, 4).Value = row.item.CustomerCode
-                        objSheet1.Cell(row.index, 5).Value = row.item.CustomerName
-                        objSheet1.Cell(row.index, 6).Value = row.item.ProfitCenter
-                        objSheet1.Cell(row.index, 7).Value = row.item.CustomerUnitID
-                        objSheet1.Cell(row.index, 8).Value = row.item.CustomerUnitName
-                        objSheet1.Cell(row.index, 9).Value = row.item.BillingTo
-                        objSheet1.Cell(row.index, 10).Value = row.item.CustomerOrderNo
-                        objSheet1.Cell(row.index, 11).Value = row.item.DemandStatus
-                        objSheet1.Cell(row.index, 12).Value = row.item.ShipTo
-                        objSheet1.Cell(row.index, 13).Value = row.item.OrderDate
-                        objSheet1.Cell(row.index, 14).Value = row.item.DueDate
-                        objSheet1.Cell(row.index, 15).Value = row.item.ShipScheduledDate
-                        objSheet1.Cell(row.index, 16).Value = row.item.CustomerItemNo
-                        objSheet1.Cell(row.index, 17).Value = row.item.ItemNo
-                        objSheet1.Cell(row.index, 18).Value = row.item.DemandQty
-                        objSheet1.Cell(row.index, 19).Value = row.item.DemandUnit
-                        objSheet1.Cell(row.index, 20).Value = row.item.CurrencyCode
-                        objSheet1.Cell(row.index, 21).Value = row.item.ShipStockLocation
-                        objSheet1.Cell(row.index, 22).Value = row.item.CompanyId
-                        objSheet1.Cell(row.index, 23).Value = row.item.ProductCode
-                        objSheet1.Cell(row.index, 24).Value = row.item.BillingStandard
-                        objSheet1.Cell(row.index, 25).Value = row.item.ShipProcessType
-                        objSheet1.Cell(row.index, 26).Value = row.item.DeliveryInstrFlag
-                        objSheet1.Cell(row.index, 27).Value = row.item.OrderNo
-                        objSheet1.Cell(row.index, 28).Value = row.item.Remarks
-                        objSheet1.Cell(row.index, 29).Value = row.item.DeliveryCode
-                        objSheet1.Cell(row.index, 30).Value = row.item.TotalShipQty
-                        objSheet1.Cell(row.index, 31).Value = row.item.ShipDate
-                        objSheet1.Cell(row.index, 32).Value = row.item.TransportMethod
-                        objSheet1.Cell(row.index, 33).Value = row.item.ShipPlanDate
-                        objSheet1.Cell(row.index, 34).Value = row.item.CustomerOrderLineNo
-                        objSheet1.Cell(row.index, 35).Value = row.item.PreDailyOrderQty
-                        objSheet1.Cell(row.index, 36).Value = row.item.PreDailyDeliveryDate
-                        objSheet1.Cell(row.index, 37).Value = row.item.ImpFileStageID
-                        objSheet1.Cell(row.index, 38).Value = row.item.ImpFileID
-                        objSheet1.Cell(row.index, 39).Value = row.item.OrderType
-                        objSheet1.Cell(row.index, 40).Value = row.item.ProratedType
-                        objSheet1.Cell(row.index, 41).Value = row.item.CustomerInfoType
-                        objSheet1.Cell(row.index, 42).Value = row.item.InfoType
-                        objSheet1.Cell(row.index, 43).Value = row.item.SelfFcstFlag
-                        objSheet1.Cell(row.index, 44).Value = row.item.SelfFcstDeleteFlag
-                        objSheet1.Cell(row.index, 45).Value = row.item.ReconcilType
-                        objSheet1.Cell(row.index, 46).Value = row.item.ImpRunID
-                        objSheet1.Cell(row.index, 47).Value = row.item.Status
-                        objSheet1.Cell(row.index, 48).Value = row.item.ActiveFlag
-                        objSheet1.Cell(row.index, 49).Value = row.item.CreatedAt
-                        objSheet1.Cell(row.index, 50).Value = row.item.CreatedUserID
-                        objSheet1.Cell(row.index, 51).Value = row.item.CreatedPGID
-                        objSheet1.Cell(row.index, 52).Value = row.item.UpdatedAt
-                        objSheet1.Cell(row.index, 53).Value = row.item.UpdatedUserID
-                        objSheet1.Cell(row.index, 54).Value = row.item.UpdatedPGID
-                        objSheet1.Cell(row.index, 55).Value = row.item.ProdMgmtUserID
-#End If
-#If False Then
-                        objSheet1.Cell(row.index, 1).Value = row.item.CustomerCode
-                        objSheet1.Cell(row.index, 2).Value = row.item.BillingTo
-                        objSheet1.Cell(row.index, 3).Value = row.item.CustomerOrderNo
-                        objSheet1.Cell(row.index, 4).Value = row.item.DemandStatus
-                        objSheet1.Cell(row.index, 5).Value = row.item.ShipTo
-                        objSheet1.Cell(row.index, 6).Value = row.item.OrderDate
-                        objSheet1.Cell(row.index, 7).Value = row.item.DueDate
-                        objSheet1.Cell(row.index, 8).Value = row.item.ShipScheduledDate
-                        objSheet1.Cell(row.index, 9).Value = row.item.CustomerItemNo
-                        objSheet1.Cell(row.index, 10).Value = row.item.ItemNo
-                        objSheet1.Cell(row.index, 11).Value = row.item.DemandQty
-                        objSheet1.Cell(row.index, 12).Value = row.item.DemandUnit
-                        objSheet1.Cell(row.index, 13).Value = row.item.CurrencyCode
-                        objSheet1.Cell(row.index, 14).Value = row.item.ShipStockLocation
-                        objSheet1.Cell(row.index, 15).Value = row.item.CompanyId
-                        objSheet1.Cell(row.index, 16).Value = row.item.ProductCode
-                        objSheet1.Cell(row.index, 17).Value = row.item.BillingStandard
-                        objSheet1.Cell(row.index, 18).Value = row.item.ShipProcessType
-                        objSheet1.Cell(row.index, 19).Value = row.item.DeliveryInstrFlag
-                        objSheet1.Cell(row.index, 20).Value = row.item.OrderNo
-                        objSheet1.Cell(row.index, 21).Value = row.item.Remarks
-                        objSheet1.Cell(row.index, 22).Value = row.item.DeliveryCode
-                        'objSheet1.Cell(row.index, 23).Value = row.item.OrderTime
-                        objSheet1.Cell(row.index, 23).Value = row.item.SalesUnitPrice
-                        objSheet1.Cell(row.index, 24).Value = row.item.DeliveryTime
-                        objSheet1.Cell(row.index, 25).Value = row.item.UsageLocation
-                        objSheet1.Cell(row.index, 26).Value = row.item.TotalShipQty
-                        objSheet1.Cell(row.index, 27).Value = row.item.ProductionCategory
-                        objSheet1.Cell(row.index, 28).Value = row.item.Char2
-                        objSheet1.Cell(row.index, 29).Value = row.item.ContainerNo
-                        objSheet1.Cell(row.index, 30).Value = row.item.Char3
-                        objSheet1.Cell(row.index, 31).Value = row.item.Char4
-                        objSheet1.Cell(row.index, 32).Value = row.item.Char42
-                        objSheet1.Cell(row.index, 33).Value = row.item.Char5
-                        objSheet1.Cell(row.index, 34).Value = row.item.Char52
-                        objSheet1.Cell(row.index, 35).Value = row.item.Char6
-                        objSheet1.Cell(row.index, 36).Value = row.item.OrderReason
-                        objSheet1.Cell(row.index, 37).Value = row.item.ContainerCapacity
-                        objSheet1.Cell(row.index, 38).Value = row.item.CustomerLotNo
-                        objSheet1.Cell(row.index, 39).Value = row.item.InitialFlag
-                        objSheet1.Cell(row.index, 40).Value = row.item.ShipDate
-                        objSheet1.Cell(row.index, 41).Value = row.item.Char50
-                        objSheet1.Cell(row.index, 42).Value = row.item.TransportMethod
-                        objSheet1.Cell(row.index, 43).Value = row.item.ShipPlanDate
-                        objSheet1.Cell(row.index, 44).Value = row.item.CustomerOrderLineNo
-                        objSheet1.Cell(row.index, 45).Value = row.item.PreDailyOrderQty
-                        objSheet1.Cell(row.index, 46).Value = row.item.PreDailyDeliveryDate
-#End If
                     Next
                     'ファイルに保存 
                     objWBook.SaveAs(filename)
@@ -1014,6 +757,7 @@ Namespace OMS.Data
                 'Using stream = New System.IO.FileStream(filename, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.ReadWrite)
                 'ワークブックを作成
                 Using objWBook As New XLWorkbook(filename)
+                    objWBook.Style.Font.SetFontName("MS PGothic")
                     ' (差異リスト:内示) 
                     'Dim objSheet1 As IXLWorksheet = objWBook.Worksheets.Add("生産計画")
 
@@ -1138,6 +882,7 @@ Namespace OMS.Data
                 'Using stream = New System.IO.FileStream(filename, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.ReadWrite)
                 'ワークブックを作成
                 Using objWBook As New XLWorkbook(filename)
+                    objWBook.Style.Font.SetFontName("MS PGothic")
                     Dim formats As String() = {"yyyy/M/d", "yyyyMd", "yyyy/M/d h:m:s"}
                     Dim result As DateTime
 

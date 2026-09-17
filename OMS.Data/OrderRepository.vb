@@ -617,8 +617,8 @@ Namespace OMS.Data
         Public Function GetRegisteredOrders(conn As OracleConnection, tran As OracleTransaction, type As OrdersTable, status As String, customerSettingIdList As List(Of Long)) As DataTable
 
             Dim indexList = ""
-            customerSettingIdList.ForEach(Sub(x) indexList &= $"{x}, ")
-            Dim additionalParam As String = $"customer_setting_id IN ({indexList.TrimEnd(","c)}) "
+            customerSettingIdList.ForEach(Sub(x) indexList &= $"{x},")
+            Dim additionalParam As String = $" AND customer_setting_id IN ({indexList.TrimEnd(","c)}) "
             Return GetOrders(conn, tran, type, status:=status, additionalConditions:=additionalParam)
 
         End Function

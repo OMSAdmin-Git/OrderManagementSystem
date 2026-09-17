@@ -1902,10 +1902,11 @@ Namespace OMS.Data
                     If mapResult.FormatType = "LIST" Then
 
                         'ワークブックを作成
-                        Using objWorkBook As New ClosedXML.Excel.XLWorkbook(strWorkFile)
+                        Using objWorkBook As New XLWorkbook(strWorkFile)
+                            objWorkBook.Style.Font.SetFontName("MS PGothic")
 
                             'ワークシートを作成
-                            Dim objSheet As ClosedXML.Excel.IXLWorksheet
+                            Dim objSheet As IXLWorksheet
 
                             'ワークシート指定があれば指定
                             If mapResult.DefaultSheetName <> "" Then
@@ -2506,10 +2507,11 @@ Namespace OMS.Data
                         End If
 
                         'ワークブックを作成
-                        Using objWorkBook As New ClosedXML.Excel.XLWorkbook(strWorkFile)
+                        Using objWorkBook As New XLWorkbook(strWorkFile)
+                            objWorkBook.Style.Font.SetFontName("MS PGothic")
 
                             'ワークシートを作成
-                            Dim objSheet As ClosedXML.Excel.IXLWorksheet
+                            Dim objSheet As IXLWorksheet
 
                             'ワークシート指定があれば指定
                             If mapResult.DefaultSheetName <> "" Then

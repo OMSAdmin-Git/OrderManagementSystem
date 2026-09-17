@@ -348,17 +348,6 @@ Namespace Pages.Orders
                                 Dim strPath = Server.MapPath("~/App_Data/Files/")
                                 Dim filename = CreateOorderDiferenceExcelFile(strPath, DiffFileTiminge.AfterProductionPlanning, ProcessingStartDate, difu, difd, customerSettingId)
                                 fileList.Add(filename)
-                                'If (filename <> "") Then
-                                '    Utils.FileTransfer2(Response, Server, filename)
-                                'Else
-                                '    ' Excel ファイル作成 Error
-                                '    errors.Add("STRA納期設定ページ_生産計画後 Excel ファイル作成エラー")
-                                '    If (CheckError(errors)) Then
-                                '        ' エラー DB更新無効
-                                '        DBError(tran)
-                                '        Continue For
-                                '    End If
-                                'End If
                             Else
                             End If
                             valid += orderRows.Count
@@ -370,7 +359,6 @@ Namespace Pages.Orders
                 Next
                 If (fileList.Count <> 0) Then
                     Dim orderFilename = repo.GeOrderZipFilename("生産計画差異リスト", ProcessingStartDate)
-                    'Utils.FilesTransfer(Response, Server, fileList, orderFilename)
                     ' 別ページでDownload 処理を行う (FileList file はDownload 処理内で削除する)
                     Dim fileListName = IO.Path.Combine(Server.MapPath("~/App_Data/Files/"), Utils.GetTempFileName("FileList.txt"))
                     Utils.SaveFileList(fileListName, fileList)
@@ -468,31 +456,28 @@ Namespace Pages.Orders
                             Dim difu = reph.UnNoticeDifferenceToClass(reph.AfterProductionPlanningUnofficialNoticeDifference(conn, tran, customerSettingId))
                             ' 受注差異取得(確定/納入指示)
                             Dim difd = reph.InstructionDifferenceToClass(reph.AfterProductionPlanningDeliveryInstructionDifference(conn, tran, customerSettingId))
-                            ' 受注差異リスト出力
-                            Dim strPath = Server.MapPath("~/App_Data/Files/")
-                            Dim filename = CreateOorderDiferenceExcelFile(strPath, DiffFileTiminge.AfterProductionPlanning, ProcessingStartDate, difu, difd, customerSettingId)
-                            fileList.Add(filename)
-                            'If (filename <> "") Then
-                            '    Utils.FileTransfer2(Response, Server, filename)
-                            'Else
-                            '    ' Excel ファイル作成 Error
-                            'End If
+                            If (difu.Count <> 0 Or difd.Count <> 0) Then
+                                ' 受注差異リスト出力
+                                Dim strPath = Server.MapPath("~/App_Data/Files/")
+                                Dim filename = CreateOorderDiferenceExcelFile(strPath, DiffFileTiminge.AfterProductionPlanning, ProcessingStartDate, difu, difd, customerSettingId)
+                                fileList.Add(filename)
+                            End If
                         End If
                     End If
                 Next
                 If (fileList.Count <> 0) Then
                     Dim repo = New OrderRepository(Utils.GetConnectionString())
                     Dim orderFilename = repo.GeOrderZipFilename("生産計画差異リスト", ProcessingStartDate)
-                    'Utils.FilesTransfer(Response, Server, fileList, orderFilename)
                     ' 別ページでDownload 処理を行う
-                    Dim fileListName = IO.Path.Combine(Server.MapPath("~/App_Data/Files/"), Utils.GetTempFileName("FileList.txt"))
+                    Dim fileListName = Path.Combine(Server.MapPath("~/App_Data/Files/"), Utils.GetTempFileName("FileList.txt"))
                     Utils.SaveFileList(fileListName, fileList)
                     Dim url As String = $"DownloadProcess.ashx?file={HttpUtility.UrlEncode(orderFilename)}&list={HttpUtility.UrlEncode(fileListName)}"
                     Dim script As String = $"document.getElementById('downloadFrame').src = '{url}';"
                     ClientScript.RegisterStartupScript(Me.GetType(), "downloadScript", script, True)
                 Else
                 End If
-            Catch
+            Catch ex As OracleException
+                errors.Add(ex.Message)
             Finally
                 If (errors.Count > 0) Then
                     'lblError.Text = errors(0)
