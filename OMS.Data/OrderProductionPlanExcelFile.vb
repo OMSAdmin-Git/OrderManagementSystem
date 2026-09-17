@@ -215,7 +215,7 @@ Namespace OMS.Data
             Try
                 'ワークブックを作成
                 Using objWBook As New XLWorkbook
-                    objWBook.Style.Font.SetFontName("MS PGothic")
+                    objWBook.Style.Font.SetFontName("Yu Gothic")
                     ' (差異リスト:内示) 
                     Dim objSheet1 As IXLWorksheet = objWBook.Worksheets.Add("生産計画")
 
@@ -513,7 +513,7 @@ Namespace OMS.Data
             Try
                 'ワークブックを作成
                 Using objWBook As New XLWorkbook
-                    objWBook.Style.Font.SetFontName("MS PGothic")
+                    objWBook.Style.Font.SetFontName("Yu Gothic")
                     Dim objSheet1 As IXLWorksheet = objWBook.Worksheets.Add(If(flag, "出荷状況エラー", "過去日エラー"))
 
                     For Each itemp In ErrorListExcelTitle
@@ -757,7 +757,7 @@ Namespace OMS.Data
                 'Using stream = New System.IO.FileStream(filename, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.ReadWrite)
                 'ワークブックを作成
                 Using objWBook As New XLWorkbook(filename)
-                    objWBook.Style.Font.SetFontName("MS PGothic")
+                    objWBook.Style.Font.SetFontName("Yu Gothic")
                     ' (差異リスト:内示) 
                     'Dim objSheet1 As IXLWorksheet = objWBook.Worksheets.Add("生産計画")
 
@@ -882,7 +882,7 @@ Namespace OMS.Data
                 'Using stream = New System.IO.FileStream(filename, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.ReadWrite)
                 'ワークブックを作成
                 Using objWBook As New XLWorkbook(filename)
-                    objWBook.Style.Font.SetFontName("MS PGothic")
+                    objWBook.Style.Font.SetFontName("Yu Gothic")
                     Dim formats As String() = {"yyyy/M/d", "yyyyMd", "yyyy/M/d h:m:s"}
                     Dim result As DateTime
 

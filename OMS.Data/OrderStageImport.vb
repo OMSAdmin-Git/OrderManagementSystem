@@ -1903,7 +1903,7 @@ Namespace OMS.Data
 
                         'ワークブックを作成
                         Using objWorkBook As New XLWorkbook(strWorkFile)
-                            objWorkBook.Style.Font.SetFontName("MS PGothic")
+                            objWorkBook.Style.Font.SetFontName("Yu Gothic")
 
                             'ワークシートを作成
                             Dim objSheet As IXLWorksheet
@@ -2508,7 +2508,7 @@ Namespace OMS.Data
 
                         'ワークブックを作成
                         Using objWorkBook As New XLWorkbook(strWorkFile)
-                            objWorkBook.Style.Font.SetFontName("MS PGothic")
+                            objWorkBook.Style.Font.SetFontName("Yu Gothic")
 
                             'ワークシートを作成
                             Dim objSheet As IXLWorksheet

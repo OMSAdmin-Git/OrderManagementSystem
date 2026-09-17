@@ -145,7 +145,7 @@ Namespace OMS.Data
 
                 'ワークブックを作成
                 Using objWBook As New XLWorkbook
-                    objWBook.Style.Font.SetFontName("MS PGothic")
+                    objWBook.Style.Font.SetFontName("Yu Gothic")
                     ' (差異リスト:内示) 
                     Dim objSheet1 As IXLWorksheet = objWBook.Worksheets.Add(sheetName1)
 
