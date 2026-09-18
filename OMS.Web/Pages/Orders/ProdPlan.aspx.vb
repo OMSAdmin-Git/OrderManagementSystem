@@ -1628,7 +1628,7 @@ Namespace Pages.Orders
                 'ERROR_COUNT(エラー件数)
 
                 Dim endedAt = DateTime.Now
-                Dim satus = If(correctCount = ordersCount, "COMPLETED", "FAILED")
+                status = If(correctCount = ordersCount, "COMPLETED", "FAILED")
                 Dim fileCount = 1
                 errors.Add(repir.Update(conn, tran, kImpRunId:=impRunId, kStatus:="RUNNING", endedAt:=endedAt, status:=status, fileCount:=fileCount, rowCount:=importCount, errorCount:=ordersCount - correctCount))
                 If (CheckError(errors)) Then
