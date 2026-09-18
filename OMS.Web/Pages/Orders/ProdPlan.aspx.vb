@@ -1373,8 +1373,7 @@ Namespace Pages.Orders
                 '----------------------------
                 ' Delete 生産計画ワーク
                 '----------------------------
-                'errors.Add(reps.Delete(conn, tran, OrderStageRepository.OrdersTable.ProductPlan))
-                errors.Add(reps.Truncate(conn, tran, OrderStageRepository.OrdersTable.ProductPlan))
+                errors.Add(reps.Delete(conn, tran, OrderStageRepository.OrdersTable.ProductPlan))
                 '#If DEBUG Then
                 '            ' #### DEBUG
                 '            tran.Commit()
@@ -1414,13 +1413,16 @@ Namespace Pages.Orders
                 ' 2.確定[ORDER_TYPE=2]、納入指示{ORDER_TYPE=3]のレコードについては
                 ' CUSTOMER_ORDER_NO（客先発注No）が必須となるため、
                 ' 対象の受注区分は客先発注Noを必須チェックに加える
-                Dim errorCount = 0
-                errorCount = ordersRows.Where(Function(x) x.IsCorrect()).Count()
-                If (errorCount <> 0) Then
+                Dim ordersCount = ordersRows.Count
+                Dim correctCount = 0
+                correctCount = ordersRows.Where(Function(x) x.IsCorrect()).Count()
+                If (correctCount <> ordersCount) Then
                     ' エラー
+                    errors.Add($"取り込みレコード{ordersCount}行/エラー行{ordersCount - correctCount}でエラーが発生しています。")
+                    CheckError(errors)
                     ' IMP_FILES_STAGE から追加したレコードを削除
                     ' 実行管理更新へ
-                    Throw New Exception()
+                    'Throw New Exception()
                 End If
 
                 '選択したExcelファイルを完了フォルダにコピーする。
@@ -1611,9 +1613,9 @@ Namespace Pages.Orders
                 'ERROR_COUNT(エラー件数)
 
                 Dim endedAt = DateTime.Now
-                Dim satus = If(errorCount = 0, "COMPLETED", "FAILED")
+                Dim satus = If(correctCount = ordersCount, "COMPLETED", "FAILED")
                 Dim fileCount = 1
-                errors.Add(repir.Update(conn, tran, kImpRunId:=impRunId, kStatus:="RUNNING", endedAt:=endedAt, status:=status, fileCount:=fileCount, rowCount:=importCount, errorCount:=errorCount))
+                errors.Add(repir.Update(conn, tran, kImpRunId:=impRunId, kStatus:="RUNNING", endedAt:=endedAt, status:=status, fileCount:=fileCount, rowCount:=importCount, errorCount:=ordersCount - correctCount))
                 If (CheckError(errors)) Then
                     ' エラー 
                     Throw New Exception()

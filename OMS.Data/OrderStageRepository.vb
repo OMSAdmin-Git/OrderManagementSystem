@@ -496,15 +496,16 @@ Namespace OMS.Data
         ''' <param name="tran"></param>
         ''' <param name="type"></param>
         ''' <returns></returns>
-        Public Function Truncate(conn As OracleConnection, tran As OracleTransaction, type As OrdersTable) As String
+        Public Function Delete(conn As OracleConnection, tran As OracleTransaction, type As OrdersTable) As String
 
             Dim errorMessage As String = ""
             Try
                 Dim dt As New DataTable()
                 Dim sb As New StringBuilder()
                 Dim prm As New List(Of OracleParameter)()
-                sb.AppendLine("TRUNCATE ")
-                sb.AppendLine($"TABLE {GetTableName(type)} ")
+                sb.AppendLine($"DELETE FROM {GetTableName(type)} ")
+                'sb.AppendLine("TRUNCATE ")
+                'sb.AppendLine($"TABLE {GetTableName(type)} ")
                 Using cmd As New OracleCommand(sb.ToString(), conn)
                     cmd.BindByName = True
                     cmd.CommandType = CommandType.Text
