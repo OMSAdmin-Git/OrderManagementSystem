@@ -1288,6 +1288,8 @@ Namespace Pages.Orders
             Dim reps As New OrderStageRepository(Utils.GetConnectionString())
             Dim reph = New OrderHistoryRepository(Utils.GetConnectionString())
             Dim importCount = 0
+            Dim ordersCount = 0
+            Dim correctCount = 0
             Try
 
                 '実行管理
@@ -1316,7 +1318,8 @@ Namespace Pages.Orders
                 '#End If
                 If (CheckError(errors)) Then
                     ' エラー
-                    Return
+                    DBError(tran)
+                    Throw New Exception()
                 End If
                 ' 読み直し
                 impRun = repir.GetImpRunRow(conn, tran, startedAt:=startedAt, startedUserId:=loginUserId)
@@ -1326,6 +1329,7 @@ Namespace Pages.Orders
                 End If
                 If (CheckError(errors)) Then
                     ' エラー
+                    DBError(tran)
                     'Return
                     Throw New Exception()
                 End If
@@ -1364,6 +1368,7 @@ Namespace Pages.Orders
                 '#End If
                 If (CheckError(errors)) Then
                     ' エラー
+                    DBError(tran)
                     Throw New Exception()
                 End If
                 ' DB から 読み直し (ImpFileStageId 取得するため
@@ -1382,6 +1387,7 @@ Namespace Pages.Orders
                 '#End If
                 If (CheckError(errors)) Then
                     ' エラー
+                    DBError(tran)
                     Throw New Exception()
                 End If
                 '選択されたExcelファイルからデータを取り込む。
@@ -1393,11 +1399,14 @@ Namespace Pages.Orders
                 importCount = ordersRows.Count
                 If (importCount = 0) Then
                     errors.Add($"{fileName}ファイルの取り込みはデータが無いため中止しました。")
+                    CheckError(errors)
+                    DBError(tran)
                     Throw New Exception()
                 End If
                 errors.Add(reps.InsertRange(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, ordersRows))
                 If (CheckError(errors)) Then
                     ' エラー
+                    DBError(tran)
                     Throw New Exception()
                 End If
                 '#If DEBUG Then
@@ -1413,8 +1422,7 @@ Namespace Pages.Orders
                 ' 2.確定[ORDER_TYPE=2]、納入指示{ORDER_TYPE=3]のレコードについては
                 ' CUSTOMER_ORDER_NO（客先発注No）が必須となるため、
                 ' 対象の受注区分は客先発注Noを必須チェックに加える
-                Dim ordersCount = ordersRows.Count
-                Dim correctCount = 0
+                ordersCount = ordersRows.Count
                 correctCount = ordersRows.Where(Function(x) x.IsCorrect()).Count()
                 If (correctCount <> ordersCount) Then
                     ' エラー
@@ -1438,12 +1446,12 @@ Namespace Pages.Orders
                 'Dim pathDone As String = GetDonePath()
                 Dim newFilename As String = IO.Path.GetFileNameWithoutExtension(fileName) & loginUserId & DateTime.Now.ToString("yyyyMMddHHmmss") & ".xlsx"
                 ' コピー先に 同名ファイルがある
-                If (IO.File.Exists(IO.Path.Combine(pathDone, fileName)) Or IO.File.Exists(IO.Path.Combine(pathDone, newFilename))) Then
+                If (IO.File.Exists(IO.Path.Combine(pathDone, fileName)) Or File.Exists(IO.Path.Combine(pathDone, newFilename))) Then
                     ' エラー
                     'Throw New Exception()
                 End If
-                IO.File.Copy(IO.Path.Combine(strPath, fileName), IO.Path.Combine(pathDone, fileName))
-                IO.File.Move(IO.Path.Combine(pathDone, fileName), IO.Path.Combine(pathDone, newFilename))
+                File.Copy(IO.Path.Combine(strPath, fileName), IO.Path.Combine(pathDone, fileName))
+                File.Move(IO.Path.Combine(pathDone, fileName), IO.Path.Combine(pathDone, newFilename))
                 '----------------------------
                 ' Update IMP_FILES_STAGE 取込ファイルワークテーブル
                 '----------------------------
@@ -1458,6 +1466,7 @@ Namespace Pages.Orders
                 errors.Add(repis.Update(conn, tran, kImpFileStageId:=impFileStageId, stagedFolderPath:=pathDone, stagedFileName:=newFilename, updatedAt:=updateAt))
                 If (CheckError(errors)) Then
                     ' エラー 
+                    DBError(tran)
                     Throw New Exception()
                 End If
                 '#If DEBUG Then
@@ -1480,6 +1489,7 @@ Namespace Pages.Orders
                 errors.Add(repif.Insert(conn, tran, impFIles))
                 If (CheckError(errors)) Then
                     ' エラー 
+                    DBError(tran)
                     Throw New Exception()
                 End If
                 '#If DEBUG Then
@@ -1497,6 +1507,7 @@ Namespace Pages.Orders
                 errors.Add(repis.Delete(conn, tran, impFileStageId:=impFIlesStageId, status:=status))
                 If (CheckError(errors)) Then
                     ' エラー 
+                    DBError(tran)
                     Throw New Exception()
                 End If
                 '#If DEBUG Then
@@ -1540,6 +1551,7 @@ Namespace Pages.Orders
                                      updatedPgId:="ProductionPlanningImport(Execute)"))
                 If (CheckError(errors)) Then
                     ' エラー 
+                    DBError(tran)
                     Throw New Exception()
                 End If
                 '#If DEBUG Then
@@ -1561,6 +1573,7 @@ Namespace Pages.Orders
                 errors.Add(repo.DeleteRegisteredOrders(conn, tran, OrderRepository.OrdersTable.ProductPlan, idSelectList))
                 If (CheckError(errors)) Then
                     ' エラー 
+                    DBError(tran)
                     Throw New Exception()
                 End If
                 '#If DEBUG Then
@@ -1577,6 +1590,7 @@ Namespace Pages.Orders
                 errors.Add(repo.InsertRange(conn, tran, OrderRepository.OrdersTable.ProductPlan, orders))
                 If (CheckError(errors)) Then
                     ' エラー 
+                    DBError(tran)
                     Throw New Exception()
                 End If
                 '#If DEBUG Then
@@ -1592,6 +1606,7 @@ Namespace Pages.Orders
                 errors.Add(reph.InsertRange(conn, tran, OrderHistoryRepository.OrdersTable.ProductPlan, orders))
                 If (CheckError(errors)) Then
                     ' エラー 
+                    DBError(tran)
                     Throw New Exception()
                 End If
                 '#If DEBUG Then
@@ -1618,6 +1633,7 @@ Namespace Pages.Orders
                 errors.Add(repir.Update(conn, tran, kImpRunId:=impRunId, kStatus:="RUNNING", endedAt:=endedAt, status:=status, fileCount:=fileCount, rowCount:=importCount, errorCount:=ordersCount - correctCount))
                 If (CheckError(errors)) Then
                     ' エラー 
+                    DBError(tran)
                     Throw New Exception()
                 End If
                 '#If DEBUG Then
@@ -1627,14 +1643,20 @@ Namespace Pages.Orders
                 '            ' #### DEBUG
                 '#End If
             Catch ex As Exception
+                Dim m = ex.Message
             Finally
                 If (errors.Count > 0) Then
                     'lblError.Text = errors(0)
                     lblError.Text = String.Join(vbCrLf, errors)
                 Else
+                    tran.Commit()
+                    tran.Dispose()
+                    conn.Close()
+                    conn.Dispose()
+
                     If (importCount = 0) Then
                     Else
-                        lblResult.Text = $"{fileName}ファイルの取り込みを行いました。"
+                        lblResult.Text = $"{fileName}ファイルの取り込みを行いました。[正常取り込み数 {correctCount}/{ordersCount}]"
                     End If
                 End If
             End Try
