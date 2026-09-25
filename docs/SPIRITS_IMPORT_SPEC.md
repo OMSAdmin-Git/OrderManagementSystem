@@ -173,6 +173,7 @@ The complete process is executed across 18 distinct processing steps divided int
 
 ### Step 18: Completion & Execution Logging (`UPDATE IMP_RUN` / `STRA納期設定`)
 * **STRA Delivery Date Setting (`STRA納期設定` per `STRA納期設定ページ_受注取込後.pdf`)**:
+  * In batch execution (`/batch`), invoked automatically via `ExecuteStraDeliveryDateSetting` for all customer settings committed in Stage 2 (including parent setting `CUSTOMER_SETTING_ID = 85` where `PROFIT_CENTER` is null, and profit center settings `48, 50, 52, 53`).
   * For orders with `STATUS = 'PROCESSED'`, calculates lead times and updates delivery dates:
     * **(A)品揃リードタイム**: `SELECT FUSRDEC1 FROM USRDEFFLDF WHERE FTABLEID='ITEMM' AND FRECKEY = ORDERS_STAGE.ITEM_NO`
     * **輸送L/T**: `SELECT FTRANLT FROM SHPROUTM WHERE FSHPTOCD = ORDERS_STAGE.SHIP_TO AND FPRMWHCD = ORDERS_STAGE.SHIP_STOCK_LOCATION AND FPRIORITY = (SELECT MIN(FPRIORITY) FROM SHPROUTM ...)`

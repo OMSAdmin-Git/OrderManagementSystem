@@ -49,6 +49,7 @@ Namespace Services
             Dim pgId As String = "SUZUKI_SPIRITS_DATA_IMPORT"
             Dim totalRegistered As Integer = 0
             Dim folderPath As String = GetFolderPath(customerSettingId, folderType)
+            Dim committedSettings As New List(Of Long)()
 
             Using conn As New OracleConnection(_connectionString)
                 conn.Open()
@@ -97,8 +98,8 @@ Namespace Services
                         logger.Write($"[SUZUKI_IMPORT] Inserted {insertedCount} rows into ORDERS_STAGE.")
 
                         ' 解決された各取引先設定IDごとに正規データ読み込み & 内示洗い替え・消込
-                        Dim distinctSettings = rowsForTemp2.Select(Function(r) r.CustomerSettingId).Distinct().ToList()
-                        For Each csId In distinctSettings
+                        committedSettings = rowsForTemp2.Select(Function(r) r.CustomerSettingId).Distinct().ToList()
+                        For Each csId In committedSettings
                             _orderStageRepo.InsertStageFromOrders(tran, csId)
 
                             ' 出荷先変換 (SUZUKI_SPIRITS_CONVERSION_MST)
@@ -130,7 +131,7 @@ Namespace Services
 
                         ' 【工程 7】本番保存 (INSERT ORDERS / INSERT ORDER_HISTORY)
                         logger.Write("[SUZUKI_IMPORT] Step 7: Committing to master ORDERS & ORDER_HISTORY...")
-                        For Each csId In distinctSettings
+                        For Each csId In committedSettings
                             _orderStageRepo.UpdateOrdersFromStage(tran, csId, DateTime.Now, userId, pgId)
                             Dim saveCount As Integer = _orderStageRepo.InsertOrdersFromStage(tran, csId, DateTime.Now, userId, pgId)
                             _orderStageRepo.InsertHistoryFromOrders(tran, csId, DateTime.Now, userId, pgId)
@@ -157,7 +158,7 @@ Namespace Services
                 ' 【工程 8】STRA納期設定 & IMP_RUN 完了更新 (バッチ実行のみ)
                 If isBatch Then
                     logger.Write("[SUZUKI_IMPORT] Step 8: Executing STRA納期設定...")
-                    ExecuteStraDeliveryDateSetting(conn, userId, logger)
+                    ExecuteStraDeliveryDateSetting(conn, committedSettings, userId, logger)
                 End If
 
             End Using
@@ -1219,32 +1220,43 @@ Namespace Services
         ''' <summary>
         ''' 【Stage 2 工程8】STRA納期設定実行 (バッチモードのみ)
         ''' </summary>
-        Private Sub ExecuteStraDeliveryDateSetting(conn As OracleConnection, userId As String, logger As Logger)
+        Private Sub ExecuteStraDeliveryDateSetting(conn As OracleConnection, committedSettingIds As List(Of Long), userId As String, logger As Logger)
             Try
-                ' 納期設定対象の取引先設定ID (5455の各PC) を取得
-                Dim settings As New List(Of (CsId As Long, Pc As String))()
-                Using cmd As New OracleCommand("SELECT customer_setting_id, profit_center FROM customer_setting_mst WHERE customer_code = '5455' AND profit_center IS NOT NULL AND active_flag = 'Y'", conn)
+                ' 納期設定対象の取引先設定 (5455の各設定) を取得
+                Dim pcMap As New Dictionary(Of Long, String)()
+                Using cmd As New OracleCommand("SELECT customer_setting_id, profit_center FROM customer_setting_mst WHERE customer_code = '5455' AND active_flag = 'Y'", conn)
                     Using r = cmd.ExecuteReader()
                         While r.Read()
-                            settings.Add((Convert.ToInt64(r("customer_setting_id")), r("profit_center").ToString()))
+                            Dim csId = Convert.ToInt64(r("customer_setting_id"))
+                            Dim pc = If(r.IsDBNull(r.GetOrdinal("profit_center")), "", r("profit_center").ToString().Trim())
+                            pcMap(csId) = pc
                         End While
                     End Using
                 End Using
 
-                For Each s In settings
+                ' 本番登録された distinctSettings を優先し、未指定時は全5455設定を対象にする
+                Dim targetSettingIds As List(Of Long)
+                If committedSettingIds IsNot Nothing AndAlso committedSettingIds.Count > 0 Then
+                    targetSettingIds = committedSettingIds
+                Else
+                    targetSettingIds = pcMap.Keys.ToList()
+                End If
+
+                For Each csId In targetSettingIds
+                    Dim pc As String = If(pcMap.ContainsKey(csId), pcMap(csId), "")
                     Using tran As OracleTransaction = conn.BeginTransaction()
                         Try
-                            Dim straErr = _orderStageRepo.DeliveryDateSetting(conn, tran, "5455", s.Pc, s.CsId, DateTime.Now, userId)
+                            Dim straErr = _orderStageRepo.DeliveryDateSetting(conn, tran, "5455", pc, csId, DateTime.Now, userId)
                             If String.IsNullOrEmpty(straErr) Then
                                 tran.Commit()
-                                logger.Write($"[SUZUKI_IMPORT] STRA Delivery Date Setting completed for PC: {s.Pc}")
+                                logger.Write($"[SUZUKI_IMPORT] STRA Delivery Date Setting completed for Setting ID {csId} (PC: '{pc}')")
                             Else
                                 tran.Rollback()
-                                logger.Write($"[SUZUKI_IMPORT] STRA Delivery Date Setting warning for PC {s.Pc}: {straErr}")
+                                logger.Write($"[SUZUKI_IMPORT] STRA Delivery Date Setting warning for Setting ID {csId} (PC: '{pc}'): {straErr}")
                             End If
                         Catch ex As Exception
                             tran.Rollback()
-                            logger.Write($"[SUZUKI_IMPORT] Error running DeliveryDateSetting for PC {s.Pc}: {ex.Message}")
+                            logger.Write($"[SUZUKI_IMPORT] Error running DeliveryDateSetting for Setting ID {csId} (PC: '{pc}'): {ex.Message}")
                         End Try
                     End Using
                 Next

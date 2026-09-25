@@ -3,7 +3,7 @@
 > **Project Name:** Suzuki (SPIRITS) Order Import System (`受注取込_スピリッツ`)  
 > **Target Modules:** `SUZUKI_SPIRITS_DATA_PRE_IMPORT` & `SUZUKI_SPIRITS_DATA_IMPORT`  
 > **Repository:** `OrderManagementSystem-master`  
-> **Last Updated:** 2026-09-09  
+> **Last Updated:** 2026-09-15  
 > **Status:** 🟢 Phase 1 & Phase 2 Pipeline Complete (100% Requirements Completion)  
 
 ---
@@ -41,7 +41,7 @@ Is the current progress far away from the requirements? **No, the pipeline is 10
 | **15** | ファイル移動/settle | Post-Stage File Settlement | 🟢 **DONE** | Web UI and Batch mode manage WORK/ to COMPLETED/ file movements and staging status updates (`STATUS = 'REGISTERED'`). |
 | **16** | 加工処理 | Ship-To Conversion & Consumption | 🟢 **DONE** | Suzuki destination conversion (`SUZUKI_SPIRITS_CONVERSION_MST`), wash replacement (`ReplaceNaijiRelationSuzuki` with `0602` skipped), backlog reconciliation, and forecast consumption (`ReconcileForecastSuzuki`). |
 | **17** | 本番表更新 | Master Production Commitment | 🟢 **DONE** | Commit valid rows from `ORDERS_STAGE` into master `ORDERS` and `ORDER_HISTORY` with extended Phase 2 columns. |
-| **18** | 完了処理/STRA | Completion Logging & STRA | 🟢 **DONE** | Upstream execution logging, error CSV generation, and batch `STRA納期設定` orchestration (`ExecuteStraDeliveryDateSetting`). |
+| **18** | 完了処理/STRA | Completion Logging & STRA | 🟢 **DONE** | Upstream execution logging, error CSV generation, and batch `STRA納期設定` orchestration (`ExecuteStraDeliveryDateSetting` covering all committed settings including parent ID 85). |
 
 ---
 
