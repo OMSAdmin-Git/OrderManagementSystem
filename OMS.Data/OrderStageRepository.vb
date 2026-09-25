@@ -496,15 +496,16 @@ Namespace OMS.Data
         ''' <param name="tran"></param>
         ''' <param name="type"></param>
         ''' <returns></returns>
-        Public Function Truncate(conn As OracleConnection, tran As OracleTransaction, type As OrdersTable) As String
+        Public Function Delete(conn As OracleConnection, tran As OracleTransaction, type As OrdersTable) As String
 
             Dim errorMessage As String = ""
             Try
                 Dim dt As New DataTable()
                 Dim sb As New StringBuilder()
                 Dim prm As New List(Of OracleParameter)()
-                sb.AppendLine("TRUNCATE ")
-                sb.AppendLine($"TABLE {GetTableName(type)} ")
+                sb.AppendLine($"DELETE FROM {GetTableName(type)} ")
+                'sb.AppendLine("TRUNCATE ")
+                'sb.AppendLine($"TABLE {GetTableName(type)} ")
                 Using cmd As New OracleCommand(sb.ToString(), conn)
                     cmd.BindByName = True
                     cmd.CommandType = CommandType.Text
@@ -4040,7 +4041,7 @@ Namespace OMS.Data
             ' 要 確認
             ' 当月以外の Group も 取得されるので 日付更新もそのデータに対して行われます。
             ' @@@@@ 仕様からは 当月限定とは記載が無いため そのまま にしてあります。 @@@@@
-            ' @@@@@ 当月限定の場合は下にあるリマークを無効にします 。               @@@@@
+            ' @@@@@ 当月限定の場合は下(※1)にあるリマークを無効にします 。               @@@@@
 
             'Using conn As New OracleConnection(connectionString)
             Using cmd As New OracleCommand(selectSql, tran.Connection)
@@ -4100,11 +4101,11 @@ Namespace OMS.Data
                         Dim customerItemNo As String = row("customer_item_no").ToString()
                         Dim dueMonth As String = row("due_month").ToString()
 
-                        '' @@@@@ 当月限定 @@@@@
-                        '' 当月だけ処理する場合
-                        'If (updatedAt.ToString("yyyyMM") <> currentShipScheduledDate.ToString("yyyyMM")) Then
-                        '    Continue For
-                        'End If
+                        ' @@@@@ 当月限定 @@@@@
+                        ' 当月だけ処理する場合 (※1)
+                        If (updatedAt.ToString("yyyyMM") <> currentShipScheduledDate.ToString("yyyyMM")) Then
+                            Continue For
+                        End If
 
                         ' 2つの日付を関数呼び出して設定
                         Dim nextDay As Date = GetNextDay(tran, currentShipScheduledDate)

@@ -125,13 +125,12 @@ Namespace Pages.Orders
             lblResult.Text = ""
             lblError.Text = ""
             'lblError.Text = "開発未着手"
-            Dim fileList As List(Of String) = New List(Of String)()
-            Dim strPath = Server.MapPath("~/App_Data/Files/")
             Dim FileDate = DateTime.Now
             'Dim count = 0
             'Dim valid = 0
             Dim unofficialNotice = 0
             Dim confirmed = 0
+            Dim pastErrorCnt = 0
             Dim errors As New List(Of String)()
             Dim loginUserId As String = PageHelpers.GetUserId(Me)
 
@@ -155,6 +154,9 @@ Namespace Pages.Orders
             Dim splitp = New SplitCaseRepository(Utils.GetConnectionString())
             ' 処理対象となる CustomerSettingId リスト
             Dim idList As New List(Of Long)
+
+            Dim fileList As List(Of String) = New List(Of String)()
+            Dim strPath = Server.MapPath("~/App_Data/Files/")
 
             Try
                 '値取得
@@ -317,48 +319,39 @@ Namespace Pages.Orders
                 '--------------------------
                 'リスト出力
                 '--------------------------
+                Dim trfilename = ""
                 ''出荷状況エラーリスト出力	
-                ''PROD_PLAN_STAGE_VIEW（生産計画出力一覧）をExcel出力する。	
-                'Dim repos = New OrderStraRepository(Utils.GetConnectionString())
-                'Dim ErrorRows = repos.GetOrderStage(conn, tran, status:="POST_PLAN_DUE_SET", activeFlag:="N")
-                'errors.Add(OrderProductionPlanExcelFile.ShippingStatusErrorExcelOut(strPath, FileDate, repos.ToClass(ErrorRows)))
-                'If (CheckError(errors)) Then
-                '    ' エラー
-                'End If
-
-                ' 2026/08/17 更新
                 Dim repos = New OrderStraRepository(Utils.GetConnectionString())
                 Dim errorRows = repos.GetOrderStage(conn, tran, status:="POST_PLAN_DUE_SET", activeFlag:="N", additionalConditions:=" AND ship_scheduled_date >=  order_date  AND order_type > 1 ")
-                errors.Add(OrderProductionPlanExcelFile.ShippingStatusErrorExcelOut(strPath, FileDate, repos.ToClass(errorRows)))
-                '#If DEBUG Then
-                '                ' #### DEBUG
-                '                tran.Commit()
-                '                tran = conn.BeginTransaction()
-                '                ' #### DEBUG
-                '#End If
-                Dim trfilename = OrderProductionPlanExcelFile.GetErrorListExcelFilename(strPath, FileDate)
-                fileList.Add(trfilename)
-
+                If (errorRows.Rows.Count <> 0) Then
+                    errors.Add(OrderProductionPlanExcelFile.ShippingStatusErrorExcelOut(strPath, FileDate, repos.ToClass(errorRows)))
+                    If (CheckError(errors)) Then
+                        ' エラー
+                        DBError(tran)
+                    End If
+                    trfilename = OrderProductionPlanExcelFile.GetErrorListExcelFilename(strPath, FileDate)
+                    fileList.Add(trfilename)
+                End If
                 '過去日エラーリスト出力
                 Dim pastErrorRows = repos.GetOrderStage(conn, tran, status:="POST_PLAN_DUE_SET", activeFlag:="N", additionalConditions:=" AND ship_scheduled_date <  order_date ")
-                errors.Add(OrderProductionPlanExcelFile.PastDateErrorExcelOut(strPath, FileDate, repos.ToClass(pastErrorRows)))
-                '#If DEBUG Then
-                '                ' #### DEBUG
-                '                tran.Commit()
-                '                tran = conn.BeginTransaction()
-                '                ' #### DEBUG
-                '#End If
-                trfilename = OrderProductionPlanExcelFile.GetPastDateListExcelFilename(strPath, FileDate)
-                fileList.Add(trfilename)
-
+                pastErrorCnt = pastErrorRows.Rows.Count
+                If (pastErrorRows.Rows.Count <> 0) Then
+                    errors.Add(OrderProductionPlanExcelFile.PastDateErrorExcelOut(strPath, FileDate, repos.ToClass(pastErrorRows)))
+                    If (CheckError(errors)) Then
+                        ' エラー
+                        DBError(tran)
+                    End If
+                    trfilename = OrderProductionPlanExcelFile.GetPastDateListExcelFilename(strPath, FileDate)
+                    fileList.Add(trfilename)
+                End If
                 ' 処理数を 集計する
                 Dim cnt = repo.ProdPlanCount(conn, tran, OrderRepository.OrdersTable.ProductPlan, loginUserId)
                 unofficialNotice = cnt.unofficialNotice
                 confirmed = cnt.confirmed
 
-                'CSV出力(内示)
+                '--------------------
                 'CSVファイルへPROD_PLAN_STRA_VIEW（生産計画出力一覧）を書き出し、ブラウザで設定されているダウンロードフォルダへ出力する。
-                'Dim PlanRows = repos.GetOrderStras(conn, tran, demandStatus:="F", status:="POST_PLAN_DUE_SET", activeFlag:="Y")
+                '--------------------
                 Dim formatEx As New List(Of (name As String, format As String)) From {
                                                                                         ("ORDER_DATE", "yyyyMMdd"),
                                                                                         ("DUE_DATE", "yyyyMMdd"),
@@ -368,7 +361,10 @@ Namespace Pages.Orders
                                                                                         ("PRE_DAILY_DELIVERY_DATE", "yyyyMMdd")
                                                                                       }
 
-                'Dim spaceEx As New List(Of Integer) From {29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 42}
+                ' #### 2026/09/15 (要チェック)
+                ' このSQLでは 過去日チェックの条件は考慮されないので、エラーレコードも出力される。
+                '
+                'CSV出力(内示)
                 Dim sql = " SELECT * 
                             FROM prod_plan_stra_view 
                             WHERE demand_status = 'F' "
@@ -385,8 +381,18 @@ Namespace Pages.Orders
                 Dim fProfitCenter = ""
                 Dim customerUnitName = ""
                 trfilename = repo.GetProdPlanStraViewCsvFilename(strPath, fileBaseName, FileDate, fCustomerCode, fProfitCenter, customerUnitName)
-                errors.Add(repo.ProdPlanStraViewCsvFile(sql, delimiter, enclosure, headerYN, lineEnding, charset, processDate, filename:=trfilename, formatEx:=formatEx))
-                fileList.Add(trfilename)
+
+                Dim rt = repo.ProdPlanStraViewCsvFile(sql, delimiter, enclosure, headerYN, lineEnding, charset, processDate, filename:=trfilename, formatEx:=formatEx)
+                errors.Add(rt.err)
+                If (rt.cnt = 0) Then
+                    If (File.Exists(trfilename)) Then
+                        File.Delete(trfilename)
+                        unofficialNotice = 0
+                    End If
+                    'errors.Add($"内示データが存在しないため、CSV出力は行われませんでした。")
+                Else
+                    fileList.Add(trfilename)
+                End If
 
                 'CSV出力(確定/納入指示)
                 sql = " SELECT * 
@@ -396,8 +402,17 @@ Namespace Pages.Orders
                 'ExportQueryToCsvResponse2(sql, delimiter, enclosure, headerYN, lineEnding, charset, processDate, fileBaseName:=fileBaseName, formatEx:=formatEx)
 
                 trfilename = repo.GetProdPlanStraViewCsvFilename(strPath, fileBaseName, FileDate, fCustomerCode, fProfitCenter, customerUnitName)
-                errors.Add(repo.ProdPlanStraViewCsvFile(sql, delimiter, enclosure, headerYN, lineEnding, charset, processDate, filename:=trfilename, formatEx:=formatEx))
-                fileList.Add(trfilename)
+                rt = repo.ProdPlanStraViewCsvFile(sql, delimiter, enclosure, headerYN, lineEnding, charset, processDate, filename:=trfilename, formatEx:=formatEx)
+                errors.Add(rt.err)
+                If (rt.cnt = 0) Then
+                    If (File.Exists(trfilename)) Then
+                        File.Delete(trfilename)
+                        confirmed = 0
+                    End If
+                    'errors.Add($"内示データが存在しないため、確定/納入指示 出力は行われませんでした。")
+                Else
+                    fileList.Add(trfilename)
+                End If
 
                 'UPDATE
                 '生産計画ワーク
@@ -409,18 +424,6 @@ Namespace Pages.Orders
                 'UPDATED_AT(更新日時)            処理開始日時
                 'UPDATED_USER_ID(更新ユーザーID) ログインユーザーID
                 'UPDATED_PG_ID(更新プログラムID) OrderExport
-                'errors.Add(reps.Update(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, kStatus:="POST_PLAN_DUE_SET", kActiveFlag:="Y", status:="EXPORTED", updatedAt:=FileDate, updatedUserId:=loginUserId, updatedPgId:="OrderExport"))
-                'If (CheckError(errors)) Then
-                '    ' エラー
-                '    DBError(tran)
-                'End If
-
-                '#If DEBUG Then
-                '                ' #### DEBUG
-                '                tran.Commit()
-                '                tran = conn.BeginTransaction()
-                '                ' #### DEBUG
-                '#End If
 
                 ' UPDATE (生産計画ワーク)prod_plan_stage
                 ' 最後の Ordere レコード更新用に取得しておく
@@ -431,6 +434,7 @@ Namespace Pages.Orders
                 If (CheckError(errors)) Then
                     ' エラー
                     DBError(tran)
+                    Throw New Exception("生産計画ワークの更新に失敗しました。")
                 End If
                 '#If DEBUG Then
                 '                ' #### DEBUG
@@ -445,29 +449,17 @@ Namespace Pages.Orders
                 If (CheckError(errors)) Then
                     ' エラー
                     DBError(tran)
+                    Throw New Exception("生産計画ワークの更新に失敗しました。")
                 End If
 
-
                 ' Pharse-2
-
-                ' 仮対策
-                'UPDATE (受注) NG customer_oder_no がない場合があるため → Excel 取り込みでは使えないため 要修正
-                '' ImpRunID でまとめる
-                'Dim uniqueRows = rowsu.
-                '                GroupBy(Function(x) x.ImpRunId).
-                '                Select(Function(g) g.First()).
-                '                ToList()
-
-                'For Each row In uniqueRows
-                '    errors.Add(repo.Update(conn, tran, OrderRepository.OrdersTable.Orders, kImpRunId:=row.ImpRunId, kStatus:="DUE_SET", kActiveFlag:="Y", status:="EXPORTED", updatedAt:=row.UpdatedAt, updatedUserId:=row.UpdatedUserId, updatedPgId:=row.UpdatedPgId))
-                'Next
-
-
                 ' 本対策 2026/9//2 (DB 操作なので ファイル出力前に 処理を移動した)
                 'idList 処理を行った customerSettingId リスト
                 For Each customerSettingId In idList
                     Dim trgRow = rowsu.FirstOrDefault(Function(x) x.CustomerSettingId = customerSettingId)
-                    errors.Add(repo.Update(conn, tran, OrderRepository.OrdersTable.Orders, kCustomerSettingId:=customerSettingId, kDemandStatus:="F", kStatus:="DUE_SET", kActiveFlag:="Y", status:="EXPORTED", updatedAt:=trgRow.UpdatedAt, updatedUserId:=trgRow.UpdatedUserId, updatedPgId:=trgRow.UpdatedPgId))
+                    If (trgRow IsNot Nothing) Then
+                        errors.Add(repo.Update(conn, tran, OrderRepository.OrdersTable.Orders, kCustomerSettingId:=customerSettingId, kDemandStatus:="F", kStatus:="DUE_SET", kActiveFlag:="Y", status:="EXPORTED", updatedAt:=trgRow.UpdatedAt, updatedUserId:=trgRow.UpdatedUserId, updatedPgId:=trgRow.UpdatedPgId))
+                    End If
                 Next
                 If (CheckError(errors)) Then
                     ' エラー
@@ -486,7 +478,7 @@ Namespace Pages.Orders
                 ' 裏画面 Download
                 'Utils.FilesTransfer(Response, Server, fileList, orderFilename)
 
-                Dim fileListName = Path.Combine(Server.MapPath("~/App_Data/Files/"), Utils.GetTempFileName("FileList.txt"))
+                Dim fileListName = Path.Combine(Server.MapPath(strPath), Utils.GetTempFileName("FileList.txt"))
                 Utils.SaveFileList(fileListName, fileList)
                 Dim url As String = $"DownloadProcess.ashx?file={HttpUtility.UrlEncode(orderFilename)}&list={HttpUtility.UrlEncode(fileListName)}"
                 Dim script As String = $"document.getElementById('downloadFrame').src = '{url}';"
@@ -517,10 +509,10 @@ Namespace Pages.Orders
                     End If
                     tran.Rollback()
                 End If
-                If (unofficialNotice = 0 And confirmed = 0) Then
+                If (unofficialNotice = 0 And confirmed = 0 And pastErrorCnt = 0) Then
                     lblResult.Text = $"有効なデータが無かったため受注データの出力は行われませんでした。"
                 Else
-                    lblResult.Text = $"内示{unofficialNotice}件、確定{confirmed}件の受注データの出力を行いました。"
+                    lblResult.Text = $"内示{unofficialNotice}件、確定{confirmed}件、過去エラー{pastErrorCnt}件の受注データの出力を行いました。"
                 End If
                 tran.Dispose()
                 conn.Close()
@@ -574,28 +566,58 @@ Namespace Pages.Orders
             ' Table class access                            
             ' 受注ワーク
             Dim reps As New OrderStageRepository(Utils.GetConnectionString())
-
-            '出荷状況エラーリスト出力	
-            'PROD_PLAN_STRA_VIEW（生産計画出力一覧）をExcel出力する。	
-            Dim repos = New OrderStraRepository(Utils.GetConnectionString())
-            'Dim ErrorRows = repos.GetOrderStras(conn, tran, status:="POST_PLAN_DUE_SET")
-            Dim ErrorRows = repos.GetOrderStage(conn, tran, status:="POST_PLAN_DUE_SET", activeFlag:="N")
-            Dim FileDate = DateTime.Now
-            Dim strPath = Server.MapPath("~/App_Data/Files/")
+            Dim repo = New OrderRepository(Utils.GetConnectionString())
+            Dim errorCount = 0
+            Dim pastErrorCnt = 0
 
             Try
-                errors.Add(OrderProductionPlanExcelFile.ShippingStatusErrorExcelOut(strPath, FileDate, repos.ToClass(ErrorRows)))
-                If (CheckError(errors)) Then
-                    ' エラー
+                Dim FileDate = DateTime.Now
+                Dim fileList As List(Of String) = New List(Of String)()
+                Dim repos = New OrderStraRepository(Utils.GetConnectionString())
+                Dim errorRows = repos.GetOrderStage(conn, tran, status:="POST_PLAN_DUE_SET", activeFlag:="N", additionalConditions:=" AND ship_scheduled_date >=  order_date  AND order_type > 1 ")
+                Dim trfilename = ""
+                Dim strPath = Server.MapPath("~/App_Data/Files/")
+
+                '出荷状況エラーリスト出力	
+                errorCount = errorRows.Rows.Count
+                If (errorCount <> 0) Then
+                    errors.Add(OrderProductionPlanExcelFile.ShippingStatusErrorExcelOut(strPath, FileDate, repos.ToClass(errorRows)))
+                    CheckError(errors)
+                    trfilename = OrderProductionPlanExcelFile.GetErrorListExcelFilename(strPath, FileDate)
+                    fileList.Add(trfilename)
+                End If
+
+                '過去日エラーリスト出力
+                Dim pastErrorRows = repos.GetOrderStage(conn, tran, status:="POST_PLAN_DUE_SET", activeFlag:="N", additionalConditions:=" AND ship_scheduled_date <  order_date ")
+                pastErrorCnt = pastErrorRows.Rows.Count
+                If (pastErrorCnt <> 0) Then
+                    errors.Add(OrderProductionPlanExcelFile.PastDateErrorExcelOut(strPath, FileDate, repos.ToClass(pastErrorRows)))
+                    CheckError(errors)
+                    trfilename = OrderProductionPlanExcelFile.GetPastDateListExcelFilename(strPath, FileDate)
+                    fileList.Add(trfilename)
+                End If
+
+                ' 裏画面 Download
+                If (errorCount <> 0 Or pastErrorCnt <> 0) Then
+                    Dim fileListName = Path.Combine(Server.MapPath(strPath), Utils.GetTempFileName("FileList.txt"))
+                    Dim orderFilename = repo.GeOrderZipFilename("エラーリスト", ProcessingStartDate)
+                    Utils.SaveFileList(fileListName, fileList)
+                    Dim url As String = $"DownloadProcess.ashx?file={HttpUtility.UrlEncode(orderFilename)}&list={HttpUtility.UrlEncode(fileListName)}"
+                    Dim script As String = $"document.getElementById('downloadFrame').src = '{url}';"
+                    ClientScript.RegisterStartupScript(Me.GetType(), "downloadScript", script, True)
                 End If
             Catch ex As Exception
                 Dim m = ex.Message
                 errors.Add(ex.Message)
-                'lblError.Text = ex.Message
             Finally
                 If (errors.Count > 0) Then
-                    'lblError.Text = errors(0)
                     lblError.Text = String.Join(vbCrLf, errors)
+                Else
+                    If (errorCount <> 0 Or pastErrorCnt <> 0) Then
+                        lblResult.Text = $"出荷状況エラーリストファイルを出力しました。"
+                    Else
+                        lblResult.Text = $"エラーデータが存在しないため、出荷状況エラーリスト 出力は行われませんでした。"
+                    End If
                 End If
             End Try
 
