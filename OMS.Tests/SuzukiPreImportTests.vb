@@ -280,4 +280,47 @@ Public Class SuzukiPreImportTests
         End Try
     End Sub
 
+    <TestMethod>
+    Public Sub GetPreviousMonthSymbol_ReturnsCorrectSymbolForEachMonth()
+        ' 1月 -> 前年12月 (N)
+        Assert.AreEqual("N", SuzukiPreImportService.GetPreviousMonthSymbol(New DateTime(2026, 1, 15)))
+        ' 2月 -> 1月 (A)
+        Assert.AreEqual("A", SuzukiPreImportService.GetPreviousMonthSymbol(New DateTime(2026, 2, 10)))
+        ' 3月 -> 2月 (B)
+        Assert.AreEqual("B", SuzukiPreImportService.GetPreviousMonthSymbol(New DateTime(2026, 3, 1)))
+        ' 4月 -> 3月 (C)
+        Assert.AreEqual("C", SuzukiPreImportService.GetPreviousMonthSymbol(New DateTime(2026, 4, 30)))
+        ' 5月 -> 4月 (D)
+        Assert.AreEqual("D", SuzukiPreImportService.GetPreviousMonthSymbol(New DateTime(2026, 5, 20)))
+        ' 6月 -> 5月 (E)
+        Assert.AreEqual("E", SuzukiPreImportService.GetPreviousMonthSymbol(New DateTime(2026, 6, 15)))
+        ' 7月 -> 6月 (F)
+        Assert.AreEqual("F", SuzukiPreImportService.GetPreviousMonthSymbol(New DateTime(2026, 7, 7)))
+        ' 8月 -> 7月 (G)
+        Assert.AreEqual("G", SuzukiPreImportService.GetPreviousMonthSymbol(New DateTime(2026, 8, 25)))
+        ' 9月 -> 8月 (H)
+        Assert.AreEqual("H", SuzukiPreImportService.GetPreviousMonthSymbol(New DateTime(2026, 9, 25)))
+        ' 10月 -> 9月 (J) ※Iはスキップ
+        Assert.AreEqual("J", SuzukiPreImportService.GetPreviousMonthSymbol(New DateTime(2026, 10, 1)))
+        ' 11月 -> 10月 (K)
+        Assert.AreEqual("K", SuzukiPreImportService.GetPreviousMonthSymbol(New DateTime(2026, 11, 15)))
+        ' 12月 -> 11月 (M) ※Lはスキップ
+        Assert.AreEqual("M", SuzukiPreImportService.GetPreviousMonthSymbol(New DateTime(2026, 12, 31)))
+    End Sub
+
+    <TestMethod>
+    Public Sub SupportedInfoCodes_ContainsValidCodesAndExcludes0813()
+        Dim expectedCodes = {"0501", "0502", "0600", "0602", "0630", "0650", "0651", "0740", "0814", "6604", "6624", "6634", "663N", "663S", "664T"}
+        For Each c In expectedCodes
+            Assert.IsTrue(SuzukiPreImportService.SupportedInfoCodes.Contains(c), $"情報区分コード {c} は SupportedInfoCodes に含まれている必要があります")
+        Next
+
+        ' 2026/09/18 仕様変更により除外された0813
+        Assert.IsFalse(SuzukiPreImportService.SupportedInfoCodes.Contains("0813"), "情報区分コード 0813 は SupportedInfoCodes に含まれていてはなりません")
+
+        ' 未対応コード
+        Assert.IsFalse(SuzukiPreImportService.SupportedInfoCodes.Contains("9999"), "未定義のコードは含まれていてはなりません")
+        Assert.IsFalse(SuzukiPreImportService.SupportedInfoCodes.Contains(""), "空文字は含まれていてはなりません")
+    End Sub
+
 End Class
