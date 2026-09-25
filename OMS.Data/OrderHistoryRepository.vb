@@ -92,17 +92,22 @@ Namespace OMS.Data
                 sb.AppendLine("  reconcile_type, imp_run_id, status, active_flag, ")
                 sb.AppendLine("  created_at, created_user_id, created_pg_id, ")
                 sb.AppendLine("  updated_at, updated_user_id, updated_pg_id, ")
-                sb.AppendLine("  order_time, sales_unit_price, usage_location, production_category, ")
-                sb.AppendLine("  container_no, order_reason, customer_lot_no ")
                 If (type = OrdersTable.Orders) Then
                     ' order_stage
-                    sb.AppendLine(",  stra_order_qty, stra_ship_qty, stra_order_backlog, ")
-                    'Pharse2 Suzuki 
-                    sb.AppendLine(" delivery_time, container_capacity, initial_flag, ")
-                    sb.AppendLine(" target_reference_date_type, target_reference_date, info_type_code ")
-                Else
-                    ' prod_plan_stage
-                    'sb.AppendLine(", target_reference_date_type, target_reference_date, info_type_code ")
+                    sb.AppendLine(" stra_order_qty, stra_ship_qty, stra_order_backlog, ")
+                End If
+                'Pharse2 Suzuki 
+                sb.AppendLine(" delivery_time, container_capacity, initial_flag, ")
+
+                If (type = OrdersTable.Orders) Then
+                    sb.AppendLine(" target_reference_date_type, target_reference_date, info_type_code, ")
+                End If
+
+                sb.AppendLine("  order_time, sales_unit_price, usage_location, production_category, ")
+                sb.AppendLine("  container_no, order_reason, customer_lot_no ")
+
+                If (type = OrdersTable.Orders) Then
+                    sb.AppendLine(" , delivery_type, production_month_type ")
                 End If
                 sb.AppendLine(" ) VALUES (")
                 sb.AppendLine("  :p_order_id, :p_customer_setting_id, :p_customer_code, :p_billing_to, :p_customer_order_no, :p_demand_status, :p_ship_to, ")
@@ -116,16 +121,22 @@ Namespace OMS.Data
                 sb.AppendLine("  :p_reconcile_type, :p_imp_run_id, :p_status, :p_active_flag, ")
                 sb.AppendLine("  :p_created_at, :p_created_user_id, :p_created_pg_id, ")
                 sb.AppendLine("  :p_updated_at, :p_updated_user_id, :p_updated_pg_id, ")
+
+                If (type = OrdersTable.Orders) Then
+                    ' order_stage
+                    sb.AppendLine(" :p_stra_order_qty, :p_stra_ship_qty, :p_stra_order_backlog, ")
+                End If
+                'Pharse2 Suzuki 
+                sb.AppendLine(" :p_delivery_time, :p_container_capacity, :p_initial_flag, ")
+
+                If (type = OrdersTable.Orders) Then
+                    sb.AppendLine(" :p_target_reference_date_type, :p_target_reference_date, :p_info_type_code, ")
+                End If
                 sb.AppendLine("  :p_order_time, :p_sales_unit_price, :p_usage_location, :p_production_category, ")
                 sb.AppendLine("  :p_container_no, :p_order_reason, :p_customer_lot_no ")
+
                 If (type = OrdersTable.Orders) Then
-                    sb.AppendLine(",  :p_stra_order_qty, :p_stra_ship_qty, :p_stra_order_backlog, ")
-                    'Pharse2 Suzuki
-                    sb.AppendLine(" :p_delivery_time, :p_container_capacity, :p_initial_flag, ")
-                    sb.AppendLine(" :p_target_reference_date_type, :p_target_reference_date, :p_info_type_code ")
-                Else
-                    ' prod_plan_stage
-                    'sb.AppendLine(", :p_target_reference_date_type, :p_target_reference_date, :p_info_type_code ")
+                    sb.AppendLine(" , :p_delivery_type, :p_production_month_type ")
                 End If
                 sb.AppendLine(")")
                 Using cmd As New OracleCommand(sb.ToString(), conn)
@@ -203,28 +214,24 @@ Namespace OMS.Data
                         cmd.Parameters.Add(":p_updated_at", OracleDbType.Date).Value = r.UpdatedAt
                         cmd.Parameters.Add(":p_updated_user_id", OracleDbType.Varchar2, 9).Value = SafeVarchar(r.UpdatedUserId, 9)
                         cmd.Parameters.Add(":p_updated_pg_id", OracleDbType.Varchar2, 150).Value = SafeVarchar(r.UpdatedPgId, 150)
+
                         ' Pharse2
                         If (type = OrdersTable.Orders) Then
                             cmd.Parameters.Add(":p_stra_order_qty", OracleDbType.Decimal).Value = r.StraOrderQty
                             cmd.Parameters.Add(":p_stra_ship_qty", OracleDbType.Decimal).Value = r.StraShipQty
                             cmd.Parameters.Add(":p_stra_order_backlog", OracleDbType.Decimal).Value = r.StraOrderBacklog
+                        End If
 
-                            'Pharse2 Suzuki
-                            cmd.Parameters.Add(":p_delivery_time", OracleDbType.Decimal).Value = r.DeliveryTime
-                            cmd.Parameters.Add(":p_container_capacity", OracleDbType.Decimal).Value = r.ContainerCapacity
-                            cmd.Parameters.Add(":p_initial_flag", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.InitialFlag, 45)
+                        cmd.Parameters.Add(":p_delivery_time", OracleDbType.Decimal).Value = r.DeliveryTime
+                        cmd.Parameters.Add(":p_container_capacity", OracleDbType.Decimal).Value = r.ContainerCapacity
+                        cmd.Parameters.Add(":p_initial_flag", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.InitialFlag, 45)
+
+                        If (type = OrdersTable.Orders) Then
                             cmd.Parameters.Add(":p_target_reference_date_type", OracleDbType.Varchar2, 1).Value = SafeVarchar(r.TargetReferenceDateType, 1)
                             cmd.Parameters.Add(":p_target_reference_date", OracleDbType.Varchar2, 8).Value = SafeVarchar(r.TargetReferenceDate, 8)
                             cmd.Parameters.Add(":p_info_type_code", OracleDbType.Varchar2, 4).Value = SafeVarchar(r.InfoTypeCode, 4)
-                        Else
-                            ' prod_plan_stage
-                            cmd.Parameters.Add(":p_delivery_time", OracleDbType.Decimal).Value = r.DeliveryTime
-                            cmd.Parameters.Add(":p_container_capacity", OracleDbType.Decimal).Value = r.ContainerCapacity
-                            cmd.Parameters.Add(":p_initial_flag", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.InitialFlag, 45)
-                            'cmd.Parameters.Add(":p_target_reference_date_type", OracleDbType.Varchar2, 1).Value = SafeVarchar(r.TargetReferenceDateType, 1)
-                            'cmd.Parameters.Add(":p_target_reference_date", OracleDbType.Varchar2, 8).Value = SafeVarchar(r.TargetReferenceDate, 8)
-                            'cmd.Parameters.Add(":p_info_type_code", OracleDbType.Varchar2, 4).Value = SafeVarchar(r.InfoTypeCode, 4)
                         End If
+
                         'Phase2
                         cmd.Parameters.Add(":p_order_time", OracleDbType.Decimal).Value = r.OrderTime
                         cmd.Parameters.Add(":p_sales_unit_price", OracleDbType.Decimal).Value = r.SalesUnitPrice
@@ -234,6 +241,10 @@ Namespace OMS.Data
                         cmd.Parameters.Add(":p_order_reason", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.OrderReason, 45)
                         cmd.Parameters.Add(":p_customer_lot_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.CustomerLotNo, 45)
 
+                        If (type = OrdersTable.Orders) Then
+                            cmd.Parameters.Add(":p_delivery_type", OracleDbType.Varchar2, 5).Value = SafeVarchar(r.DeliveryType, 5)
+                            cmd.Parameters.Add(":p_production_month_type", OracleDbType.Varchar2, 1).Value = SafeVarchar(r.ProductionMonthType, 1)
+                        End If
                         cmd.ExecuteNonQuery()
                     Next
 
@@ -990,6 +1001,8 @@ Namespace OMS.Data
                 'osr.StraShipQty = dt.Field(Of Decimal?)("stra_ship_qty")
                 osr.StraOrderBacklog = If(dt.Field(Of Decimal?)("stra_order_backlog"),0)
                 'osr.StraOrderBacklog = dt.Field(Of Decimal?)("stra_order_backlog")
+                osr.DeliveryType = dt.Field(Of String)("delivery_type")
+                osr.ProductionMonthType = dt.Field(Of String)("production_month_type")
             End If
             ' ====== 日付系 ======
             osr.OrderDate = dt.Field(Of Date?)("order_date")
@@ -1255,6 +1268,10 @@ Namespace OMS.Data
         Public Property TargetReferenceDateType As String       '対象基準日区分  VARCHAR2    1 CHAR
         Public Property TargetReferenceDate As String           '対象基準日      VARCHAR2    8 CHAR
         Public Property InfoTypeCode As String                  '情報区分コード  VARCHAR2    4 CHAR
+
+        Public Property DeliveryType As String                  '納入指示区分		VARCHAR2	5 Char
+        Public Property ProductionMonthType As String           '生産月度区分		VARCHAR2	1 Char
+
         ' Phase2 2026/08/17 追加
         Public Property OrderTime As Decimal?                   '受注時刻		NUMBER		18,6
         Public Property SalesUnitPrice As Decimal?              '売上単価		NUMBER		18,6
