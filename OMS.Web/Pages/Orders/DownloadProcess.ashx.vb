@@ -35,6 +35,15 @@ Public Class DownloadProcess
         ' 使用したリストのファイルを削除する
         IO.File.Delete(listName)
         Utils.FilesTransfer(Response, Server, fileList, fileName)
+
+        ' LINQで回して各ファイルを削除する
+        fileList.ToList().ForEach(Sub(filePath)
+                                      ' ファイルが存在する場合のみ削除（エラー防止）
+                                      If IO.File.Exists(filePath) Then
+                                          IO.File.Delete(filePath)
+                                          'Console.WriteLine($"削除しました: {filePath}")
+                                      End If
+                                  End Sub)
     End Sub
     ''' <summary>
     ''' property
