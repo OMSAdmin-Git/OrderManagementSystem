@@ -257,7 +257,8 @@ Namespace Services
             LoadSpirits0651(conn, tran, impFileId, impRunId, customerSettingId, billingTo, currencyCode, dateCache, unitCache, userId, pgId, ruleReconcileType, outRows)
 
             ' 5. 0813 (支給品情報データ)
-            LoadSpirits0813(conn, tran, impFileId, impRunId, customerSettingId, billingTo, currencyCode, dateCache, unitCache, userId, pgId, ruleReconcileType, outRows)
+            ' 【2026/09/25 仕様変更】0813はSPIRITS仕様より除外されたため、ORDERS_STAGEへの展開を行いません。
+            ' LoadSpirits0813(conn, tran, impFileId, impRunId, customerSettingId, billingTo, currencyCode, dateCache, unitCache, userId, pgId, ruleReconcileType, outRows)
 
             ' 6. 0814 (支給品納入指示データ)
             LoadSpirits0814(conn, tran, impFileId, impRunId, customerSettingId, billingTo, currencyCode, dateCache, unitCache, userId, pgId, ruleReconcileType, outRows)

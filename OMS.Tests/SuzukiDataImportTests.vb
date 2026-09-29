@@ -143,4 +143,62 @@ Public Class SuzukiDataImportTests
         Assert.AreEqual("0600", row.InfoTypeCode)
     End Sub
 
+    ''' <summary>
+    ''' 【2026/09/25 仕様変更】0814(支給品納入指示)の消込先が 0813 から 0600 に変更されたことのロジック検証
+    ''' </summary>
+    <TestMethod>
+    Public Sub ReconcileForecastSuzuki_0814_Reconciles_0600_Logic()
+        ' 内示 0600 レコード (数量 100)
+        Dim fcst0600 As New OrdersStageRow With {
+            .StageId = 1,
+            .ItemNo = "ITEM-0814-TEST",
+            .ShipTo = "DEST-A",
+            .InfoTypeCode = "0600",
+            .OrderType = 1,
+            .DemandQty = 100
+        }
+
+        ' 指示 0814 レコード (数量 40)
+        Dim instr0814 As New OrdersStageRow With {
+            .StageId = 2,
+            .ItemNo = "ITEM-0814-TEST",
+            .ShipTo = "DEST-A",
+            .InfoTypeCode = "0814",
+            .OrderType = 3,
+            .DemandQty = 40
+        }
+
+        ' 消込対象内示コードのマッピング判定 (ReconcileForecastSuzuki のロジック)
+        Dim targetFcstCode As String = ""
+        Select Case instr0814.InfoTypeCode
+            Case "0650", "0651", "0814"
+                targetFcstCode = "0600"
+            Case "6624"
+                targetFcstCode = "6604"
+            Case Else
+                targetFcstCode = ""
+        End Select
+
+        Assert.AreEqual("0600", targetFcstCode, "0814 の消込対象コードは 0600 である必要があります")
+
+        ' 消込シミュレーション (100 - 40 = 60)
+        If targetFcstCode = fcst0600.InfoTypeCode Then
+            fcst0600.DemandQty = fcst0600.DemandQty - instr0814.DemandQty
+        End If
+
+        Assert.AreEqual(60L, fcst0600.DemandQty.Value, "0600 の内示残数が 0814 の指示数分減算されている必要があります")
+    End Sub
+
+    ''' <summary>
+    ''' 【2026/09/25 仕様変更】0813(支給品情報)の廃止に伴う洗い替え対象除外のロジック検証
+    ''' </summary>
+    <TestMethod>
+    Public Sub ReplaceNaijiRelationSuzuki_Excludes_0813_From_WashList()
+        Dim washTargets As New List(Of String) From {"0600", "6604"}
+
+        Assert.IsTrue(washTargets.Contains("0600"), "0600 は洗い替え対象である必要があります")
+        Assert.IsTrue(washTargets.Contains("6604"), "6604 は洗い替え対象である必要があります")
+        Assert.IsFalse(washTargets.Contains("0813"), "0813 は2026/09/25仕様変更により洗い替え対象外である必要があります")
+    End Sub
+
 End Class

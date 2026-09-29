@@ -4604,7 +4604,7 @@ Namespace OMS.Data
                 "   AND tgt.order_type = 1 " &
                 "   AND tgt.active_flag = 'Y' " &
                 "   AND tgt.imp_file_stage_id IS NULL " &
-                "   AND tgt.info_type_code IN ('0600', '0813', '6604') " &
+                "   AND tgt.info_type_code IN ('0600', '6604') " & ' 【2026/09/25 仕様変更】0813廃止に伴い洗い替え対象から除外
                 "   AND EXISTS (" &
                 "     SELECT 1 FROM orders_stage cur " &
                 "     WHERE (cur.customer_setting_id = :p_customer_setting_id OR cur.customer_code = '5455') " &
@@ -4713,13 +4713,12 @@ Namespace OMS.Data
             End Using
 
             ' 2. 各指示レコードについて対応する内示レコードを消込
+            ' 【2026/09/25 仕様変更】0814の消込先を 0813 から 0600 に変更 (0650, 0651, 0814 -> 0600)
             For Each instRow In instrRows
                 Dim targetFcstCode As String = ""
                 Select Case instRow.InfoTypeCode
-                    Case "0650", "0651"
+                    Case "0650", "0651", "0814"
                         targetFcstCode = "0600"
-                    Case "0814"
-                        targetFcstCode = "0813"
                     Case "6624"
                         targetFcstCode = "6604"
                     Case Else
