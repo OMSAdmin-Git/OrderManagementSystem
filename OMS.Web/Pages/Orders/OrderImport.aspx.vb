@@ -632,12 +632,17 @@ Namespace Pages.Orders
                                 '    Continue For
                                 'End If
 
+                                'If mapResult IsNot Nothing AndAlso (spprocesstype = 0 OrElse
+                                '                                    (spprocesstype = 1 AndAlso chkHandFlag.Checked = True) OrElse
+                                '                                    (spprocesstype = 2 AndAlso chkHandFlag.Checked = True) OrElse
+                                '                                    (spprocesstype = 3 AndAlso chkHandFlag.Checked = True)) Then
                                 If mapResult IsNot Nothing AndAlso (spprocesstype = 0 OrElse
-                                                                    (spprocesstype = 1 AndAlso chkHandFlag.Checked = True) OrElse
-                                                                    (spprocesstype = 2 AndAlso chkHandFlag.Checked = True) OrElse
-                                                                    (spprocesstype = 3 AndAlso chkHandFlag.Checked = True)) Then
+                                                                    (spprocesstype = 1 AndAlso folderType <> 4) OrElse
+                                                                    (spprocesstype = 2 AndAlso folderType <> 4)) Then
 
-                                    '特殊処理以外(通常の取込実行)　または　特殊処理でハンドフラグにチェックが入っている場合(特殊処理のASTI追加内示)
+                                    '特殊処理以外の通常の取込実行
+                                    'スズキ特殊処理
+                                    'ヤマハ(IM以外)の場合(ASTI追加内示)
 
                                     '取込ファイルからデータを取得する処理
                                     OMS.Data.OrderStageImport.ParseImportFile(
@@ -662,7 +667,7 @@ Namespace Pages.Orders
                                     'blnflg = True
 
                                 ElseIf mapResult Is Nothing AndAlso spprocesstype = 1 AndAlso folderType = 4 Then
-                                    '特殊加工:スズキ フォルダ区分:混合
+                                    '特殊加工:スズキ フォルダ区分:混合(スズキ自動取込なのでここでは処理無し)
 
                                     'blnflg = True
 
