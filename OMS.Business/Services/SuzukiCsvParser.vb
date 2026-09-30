@@ -3,6 +3,7 @@ Imports System.IO
 Imports System.Text
 Imports CsvHelper
 Imports CsvHelper.Configuration
+Imports OMS.Data
 Imports OMS.Data.SUZUKI
 
 Namespace Services
@@ -80,9 +81,20 @@ Namespace Services
         ''' <summary>
         ''' 0600 / 0630 形式の CSV をパースします。
         ''' </summary>
-        Public Shared Function Parse0600And0630(filePath As String) As List(Of Spirits0600And0630Row)
+        Public Shared Function Parse0600And0630(
+            filePath As String,
+            Optional connectionString As String = Nothing,
+            Optional calRepo As CalenderRepository = Nothing
+        ) As List(Of Spirits0600And0630Row)
             Dim list As New List(Of Spirits0600And0630Row)()
             Dim lines As String() = ReadLinesAutoEncoding(filePath)
+
+            Dim effectiveCalRepo As CalenderRepository = calRepo
+            If effectiveCalRepo Is Nothing AndAlso Not String.IsNullOrEmpty(connectionString) Then
+                effectiveCalRepo = New CalenderRepository(connectionString)
+            End If
+
+            Dim workingDayCache As New Dictionary(Of String, Date?)()
 
             For Each line In lines
                 If String.IsNullOrWhiteSpace(line) Then Continue For
@@ -128,7 +140,7 @@ Namespace Services
                     .OrderDataType = CleanCol(cols, 32),
                     .DeliveryDateType = CleanCol(cols, 33),
                     .ProductionMonthType = CleanCol(cols, 34),
-                    .DeliveryDate = If(cols.Length > 35, ParseDate(CleanCol(cols, 35)), Nothing),
+                    .DeliveryDate = If(cols.Length > 35, ParseFlexibleDeliveryDate(CleanCol(cols, 35), effectiveCalRepo, workingDayCache), Nothing),
                     .OrderQty = If(cols.Length > 36, ParseLong(CleanCol(cols, 36)), Nothing),
                     .ActiveFlag = "Y",
                     .CreatedAt = DateTime.Now
@@ -784,6 +796,53 @@ Namespace Services
         Friend Shared Function CleanCol(cols As String(), idx As Integer) As String
             If idx >= cols.Length Then Return String.Empty
             Return cols(idx).Trim(" "c, """"c)
+        End Function
+
+        Private Shared Function ParseFlexibleDeliveryDate(val As String, calRepo As CalenderRepository, workingDayCache As Dictionary(Of String, Date?)) As Date?
+            If String.IsNullOrWhiteSpace(val) Then Return Nothing
+
+            Dim cleanVal = val.Trim().Replace("/", "").Replace("-", "")
+            If Not cleanVal.All(AddressOf Char.IsDigit) Then Return Nothing
+
+            ' 8桁の際はそのまま日付変換
+            If cleanVal.Length = 8 Then
+                Dim d8 As Date
+                If Date.TryParseExact(cleanVal, "yyyyMMdd", CultureInfo.InvariantCulture, DateTimeStyles.None, d8) Then
+                    Return d8
+                End If
+                Return Nothing
+            End If
+
+            ' 6桁の場合は年月はそのままで日はその月の最初の稼働日をセット
+            If cleanVal.Length = 6 Then
+                If workingDayCache IsNot Nothing AndAlso workingDayCache.ContainsKey(cleanVal) Then
+                    Return workingDayCache(cleanVal)
+                End If
+
+                Dim d6 As Date
+                If Date.TryParseExact(cleanVal & "01", "yyyyMMdd", CultureInfo.InvariantCulture, DateTimeStyles.None, d6) Then
+                    Dim workingDay As Date? = Nothing
+                    If calRepo IsNot Nothing Then
+                        Try
+                            Dim res = calRepo.GetFirstWorkingDay("00001", d6)
+                            If res <> Date.MinValue AndAlso res.Year = d6.Year AndAlso res.Month = d6.Month Then
+                                workingDay = res
+                            End If
+                        Catch
+                            workingDay = Nothing
+                        End Try
+                    End If
+
+                    If workingDayCache IsNot Nothing Then
+                        workingDayCache(cleanVal) = workingDay
+                    End If
+                    Return workingDay
+                End If
+                Return Nothing
+            End If
+
+            ' 8桁でも6桁でもない場合の処置は null
+            Return Nothing
         End Function
 
         Private Shared Function ParseDate(val As String) As Date?
