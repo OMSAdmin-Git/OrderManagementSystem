@@ -300,8 +300,6 @@ Namespace Pages.Orders
 
                 Dim spprocesstype As String = keys("SpProcessType")?.ToString()
 
-
-
                 ' DropDownList を取得（IDは .aspx のテンプレート列に合わせる）
                 Dim ddlReconcileFlag = TryCast(row.FindControl("ddlReconcileFlag"), DropDownList)
                 Dim ddlFcstReconcileFlag = TryCast(row.FindControl("ddlFcstReconcileFlag"), DropDownList)

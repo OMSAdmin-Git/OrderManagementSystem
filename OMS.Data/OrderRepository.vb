@@ -195,9 +195,9 @@ Namespace OMS.Data
                 sb.AppendLine("  updated_at, updated_user_id, updated_pg_id ")
                 If (type = OrdersTable.Orders) Then
                     sb.AppendLine(",  stra_order_qty, stra_ship_qty, stra_order_backlog, ")
-                    sb.AppendLine(" target_reference_dateType, target_reference_date, info_type_code ")
+                    sb.AppendLine(" target_reference_dateType, target_reference_date, info_type_code, ")
+                    sb.AppendLine(" delivery_type, production_month_type ")
                 End If
-
 
                 sb.AppendLine(") VALUES (")
                 sb.AppendLine("  :p_customer_setting_id, :p_customer_code, :p_billing_to, :p_customer_order_no, :p_demand_status, :p_ship_to, ")
@@ -216,7 +216,8 @@ Namespace OMS.Data
                 sb.AppendLine("  :p_updated_at, :p_updated_user_id, :p_updated_pg_id ")
                 If (type = OrdersTable.Orders) Then
                     sb.AppendLine(",  :p_stra_order_qty, :p_stra_ship_qty, :p_stra_order_backlog, ")
-                    sb.AppendLine(" :p_target_reference_dateType, :p_target_reference_date, :p_info_type_code ")
+                    sb.AppendLine(" :p_target_reference_dateType, :p_target_reference_date, :p_info_type_code, ")
+                    sb.AppendLine(" :p_delivery_type, :p_production_month_type ")
                 End If
                 sb.AppendLine(")")
                 Using cmd As New OracleCommand(sb.ToString(), conn)
@@ -315,9 +316,12 @@ Namespace OMS.Data
                             cmd.Parameters.Add(":p_stra_ship_qty", OracleDbType.Decimal).Value = r.StraShipQty
                             cmd.Parameters.Add(":p_stra_order_backlog", OracleDbType.Decimal).Value = r.StraOrderBacklog
 
-                            cmd.Parameters.Add(":p_target_reference_dateType", OracleDbType.Varchar2, 1).Value = r.TargetReferenceDateType
-                            cmd.Parameters.Add(":p_target_reference_date", OracleDbType.Varchar2, 8).Value = r.TargetReferenceDate
-                            cmd.Parameters.Add(":p_info_type_code", OracleDbType.Varchar2, 4).Value = r.InfoTypeCode
+                            cmd.Parameters.Add(":p_target_reference_dateType", OracleDbType.Varchar2, 1).Value = SafeVarchar(r.TargetReferenceDateType, 1)
+                            cmd.Parameters.Add(":p_target_reference_date", OracleDbType.Varchar2, 8).Value = SafeVarchar(r.TargetReferenceDate, 8)
+                            cmd.Parameters.Add(":p_info_type_code", OracleDbType.Varchar2, 4).Value = SafeVarchar(r.InfoTypeCode, 4)
+
+                            cmd.Parameters.Add(":p_delivery_type", OracleDbType.Varchar2, 5).Value = SafeVarchar(r.DeliveryType, 5)
+                            cmd.Parameters.Add(":p_production_month_type", OracleDbType.Varchar2, 1).Value = SafeVarchar(r.ProductionMonthType, 1)
                         End If
                         cmd.ExecuteNonQuery()
                     Next
@@ -443,168 +447,168 @@ Namespace OMS.Data
 
         End Function
 
-        Public Function GetOrders(
-            Optional ByVal customerCode As String = Nothing,
-            Optional ByVal customerName As String = Nothing,
-            Optional ByVal profitCenter As String = Nothing,
-            Optional ByVal customerUnitName As String = Nothing,
-            Optional ByVal status As String = Nothing,
-            Optional ByVal prodMgmtUserId As String = Nothing,
-            Optional ByVal activeFlag As String = Nothing,
-            Optional ByVal customerSettingId As Long = -1
-        ) As DataTable
+        'Public Function GetOrders(
+        '    Optional ByVal customerCode As String = Nothing,
+        '    Optional ByVal customerName As String = Nothing,
+        '    Optional ByVal profitCenter As String = Nothing,
+        '    Optional ByVal customerUnitName As String = Nothing,
+        '    Optional ByVal status As String = Nothing,
+        '    Optional ByVal prodMgmtUserId As String = Nothing,
+        '    Optional ByVal activeFlag As String = Nothing,
+        '    Optional ByVal customerSettingId As Long = -1
+        ') As DataTable
 
-            Dim dt As New DataTable()
-            Dim sb As New StringBuilder()
-            sb.AppendLine("SELECT ")
-            'sb.AppendLine("  ORDER_ID                   AS ""OrderId"", ")
-            sb.AppendLine("  customer_setting_id        AS ""CustomerSettingId"", ")
-            sb.AppendLine("  customer_code              AS ""CustomerCode"", ")
-            sb.AppendLine("  customer_name              AS ""CustomerName"", ")
-            sb.AppendLine("  profit_center              AS ""ProfitCenter"", ")
-            sb.AppendLine("  customer_unit_id           AS ""CustomerUnitId"", ")
-            sb.AppendLine("  customer_unit_name         AS ""CustomerUnitName"", ")
-            sb.AppendLine("  billing_to                 AS ""BillingTo"", ")
-            sb.AppendLine("  customer_order_no          AS ""CustomerOrderNo"", ")
-            sb.AppendLine("  demand_status              AS ""DemandStatus"", ")
-            sb.AppendLine("  ship_to                    AS ""ShipTo"", ")
-            sb.AppendLine("  order_date                 AS ""OrderDate"", ")
-            sb.AppendLine("  due_date                   AS ""DueDate"", ")
-            sb.AppendLine("  ship_scheduled_date        AS ""ShipScheduledDate"", ")
-            sb.AppendLine("  customer_item_no           AS ""CustomerItemNo"", ")
-            sb.AppendLine("  item_no                    AS ""ItemNo"", ")
-            sb.AppendLine("  demand_qty                 AS ""DemandQty"", ")
-            sb.AppendLine("  demand_unit                AS ""DemandUnit"", ")
-            sb.AppendLine("  currency_code              AS ""CurrencyCode"", ")
-            sb.AppendLine("  ship_stock_location        AS ""ShipStockLocation"", ")
-            sb.AppendLine("  company_id                 AS ""CompanyId"", ")
-            sb.AppendLine("  product_code               AS ""ProductCode"", ")
-            sb.AppendLine("  billing_standard           AS ""BillingStandard"", ")
-            sb.AppendLine("  ship_process_type          AS ""ship_process_type"", ")
-            sb.AppendLine("  delivery_instr_flag        AS ""DeliveryInstrFlag"", ")
-            sb.AppendLine("  order_no                   AS ""OrderNo"", ")
-            sb.AppendLine("  remarks                    AS ""Remarks"", ")
-            sb.AppendLine("  delivery_code              AS ""DeliveryCode"", ")
-            sb.AppendLine("  order_time                 AS ""OrderTime"", ")
-            sb.AppendLine("  sales_unit_price           AS ""SalesUnitPrice"", ")
-            sb.AppendLine("  delivery_time              AS ""DeliveryTime"", ")
-            sb.AppendLine("  usage_location             AS ""UsageLocation"", ")
-            sb.AppendLine("  total_ship_qty             AS ""TotalShipQty"", ")
-            sb.AppendLine("  production_category        AS ""ProductionCategory"", ")
-            sb.AppendLine("  ship_date                  AS ""ShipDate"", ")
-            sb.AppendLine("  transport_method           AS ""TransportMethod"", ")
-            sb.AppendLine("  ship_plan_date             AS ""ShipPlanDate"", ")
-            sb.AppendLine("  customer_order_line_no     AS ""CustomerOrderLineNo"", ")
-            sb.AppendLine("  pre_daily_order_qty        AS ""PreDailyOrderQty"", ")
-            sb.AppendLine("  pre_daily_delivery_date    AS ""PreDailyDeliveryDate"", ")
-            sb.AppendLine("  imp_file_id                AS ""ImpFileId"", ")
-            sb.AppendLine("  order_type                 AS ""OrderType"", ")
-            sb.AppendLine("  prorated_type              AS ""ProratedType"", ")
-            sb.AppendLine("  customer_info_type         AS ""CustomerInfoType"", ")
-            sb.AppendLine("  info_type                  AS ""InfoType"", ")
-            sb.AppendLine("  self_fcst_flag             AS ""SalfFcstFlag"", ")
-            sb.AppendLine("  self_fcst_delete_flag      AS ""SalfFcstDeleteFlag"", ")
-            sb.AppendLine("  reconcile_type             AS ""ReconcileType"", ")
-            sb.AppendLine("  imp_run_id                 AS ""ImpRunId"", ")
-            sb.AppendLine("  status                     AS ""Status"", ")
-            sb.AppendLine("  active_flag                AS ""ActiveFlag"", ")
-            sb.AppendLine("  created_at                 AS ""CreatedAt"", ")
-            sb.AppendLine("  created_user_id            AS ""CreatedUserId"", ")
-            sb.AppendLine("  created_user_id            AS ""CreatedUserId"", ")
-            sb.AppendLine("  created_pg_id              AS ""CreatedPgId"", ")
-            sb.AppendLine("  updated_at                 AS ""UpdatedAt"", ")
-            sb.AppendLine("  updated_user_id            AS ""UpdatedUserId"", ")
-            sb.AppendLine("  updated_pg_id              AS ""UpdatedPgId"",")
-            sb.AppendLine("  prod_mgmt_user_id          AS ""ProdMgmtUserId"" ")
-            ' Pharse2
-            sb.AppendLine("  stra_order_qty             AS ""StraOrderQty"" ")
-            sb.AppendLine("  stra_ship_qty              AS ""StraShipQty"" ")
-            sb.AppendLine("  stra_order_backlog         AS ""StraOrderBacklog"" ")
+        '    Dim dt As New DataTable()
+        '    Dim sb As New StringBuilder()
+        '    sb.AppendLine("SELECT ")
+        '    'sb.AppendLine("  ORDER_ID                   AS ""OrderId"", ")
+        '    sb.AppendLine("  customer_setting_id        AS ""CustomerSettingId"", ")
+        '    sb.AppendLine("  customer_code              AS ""CustomerCode"", ")
+        '    sb.AppendLine("  customer_name              AS ""CustomerName"", ")
+        '    sb.AppendLine("  profit_center              AS ""ProfitCenter"", ")
+        '    sb.AppendLine("  customer_unit_id           AS ""CustomerUnitId"", ")
+        '    sb.AppendLine("  customer_unit_name         AS ""CustomerUnitName"", ")
+        '    sb.AppendLine("  billing_to                 AS ""BillingTo"", ")
+        '    sb.AppendLine("  customer_order_no          AS ""CustomerOrderNo"", ")
+        '    sb.AppendLine("  demand_status              AS ""DemandStatus"", ")
+        '    sb.AppendLine("  ship_to                    AS ""ShipTo"", ")
+        '    sb.AppendLine("  order_date                 AS ""OrderDate"", ")
+        '    sb.AppendLine("  due_date                   AS ""DueDate"", ")
+        '    sb.AppendLine("  ship_scheduled_date        AS ""ShipScheduledDate"", ")
+        '    sb.AppendLine("  customer_item_no           AS ""CustomerItemNo"", ")
+        '    sb.AppendLine("  item_no                    AS ""ItemNo"", ")
+        '    sb.AppendLine("  demand_qty                 AS ""DemandQty"", ")
+        '    sb.AppendLine("  demand_unit                AS ""DemandUnit"", ")
+        '    sb.AppendLine("  currency_code              AS ""CurrencyCode"", ")
+        '    sb.AppendLine("  ship_stock_location        AS ""ShipStockLocation"", ")
+        '    sb.AppendLine("  company_id                 AS ""CompanyId"", ")
+        '    sb.AppendLine("  product_code               AS ""ProductCode"", ")
+        '    sb.AppendLine("  billing_standard           AS ""BillingStandard"", ")
+        '    sb.AppendLine("  ship_process_type          AS ""ship_process_type"", ")
+        '    sb.AppendLine("  delivery_instr_flag        AS ""DeliveryInstrFlag"", ")
+        '    sb.AppendLine("  order_no                   AS ""OrderNo"", ")
+        '    sb.AppendLine("  remarks                    AS ""Remarks"", ")
+        '    sb.AppendLine("  delivery_code              AS ""DeliveryCode"", ")
+        '    sb.AppendLine("  order_time                 AS ""OrderTime"", ")
+        '    sb.AppendLine("  sales_unit_price           AS ""SalesUnitPrice"", ")
+        '    sb.AppendLine("  delivery_time              AS ""DeliveryTime"", ")
+        '    sb.AppendLine("  usage_location             AS ""UsageLocation"", ")
+        '    sb.AppendLine("  total_ship_qty             AS ""TotalShipQty"", ")
+        '    sb.AppendLine("  production_category        AS ""ProductionCategory"", ")
+        '    sb.AppendLine("  ship_date                  AS ""ShipDate"", ")
+        '    sb.AppendLine("  transport_method           AS ""TransportMethod"", ")
+        '    sb.AppendLine("  ship_plan_date             AS ""ShipPlanDate"", ")
+        '    sb.AppendLine("  customer_order_line_no     AS ""CustomerOrderLineNo"", ")
+        '    sb.AppendLine("  pre_daily_order_qty        AS ""PreDailyOrderQty"", ")
+        '    sb.AppendLine("  pre_daily_delivery_date    AS ""PreDailyDeliveryDate"", ")
+        '    sb.AppendLine("  imp_file_id                AS ""ImpFileId"", ")
+        '    sb.AppendLine("  order_type                 AS ""OrderType"", ")
+        '    sb.AppendLine("  prorated_type              AS ""ProratedType"", ")
+        '    sb.AppendLine("  customer_info_type         AS ""CustomerInfoType"", ")
+        '    sb.AppendLine("  info_type                  AS ""InfoType"", ")
+        '    sb.AppendLine("  self_fcst_flag             AS ""SalfFcstFlag"", ")
+        '    sb.AppendLine("  self_fcst_delete_flag      AS ""SalfFcstDeleteFlag"", ")
+        '    sb.AppendLine("  reconcile_type             AS ""ReconcileType"", ")
+        '    sb.AppendLine("  imp_run_id                 AS ""ImpRunId"", ")
+        '    sb.AppendLine("  status                     AS ""Status"", ")
+        '    sb.AppendLine("  active_flag                AS ""ActiveFlag"", ")
+        '    sb.AppendLine("  created_at                 AS ""CreatedAt"", ")
+        '    sb.AppendLine("  created_user_id            AS ""CreatedUserId"", ")
+        '    sb.AppendLine("  created_user_id            AS ""CreatedUserId"", ")
+        '    sb.AppendLine("  created_pg_id              AS ""CreatedPgId"", ")
+        '    sb.AppendLine("  updated_at                 AS ""UpdatedAt"", ")
+        '    sb.AppendLine("  updated_user_id            AS ""UpdatedUserId"", ")
+        '    sb.AppendLine("  updated_pg_id              AS ""UpdatedPgId"",")
+        '    sb.AppendLine("  prod_mgmt_user_id          AS ""ProdMgmtUserId"" ")
+        '    ' Pharse2
+        '    sb.AppendLine("  stra_order_qty             AS ""StraOrderQty"" ")
+        '    sb.AppendLine("  stra_ship_qty              AS ""StraShipQty"" ")
+        '    sb.AppendLine("  stra_order_backlog         AS ""StraOrderBacklog"" ")
 
-            'Pharse2 Suzuki
-            sb.AppendLine("  target_reference_date_type AS ""TargetReferenceDateType"" ")
-            sb.AppendLine("  target_reference_date      AS ""TargetReferenceDate"" ")
-            sb.AppendLine("  info_type_code             AS ""InfoTypeCode"" ")
+        '    'Pharse2 Suzuki
+        '    sb.AppendLine("  target_reference_date_type AS ""TargetReferenceDateType"" ")
+        '    sb.AppendLine("  target_reference_date      AS ""TargetReferenceDate"" ")
+        '    sb.AppendLine("  info_type_code             AS ""InfoTypeCode"" ")
 
-            sb.AppendLine("FROM orders_view ")
-            sb.AppendLine("WHERE 1=1 ")
+        '    sb.AppendLine("FROM orders_view ")
+        '    sb.AppendLine("WHERE 1=1 ")
 
-            Dim prm As New List(Of OracleParameter)()
+        '    Dim prm As New List(Of OracleParameter)()
 
-            ' 文字列を安全にLIKEパターンへ（%と_をエスケープしてから %term% に）
-            Dim pCustomerCode As String = Utils.BuildLikePattern(customerCode, LikeMode.Contains)
-            Dim pCustomerName As String = Utils.BuildLikePattern(customerName, LikeMode.Contains)
-            Dim pProfitCenter As String = Utils.BuildLikePattern(profitCenter, LikeMode.Contains)
-            Dim pCustomerUnitName As String = Utils.BuildLikePattern(customerUnitName, LikeMode.Contains)
-            Dim pProdMgmtUserId As String = Utils.BuildLikePattern(prodMgmtUserId, LikeMode.Contains)
-            Dim pActiveFlag As String = If(String.IsNullOrWhiteSpace(activeFlag), Nothing, activeFlag.Trim())
-            ' 2026/02/16 R.Sagisaka
-            'Dim pCustomerSettingId As String = Utils.BuildLikePattern(customerSettingId, LikeMode.Contains)
-            ' 2026/02/16 R.Sagisaka Add end
+        '    ' 文字列を安全にLIKEパターンへ（%と_をエスケープしてから %term% に）
+        '    Dim pCustomerCode As String = Utils.BuildLikePattern(customerCode, LikeMode.Contains)
+        '    Dim pCustomerName As String = Utils.BuildLikePattern(customerName, LikeMode.Contains)
+        '    Dim pProfitCenter As String = Utils.BuildLikePattern(profitCenter, LikeMode.Contains)
+        '    Dim pCustomerUnitName As String = Utils.BuildLikePattern(customerUnitName, LikeMode.Contains)
+        '    Dim pProdMgmtUserId As String = Utils.BuildLikePattern(prodMgmtUserId, LikeMode.Contains)
+        '    Dim pActiveFlag As String = If(String.IsNullOrWhiteSpace(activeFlag), Nothing, activeFlag.Trim())
+        '    ' 2026/02/16 R.Sagisaka
+        '    'Dim pCustomerSettingId As String = Utils.BuildLikePattern(customerSettingId, LikeMode.Contains)
+        '    ' 2026/02/16 R.Sagisaka Add end
 
-            If pCustomerCode IsNot Nothing Then
-                sb.AppendLine("AND UPPER(customer_code) LIKE UPPER(:p_ccode) ESCAPE '\' ")
-                prm.Add(New OracleParameter(":p_ccode", OracleDbType.Varchar2) With {.Value = pCustomerCode})
-            End If
+        '    If pCustomerCode IsNot Nothing Then
+        '        sb.AppendLine("AND UPPER(customer_code) LIKE UPPER(:p_ccode) ESCAPE '\' ")
+        '        prm.Add(New OracleParameter(":p_ccode", OracleDbType.Varchar2) With {.Value = pCustomerCode})
+        '    End If
 
-            If pCustomerName IsNot Nothing Then
-                sb.AppendLine("AND UPPER(customer_name) LIKE UPPER(:p_cname) ESCAPE '\' ")
-                prm.Add(New OracleParameter(":p_cname", OracleDbType.Varchar2) With {.Value = pCustomerCode})
-            End If
+        '    If pCustomerName IsNot Nothing Then
+        '        sb.AppendLine("AND UPPER(customer_name) LIKE UPPER(:p_cname) ESCAPE '\' ")
+        '        prm.Add(New OracleParameter(":p_cname", OracleDbType.Varchar2) With {.Value = pCustomerCode})
+        '    End If
 
-            If pProfitCenter IsNot Nothing Then
-                sb.AppendLine("AND UPPER(profit_center) LIKE UPPER(:p_pc) ESCAPE '\' ")
-                prm.Add(New OracleParameter(":p_pc", OracleDbType.Varchar2) With {.Value = pProfitCenter})
-            End If
+        '    If pProfitCenter IsNot Nothing Then
+        '        sb.AppendLine("AND UPPER(profit_center) LIKE UPPER(:p_pc) ESCAPE '\' ")
+        '        prm.Add(New OracleParameter(":p_pc", OracleDbType.Varchar2) With {.Value = pProfitCenter})
+        '    End If
 
-            If pCustomerUnitName IsNot Nothing Then
-                sb.AppendLine("AND UPPER(customer_unit_name) LIKE UPPER(:p_cuname) ESCAPE '\' ")
-                prm.Add(New OracleParameter(":p_cuname", OracleDbType.Varchar2) With {.Value = pCustomerUnitName})
-            End If
+        '    If pCustomerUnitName IsNot Nothing Then
+        '        sb.AppendLine("AND UPPER(customer_unit_name) LIKE UPPER(:p_cuname) ESCAPE '\' ")
+        '        prm.Add(New OracleParameter(":p_cuname", OracleDbType.Varchar2) With {.Value = pCustomerUnitName})
+        '    End If
 
-            If status IsNot Nothing Then
-                sb.AppendLine("AND UPPER(status) LIKE UPPER(:p_status) ESCAPE '\' ")
-                prm.Add(New OracleParameter(":p_status", OracleDbType.Varchar2) With {.Value = status})
-            End If
+        '    If status IsNot Nothing Then
+        '        sb.AppendLine("AND UPPER(status) LIKE UPPER(:p_status) ESCAPE '\' ")
+        '        prm.Add(New OracleParameter(":p_status", OracleDbType.Varchar2) With {.Value = status})
+        '    End If
 
-            If pProdMgmtUserId IsNot Nothing Then
-                Dim isAdmin As Boolean = String.Equals(prodMgmtUserId, AdminUserID, StringComparison.OrdinalIgnoreCase)
-                If Not isAdmin Then
-                    'sb.AppendLine("AND UPPER(prod_mgmt_user_id) = :p_user ")
-                    sb.AppendLine("AND UPPER(prod_mgmt_user_id) LIKE UPPER(:p_user) ")
-                    prm.Add(New OracleParameter(":p_user", OracleDbType.Varchar2) With {.Value = pProdMgmtUserId})
-                End If
-            End If
+        '    If pProdMgmtUserId IsNot Nothing Then
+        '        Dim isAdmin As Boolean = String.Equals(prodMgmtUserId, AdminUserID, StringComparison.OrdinalIgnoreCase)
+        '        If Not isAdmin Then
+        '            'sb.AppendLine("AND UPPER(prod_mgmt_user_id) = :p_user ")
+        '            sb.AppendLine("AND UPPER(prod_mgmt_user_id) LIKE UPPER(:p_user) ")
+        '            prm.Add(New OracleParameter(":p_user", OracleDbType.Varchar2) With {.Value = pProdMgmtUserId})
+        '        End If
+        '    End If
 
-            If Not String.IsNullOrEmpty(pActiveFlag) Then
-                'sb.AppendLine("AND UPPER(active_flag) = :p_active ")
-                sb.AppendLine("AND UPPER(active_flag) = UPPER(:p_active) ")
-                prm.Add(New OracleParameter(":p_active", OracleDbType.Char) With {.Value = pActiveFlag})
-            End If
+        '    If Not String.IsNullOrEmpty(pActiveFlag) Then
+        '        'sb.AppendLine("AND UPPER(active_flag) = :p_active ")
+        '        sb.AppendLine("AND UPPER(active_flag) = UPPER(:p_active) ")
+        '        prm.Add(New OracleParameter(":p_active", OracleDbType.Char) With {.Value = pActiveFlag})
+        '    End If
 
-            ' 2026/02/16 R.Sagisaka
-            If customerSettingId <> -1 Then
-                sb.AppendLine("AND customer_setting_id = :p_csid ")
-                prm.Add(New OracleParameter(":p_csid", OracleDbType.Int64) With {.Value = customerSettingId})
-            End If
-            ' 2026/02/16 R.Sagisaka Add end
+        '    ' 2026/02/16 R.Sagisaka
+        '    If customerSettingId <> -1 Then
+        '        sb.AppendLine("AND customer_setting_id = :p_csid ")
+        '        prm.Add(New OracleParameter(":p_csid", OracleDbType.Int64) With {.Value = customerSettingId})
+        '    End If
+        '    ' 2026/02/16 R.Sagisaka Add end
 
-            sb.AppendLine("ORDER BY created_at, customer_setting_id ")
+        '    sb.AppendLine("ORDER BY created_at, customer_setting_id ")
 
-            Using conn As New OracleConnection(_connectionString)
-                Using cmd As New OracleCommand(sb.ToString(), conn)
-                    cmd.BindByName = True
-                    cmd.CommandType = CommandType.Text
-                    If prm.Count > 0 Then cmd.Parameters.AddRange(prm.ToArray())
-                    conn.Open()
-                    Using reader As OracleDataReader = cmd.ExecuteReader()
-                        dt.Load(reader)
-                    End Using
-                End Using
-            End Using
+        '    Using conn As New OracleConnection(_connectionString)
+        '        Using cmd As New OracleCommand(sb.ToString(), conn)
+        '            cmd.BindByName = True
+        '            cmd.CommandType = CommandType.Text
+        '            If prm.Count > 0 Then cmd.Parameters.AddRange(prm.ToArray())
+        '            conn.Open()
+        '            Using reader As OracleDataReader = cmd.ExecuteReader()
+        '                dt.Load(reader)
+        '            End Using
+        '        End Using
+        '    End Using
 
-            Return dt
-        End Function
+        '    Return dt
+        'End Function
 
         ''' <summary>
         ''' 指定の customer setting id list のレコードを抽出
@@ -1175,6 +1179,12 @@ Namespace OMS.Data
                 osr.DeliveryTime = If(dt.Field(Of Decimal?)("delivery_time"), 0)
             End If
 
+            If (dt.Table.Columns.Contains("delivery_type")) Then
+                osr.DeliveryType = dt.Field(Of String)("delivery_type")
+            End If
+            If (dt.Table.Columns.Contains("production_month_type")) Then
+                osr.ProductionMonthType = dt.Field(Of String)("production_month_type")
+            End If
             osr.UsageLocation = dt.Field(Of String)("usage_location")
             osr.ProductionCategory = dt.Field(Of String)("production_category")
             osr.Char2 = dt.Field(Of String)("char_2")
@@ -1233,6 +1243,8 @@ Namespace OMS.Data
                 osr.TargetReferenceDateType = dt.Field(Of String)("target_reference_date_type")
                 osr.TargetReferenceDate = dt.Field(Of String)("target_reference_date")
                 osr.InfoTypeCode = dt.Field(Of String)("info_type_code")
+                osr.DeliveryType = dt.Field(Of String)("delivery_type")
+                osr.ProductionMonthType = dt.Field(Of String)("production_month_type")
             End If
 
             Return osr
@@ -2044,6 +2056,9 @@ Namespace OMS.Data
         Public Property TargetReferenceDate As String           '対象基準日      VARCHAR2    8 CHAR
         Public Property InfoTypeCode As String                  '情報区分コード  VARCHAR2    4 CHAR
 
+        Public Property DeliveryType As String                  '納入指示区分		VARCHAR2	5 Char
+        Public Property ProductionMonthType As String           '生産月度区分		VARCHAR2	1 Char
+
         Public Function IsCorrect() As Boolean
 
             'CUSTOMER_SETTING_ID（取引先設定ID）
@@ -2220,6 +2235,9 @@ Namespace OMS.Data
             dst.TargetReferenceDateType = src.TargetReferenceDateType
             dst.TargetReferenceDate = src.TargetReferenceDate
             dst.InfoTypeCode = src.InfoTypeCode
+
+            dst.DeliveryType = src.DeliveryType
+            dst.ProductionMonthType = src.ProductionMonthType
 
             Return dst
 
