@@ -1596,9 +1596,9 @@ Namespace OMS.Data
                     ' 件数判定
                     If hitCount = 0 Then
                         '結果が0件
-                        'errorMessage = "品目No及び製品コードが取得できません。"
-                        'Debug用
-                        errorMessage = "品目No及び製品コードが取得できません。" & "品目No:" & pCustomerItemNo & " (Debug用)"
+                        errorMessage = "品目No及び製品コードが取得できません。"
+                        ''Debug用
+                        'errorMessage = "品目No及び製品コードが取得できません。" & "品目No:" & pCustomerItemNo & " (Debug用)"
 
                         'Return False
                     ElseIf hitCount = 1 Then
@@ -1712,9 +1712,9 @@ Namespace OMS.Data
                         ' 件数判定
                         If hitCount = 0 Then
                             '結果が0件
-                            'errorMessage = "品目No及び製品コードが取得できません。"
-                            'Debug用
-                            errorMessage = "品目No及び製品コードが取得できません。" & "品目No:" & orgCustomerItemNo & " (Debug用)"
+                            errorMessage = "品目No及び製品コードが取得できません。"
+                            ''Debug用
+                            'errorMessage = "品目No及び製品コードが取得できません。" & "品目No:" & orgCustomerItemNo & " (Debug用)"
 
                             'Return False
                         ElseIf hitCount = 1 Then
