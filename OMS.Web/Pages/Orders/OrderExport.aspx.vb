@@ -472,27 +472,29 @@ Namespace Pages.Orders
                 '                tran = conn.BeginTransaction()
                 '                ' #### DEBUG
                 '#End If
-                ' 作成したファイルの転送 (Zip)
-                '受注ファイル出力_出力日時(yyyyMMddhhmmss).zip
-                Dim orderFilename = repo.GeOrderZipFilename("受注ファイル出力", FileDate)
-                ' 裏画面 Download
-                'Utils.FilesTransfer(Response, Server, fileList, orderFilename)
 
-                Dim fileListName = Path.Combine(strPath, Utils.GetTempFileName("FileList"))
-                Utils.SaveFileList(fileListName, fileList)
-                Dim url As String = $"DownloadProcess.ashx?file={HttpUtility.UrlEncode(orderFilename)}&list={HttpUtility.UrlEncode(fileListName)}"
-                Dim script As String = $"document.getElementById('downloadFrame').src = '{url}';"
-                ClientScript.RegisterStartupScript(Me.GetType(), "downloadScript", script, True)
+                If (fileList.Count <> 0) Then
+                    ' 作成したファイルの転送 (Zip)
+                    '受注ファイル出力_出力日時(yyyyMMddhhmmss).zip
+                    Dim orderFilename = repo.GeOrderZipFilename("受注ファイル出力", FileDate)
+                    ' 裏画面 Download
+                    'Utils.FilesTransfer(Response, Server, fileList, orderFilename)
 
-                '完了メッセージ表示
-                'lblResult.Text = "ファイル出力完了しました。"
-                '#If DEBUG Then
-                '                ' #### DEBUG
-                '                tran.Commit()
-                '                tran = conn.BeginTransaction()
-                '                ' #### DEBUG
-                '#End If
+                    Dim fileListName = Path.Combine(strPath, Utils.GetTempFileName("FileList"))
+                    Utils.SaveFileList(fileListName, fileList)
+                    Dim url As String = $"DownloadProcess.ashx?file={HttpUtility.UrlEncode(orderFilename)}&list={HttpUtility.UrlEncode(fileListName)}"
+                    Dim script As String = $"document.getElementById('downloadFrame').src = '{url}';"
+                    ClientScript.RegisterStartupScript(Me.GetType(), "downloadScript", script, True)
 
+                    '完了メッセージ表示
+                    'lblResult.Text = "ファイル出力完了しました。"
+                    '#If DEBUG Then
+                    '                ' #### DEBUG
+                    '                tran.Commit()
+                    '                tran = conn.BeginTransaction()
+                    '                ' #### DEBUG
+                    '#End If
+                End If
             Catch ex As Exception
                 Dim m = ex.Message
                 errors.Add(ex.Message)
