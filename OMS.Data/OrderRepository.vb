@@ -940,6 +940,63 @@ Namespace OMS.Data
             Return errorMessage
         End Function
 
+        Public Function UpdateOrderStatus(conn As OracleConnection, tran As OracleTransaction, ByVal updateDate As Date, ByVal userId As String, ByVal prgId As String) As String
+            '' 1. 接続文字列の設定（環境に合わせて変更してください）
+            'Dim connectionString As String = "User Id=your_user;Password=your_password;Data Source=your_datasource;"
+            Dim rt As String = ""
+
+            ' 2. 実行するMERGE文の定義（変数は「:名前」の形式でプレースホルダーにします）
+            Dim sql As String = "
+                                MERGE INTO ORDERS d
+                                USING (
+                                    SELECT DISTINCT CUSTOMER_ORDER_NO
+                                    FROM PROD_PLAN_STAGE
+                                    WHERE STATUS = 'EXPORTED'
+                                      AND ACTIVE_FLAG = 'Y'
+                                ) s
+                                ON (d.CUSTOMER_ORDER_NO = s.CUSTOMER_ORDER_NO)
+                                WHEN MATCHED THEN
+                                UPDATE SET 
+                                    d.STATUS          = 'EXPORTED',
+                                    d.UPDATED_AT      = :p_updatedate,
+                                    d.UPDATED_USER_ID = :p_userid,
+                                    d.UPDATED_PG_ID   = :p_prgid"
+
+            ' 3. データベース接続と実行
+            'Using conn As New OracleConnection(connectionString)
+            Using cmd As New OracleCommand(sql, conn)
+
+                ' Oracleはデフォルトでパラメータを「追加順（位置）」で紐付けるため、
+                ' 名前で確実に紐付けるようにこの設定を True にします（推奨）
+                cmd.BindByName = True
+
+                ' 4. 外部から渡された変数をパラメータとしてセット
+                cmd.Parameters.Add(New OracleParameter("p_updatedate", OracleDbType.Date)).Value = updateDate
+                cmd.Parameters.Add(New OracleParameter("p_userid", OracleDbType.Varchar2, 45)).Value = userId
+                cmd.Parameters.Add(New OracleParameter("p_prgid", OracleDbType.Varchar2, 45)).Value = prgId
+
+                Try
+                    ' 接続を開いて実行
+                    'conn.Open()
+                    Dim rowsAffected As Integer = cmd.ExecuteNonQuery()
+
+                    Console.WriteLine($"{rowsAffected} 件のレコードを更新しました。")
+
+                Catch ex As OracleException
+                    ' エラーハンドリング
+                    'Console.WriteLine($"Oracleエラーが発生しました: {ex.Message}")
+                    rt = $"Oracleエラーが発生しました: {ex.Message}"
+                    'Throw
+                Catch ex As Exception
+                    'Console.WriteLine($"エラーが発生しました: {ex.Message}")
+                    rt = $"エラーが発生しました: {ex.Message}"
+                    'Throw
+                End Try
+            End Using
+            'End Using
+            Return rt
+        End Function
+
         ''' <summary>
         ''' customerSettingId と status で OrderStage レコードを削除する
         ''' R.sagisaka create

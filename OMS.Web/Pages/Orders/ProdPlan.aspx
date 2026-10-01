@@ -10,8 +10,28 @@
     <link href="~/Styles/Process.css" rel="stylesheet" type="text/css" />
     <link href="~/Styles/Search.css" rel="stylesheet" type="text/css" />
     <link href="~/Styles/CustomFileUpload.css" rel="stylesheet" type="text/css" />
+    <link href="~/Styles/ModalMessage.css" rel="stylesheet" type="text/css" />
     <script type="text/javascript" src="<%= ResolveUrl("~/Scripts/Custom/PreventEnterSubmit.js") %>"></script>
     <script type="text/javascript" src="<%= ResolveUrl("~/Scripts/Custom/GridCheckAll.js") %>"></script>
+
+    <script type="text/javascript">
+        function showErrorModal() {
+            var modal = document.getElementById('<%= errorModalOverlay.ClientID %>');
+            if (modal) modal.style.display = 'flex';
+        }
+        function closeErrorModal() {
+            var modal = document.getElementById('<%= errorModalOverlay.ClientID %>');
+            if (modal) modal.style.display = 'none';
+        }
+        function onButtonClick(btn) {
+            var overlay = document.getElementById('loadingOverlay');
+            if (overlay) overlay.style.display = 'flex';
+            setTimeout(function () {
+                btn.disabled = true;
+            }, 50);
+            return true;
+        }
+    </script>
 </head>
 <body>
     <form id="form1" runat="server">
@@ -100,7 +120,7 @@
                 <asp:Button ID="btnProdPlan"           runat="server" CssClass="btn-asti btn-asti-process" Text="生産計画"  
                     OnClick="btnProdPlan_Click" />
                 <asp:Button ID="btnExportProdPlanList" runat="server" CssClass="btn-asti secondary-excel " Text="Excel出力" 
-                    OnClick="btnExportProdPlanList_Click" />
+                    OnClick="btnExportProdPlanList_Click" OnClientClick="return onButtonClick(this);"/>
 
                 <!-- <asp:Button ID="btnTest1" runat="server" CssClass="btn-asti btn-asti-process" Text="テスト1" OnClick="btnTest1_Click" />
                 <asp:Button ID="btnTest2" runat="server" CssClass="btn-asti btn-asti-process" Text="テスト2" OnClick="btnTest2_Click" /> -->
@@ -111,7 +131,7 @@
                     <asp:FileUpload ID="FileUpload1" runat="server"  />
                     <!-- <label for="<%= FileUpload1.ClientID %>" class="btn-asti secondary-excel ">Excel取込</label> -->
                     <asp:Button ID="Button1" runat="server" CssClass="btn-asti secondary-excel " Text="Excel取込" 
-                        OnClick="btnImportProdPlanList_Click" />
+                        OnClick="btnImportProdPlanList_Click" OnClientClick="return onButtonClick(this);"/>
                  </div> 
             </div>
             <!-- 生産計画 ボタン押下 データなし 継続確認 -->
@@ -120,7 +140,7 @@
                 <!-- <label for="txtSearchCustomerUnitName">生産計画条件マスタに登録されていないデータを検出しました。​生産計画を続行しますか？​</label> -->
                 <asp:Button ID="btnProdPlanOK" runat="server" CssClass="btn-asti btn-asti-process" Text="はい" CausesValidation="false"  
                     OnClick="btnProdPlanOK_Click"
-                    OnClientClick="btnProdPlanOK.style.display='none';btnProdPlanNO.style.display='none';lblProdPlanContinueMessage.style.display='none';"
+                    OnClientClick="btnProdPlanOK.style.display='none';btnProdPlanNO.style.display='none';lblProdPlanContinueMessage.style.display='none'; "
                     />
                 <asp:Button ID="btnProdPlanNO"  runat="server" CssClass="btn-asti btn-asti-process" Text="いいえ" CausesValidation="false" OnClick="btnProdPlanNO_Click" />
                 <!-- ダウンロードを裏で実行するための隠し iframe -->
@@ -132,6 +152,56 @@
                 <asp:Label ID="lblResult" runat="server" ForeColor="Green" />
                 <asp:Label ID="lblError" runat="server" ForeColor="Red" />
            </div>
+
+
+                <!--------------------------------------------->
+                <!-- エラー表示用ポップアップ (Modal Dialog) -->
+                <div id="errorModalOverlay" class="modal-overlay" runat="server">
+                    <div class="modal-dialog-custom">
+                        <div class="modal-header-custom">
+                            <h2>生産計画エラー一覧</h2>
+                            <button type="button" class="modal-close-btn" onclick="closeErrorModal();">&times;</button>
+                        </div>
+                        <div class="modal-body-custom">
+                            <p style="color: #c9302c; font-weight: bold; margin-top: 0; margin-bottom: 15px;">
+                                生産計画設定中にエラーが発生しました。詳細は下記および各フォルダの「エラーリスト」フォルダ内のCSVをご確認ください。
+                            </p>
+                            <div style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd;">
+                                <asp:GridView ID="gvErrorList" runat="server"
+                                    AutoGenerateColumns="False"
+                                    CssClass="data-grid"
+                                    BackColor="White"
+                                    BorderColor="#CCCCCC" BorderStyle="None" BorderWidth="1px"
+                                    CellPadding="6" ForeColor="Black" GridLines="Both" Width="100%">
+                                    <Columns>
+                                        <asp:TemplateField HeaderText="No" ItemStyle-Width="50px" ItemStyle-HorizontalAlign="Center">
+                                            <ItemTemplate>
+                                                <%# Container.DataItemIndex + 1 %>
+                                            </ItemTemplate>
+                                        </asp:TemplateField>
+                                        <asp:BoundField DataField="ErrorMessage" HeaderText="エラー内容" />
+                                    </Columns>
+                                    <HeaderStyle BackColor="#333333" Font-Bold="True" ForeColor="White" />
+                                    <RowStyle BackColor="#F7F7F7" />
+                                    <AlternatingRowStyle BackColor="White" />
+                                </asp:GridView>
+                            </div>
+                        </div>
+                        <div class="modal-footer-custom">
+                            <button type="button" class="btn-cancel" onclick="closeErrorModal();">閉じる</button>
+                        </div>
+                    </div>
+                </div>
+                <!-- 処理中ローディング表示 (Loading Overlay) -->
+                <div id="loadingOverlay" class="modal-overlay">
+                    <div class="loading-dialog">
+                        <div class="spinner"></div>
+                        <div style="font-size: 16px; font-weight: 600; color: #333;">生産計画設定中... しばらくお待ちください</div>
+                    </div>
+                </div>
+                <!--------------------------------------------->
+
+
     </form>
 </body>
 </html>
