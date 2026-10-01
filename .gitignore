@@ -380,3 +380,6 @@ OMS.Web/Web.config
 
 OMS.Web/App_Data/
 /OMS.Web/Pages/Orders/OrderExport.aspx.vb
+/OMS.Web/Pages/Orders/OrderImportStage.aspx
+/OMS.Web/Pages/Orders/OrderImportStage.aspx.designer.vb
+/OMS.Web/Pages/Orders/OrderImportStage.aspx.vb
