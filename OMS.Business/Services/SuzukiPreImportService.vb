@@ -25,6 +25,80 @@ Namespace Services
         End Sub
 
         ''' <summary>
+        ''' スズキ(SPIRITS)対応情報区分コード一覧 (2026/09/18 仕様書準拠)
+        ''' ※0813は仕様から除外されたためホワイトリストに含めません。
+        ''' </summary>
+        Public Shared ReadOnly SupportedInfoCodes As New HashSet(Of String)(StringComparer.OrdinalIgnoreCase) From {
+            "0501", "0502", "0600", "0602", "0630", "0650", "0651", "0740", "0814", "6604", "6624", "6634", "663N", "663S", "664T"
+        }
+
+        ''' <summary>
+        ''' 処理開始日より前月の生産月度記号を取得する
+        ''' (1月:A, 2月:B, 3月:C, 4月:D, 5月:E, 6月:F, 7月:G, 8月:H, 9月:J, 10月:K, 11月:M, 12月:N)
+        ''' ※EDI仕様に基づき 'I' および 'L' はスキップされます。1月の前月は12月('N')となります。
+        ''' </summary>
+        Public Shared Function GetPreviousMonthSymbol(refDate As DateTime) As String
+            Dim prevMonth As Integer = If(refDate.Month = 1, 12, refDate.Month - 1)
+            Select Case prevMonth
+                Case 1 : Return "A"
+                Case 2 : Return "B"
+                Case 3 : Return "C"
+                Case 4 : Return "D"
+                Case 5 : Return "E"
+                Case 6 : Return "F"
+                Case 7 : Return "G"
+                Case 8 : Return "H"
+                Case 9 : Return "J"
+                Case 10 : Return "K"
+                Case 11 : Return "M"
+                Case 12 : Return "N"
+                Case Else : Return String.Empty
+            End Select
+        End Function
+
+        ''' <summary>
+        ''' 【2026/09/25 仕様追加】情報区分コード: 0600 かつ ながれ納入方式(DELIVERY_TYPE LIKE '%NN%')の前月度データを無効化(ACTIVE_FLAG='N')する
+        ''' </summary>
+        Public Function InvalidatePreviousMonthNagareOrders(conn As OracleConnection, tran As OracleTransaction, processDate As DateTime, userId As String, pgId As String, logger As Logger) As Integer
+            Dim prevSymbol = GetPreviousMonthSymbol(processDate)
+            If String.IsNullOrEmpty(prevSymbol) Then Return 0
+
+            Const sql As String =
+                "UPDATE orders " &
+                "SET active_flag = 'N', " &
+                "    updated_at = :p_updated_at, " &
+                "    updated_user_id = :p_user_id, " &
+                "    updated_pg_id = :p_pg_id " &
+                "WHERE customer_code = '5455' " &
+                "  AND info_type_code = '0600' " &
+                "  AND delivery_type LIKE '%NN%' " &
+                "  AND production_month_type = :p_prev_month_symbol " &
+                "  AND active_flag = 'Y'"
+
+            Try
+                Using cmd As New OracleCommand(sql, conn)
+                    cmd.Transaction = tran
+                    cmd.BindByName = True
+                    cmd.Parameters.Add(":p_updated_at", OracleDbType.Date).Value = DateTime.Now
+                    cmd.Parameters.Add(":p_user_id", OracleDbType.Varchar2, 9).Value = SafeVarchar(userId, 9)
+                    cmd.Parameters.Add(":p_pg_id", OracleDbType.Varchar2, 150).Value = SafeVarchar(pgId, 150)
+                    cmd.Parameters.Add(":p_prev_month_symbol", OracleDbType.Varchar2, 1).Value = prevSymbol
+
+                    Dim count = cmd.ExecuteNonQuery()
+                    logger.Write($"[SUZUKI_IMPORT] ながれ納入無効化処理 (対象月度記号: '{prevSymbol}'): {count} 件を無効化しました。")
+                    Return count
+                End Using
+            Catch ex As OracleException When ex.Number = 904
+                ' ORA-00904: 列名が存在しない場合 (DB側の列追加前でも安全にバイパス)
+                logger.Write($"[SUZUKI_IMPORT] ながれ納入無効化通知: ORDERSテーブルに DELIVERY_TYPE / PRODUCTION_MONTH_TYPE 列が未追加のためスキップします。")
+                Return 0
+            Catch ex As Exception
+                logger.Write($"[SUZUKI_IMPORT] ながれ納入無効化エラー: {ex.Message}")
+                Return 0
+            End Try
+        End Function
+
+        ''' <summary>
         ''' 取込処理メインエントリ
         ''' </summary>
         Public Function ExecuteImport(folderPath As String, customerSettingId As Long, folderType As Integer, Optional userId As String = "SUZUKI-AT", Optional isBatch As Boolean = True, Optional reconcileFlag As String = "", Optional fcstReconcileFlag As String = "", Optional ByRef webErrors As List(Of String) = Nothing, Optional ByRef outStageRows As List(Of ImpFilesStageRow) = Nothing, Optional ByRef totalFilesCount As Integer = 0, Optional ByRef validFilesCount As Integer = 0, Optional ByRef errorFilesCount As Integer = 0) As Integer
@@ -113,6 +187,10 @@ Namespace Services
                         If runRow.ImpRunId.HasValue Then
                             impRunId = runRow.ImpRunId.Value
                         End If
+
+                        ' 【2026/09/25 仕様追加】ながれ納入方式 前月度データ無効化処理
+                        InvalidatePreviousMonthNagareOrders(conn, tran, DateTime.Now, userId, "OrderImport(Stage)", logger)
+
                         tran.Commit()
                     Catch ex As Exception
                         tran.Rollback()
@@ -180,18 +258,28 @@ Namespace Services
                         ' 種別判定
                         Dim diagMsg As String = ""
                         Dim infoCode = SuzukiCsvParser.PeekInfoTypeCode(workFilePath, diagMsg)
-                        If String.IsNullOrEmpty(infoCode) OrElse infoCode.Length <> 4 Then
+                        If String.IsNullOrEmpty(infoCode) OrElse infoCode.Length <> 4 OrElse Not SupportedInfoCodes.Contains(infoCode) Then
                             errorFilesCount += 1
-                            logger.Write($"[SUZUKI_IMPORT] Invalid or missing INFO_TYPE_CODE in file: {fileName}. Detail: {diagMsg}")
 
-                            Dim userErrMsg = $"【{fileName}】対象データが1件もありません。"
+                            Dim reasonMsg As String
+                            If infoCode = "0813" Then
+                                ' 2026/09/18 仕様変更により除外されたコード
+                                reasonMsg = "情報区分コード0813は2026/09/18仕様変更により取込対象外です。"
+                                logger.Write($"[SUZUKI_IMPORT] 廃止された情報区分コード 0813 を検知しました ({fileName})。スキップします。")
+                            Else
+                                reasonMsg = If(Not String.IsNullOrEmpty(diagMsg), diagMsg, $"未対応の情報区分コードです ({infoCode})")
+                                logger.Write($"[SUZUKI_IMPORT] 未対応または不正な情報区分コード '{infoCode}' を検知しました ({fileName})。Detail: {diagMsg}")
+                            End If
+
+                            Dim userErrMsg = $"【{fileName}】{reasonMsg}"
                             If webErrors IsNot Nothing Then
                                 webErrors.Add(userErrMsg)
                             End If
 
-                            Dim errList As New List(Of String)()
-                            errList.Add("対象データが1件もありません。")
-                            If Not String.IsNullOrEmpty(diagMsg) Then
+                            Dim errList As New List(Of String)() From {
+                                reasonMsg
+                            }
+                            If Not String.IsNullOrEmpty(diagMsg) AndAlso Not errList.Contains(diagMsg) Then
                                 errList.Add(diagMsg)
                             End If
                             ExportErrorsToCsv(folderPath, fileName, errList, isBatch)
@@ -363,7 +451,7 @@ Namespace Services
 
                 Case "0600", "0630"
                     Dim repo As New Spirits0600And0630Repository(_connectionString)
-                    Dim rows = SuzukiCsvParser.Parse0600And0630(filePath)
+                    Dim rows = SuzukiCsvParser.Parse0600And0630(filePath, _connectionString)
                     If rows.Count = 0 Then Throw New Exception("対象データが1件もありません。")
                     For Each r In rows
                         r.ImpRunId = impRunId
@@ -451,23 +539,23 @@ Namespace Services
                     If Not String.IsNullOrEmpty(dbErr) Then Throw New Exception(dbErr)
                     insertedCount = rows.Count
 
-                Case "0813"
-                    Dim repo As New Spirits0813Repository(_connectionString)
-                    Dim rows = SuzukiCsvParser.ParseSpirits0813(filePath)
-                    If rows.Count = 0 Then Throw New Exception("対象データが1件もありません。")
-                    For Each r In rows
-                        r.ImpRunId = impRunId
-                        r.ImpFileId = impFileStageId
-                        r.CreatedUserId = userId
-                        r.CreatedPgId = "OrderImport(Stage)"
-                        r.CreatedAt = DateTime.Now
-                        r.UpdatedUserId = userId
-                        r.UpdatedPgId = "OrderImport(Stage)"
-                        r.UpdatedAt = DateTime.Now
-                    Next
-                    Dim dbErr = repo.InsertRange(conn, tran, rows)
-                    If Not String.IsNullOrEmpty(dbErr) Then Throw New Exception(dbErr)
-                    insertedCount = rows.Count
+                ' Case "0813" ' 2026/09/18 仕様変更により取込対象外
+                '     Dim repo As New Spirits0813Repository(_connectionString)
+                '     Dim rows = SuzukiCsvParser.ParseSpirits0813(filePath)
+                '     If rows.Count = 0 Then Throw New Exception("対象データが1件もありません。")
+                '     For Each r In rows
+                '         r.ImpRunId = impRunId
+                '         r.ImpFileId = impFileStageId
+                '         r.CreatedUserId = userId
+                '         r.CreatedPgId = "OrderImport(Stage)"
+                '         r.CreatedAt = DateTime.Now
+                '         r.UpdatedUserId = userId
+                '         r.UpdatedPgId = "OrderImport(Stage)"
+                '         r.UpdatedAt = DateTime.Now
+                '     Next
+                '     Dim dbErr = repo.InsertRange(conn, tran, rows)
+                '     If Not String.IsNullOrEmpty(dbErr) Then Throw New Exception(dbErr)
+                '     insertedCount = rows.Count
 
                 Case "0814"
                     Dim repo As New Spirits0814Repository(_connectionString)
@@ -552,7 +640,7 @@ Namespace Services
                 Case "0650" : Return "SUZUKI_SPIRITS_0650"
                 Case "0651" : Return "SUZUKI_SPIRITS_0651"
                 Case "0740" : Return "SUZUKI_SPIRITS_0740"
-                Case "0813" : Return "SUZUKI_SPIRITS_0813"
+                ' Case "0813" : Return "SUZUKI_SPIRITS_0813" ' 2026/09/18 仕様変更により除外
                 Case "0814" : Return "SUZUKI_SPIRITS_0814"
                 Case "6604", "6634" : Return "SUZUKI_SPIRITS_6604AND6634"
                 Case "6624" : Return "SUZUKI_SPIRITS_6624"

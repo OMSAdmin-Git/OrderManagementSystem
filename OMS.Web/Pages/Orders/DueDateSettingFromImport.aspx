@@ -130,6 +130,16 @@
                 <asp:Label ID="lblError" runat="server" ForeColor="Red" />
             </div>
 
+            <%--
+            <!-- 処理中ローディング表示 (Loading Overlay) -->
+            <div id="loadingOverlay" class="modal-overlay">
+                <div class="loading-dialog">
+                    <div class="spinner"></div>
+                    <div style="font-size: 16px; font-weight: 600; color: #333;">納期設定処理中... しばらくお待ちください</div>
+                </div>
+            </div>
+            --%>
+
             <!--------------------------------------------->
             <!-- エラー表示用ポップアップ (Modal Dialog) -->
             <div id="errorModalOverlay" class="modal-overlay" runat="server">
