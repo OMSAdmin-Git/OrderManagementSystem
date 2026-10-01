@@ -1038,23 +1038,25 @@ Namespace Pages.Orders
                 '----------------------------
                 ' Excel 出力
                 '----------------------------
-                Dim fileList As List(Of String) = New List(Of String)()
-                Dim filename = IO.Path.Combine(Server.MapPath("~/App_Data/Files/"), GetExcelFilename())
-                'errors.Add(exout.OrderExcelFile(filename, registerdOrders))
-                errors.Add(ProductPlanExcelOut(filename, registerdOrders))
-                If (CheckError(errors)) Then
-                    ' エラー
-                End If
-                ' Excel ファイル転送
-                fileList.Add(filename)
-                Dim orderFilename = repo.GeOrderZipFilename("生産計画_出力日時", ProcessingStartDate)
+                If (registerdOrders.Count <> 0) Then
+                    Dim fileList As List(Of String) = New List(Of String)()
+                    Dim filename = IO.Path.Combine(Server.MapPath("~/App_Data/Files/"), GetExcelFilename())
+                    'errors.Add(exout.OrderExcelFile(filename, registerdOrders))
+                    errors.Add(ProductPlanExcelOut(filename, registerdOrders))
+                    If (CheckError(errors)) Then
+                        ' エラー
+                    End If
+                    ' Excel ファイル転送
+                    fileList.Add(filename)
+                    Dim orderFilename = repo.GeOrderZipFilename("生産計画_出力日時", ProcessingStartDate)
 
-                ' 別ページでDownload 処理を行う
-                Dim fileListName = IO.Path.Combine(Server.MapPath("~/App_Data/Files/"), Utils.GetTempFileName("FileList.txt"))
-                Utils.SaveFileList(fileListName, fileList)
-                Dim url As String = $"DownloadProcess.ashx?file={HttpUtility.UrlEncode(orderFilename)}&list={HttpUtility.UrlEncode(fileListName)}"
-                Dim script As String = $"document.getElementById('downloadFrame').src = '{url}';"
-                ClientScript.RegisterStartupScript(Me.GetType(), "downloadScript", script, True)
+                    ' 別ページでDownload 処理を行う
+                    Dim fileListName = IO.Path.Combine(Server.MapPath("~/App_Data/Files/"), Utils.GetTempFileName("FileList.txt"))
+                    Utils.SaveFileList(fileListName, fileList)
+                    Dim url As String = $"DownloadProcess.ashx?file={HttpUtility.UrlEncode(orderFilename)}&list={HttpUtility.UrlEncode(fileListName)}"
+                    Dim script As String = $"document.getElementById('downloadFrame').src = '{url}';"
+                    ClientScript.RegisterStartupScript(Me.GetType(), "downloadScript", script, True)
+                End If
             Catch ex As Exception
                 errors.Add(ex.Message)
             Finally

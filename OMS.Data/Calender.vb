@@ -38,7 +38,10 @@ Namespace OMS.Data
                                         And FHOLIDAYFLG = 'W' "
                         'cmd.Parameters.Add(":p_iCaleTyp", OracleDbType.Char, 20).Value = piCaleTyp
                         cmd.Parameters.Add(":p_iDate", OracleDbType.Date).Value = iDate
-                        tdate = cmd.ExecuteScalar()
+                        Dim obj = cmd.ExecuteScalar()
+                        If obj IsNot Nothing AndAlso Not Convert.IsDBNull(obj) Then
+                            tdate = Convert.ToDateTime(obj)
+                        End If
                     End Using
                     conn.Close()
                 End Using
