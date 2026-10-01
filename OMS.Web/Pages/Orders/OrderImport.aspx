@@ -11,6 +11,56 @@
     <link href="~/Styles/Search.css" rel="stylesheet" type="text/css" />
     <script type="text/javascript" src="<%= ResolveUrl("~/Scripts/Custom/PreventEnterSubmit.js") %>"></script>
     <script type="text/javascript" src="<%= ResolveUrl("~/Scripts/Custom/GridCheckAll.js") %>"></script>
+    <%--    
+    <script type="text/javascript">
+        function onImportFileClick(btn) {
+            var overlay = document.getElementById('loadingOverlay');
+            if (overlay) overlay.style.display = 'flex';
+            setTimeout(function () {
+                btn.disabled = true;
+            }, 50);
+            return true;
+        }
+    </script>
+    <style type="text/css">
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+        .loading-dialog {
+            background-color: #fff;
+            padding: 30px 45px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+        .spinner {
+            width: 44px;
+            height: 44px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #0056b3;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+    --%>
+
 </head>
 <body>
     <form id="form1" runat="server">
@@ -77,7 +127,8 @@
                                     <%# OMS.Common.Utils.ToFolderTypeNameSafe(Eval("FolderType")) %>
                                 </ItemTemplate>
                             </asp:TemplateField>
-                            <asp:BoundField DataField="SpProcessType" HeaderText="特殊加工区分(Debug用)"  />
+                            <%--<asp:BoundField DataField="SpProcessType" HeaderText="特殊加工区分(Debug用)"  />--%>
+                            <asp:BoundField DataField="SpProcessType" HeaderText="特殊加工区分" Visible="false" />
                             <asp:BoundField DataField="FolderPath" HeaderText="フォルダパス" Visible="false" />
                             <asp:BoundField DataField="FileName" HeaderText="ファイル名" />
                             <asp:BoundField DataField="StagedFolderPath" HeaderText="WORKフォルダパス" Visible="false" />
@@ -123,8 +174,8 @@
 
             <!-- アクションボタン -->
             <div class="action-buttons">
-                <%--<asp:Button ID="btnImportCancel" runat="server" CssClass="btn-asti btn-asti-process" Text="破棄" OnClick="btnImportCancel_Click" />--%>
                 <asp:Button ID="btnImportCancel" runat="server" CssClass="btn-asti btn-asti-process" Text="破棄" OnClick="btnImportCancel_Click" />
+                <%--<asp:Button ID="btnImportFile" runat="server" CssClass="btn-asti btn-asti-process" Text="取込実行" OnClick="btnImportFile_Click" OnClientClick="return onImportFileClick(this);" />--%>
                 <asp:Button ID="btnImportFile" runat="server" CssClass="btn-asti btn-asti-process" Text="取込実行" OnClick="btnImportFile_Click" />
             </div>
 
@@ -196,6 +247,16 @@
                 <br />
                 <asp:Label ID="lblSaveError" runat="server" ForeColor="Red" />
             </div>
+
+            <%--
+            <!-- 処理中ローディング表示 (Loading Overlay) -->
+            <div id="loadingOverlay" class="modal-overlay">
+                <div class="loading-dialog">
+                    <div class="spinner"></div>
+                    <div style="font-size: 16px; font-weight: 600; color: #333;">取込実行処理中... しばらくお待ちください</div>
+                </div>
+            </div>
+            --%>
 
         </div>
     </form>
