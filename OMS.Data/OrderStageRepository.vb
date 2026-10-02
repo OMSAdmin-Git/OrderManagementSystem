@@ -3364,7 +3364,7 @@ Namespace OMS.Data
                         'curList.Add(row.ItemNo, row)
 
                         Dim row As New OrderSummaryRow With {
-                            .itemNo = itemNo,
+                            .ItemNo = itemNo,
                             .EarliestDueDate = dueDate,
                             .TotalDemandQty = Convert.ToDecimal(dr("total_demand_qty"))
                         }
@@ -3916,7 +3916,7 @@ Namespace OMS.Data
                         Dim dueDate As DateTime = Convert.ToDateTime(dr("earliest_pre_daily_delivery_date"))
 
                         Dim row As New OrderSummaryRow With {
-                            .itemNo = itemNo,
+                            .ItemNo = itemNo,
                             .EarliestDueDate = dueDate,
                             .TotalDemandQty = Convert.ToDecimal(dr("total_stra_order_backlog"))
                         }
