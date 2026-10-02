@@ -960,7 +960,8 @@ Namespace OMS.Data
                                     d.STATUS          = 'EXPORTED',
                                     d.UPDATED_AT      = :p_updatedate,
                                     d.UPDATED_USER_ID = :p_userid,
-                                    d.UPDATED_PG_ID   = :p_prgid"
+                                    d.UPDATED_PG_ID   = :p_prgid 
+                                WHERE d.DEMAND_STATUS = 'O' " ' 確定/納入指示に対して
 
             ' 3. データベース接続と実行
             'Using conn As New OracleConnection(connectionString)
