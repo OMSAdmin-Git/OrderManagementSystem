@@ -101,6 +101,13 @@ body {
     text-align: center;
 }
 
+/* 幅固定のファイル選択用ボタン */
+.btn-asti-fileselect {
+    width: 130px;
+    white-space: nowrap;
+    text-align: center;
+}
+
 /* ===================================================================
    入力項目（フォーム要素）
    -------------------------------------------------------------------
@@ -133,3 +140,8 @@ body {
         color: var(--n-c-red);
         border-color: var(--n-bc-red);
     }
+
+.label-filename {
+    display: inline-block;
+    width: 550px;
+}

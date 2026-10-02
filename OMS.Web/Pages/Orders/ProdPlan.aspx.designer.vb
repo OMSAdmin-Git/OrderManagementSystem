@@ -159,40 +159,31 @@ Namespace Pages.Orders
         Protected WithEvents btnExportProdPlanList As Global.System.Web.UI.WebControls.Button
 
         '''<summary>
-        '''btnTest1 コントロール。
+        '''btnDummy コントロール。
         '''</summary>
         '''<remarks>
         '''自動生成されたフィールド。
         '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
         '''</remarks>
-        Protected WithEvents btnTest1 As Global.System.Web.UI.WebControls.Button
+        Protected WithEvents btnDummy As Global.System.Web.UI.WebControls.Button
 
         '''<summary>
-        '''btnTest2 コントロール。
+        '''txtFileName コントロール。
         '''</summary>
         '''<remarks>
         '''自動生成されたフィールド。
         '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
         '''</remarks>
-        Protected WithEvents btnTest2 As Global.System.Web.UI.WebControls.Button
+        Protected WithEvents txtFileName As Global.System.Web.UI.WebControls.TextBox
 
         '''<summary>
-        '''btnImportProdPlanList コントロール。
+        '''fileUploadActual コントロール。
         '''</summary>
         '''<remarks>
         '''自動生成されたフィールド。
         '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
         '''</remarks>
-        Protected WithEvents btnImportProdPlanList As Global.System.Web.UI.WebControls.Button
-
-        '''<summary>
-        '''FileUpload1 コントロール。
-        '''</summary>
-        '''<remarks>
-        '''自動生成されたフィールド。
-        '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
-        '''</remarks>
-        Protected WithEvents FileUpload1 As Global.System.Web.UI.WebControls.FileUpload
+        Protected WithEvents fileUploadActual As Global.System.Web.UI.WebControls.FileUpload
 
         '''<summary>
         '''Button1 コントロール。
