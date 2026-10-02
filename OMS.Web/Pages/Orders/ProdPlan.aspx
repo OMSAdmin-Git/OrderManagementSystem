@@ -14,6 +14,7 @@
     <script type="text/javascript" src="<%= ResolveUrl("~/Scripts/Custom/PreventEnterSubmit.js") %>"></script>
     <script type="text/javascript" src="<%= ResolveUrl("~/Scripts/Custom/GridCheckAll.js") %>"></script>
 
+    <!-- ダイアログ表示するための JavaScript -->
     <script type="text/javascript">
         function showErrorModal() {
             var modal = document.getElementById('<%= errorModalOverlay.ClientID %>');
@@ -32,6 +33,33 @@
             return true;
         }
     </script>
+    <!----------------------------------------------->
+
+    <!-- ファイル選択 を連動させるためのJavaScript -->
+    <script type="text/javascript">
+        // 見かけのボタンがクリックされたとき、本物のFileUploadを代理クリックする
+        function triggerFileUpload() {
+            var fileInput = document.getElementById('<%= fileUploadActual.ClientID %>');
+            if (fileInput) {
+                fileInput.click();
+            }
+        }
+        // ファイルが選択されたとき、そのファイル名を表示用テキストボックスにセットする
+        function updateFileName() {
+            var fileInput = document.getElementById('<%= fileUploadActual.ClientID %>');
+            var txtDisplay = document.getElementById('<%= txtFileName.ClientID %>');
+
+            if (fileInput && txtDisplay) {
+                if (fileInput.files && fileInput.files.length > 0) {
+                    // 選択された最初のファイル名を取得
+                    txtDisplay.value = fileInput.files[0].name;
+                } else {
+                    txtDisplay.value = "";
+                }
+            }
+        }
+    </script>
+    <!----------------------------------------------->
 </head>
 <body>
     <form id="form1" runat="server">
@@ -121,17 +149,14 @@
                     OnClick="btnProdPlan_Click" />
                 <asp:Button ID="btnExportProdPlanList" runat="server" CssClass="btn-asti secondary-excel " Text="Excel出力" 
                     OnClick="btnExportProdPlanList_Click" OnClientClick="return onButtonClick(this);"/>
-
-                <!-- <asp:Button ID="btnTest1" runat="server" CssClass="btn-asti btn-asti-process" Text="テスト1" OnClick="btnTest1_Click" />
-                <asp:Button ID="btnTest2" runat="server" CssClass="btn-asti btn-asti-process" Text="テスト2" OnClick="btnTest2_Click" /> -->
-
-                <!-- <asp:Button ID="btnImportProdPlanList" runat="server" CssClass="btn-asti secondary-excel " Text="Excel取込" OnClick="btnImportProdPlanList_Click" /> -->
-
                  <div class="custom-file-upload"> 
-                    <asp:FileUpload ID="FileUpload1" runat="server"  />
-                    <!-- <label for="<%= FileUpload1.ClientID %>" class="btn-asti secondary-excel ">Excel取込</label> -->
-                    <asp:Button ID="Button1" runat="server" CssClass="btn-asti secondary-excel " Text="Excel取込" 
-                        OnClick="btnImportProdPlanList_Click" OnClientClick="return onButtonClick(this);"/>
+                     <!-- FileUpload の見た目を変える 実際に見えるデザイン用のボタンとファイル名表示用のテキストボックス -->
+                    <asp:Button ID="btnDummy" runat="server" Text="ファイルを選択" CssClass="btn-asti btn-asti-fileselect" OnClientClick="triggerFileUpload(); return false;" />
+                    <asp:TextBox ID="txtFileName" runat="server" ReadOnly="true" CssClass="label-filename" BackColor="White" BorderColor="White" BorderStyle="None" Font-Size="Medium" ForeColor="#3333CC" />
+                     <!-- 本物のFileUpload（非表示にする） -->
+                    <asp:FileUpload ID="fileUploadActual" runat="server" Style="display: none;" onchange="updateFileName();" />
+                     <!-- FileUpload 変更ここまで  ----->
+                    <asp:Button ID="Button1" runat="server" CssClass="btn-asti secondary-excel " Text="Excel取込" OnClick="btnImportProdPlanList_Click" OnClientClick="return onButtonClick(this);"/>
                  </div> 
             </div>
             <!-- 生産計画 ボタン押下 データなし 継続確認 -->
@@ -152,8 +177,6 @@
                 <asp:Label ID="lblResult" runat="server" ForeColor="Green" />
                 <asp:Label ID="lblError" runat="server" ForeColor="Red" />
            </div>
-
-
                 <!--------------------------------------------->
                 <!-- エラー表示用ポップアップ (Modal Dialog) -->
                 <div id="errorModalOverlay" class="modal-overlay" runat="server">

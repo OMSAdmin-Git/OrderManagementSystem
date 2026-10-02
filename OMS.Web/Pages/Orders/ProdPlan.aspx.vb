@@ -127,24 +127,6 @@ Namespace Pages.Orders
 
 #Region "アクション（生産計画／Excel出力／Excel取込）"
 
-        Protected Sub btnTest1_Click(sender As Object, e As EventArgs) Handles btnTest1.Click
-            'btnTest1.Visible = False
-            'lblProdPlanContinueMessage.Visible = False
-            'btnProdPlanOK.Visible = False
-            'btnProdPlanNO.Visible = False
-
-            btnProdPlanNO_Click(sender, e)
-
-        End Sub
-        Protected Sub btnTest2_Click(sender As Object, e As EventArgs) Handles btnTest1.Click
-            lblProdPlanContinueMessage.Visible = True
-            btnProdPlanOK.Visible = True
-            btnProdPlanNO.Visible = True
-            btnTest1.Visible = True
-
-        End Sub
-
-
         ' 生産計画ボタン
         Protected Sub btnProdPlan_Click(sender As Object, e As EventArgs) Handles btnProdPlan.Click
             'lblError.Text = "開発未着手"
@@ -1260,7 +1242,7 @@ Namespace Pages.Orders
             ' カレントディレクトリを取得する。
             Dim url As New Uri(Server.MapPath("."))                             ' url.AbsolutePath "I:/VS2022SRC_NET/VM-KAI05/OrderManagementSystem/OrderManagementSystem/OMS.Web/Pages/Orders"
             Dim path As String = GetWorkPath()  'url.LocalPath                  ' フォルダ: ユーザーのローカルパス
-            Dim fileName As String = FileUpload1.PostedFile.FileName            ' "受注フォーマット変換仕様まとめ案_20260218.xlsx"
+            Dim fileName As String = fileUploadActual.PostedFile.FileName            ' "受注フォーマット変換仕様まとめ案_20260218.xlsx"
             'Dim fullFileName As String = System.IO.Path.Combine(path, fileName) ' "I:\VS2022SRC_NET\VM-KAI05\OrderManagementSystem\OrderManagementSystem\OMS.Web\Pages\Orders\受注フォーマット変換仕様まとめ案_20260218.xlsx"
 
             If (fileName = "") Then
@@ -1270,7 +1252,7 @@ Namespace Pages.Orders
 
             ' ファイルを保存する。
             Dim strPath = Server.MapPath("~/App_Data/Files/")
-            FileUpload1.SaveAs(IO.Path.Combine(strPath, fileName))
+            fileUploadActual.SaveAs(IO.Path.Combine(strPath, fileName))
 
             'If (FileUpload1.HasFile) // ファイルがアップロードされているか Then
             '                {
