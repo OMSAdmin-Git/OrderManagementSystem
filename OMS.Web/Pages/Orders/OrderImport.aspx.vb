@@ -609,35 +609,15 @@ Namespace Pages.Orders
 
                             Try
 
-
-
                                 'マッピングマスタ取得処理
                                 'Dim mapError As String = ""
                                 'Dim blnflg As Boolean = False
                                 Dim mapResult As OMS.Data.OrderStageImport.MappingResult = OMS.Data.OrderStageImport.ResolveMapping(_mappingRepo, customerSettingId, folderType, errors)
 
-                                'Phase2対応 spprocesstype=1or2or3はマッピングマスタを使用しない
-                                'If mapResult Is Nothing Then
-                                'If mapResult Is Nothing And spprocesstype = 0 Then
-                                '    '特殊加工なし
-                                '    errors.Add($"顧客設定ID:{customerSettingId} - {mapError}")
-                                '    Continue For
-                                'ElseIf mapResult Is Nothing And spprocesstype = 1 And folderType <> 4 Then
-                                '    '特殊加工:スズキ フォルダ区分:混合以外
-                                '    errors.Add($"顧客設定ID:{customerSettingId} - {mapError}")
-                                '    Continue For
-                                'ElseIf mapResult Is Nothing And spprocesstype = 2 And folderType <> 4 Then
-                                '    '特殊加工:ヤマハ フォルダ区分:混合以外
-                                '    errors.Add($"顧客設定ID:{customerSettingId} - {mapError}")
-                                '    Continue For
-                                'End If
-
                                 'If mapResult IsNot Nothing AndAlso (spprocesstype = 0 OrElse
-                                '                                    (spprocesstype = 1 AndAlso chkHandFlag.Checked = True) OrElse
-                                '                                    (spprocesstype = 2 AndAlso chkHandFlag.Checked = True) OrElse
-                                '                                    (spprocesstype = 3 AndAlso chkHandFlag.Checked = True)) Then
+                                '                                    (spprocesstype = 1 AndAlso folderType <> 4) OrElse
+                                '                                    (spprocesstype = 2 AndAlso folderType <> 4)) Then
                                 If mapResult IsNot Nothing AndAlso (spprocesstype = 0 OrElse
-                                                                    (spprocesstype = 1 AndAlso folderType <> 4) OrElse
                                                                     (spprocesstype = 2 AndAlso folderType <> 4)) Then
 
                                     '特殊処理以外の通常の取込実行

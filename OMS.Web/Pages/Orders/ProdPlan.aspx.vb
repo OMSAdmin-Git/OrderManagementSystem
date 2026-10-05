@@ -127,24 +127,6 @@ Namespace Pages.Orders
 
 #Region "アクション（生産計画／Excel出力／Excel取込）"
 
-        Protected Sub btnTest1_Click(sender As Object, e As EventArgs) Handles btnTest1.Click
-            'btnTest1.Visible = False
-            'lblProdPlanContinueMessage.Visible = False
-            'btnProdPlanOK.Visible = False
-            'btnProdPlanNO.Visible = False
-
-            btnProdPlanNO_Click(sender, e)
-
-        End Sub
-        Protected Sub btnTest2_Click(sender As Object, e As EventArgs) Handles btnTest1.Click
-            lblProdPlanContinueMessage.Visible = True
-            btnProdPlanOK.Visible = True
-            btnProdPlanNO.Visible = True
-            btnTest1.Visible = True
-
-        End Sub
-
-
         ' 生産計画ボタン
         Protected Sub btnProdPlan_Click(sender As Object, e As EventArgs) Handles btnProdPlan.Click
             'lblError.Text = "開発未着手"
@@ -430,7 +412,7 @@ Namespace Pages.Orders
                             ' 当月 顧客単位の OrderStage リスト 
                             Dim ordersStageRows = New List(Of OrdersStageRow)
                             ' グループ分け　Loop
-                            'For Each og In orderRowsGroup
+                            'For Each og In orderRowsGroup 
                             For Each og In ordersStageRowsGroup
                                 ordersStageRows.Clear()
                                 ' グループ内 order record リスト作成 (yyyymm でグループ分けされたものを取得)
@@ -988,74 +970,76 @@ Namespace Pages.Orders
 
                 ' Customer Setting ID リスト重複をまとめる
                 Dim idSelectList = idList.Distinct().ToList()
-
-                ' Orders 削除 OrderStage に日割り登録したレコードを削除する
-                ' PROD_PLAN（生産計画テーブル）のCUSTOMER_SETTING_ID（取引先設定ID）が処理対象と一致するレコード
-                '----------------------------
-                ' Delete 登録済みの Orders を 生産計画から 削除
-                '----------------------------
-                errors.Add(repo.DeleteRegisteredOrders(conn, tran, OrderRepository.OrdersTable.ProductPlan, idSelectList))
-                '#If DEBUG Then
-                '                ' #### DEBUG
-                '                tran.Commit()
-                '                tran = conn.BeginTransaction()
-                '                ' #### DEBUG
-                '#End If
-                If (CheckError(errors)) Then
-                    ' エラー
-                    DBError(tran)
-                End If
-                '---------------------------- 
-                ' Insert 登録済みの ProdPlanStageからPlodPlan へ登録
-                '----------------------------
-                '   OrdersRow の Listを取得   ProdPlanStage のDataTable を OrderStageRow のクラス変換をして PlodPlan へ変換する
-                Dim registerdOrders = OrdersStageRow.ToOrdersRow(reps.ToClass(reps.GetRegisteredOrders(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, idSelectList)))
-                errors.Add(repo.InsertRange(conn, tran, OrderRepository.OrdersTable.ProductPlan, registerdOrders))
-                '#If DEBUG Then
-                '                ' #### DEBUG
-                '                tran.Commit()
-                '                tran = conn.BeginTransaction()
-                '                ' #### DEBUG
-                '#End If
-
-                If (CheckError(errors)) Then
-                    ' エラー
-                    DBError(tran)
-                End If
-
-                ' Insert 登録済みの ProdPlanStageからPlodPlanHistory へ登録
-                errors.Add(reph.InsertRange(conn, tran, OrderRepository.OrdersTable.ProductPlan, registerdOrders))
-                '#If DEBUG Then
-                '                ' #### DEBUG
-                '                tran.Commit()
-                '                tran = conn.BeginTransaction()
-                '                ' #### DEBUG
-                '#End If
-                If (CheckError(errors)) Then
-                    ' エラー
-                    DBError(tran)
-                End If
-                '----------------------------
-                ' Excel 出力
-                '----------------------------
-                If (registerdOrders.Count <> 0) Then
-                    Dim fileList As List(Of String) = New List(Of String)()
-                    Dim filename = IO.Path.Combine(Server.MapPath("~/App_Data/Files/"), GetExcelFilename())
-                    'errors.Add(exout.OrderExcelFile(filename, registerdOrders))
-                    errors.Add(ProductPlanExcelOut(filename, registerdOrders))
+                ' データあるとき
+                If (idSelectList.Count <> 0) Then
+                    ' Orders 削除 OrderStage に日割り登録したレコードを削除する
+                    ' PROD_PLAN（生産計画テーブル）のCUSTOMER_SETTING_ID（取引先設定ID）が処理対象と一致するレコード
+                    '----------------------------
+                    ' Delete 登録済みの Orders を 生産計画から 削除
+                    '----------------------------
+                    errors.Add(repo.DeleteRegisteredOrders(conn, tran, OrderRepository.OrdersTable.ProductPlan, idSelectList))
+                    '#If DEBUG Then
+                    '                ' #### DEBUG
+                    '                tran.Commit()
+                    '                tran = conn.BeginTransaction()
+                    '                ' #### DEBUG
+                    '#End If
                     If (CheckError(errors)) Then
                         ' エラー
+                        DBError(tran)
                     End If
-                    ' Excel ファイル転送
-                    fileList.Add(filename)
-                    Dim orderFilename = repo.GeOrderZipFilename("生産計画_出力日時", ProcessingStartDate)
+                    '---------------------------- 
+                    ' Insert 登録済みの ProdPlanStageからPlodPlan へ登録
+                    '----------------------------
+                    '   OrdersRow の Listを取得   ProdPlanStage のDataTable を OrderStageRow のクラス変換をして PlodPlan へ変換する
+                    Dim registerdOrders = OrdersStageRow.ToOrdersRow(reps.ToClass(reps.GetRegisteredOrders(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, idSelectList)))
+                    errors.Add(repo.InsertRange(conn, tran, OrderRepository.OrdersTable.ProductPlan, registerdOrders))
+                    '#If DEBUG Then
+                    '                ' #### DEBUG
+                    '                tran.Commit()
+                    '                tran = conn.BeginTransaction()
+                    '                ' #### DEBUG
+                    '#End If
 
-                    ' 別ページでDownload 処理を行う
-                    Dim fileListName = IO.Path.Combine(Server.MapPath("~/App_Data/Files/"), Utils.GetTempFileName("FileList.txt"))
-                    Utils.SaveFileList(fileListName, fileList)
-                    Dim url As String = $"DownloadProcess.ashx?file={HttpUtility.UrlEncode(orderFilename)}&list={HttpUtility.UrlEncode(fileListName)}"
-                    Dim script As String = $"document.getElementById('downloadFrame').src = '{url}';"
-                    ClientScript.RegisterStartupScript(Me.GetType(), "downloadScript", script, True)
+                    If (CheckError(errors)) Then
+                        ' エラー
+                        DBError(tran)
+                    End If
+
+                    ' Insert 登録済みの ProdPlanStageからPlodPlanHistory へ登録
+                    errors.Add(reph.InsertRange(conn, tran, OrderRepository.OrdersTable.ProductPlan, registerdOrders))
+                    '#If DEBUG Then
+                    '                ' #### DEBUG
+                    '                tran.Commit()
+                    '                tran = conn.BeginTransaction()
+                    '                ' #### DEBUG
+                    '#End If
+                    If (CheckError(errors)) Then
+                        ' エラー
+                        DBError(tran)
+                    End If
+                    '----------------------------
+                    ' Excel 出力
+                    '----------------------------
+                    If (registerdOrders.Count <> 0) Then
+                        Dim fileList As List(Of String) = New List(Of String)()
+                        Dim filename = IO.Path.Combine(Server.MapPath("~/App_Data/Files/"), GetExcelFilename())
+                        'errors.Add(exout.OrderExcelFile(filename, registerdOrders))
+                        errors.Add(ProductPlanExcelOut(filename, registerdOrders))
+                        If (CheckError(errors)) Then
+                            ' エラー
+                        End If
+                        ' Excel ファイル転送
+                        fileList.Add(filename)
+                        Dim orderFilename = repo.GeOrderZipFilename("生産計画_出力日時", ProcessingStartDate)
+
+                        ' 別ページでDownload 処理を行う
+                        Dim fileListName = IO.Path.Combine(Server.MapPath("~/App_Data/Files/"), Utils.GetTempFileName("FileList.txt"))
+                        Utils.SaveFileList(fileListName, fileList)
+                        Dim url As String = $"DownloadProcess.ashx?file={HttpUtility.UrlEncode(orderFilename)}&list={HttpUtility.UrlEncode(fileListName)}"
+                        Dim script As String = $"document.getElementById('downloadFrame').src = '{url}';"
+                        ClientScript.RegisterStartupScript(Me.GetType(), "downloadScript", script, True)
+                    End If
                 End If
             Catch ex As Exception
                 errors.Add(ex.Message)
@@ -1258,7 +1242,7 @@ Namespace Pages.Orders
             ' カレントディレクトリを取得する。
             Dim url As New Uri(Server.MapPath("."))                             ' url.AbsolutePath "I:/VS2022SRC_NET/VM-KAI05/OrderManagementSystem/OrderManagementSystem/OMS.Web/Pages/Orders"
             Dim path As String = GetWorkPath()  'url.LocalPath                  ' フォルダ: ユーザーのローカルパス
-            Dim fileName As String = FileUpload1.PostedFile.FileName            ' "受注フォーマット変換仕様まとめ案_20260218.xlsx"
+            Dim fileName As String = fileUploadActual.PostedFile.FileName            ' "受注フォーマット変換仕様まとめ案_20260218.xlsx"
             'Dim fullFileName As String = System.IO.Path.Combine(path, fileName) ' "I:\VS2022SRC_NET\VM-KAI05\OrderManagementSystem\OrderManagementSystem\OMS.Web\Pages\Orders\受注フォーマット変換仕様まとめ案_20260218.xlsx"
 
             If (fileName = "") Then
@@ -1268,7 +1252,7 @@ Namespace Pages.Orders
 
             ' ファイルを保存する。
             Dim strPath = Server.MapPath("~/App_Data/Files/")
-            FileUpload1.SaveAs(IO.Path.Combine(strPath, fileName))
+            fileUploadActual.SaveAs(IO.Path.Combine(strPath, fileName))
 
             'If (FileUpload1.HasFile) // ファイルがアップロードされているか Then
             '                {

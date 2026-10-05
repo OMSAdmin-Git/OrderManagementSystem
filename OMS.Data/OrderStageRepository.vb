@@ -2470,7 +2470,7 @@ Namespace OMS.Data
                     cmd.Parameters.Add(":p_initial_flag", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.InitialFlag, 45)
                     cmd.Parameters.Add(":p_target_reference_date_type", OracleDbType.Varchar2, 1).Value = SafeVarchar(r.TargetReferenceDateType, 1)
                     cmd.Parameters.Add(":p_target_reference_date", OracleDbType.Varchar2, 8).Value = SafeVarchar(r.TargetReferenceDate, 8)
-                    cmd.Parameters.Add(":p_info_type_code", OracleDbType.Varchar2, 4).Value = SafeVarchar(r.UpdatedUserId, 4)
+                    cmd.Parameters.Add(":p_info_type_code", OracleDbType.Varchar2, 4).Value = SafeVarchar(r.InfoTypeCode, 4)
 
                     'Phase2
                     cmd.Parameters.Add(":p_order_time", OracleDbType.Decimal).Value = r.OrderTime
@@ -3364,7 +3364,7 @@ Namespace OMS.Data
                         'curList.Add(row.ItemNo, row)
 
                         Dim row As New OrderSummaryRow With {
-                            .itemNo = itemNo,
+                            .ItemNo = itemNo,
                             .EarliestDueDate = dueDate,
                             .TotalDemandQty = Convert.ToDecimal(dr("total_demand_qty"))
                         }
@@ -3916,7 +3916,7 @@ Namespace OMS.Data
                         Dim dueDate As DateTime = Convert.ToDateTime(dr("earliest_pre_daily_delivery_date"))
 
                         Dim row As New OrderSummaryRow With {
-                            .itemNo = itemNo,
+                            .ItemNo = itemNo,
                             .EarliestDueDate = dueDate,
                             .TotalDemandQty = Convert.ToDecimal(dr("total_stra_order_backlog"))
                         }
