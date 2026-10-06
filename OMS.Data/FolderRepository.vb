@@ -174,7 +174,8 @@ Namespace OMS.Data
                 Dim sql As String =
                     "SELECT DISTINCT folder_path, folder_type " &
                     "FROM folder_mst " &
-                    "WHERE customer_setting_id = :p_customer_setting_id"
+                    "WHERE customer_setting_id = :p_customer_setting_id " &
+                    "  AND active_flag = 'Y'"
 
                 Using cmd As New OracleCommand(sql, conn)
                     cmd.BindByName = True
