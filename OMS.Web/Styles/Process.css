@@ -141,7 +141,3 @@ body {
         border-color: var(--n-bc-red);
     }
 
-.label-filename {
-    display: inline-block;
-    width: 550px;
-}
