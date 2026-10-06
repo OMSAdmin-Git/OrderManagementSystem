@@ -1,5 +1,14 @@
 ﻿body {
 }
+
+:root {
+    /* グレー系・白黒 */
+    --asti-white: #FFFFFF;
+    --asti-black: #000000;
+    /* 補助カラー */
+    --asti-navy: #2E3C78;
+}
+
 .custom-file-upload {
     position: relative;
     display: inline-block;
@@ -15,4 +24,19 @@
     height: 100%;
     z-index: 2;
     cursor: pointer;
+}
+
+.upload-filename {
+    display: inline-block;
+    min-width: 450px; /* 文字が短くても、最低限この幅（250px）を維持します */
+    width: auto; /* 幅を自動計算ベースにします */
+    height: 100%;
+    z-index: 2;
+    border-style: none;
+    font-size: large;
+    background: var(--asti-white);
+    color: var(--asti-navy);
+    border-color: var(--asti-white);
+    /*ForeColor: "#3333CC";*/
+    /*width: 550px;*/
 }

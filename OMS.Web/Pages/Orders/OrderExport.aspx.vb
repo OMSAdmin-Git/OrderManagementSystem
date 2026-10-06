@@ -414,22 +414,11 @@ Namespace Pages.Orders
                     fileList.Add(trfilename)
                 End If
 
-                'UPDATE
-                '生産計画ワーク
-                '[抽出条件]
-                'status POST_PLAN_DUE_SET
-                'activeFlag Y
-                '[更新]
-                'STATUS(ステータス)              EXPORTED
-                'UPDATED_AT(更新日時)            処理開始日時
-                'UPDATED_USER_ID(更新ユーザーID) ログインユーザーID
-                'UPDATED_PG_ID(更新プログラムID) OrderExport
-
-                ' UPDATE (生産計画ワーク)prod_plan_stage
                 ' 最後の Ordere レコード更新用に取得しておく
                 Dim rowsu = reps.ToClass(reps.GetOrders(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, status:="POST_PLAN_DUE_SET", activeFlag:="Y"))
 
-                ' SQL の場合
+                ' UPDATE (生産計画ワーク)prod_plan_stage
+                '生産計画ワーク prod_plan_stage CSV出力したレコードを更新する
                 errors.Add(reps.ProductionPlanWorkUpdate(conn, tran, ProcessingStartDate, loginUserId))
                 If (CheckError(errors)) Then
                     ' エラー
@@ -444,7 +433,7 @@ Namespace Pages.Orders
                 '#End If
 
                 ' UPDATE (生産計画) prod_plan
-                ' SQL の場合
+                'PROD_PLAN_ID（生産計画ID）をキーとして、PROD_PLAN（生産計画テーブル）をPROD_PLAN_STAGEの値に更新
                 errors.Add(repo.ProductionPlanUpdate(conn, tran, ProcessingStartDate, loginUserId))
                 If (CheckError(errors)) Then
                     ' エラー
@@ -452,19 +441,35 @@ Namespace Pages.Orders
                     Throw New Exception("生産計画ワークの更新に失敗しました。")
                 End If
 
+                ' (DB 操作なので ファイル出力前に 処理を移動した)
+
                 ' Pharse-2
-                ' 本対策 2026/9//2 (DB 操作なので ファイル出力前に 処理を移動した)
-                'idList 処理を行った customerSettingId リスト
+                ' Update (受注) orders
+                ' CUSTOMER_ORDER_NO（客先発注No）をキーとして、ORDERS（受注テーブル）をPROD_PLAN_STAGEの値に更新
                 For Each customerSettingId In idList
                     Dim trgRow = rowsu.FirstOrDefault(Function(x) x.CustomerSettingId = customerSettingId)
                     If (trgRow IsNot Nothing) Then
-                        errors.Add(repo.Update(conn, tran, OrderRepository.OrdersTable.Orders, kCustomerSettingId:=customerSettingId, kDemandStatus:="F", kStatus:="DUE_SET", kActiveFlag:="Y", status:="EXPORTED", updatedAt:=trgRow.UpdatedAt, updatedUserId:=trgRow.UpdatedUserId, updatedPgId:=trgRow.UpdatedPgId))
+                        errors.Add(repo.UpdateOrderStatus(conn, tran, trgRow.UpdatedAt, trgRow.UpdatedUserId, trgRow.UpdatedPgId))
                     End If
                 Next
                 If (CheckError(errors)) Then
                     ' エラー
                     DBError(tran)
                 End If
+
+
+                ' 2026/10/01 Orders status を 'EXPORTED'に更新を中止 (再 生産管理実行 のため)
+                '' Update (受注) orders
+                'For Each customerSettingId In idList
+                '    Dim trgRow = rowsu.FirstOrDefault(Function(x) x.CustomerSettingId = customerSettingId)
+                '    If (trgRow IsNot Nothing) Then
+                '        errors.Add(repo.Update(conn, tran, OrderRepository.OrdersTable.Orders, kCustomerSettingId:=customerSettingId, kDemandStatus:="F", kStatus:="DUE_SET", kActiveFlag:="Y", status:="EXPORTED", updatedAt:=trgRow.UpdatedAt, updatedUserId:=trgRow.UpdatedUserId, updatedPgId:=trgRow.UpdatedPgId))
+                '    End If
+                'Next
+                'If (CheckError(errors)) Then
+                '    ' エラー
+                '    DBError(tran)
+                'End If
 
                 '#If DEBUG Then
                 '                ' #### DEBUG

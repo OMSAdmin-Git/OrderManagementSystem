@@ -9,8 +9,24 @@
     <link href="~/Styles/Common.css" rel="stylesheet" type="text/css" />
     <link href="~/Styles/Process.css" rel="stylesheet" type="text/css" />
     <link href="~/Styles/Search.css" rel="stylesheet" type="text/css" />
+    <link href="~/Styles/ModalMessage.css" rel="stylesheet" type="text/css" />
     <script type="text/javascript" src="<%= ResolveUrl("~/Scripts/Custom/PreventEnterSubmit.js") %>"></script>
     <script type="text/javascript" src="<%= ResolveUrl("~/Scripts/Custom/GridCheckAll.js") %>"></script>
+    <script type="text/javascript">
+        function onButtonClick(btn) {
+            var btnText = btn.value;
+            var btnNameSpan = document.getElementById('clickedBtnName');
+            if (btnNameSpan) {
+                btnNameSpan.innerText = btnText;
+            }
+            var overlay = document.getElementById('loadingOverlay');
+            if (overlay) overlay.style.display = 'flex';
+            setTimeout(function () {
+                btn.disabled = true;
+            }, 50);
+            return true;
+        }
+    </script>
 </head>
 <body>
     <form id="form1" runat="server">
@@ -77,7 +93,8 @@
                                     <%# OMS.Common.Utils.ToFolderTypeNameSafe(Eval("FolderType")) %>
                                 </ItemTemplate>
                             </asp:TemplateField>
-                            <asp:BoundField DataField="SpProcessType" HeaderText="特殊加工区分(Debug用)"  />
+                            <%--<asp:BoundField DataField="SpProcessType" HeaderText="特殊加工区分(Debug用)"  />--%>
+                            <asp:BoundField DataField="SpProcessType" HeaderText="特殊加工区分" Visible="false" />
                             <asp:BoundField DataField="FolderPath" HeaderText="フォルダパス" Visible="false" />
                             <asp:BoundField DataField="FileName" HeaderText="ファイル名" />
                             <asp:BoundField DataField="StagedFolderPath" HeaderText="WORKフォルダパス" Visible="false" />
@@ -123,9 +140,8 @@
 
             <!-- アクションボタン -->
             <div class="action-buttons">
-                <%--<asp:Button ID="btnImportCancel" runat="server" CssClass="btn-asti btn-asti-process" Text="破棄" OnClick="btnImportCancel_Click" />--%>
-                <asp:Button ID="btnImportCancel" runat="server" CssClass="btn-asti btn-asti-process" Text="破棄" OnClick="btnImportCancel_Click" />
-                <asp:Button ID="btnImportFile" runat="server" CssClass="btn-asti btn-asti-process" Text="取込実行" OnClick="btnImportFile_Click" />
+                <asp:Button ID="btnImportCancel" runat="server" CssClass="btn-asti btn-asti-process" Text="破棄" OnClick="btnImportCancel_Click" OnClientClick="return onButtonClick(this);" />
+                <asp:Button ID="btnImportFile" runat="server" CssClass="btn-asti btn-asti-process" Text="取込実行" OnClick="btnImportFile_Click" OnClientClick="return onButtonClick(this);" />
             </div>
 
             <!-- 結果表示 -->
@@ -185,8 +201,8 @@
 
             <!-- アクションボタン -->
             <div class="action-buttons">
-                <asp:Button ID="btnCancelOrder" runat="server" CssClass="btn-asti btn-asti-process" Text="破棄" OnClick="btnCancelOrder_Click" />
-                <asp:Button ID="btnSaveOrder" runat="server" CssClass="btn-asti btn-asti-process" Text="保存" OnClick="btnSaveOrder_Click" />
+                <asp:Button ID="btnCancelOrder" runat="server" CssClass="btn-asti btn-asti-process" Text="破棄" OnClick="btnCancelOrder_Click" OnClientClick="return onButtonClick(this);" />
+                <asp:Button ID="btnSaveOrder" runat="server" CssClass="btn-asti btn-asti-process" Text="保存" OnClick="btnSaveOrder_Click" OnClientClick="return onButtonClick(this);" />
             </div>
 
             <!-- 結果表示 -->
@@ -195,6 +211,14 @@
                 <asp:Label ID="lblSaveResult" runat="server" ForeColor="Green" />
                 <br />
                 <asp:Label ID="lblSaveError" runat="server" ForeColor="Red" />
+            </div>
+
+            <!-- 処理中ローディング表示 (Loading Overlay) -->
+            <div id="loadingOverlay" class="modal-overlay">
+                <div class="loading-dialog">
+                    <div class="spinner"></div>
+                    <div style="font-size: 16px; font-weight: 600; color: #333;"><span id="clickedBtnName"></span>処理中... しばらくお待ちください
+                </div>
             </div>
 
         </div>

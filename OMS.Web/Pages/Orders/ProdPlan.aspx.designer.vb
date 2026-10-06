@@ -159,40 +159,31 @@ Namespace Pages.Orders
         Protected WithEvents btnExportProdPlanList As Global.System.Web.UI.WebControls.Button
 
         '''<summary>
-        '''btnTest1 コントロール。
+        '''fileUploadActual コントロール。
         '''</summary>
         '''<remarks>
         '''自動生成されたフィールド。
         '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
         '''</remarks>
-        Protected WithEvents btnTest1 As Global.System.Web.UI.WebControls.Button
+        Protected WithEvents fileUploadActual As Global.System.Web.UI.WebControls.FileUpload
 
         '''<summary>
-        '''btnTest2 コントロール。
+        '''btnDummy コントロール。
         '''</summary>
         '''<remarks>
         '''自動生成されたフィールド。
         '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
         '''</remarks>
-        Protected WithEvents btnTest2 As Global.System.Web.UI.WebControls.Button
+        Protected WithEvents btnDummy As Global.System.Web.UI.WebControls.Button
 
         '''<summary>
-        '''btnImportProdPlanList コントロール。
+        '''txtFileName コントロール。
         '''</summary>
         '''<remarks>
         '''自動生成されたフィールド。
         '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
         '''</remarks>
-        Protected WithEvents btnImportProdPlanList As Global.System.Web.UI.WebControls.Button
-
-        '''<summary>
-        '''FileUpload1 コントロール。
-        '''</summary>
-        '''<remarks>
-        '''自動生成されたフィールド。
-        '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
-        '''</remarks>
-        Protected WithEvents FileUpload1 As Global.System.Web.UI.WebControls.FileUpload
+        Protected WithEvents txtFileName As Global.System.Web.UI.WebControls.TextBox
 
         '''<summary>
         '''Button1 コントロール。
@@ -247,5 +238,23 @@ Namespace Pages.Orders
         '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
         '''</remarks>
         Protected WithEvents lblError As Global.System.Web.UI.WebControls.Label
+
+        '''<summary>
+        '''errorModalOverlay コントロール。
+        '''</summary>
+        '''<remarks>
+        '''自動生成されたフィールド。
+        '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
+        '''</remarks>
+        Protected WithEvents errorModalOverlay As Global.System.Web.UI.HtmlControls.HtmlGenericControl
+
+        '''<summary>
+        '''gvErrorList コントロール。
+        '''</summary>
+        '''<remarks>
+        '''自動生成されたフィールド。
+        '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
+        '''</remarks>
+        Protected WithEvents gvErrorList As Global.System.Web.UI.WebControls.GridView
     End Class
 End Namespace
