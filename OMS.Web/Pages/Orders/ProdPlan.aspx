@@ -143,7 +143,7 @@
                     </asp:GridView>
                 </div>
             </div>
-            <!-- アクションボタン R.Sagisaka Modified -->
+            <!-- アクションボタン -->
             <div class="action-buttons">
                 <asp:Button ID="btnProdPlan"           runat="server" CssClass="btn-asti btn-asti-process" Text="生産計画"  
                     OnClick="btnProdPlan_Click" />
@@ -151,18 +151,17 @@
                     OnClick="btnExportProdPlanList_Click" OnClientClick="return onButtonClick(this);"/>
                  <div class="custom-file-upload"> 
                      <!-- FileUpload の見た目を変える 実際に見えるデザイン用のボタンとファイル名表示用のテキストボックス -->
-                    <asp:Button ID="btnDummy" runat="server" Text="ファイルを選択" CssClass="btn-asti btn-asti-fileselect" OnClientClick="triggerFileUpload(); return false;" />
-                    <asp:TextBox ID="txtFileName" runat="server" ReadOnly="true" CssClass="label-filename" BackColor="White" BorderColor="White" BorderStyle="None" Font-Size="Medium" ForeColor="#3333CC" />
                      <!-- 本物のFileUpload（非表示にする） -->
                     <asp:FileUpload ID="fileUploadActual" runat="server" Style="display: none;" onchange="updateFileName();" />
                      <!-- FileUpload 変更ここまで  ----->
+                    <asp:Button ID="btnDummy" runat="server" Text="ファイルを選択" CssClass="btn-asti btn-asti-fileselect" OnClientClick="triggerFileUpload(); return false;" />
+                    <asp:TextBox ID="txtFileName" runat="server" ReadOnly="true" CssClass="upload-filename" Width="390px"  BackColor="White" BorderColor="White" BorderStyle="None" Font-Size="Medium" ForeColor="#2E3C78" />
                     <asp:Button ID="Button1" runat="server" CssClass="btn-asti secondary-excel " Text="Excel取込" OnClick="btnImportProdPlanList_Click" OnClientClick="return onButtonClick(this);"/>
                  </div> 
             </div>
             <!-- 生産計画 ボタン押下 データなし 継続確認 -->
            <div>
                 <asp:Label ID="lblProdPlanContinueMessage" runat="server" Text="生産計画条件マスタに登録されていないデータを検出しました。​生産計画を続行しますか？​"></asp:Label>
-                <!-- <label for="txtSearchCustomerUnitName">生産計画条件マスタに登録されていないデータを検出しました。​生産計画を続行しますか？​</label> -->
                 <asp:Button ID="btnProdPlanOK" runat="server" CssClass="btn-asti btn-asti-process" Text="はい" CausesValidation="false"  
                     OnClick="btnProdPlanOK_Click"
                     OnClientClick="btnProdPlanOK.style.display='none';btnProdPlanNO.style.display='none';lblProdPlanContinueMessage.style.display='none'; "
@@ -223,8 +222,6 @@
                     </div>
                 </div>
                 <!--------------------------------------------->
-
-
     </form>
 </body>
 </html>

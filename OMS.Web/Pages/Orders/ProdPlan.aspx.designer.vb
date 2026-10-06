@@ -159,6 +159,15 @@ Namespace Pages.Orders
         Protected WithEvents btnExportProdPlanList As Global.System.Web.UI.WebControls.Button
 
         '''<summary>
+        '''fileUploadActual コントロール。
+        '''</summary>
+        '''<remarks>
+        '''自動生成されたフィールド。
+        '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
+        '''</remarks>
+        Protected WithEvents fileUploadActual As Global.System.Web.UI.WebControls.FileUpload
+
+        '''<summary>
         '''btnDummy コントロール。
         '''</summary>
         '''<remarks>
@@ -175,15 +184,6 @@ Namespace Pages.Orders
         '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
         '''</remarks>
         Protected WithEvents txtFileName As Global.System.Web.UI.WebControls.TextBox
-
-        '''<summary>
-        '''fileUploadActual コントロール。
-        '''</summary>
-        '''<remarks>
-        '''自動生成されたフィールド。
-        '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
-        '''</remarks>
-        Protected WithEvents fileUploadActual As Global.System.Web.UI.WebControls.FileUpload
 
         '''<summary>
         '''Button1 コントロール。
