@@ -88,7 +88,7 @@
                 <span class="label-title">文字コード*</span>
                 <asp:DropDownList ID="ddlCharset" runat="server">
                     <asp:ListItem Text="UTF-8" Value="UTF8"></asp:ListItem>
-                    <asp:ListItem Text="Shift_JIS" Value="Shift_JIS"></asp:ListItem>
+                    <asp:ListItem Text="Shift_JIS" Value="SHIFT_JIS"></asp:ListItem>
                 </asp:DropDownList>
             </div>
             <br />
