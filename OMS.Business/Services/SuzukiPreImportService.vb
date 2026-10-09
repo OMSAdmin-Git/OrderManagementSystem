@@ -204,8 +204,30 @@ Namespace Services
                         Dim fileName = Path.GetFileName(workFilePath)
                         Dim fileExt = Path.GetExtension(workFilePath).ToLowerInvariant()
 
-                        ' --- ASTI追加内示 / Excel ファイル (.xlsx) のステージング処理 ---
-                        If fileExt = ".xlsx" Then
+                        ' 種別判定: 4桁EDIコードを持つか確認
+                        Dim diagMsg As String = ""
+                        Dim infoCode As String = String.Empty
+                        If fileExt <> ".xlsx" Then
+                            infoCode = SuzukiCsvParser.PeekInfoTypeCode(workFilePath, diagMsg)
+                        End If
+
+                        ' 4桁EDIコードを持たないファイル (Excelファイル、またはヘッダ付きCSVなどの手動ファイル) は
+                        ' エラーとせず、手動取込用ワークファイルとして IMP_FILES_STAGE に登録する
+                        If fileExt = ".xlsx" OrElse String.IsNullOrEmpty(infoCode) OrElse infoCode.Length <> 4 OrElse Not SupportedInfoCodes.Contains(infoCode) Then
+                            If infoCode = "0813" Then
+                                ' 2026/09/18 仕様変更により除外されたコード
+                                errorFilesCount += 1
+                                Dim reasonMsg = "情報区分コード0813は2026/09/18仕様変更により取込対象外です。"
+                                logger.Write($"[SUZUKI_IMPORT] 廃止された情報区分コード 0813 を検知しました ({fileName})。スキップします。")
+                                If webErrors IsNot Nothing Then
+                                    webErrors.Add($"【{fileName}】{reasonMsg}")
+                                End If
+                                ExportErrorsToCsv(folderPath, fileName, New List(Of String)() From {reasonMsg}, isBatch)
+                                MoveBackErrorFile(workFilePath, folderPath, fileName, userId)
+                                Continue For
+                            End If
+
+                            ' 手動追加ファイル (ASTI追加内示 等) としてステージング登録
                             Using tran As OracleTransaction = conn.BeginTransaction()
                                 Try
                                     Dim rFlag = If(Not String.IsNullOrEmpty(reconcileFlag), reconcileFlag, If(isBatch, "Y", "N"))
@@ -220,7 +242,7 @@ Namespace Services
                                         .StagedFileName = fileName,
                                         .ReconcileFlag = rFlag,
                                         .FcstReconcileFlag = fFlag,
-                                        .HandFlag = "Y",
+                                        .HandFlag = "N",
                                         .Status = "DISCOVERED",
                                         .CreatedAt = DateTime.Now,
                                         .CreatedUserId = userId,
@@ -240,51 +262,16 @@ Namespace Services
                                     If outStageRows IsNot Nothing Then
                                         outStageRows.Add(stageRow)
                                     End If
-                                    logger.Write($"[SUZUKI_IMPORT] Successfully staged Excel file (HAND_FLAG=Y): {fileName}")
+                                    logger.Write($"[SUZUKI_IMPORT] Successfully staged manual import file: {fileName}")
                                 Catch ex As Exception
                                     tran.Rollback()
                                     errorFilesCount += 1
-                                    logger.Write($"[SUZUKI_IMPORT] Error staging Excel file {fileName}: {ex.Message}")
-                                    Dim errList As New List(Of String)()
-                                    errList.Add($"Excel取込エラー: {ex.Message}")
+                                    logger.Write($"[SUZUKI_IMPORT] Error staging manual import file {fileName}: {ex.Message}")
+                                    Dim errList As New List(Of String)() From {$"取込準備エラー: {ex.Message}"}
                                     ExportErrorsToCsv(folderPath, fileName, errList, isBatch, webErrors)
                                     MoveBackErrorFile(workFilePath, folderPath, fileName, userId)
                                 End Try
                             End Using
-                            Continue For
-                        End If
-
-                        ' --- CSV / TXT ファイル処理 (SPIRITS EDI / 取込処理) ---
-                        ' 種別判定
-                        Dim diagMsg As String = ""
-                        Dim infoCode = SuzukiCsvParser.PeekInfoTypeCode(workFilePath, diagMsg)
-                        If String.IsNullOrEmpty(infoCode) OrElse infoCode.Length <> 4 OrElse Not SupportedInfoCodes.Contains(infoCode) Then
-                            errorFilesCount += 1
-
-                            Dim reasonMsg As String
-                            If infoCode = "0813" Then
-                                ' 2026/09/18 仕様変更により除外されたコード
-                                reasonMsg = "情報区分コード0813は2026/09/18仕様変更により取込対象外です。"
-                                logger.Write($"[SUZUKI_IMPORT] 廃止された情報区分コード 0813 を検知しました ({fileName})。スキップします。")
-                            Else
-                                reasonMsg = If(Not String.IsNullOrEmpty(diagMsg), diagMsg, $"未対応の情報区分コードです ({infoCode})")
-                                logger.Write($"[SUZUKI_IMPORT] 未対応または不正な情報区分コード '{infoCode}' を検知しました ({fileName})。Detail: {diagMsg}")
-                            End If
-
-                            Dim userErrMsg = $"【{fileName}】{reasonMsg}"
-                            If webErrors IsNot Nothing Then
-                                webErrors.Add(userErrMsg)
-                            End If
-
-                            Dim errList As New List(Of String)() From {
-                                reasonMsg
-                            }
-                            If Not String.IsNullOrEmpty(diagMsg) AndAlso Not errList.Contains(diagMsg) Then
-                                errList.Add(diagMsg)
-                            End If
-                            ExportErrorsToCsv(folderPath, fileName, errList, isBatch)
-
-                            MoveBackErrorFile(workFilePath, folderPath, fileName, userId)
                             Continue For
                         End If
 

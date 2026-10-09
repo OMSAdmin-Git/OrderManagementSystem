@@ -1,5 +1,6 @@
 ﻿Imports System
 Imports System.Collections.Generic
+Imports System.Configuration
 Imports System.Data
 Imports System.IO
 Imports System.Linq
@@ -68,16 +69,18 @@ Namespace Services
                         ExtractStagingRows(conn, tran, customerSettingId, folderType, 0, impRunId, userId, pgId, rowsForTemp2)
                         logger.Write($"[SUZUKI_IMPORT] Extracted {rowsForTemp2.Count} raw staging rows.")
 
+                        ' 【工程 4】プロフィットセンター (PC) 解決 & 特殊コード加算・更新 (0630, 663N, 663S)
+                        logger.Write("[SUZUKI_IMPORT] Step 4: Resolving Profit Centers & Applying adjustments (0630, 663N, 663S)...")
+                        Dim adjustmentStageIds As New HashSet(Of Long)()
+                        ResolveProfitCenters(conn, tran, rowsForTemp2, customerSettingId)
+                        ApplySpecialAdjustments(conn, tran, 0, impRunId, rowsForTemp2, userId, pgId, adjustmentStageIds)
+                        ResolveProfitCenters(conn, tran, rowsForTemp2, customerSettingId)
+
                         If rowsForTemp2.Count = 0 Then
-                            logger.Write("[SUZUKI_IMPORT] No active records found in Suzuki staging tables. Skipping registration.")
+                            logger.Write("[SUZUKI_IMPORT] No active records found in Suzuki staging tables or adjustments. Skipping registration.")
                             tran.Commit()
                             Return 0
                         End If
-
-                        ' 【工程 4】プロフィットセンター (PC) 解決 & 特殊コード加算・更新 (0630, 663N, 663S)
-                        logger.Write("[SUZUKI_IMPORT] Step 4: Resolving Profit Centers & Applying adjustments (0630, 663N, 663S)...")
-                        ResolveProfitCenters(conn, tran, rowsForTemp2, customerSettingId)
-                        ApplySpecialAdjustments(conn, tran, 0, impRunId, rowsForTemp2, userId, pgId)
 
                         ' 【工程 5】エラーチェック
                         logger.Write("[SUZUKI_IMPORT] Step 5: Validating staged rows...")
@@ -136,14 +139,76 @@ Namespace Services
                             Dim saveCount As Integer = _orderStageRepo.InsertOrdersFromStage(tran, csId, DateTime.Now, userId, pgId)
                             _orderStageRepo.InsertHistoryFromOrders(tran, csId, DateTime.Now, userId, pgId)
                             _orderStageRepo.DeleteProcessedOrdersRange(tran, userId, csId)
+
+                            ' 【バッチ用クリーンパージ】保存完了したバッチ対象の PROCESSED レコードを確実にステージから削除
+                            If isBatch Then
+                                Using delCmd As New OracleCommand("DELETE FROM orders_stage WHERE customer_code = '5455' AND (imp_run_id = :p_run_id OR created_user_id = :p_user_id) AND status = 'PROCESSED'", conn)
+                                    delCmd.Transaction = tran
+                                    delCmd.Parameters.Add(":p_run_id", OracleDbType.Int64).Value = impRunId
+                                    delCmd.Parameters.Add(":p_user_id", OracleDbType.Varchar2).Value = userId
+                                    delCmd.ExecuteNonQuery()
+                                End Using
+                            End If
+
                             totalRegistered += saveCount
+                        Next
+
+                        ' 受注ファイル取込ページ [保存]ボタンと同等の処理 (SPIRITSデータ受注登録 仕様書 P.9-10)
+                        ' 処理対象の IMP_FILE_STAGE_ID を IMP_FILES へ昇格し、IMP_FILES_STAGE から削除する
+                        Dim processedStageIds = rowsForTemp2.
+                            Where(Function(r) r.ImpFileStageId.HasValue).
+                            Select(Function(r) r.ImpFileStageId.Value).
+                            ToList()
+
+                        ' 【特殊コード対応】0630, 663N, 663S 等の増減・変更ファイルIDも決済対象に含める
+                        For Each adjId In adjustmentStageIds
+                            If Not processedStageIds.Contains(adjId) Then
+                                processedStageIds.Add(adjId)
+                            End If
+                        Next
+
+                        ' 処理対象のファイル名を収集 (MoveWorkFilesToCompleted で登録済みファイルのみを選択的に移動するため)
+                        Dim processedFileNames As New List(Of String)()
+                        If processedStageIds.Count > 0 Then
+                            Dim idListStr = String.Join(",", processedStageIds)
+                            Using cmdNames As New OracleCommand($"SELECT DISTINCT NVL(staged_file_name, file_name) AS fname FROM imp_files_stage WHERE imp_file_stage_id IN ({idListStr})", conn)
+                                cmdNames.Transaction = tran
+                                Using rNames = cmdNames.ExecuteReader()
+                                    While rNames.Read()
+                                        If Not rNames.IsDBNull(0) Then
+                                            Dim fn = rNames(0).ToString().Trim()
+                                            If Not String.IsNullOrEmpty(fn) AndAlso Not processedFileNames.Contains(fn) Then
+                                                processedFileNames.Add(fn)
+                                            End If
+                                        End If
+                                    End While
+                                End Using
+                            End Using
+                        End If
+
+                        Dim stageRepo As New ImpFilesStageRepository(_connectionString)
+                        For Each stgId In processedStageIds
+                            ' status を 'PARSED' に更新 (InsertImpFileFromStage の抽出条件が status = 'PARSED' のため)
+                            stageRepo.Update(conn, tran, kImpFileStageId:=stgId, status:="PARSED", updatedAt:=DateTime.Now)
+
+                            ' 1. IMP_FILES へ昇格登録
+                            Dim newImpFileId As Long = stageRepo.InsertImpFileFromStage(tran, stgId, DateTime.Now, userId, pgId)
+
+                            ' 2. IMP_FILES_STAGE から削除
+                            stageRepo.DeleteImpFileStageRange(tran, stgId)
+
+                            ' 3. ORDERS.IMP_FILE_ID を更新
+                            _orderStageRepo.UpdateOrdersImpFileId(tran, newImpFileId, stgId)
+
+                            ' 4. スズキ専用テーブルのステータス更新 (STATUS = 'REGISTERED')
+                            _orderStageRepo.UpdateSuzukiStagingStatusRegistered(tran, stgId, userId, pgId)
                         Next
 
                         ' スズキ専用テーブルのステータス更新 (STATUS = 'REGISTERED')
                         _orderStageRepo.UpdateSuzukiStagingStatusRegisteredByRunId(tran, impRunId, userId, pgId)
 
-                        ' WORKファイルのCOMPLETEDへの移動
-                        MoveWorkFilesToCompleted(conn, tran, impRunId, folderPath, userId)
+                        ' WORKファイルのCOMPLETEDへの移動 (登録対象ファイルのみ選択的に移動)
+                        MoveWorkFilesToCompleted(conn, tran, impRunId, folderPath, userId, folderType, processedFileNames)
 
                         tran.Commit()
                         logger.Write($"[SUZUKI_IMPORT] Successfully committed {totalRegistered} orders.")
@@ -187,13 +252,14 @@ Namespace Services
                 Dim tempRows As New List(Of OrdersStageRow)()
                 ExtractStagingRows(conn, tran, customerSettingId, folderType, impfilestageId, 0, userId, pgId, tempRows)
 
-                If tempRows.Count = 0 Then
-                    Return False
-                End If
-
                 ' 3. プロフィットセンター (PC) 解決 & 特殊コード加算・更新 (0630, 663N, 663S)
                 ResolveProfitCenters(conn, tran, tempRows, customerSettingId)
                 ApplySpecialAdjustments(conn, tran, impfilestageId, 0, tempRows, userId, pgId)
+                ResolveProfitCenters(conn, tran, tempRows, customerSettingId)
+
+                If tempRows.Count = 0 Then
+                    Return False
+                End If
 
                 ' 4. エラーチェック
                 ValidateStagedRows(tempRows, customerSettingId, errors)
@@ -338,7 +404,9 @@ Namespace Services
                             .InitialFlag = If(r.IsDBNull(r.GetOrdinal("first_article_type")), "", r("first_article_type").ToString()),
                             .TargetReferenceDateType = If(r.IsDBNull(r.GetOrdinal("target_reference_date_type")), "", r("target_reference_date_type").ToString()),
                             .TargetReferenceDate = If(r.IsDBNull(r.GetOrdinal("target_reference_date")), "", r("target_reference_date").ToString()),
-                            .InfoTypeCode = "0600"
+                            .InfoTypeCode = "0600",
+                            .DeliveryType = If(r.IsDBNull(r.GetOrdinal("delivery_type")), "", r("delivery_type").ToString()),
+                            .ProductionMonthType = If(r.IsDBNull(r.GetOrdinal("production_month_type")), "", r("production_month_type").ToString())
                         })
                     End While
                 End Using
@@ -411,7 +479,9 @@ Namespace Services
                             .ContainerCapacity = If(r.IsDBNull(r.GetOrdinal("capacity")), Nothing, Convert.ToDecimal(r("capacity"))),
                             .TargetReferenceDateType = "",
                             .TargetReferenceDate = "",
-                            .InfoTypeCode = "0602"
+                            .InfoTypeCode = "0602",
+                            .DeliveryType = If(r.IsDBNull(r.GetOrdinal("delivery_type")), "", r("delivery_type").ToString()),
+                            .ProductionMonthType = If(r.IsDBNull(r.GetOrdinal("production_month_type")), "", r("production_month_type").ToString())
                         })
                     End While
                 End Using
@@ -485,7 +555,9 @@ Namespace Services
                             .InitialFlag = If(r.IsDBNull(r.GetOrdinal("first_article_type")), "", r("first_article_type").ToString()),
                             .TargetReferenceDateType = "",
                             .TargetReferenceDate = "",
-                            .InfoTypeCode = "0650"
+                            .InfoTypeCode = "0650",
+                            .DeliveryType = If(r.IsDBNull(r.GetOrdinal("delivery_type")), "", r("delivery_type").ToString()),
+                            .ProductionMonthType = If(r.IsDBNull(r.GetOrdinal("production_month_type")), "", r("production_month_type").ToString())
                         })
                     End While
                 End Using
@@ -559,7 +631,9 @@ Namespace Services
                             .InitialFlag = If(r.IsDBNull(r.GetOrdinal("first_article_type")), "", r("first_article_type").ToString()),
                             .TargetReferenceDateType = "",
                             .TargetReferenceDate = "",
-                            .InfoTypeCode = "0651"
+                            .InfoTypeCode = "0651",
+                            .DeliveryType = If(r.IsDBNull(r.GetOrdinal("delivery_type")), "", r("delivery_type").ToString()),
+                            .ProductionMonthType = If(r.IsDBNull(r.GetOrdinal("production_month_type")), "", r("production_month_type").ToString())
                         })
                     End While
                 End Using
@@ -633,7 +707,8 @@ Namespace Services
                             .InitialFlag = If(r.IsDBNull(r.GetOrdinal("first_article_type")), "", r("first_article_type").ToString()),
                             .TargetReferenceDateType = If(r.IsDBNull(r.GetOrdinal("target_reference_date_type")), "", r("target_reference_date_type").ToString()),
                             .TargetReferenceDate = If(r.IsDBNull(r.GetOrdinal("target_reference_date")), "", r("target_reference_date").ToString()),
-                            .InfoTypeCode = "0813"
+                            .InfoTypeCode = "0813",
+                            .DeliveryType = If(r.IsDBNull(r.GetOrdinal("delivery_type")), "", r("delivery_type").ToString())
                         })
                     End While
                 End Using
@@ -707,7 +782,8 @@ Namespace Services
                             .InitialFlag = If(r.IsDBNull(r.GetOrdinal("first_article_type")), "", r("first_article_type").ToString()),
                             .TargetReferenceDateType = If(r.IsDBNull(r.GetOrdinal("target_reference_date_type")), "", r("target_reference_date_type").ToString()),
                             .TargetReferenceDate = If(r.IsDBNull(r.GetOrdinal("target_reference_date")), "", r("target_reference_date").ToString()),
-                            .InfoTypeCode = "0814"
+                            .InfoTypeCode = "0814",
+                            .DeliveryType = If(r.IsDBNull(r.GetOrdinal("delivery_type")), "", r("delivery_type").ToString())
                         })
                     End While
                 End Using
@@ -779,7 +855,8 @@ Namespace Services
                             .ContainerCapacity = If(r.IsDBNull(r.GetOrdinal("capacity")), Nothing, Convert.ToDecimal(r("capacity"))),
                             .TargetReferenceDateType = If(r.IsDBNull(r.GetOrdinal("target_reference_date_type")), "", r("target_reference_date_type").ToString()),
                             .TargetReferenceDate = If(r.IsDBNull(r.GetOrdinal("target_reference_date")), "", r("target_reference_date").ToString()),
-                            .InfoTypeCode = "6604"
+                            .InfoTypeCode = "6604",
+                            .DeliveryType = If(r.IsDBNull(r.GetOrdinal("delivery_type")), "", r("delivery_type").ToString())
                         })
                     End While
                 End Using
@@ -853,7 +930,8 @@ Namespace Services
                             .InitialFlag = If(r.IsDBNull(r.GetOrdinal("first_article_type")), "", r("first_article_type").ToString()),
                             .TargetReferenceDateType = "",
                             .TargetReferenceDate = "",
-                            .InfoTypeCode = "6624"
+                            .InfoTypeCode = "6624",
+                            .DeliveryType = If(r.IsDBNull(r.GetOrdinal("delivery_type")), "", r("delivery_type").ToString())
                         })
                     End While
                 End Using
@@ -920,20 +998,21 @@ Namespace Services
                                            impRunId As Long,
                                            rows As List(Of OrdersStageRow),
                                            userId As String,
-                                           pgId As String)
+                                           pgId As String,
+                                           Optional outAdjustmentStageIds As HashSet(Of Long) = Nothing)
             Dim dateCache As New Dictionary(Of Date, Date)()
 
             ' 1. 0630: 増減 (0600に対する数量加算)
-            ApplyAdjustment0630(conn, tran, impFileId, impRunId, rows, userId, pgId)
+            ApplyAdjustment0630(conn, tran, impFileId, impRunId, rows, userId, pgId, outAdjustmentStageIds)
 
             ' 2. 663N: 納期変更 (6624に対する納期変更)
-            ApplyAdjustment663N(conn, tran, impFileId, impRunId, rows, dateCache, userId, pgId)
+            ApplyAdjustment663N(conn, tran, impFileId, impRunId, rows, dateCache, userId, pgId, outAdjustmentStageIds)
 
             ' 3. 663S: 数量変更 (6624に対する数量変更)
-            ApplyAdjustment663S(conn, tran, impFileId, impRunId, rows, userId, pgId)
+            ApplyAdjustment663S(conn, tran, impFileId, impRunId, rows, userId, pgId, outAdjustmentStageIds)
         End Sub
 
-        Private Sub ApplyAdjustment0630(conn As OracleConnection, tran As OracleTransaction, impFileId As Long, impRunId As Long, rows As List(Of OrdersStageRow), userId As String, pgId As String)
+        Private Sub ApplyAdjustment0630(conn As OracleConnection, tran As OracleTransaction, impFileId As Long, impRunId As Long, rows As List(Of OrdersStageRow), userId As String, pgId As String, Optional outAdjustmentStageIds As HashSet(Of Long) = Nothing)
             Dim sql = "SELECT * FROM SUZUKI_SPIRITS_0600AND0630 WHERE info_type_code = '0630' AND active_flag = 'Y' AND (status IS NULL OR status <> 'REGISTERED')"
             If impFileId > 0 Then sql &= " AND imp_file_id = :p_imp_file_id"
             If impRunId > 0 Then sql &= " AND imp_run_id = :p_imp_run_id"
@@ -946,6 +1025,11 @@ Namespace Services
 
                 Using r = cmd.ExecuteReader()
                     While r.Read()
+                        Dim adjFileId = GetSafeInt64(r, "imp_file_id")
+                        If adjFileId.HasValue AndAlso adjFileId.Value > 0 AndAlso outAdjustmentStageIds IsNot Nothing Then
+                            outAdjustmentStageIds.Add(adjFileId.Value)
+                        End If
+
                         Dim itemNo = r("item_no").ToString().Trim()
                         Dim delDate = GetSafeDate(r, "delivery_date")
                         If Not delDate.HasValue Then Continue While
@@ -964,7 +1048,7 @@ Namespace Services
                             target.DemandQty = (If(target.DemandQty, 0L)) + addQty
                             target.PreDailyOrderQty = target.DemandQty
                         Else
-                            Using cmdOrd As New OracleCommand("SELECT * FROM orders WHERE customer_code = '5455' AND info_type_code = '0600' AND item_no = :p_item_no AND TRUNC(pre_daily_delivery_date) = :p_del_date AND NVL(TRIM(target_reference_date_type), ' ') = NVL(:p_trd_type, ' ') AND NVL(TRIM(target_reference_date), ' ') = NVL(:p_trd, ' ') AND active_flag = 'Y' AND status IN ('PROCESSED', 'RECONCILED')", conn)
+                            Using cmdOrd As New OracleCommand("SELECT * FROM orders WHERE customer_code = '5455' AND info_type_code = '0600' AND item_no = :p_item_no AND TRUNC(pre_daily_delivery_date) = :p_del_date AND NVL(TRIM(target_reference_date_type), ' ') = NVL(:p_trd_type, ' ') AND NVL(TRIM(target_reference_date), ' ') = NVL(:p_trd, ' ') AND active_flag = 'Y' AND status IN ('PROCESSED', 'RECONCILED', 'IMPORTED')", conn)
                                 cmdOrd.Transaction = tran
                                 cmdOrd.BindByName = True
                                 cmdOrd.Parameters.Add(":p_item_no", OracleDbType.Varchar2).Value = itemNo
@@ -976,6 +1060,16 @@ Namespace Services
                                         Dim fallbackRow = CreateOrdersStageRowFromOrdersReader(ordR, userId, pgId)
                                         fallbackRow.DemandQty = (If(fallbackRow.DemandQty, 0L)) + addQty
                                         fallbackRow.PreDailyOrderQty = fallbackRow.DemandQty
+                                        If impFileId > 0 Then
+                                            fallbackRow.ImpFileStageId = impFileId
+                                            fallbackRow.ImpFileId = impFileId
+                                        ElseIf adjFileId.HasValue AndAlso adjFileId.Value > 0 Then
+                                            fallbackRow.ImpFileStageId = adjFileId.Value
+                                            fallbackRow.ImpFileId = adjFileId.Value
+                                        End If
+                                        If impRunId > 0 Then
+                                            fallbackRow.ImpRunId = impRunId
+                                        End If
                                         rows.Add(fallbackRow)
                                     End If
                                 End Using
@@ -986,7 +1080,7 @@ Namespace Services
             End Using
         End Sub
 
-        Private Sub ApplyAdjustment663N(conn As OracleConnection, tran As OracleTransaction, impFileId As Long, impRunId As Long, rows As List(Of OrdersStageRow), dateCache As Dictionary(Of Date, Date), userId As String, pgId As String)
+        Private Sub ApplyAdjustment663N(conn As OracleConnection, tran As OracleTransaction, impFileId As Long, impRunId As Long, rows As List(Of OrdersStageRow), dateCache As Dictionary(Of Date, Date), userId As String, pgId As String, Optional outAdjustmentStageIds As HashSet(Of Long) = Nothing)
             Dim sql = "SELECT * FROM SUZUKI_SPIRITS_6604AND6634 WHERE info_type_code = '663N' AND active_flag = 'Y' AND (status IS NULL OR status <> 'REGISTERED')"
             If impFileId > 0 Then sql &= " AND imp_file_id = :p_imp_file_id"
             If impRunId > 0 Then sql &= " AND imp_run_id = :p_imp_run_id"
@@ -999,6 +1093,11 @@ Namespace Services
 
                 Using r = cmd.ExecuteReader()
                     While r.Read()
+                        Dim adjFileId = GetSafeInt64(r, "imp_file_id")
+                        If adjFileId.HasValue AndAlso adjFileId.Value > 0 AndAlso outAdjustmentStageIds IsNot Nothing Then
+                            outAdjustmentStageIds.Add(adjFileId.Value)
+                        End If
+
                         Dim custOrderNo = If(r.IsDBNull(r.GetOrdinal("customer_order_no")), "", r("customer_order_no").ToString().Trim())
                         Dim newDelDate = GetSafeDate(r, "delivery_date")
                         If Not newDelDate.HasValue Then Continue While
@@ -1018,6 +1117,16 @@ Namespace Services
                                         Dim fallbackRow = CreateOrdersStageRowFromOrdersReader(ordR, userId, pgId)
                                         fallbackRow.DueDate = newDueDate
                                         fallbackRow.PreDailyDeliveryDate = newDelDate
+                                        If impFileId > 0 Then
+                                            fallbackRow.ImpFileStageId = impFileId
+                                            fallbackRow.ImpFileId = impFileId
+                                        ElseIf adjFileId.HasValue AndAlso adjFileId.Value > 0 Then
+                                            fallbackRow.ImpFileStageId = adjFileId.Value
+                                            fallbackRow.ImpFileId = adjFileId.Value
+                                        End If
+                                        If impRunId > 0 Then
+                                            fallbackRow.ImpRunId = impRunId
+                                        End If
                                         rows.Add(fallbackRow)
                                     End If
                                 End Using
@@ -1028,7 +1137,7 @@ Namespace Services
             End Using
         End Sub
 
-        Private Sub ApplyAdjustment663S(conn As OracleConnection, tran As OracleTransaction, impFileId As Long, impRunId As Long, rows As List(Of OrdersStageRow), userId As String, pgId As String)
+        Private Sub ApplyAdjustment663S(conn As OracleConnection, tran As OracleTransaction, impFileId As Long, impRunId As Long, rows As List(Of OrdersStageRow), userId As String, pgId As String, Optional outAdjustmentStageIds As HashSet(Of Long) = Nothing)
             Dim sql = "SELECT * FROM SUZUKI_SPIRITS_6604AND6634 WHERE info_type_code = '663S' AND active_flag = 'Y' AND (status IS NULL OR status <> 'REGISTERED')"
             If impFileId > 0 Then sql &= " AND imp_file_id = :p_imp_file_id"
             If impRunId > 0 Then sql &= " AND imp_run_id = :p_imp_run_id"
@@ -1041,6 +1150,11 @@ Namespace Services
 
                 Using r = cmd.ExecuteReader()
                     While r.Read()
+                        Dim adjFileId = GetSafeInt64(r, "imp_file_id")
+                        If adjFileId.HasValue AndAlso adjFileId.Value > 0 AndAlso outAdjustmentStageIds IsNot Nothing Then
+                            outAdjustmentStageIds.Add(adjFileId.Value)
+                        End If
+
                         Dim custOrderNo = If(r.IsDBNull(r.GetOrdinal("customer_order_no")), "", r("customer_order_no").ToString().Trim())
                         Dim newQty = If(GetSafeInt64(r, "order_qty"), 0L)
 
@@ -1058,6 +1172,16 @@ Namespace Services
                                         Dim fallbackRow = CreateOrdersStageRowFromOrdersReader(ordR, userId, pgId)
                                         fallbackRow.DemandQty = newQty
                                         fallbackRow.PreDailyOrderQty = Convert.ToDecimal(newQty)
+                                        If impFileId > 0 Then
+                                            fallbackRow.ImpFileStageId = impFileId
+                                            fallbackRow.ImpFileId = impFileId
+                                        ElseIf adjFileId.HasValue AndAlso adjFileId.Value > 0 Then
+                                            fallbackRow.ImpFileStageId = adjFileId.Value
+                                            fallbackRow.ImpFileId = adjFileId.Value
+                                        End If
+                                        If impRunId > 0 Then
+                                            fallbackRow.ImpRunId = impRunId
+                                        End If
                                         rows.Add(fallbackRow)
                                     End If
                                 End Using
@@ -1072,6 +1196,9 @@ Namespace Services
             Dim row As New OrdersStageRow()
             row.OrderId = GetSafeInt64(r, "order_id")
             row.CustomerSettingId = If(GetSafeInt64(r, "customer_setting_id"), 0L)
+            row.ImpFileStageId = If(GetSafeInt64(r, "imp_file_id"), 0L)
+            row.ImpFileId = row.ImpFileStageId
+            row.ImpRunId = If(GetSafeInt64(r, "imp_run_id"), 0L)
             row.CustomerCode = GetSafeString(r, "customer_code")
             row.BillingTo = GetSafeString(r, "billing_to")
             row.CustomerOrderNo = GetSafeString(r, "customer_order_no")
@@ -1107,7 +1234,9 @@ Namespace Services
             row.TargetReferenceDateType = GetSafeString(r, "target_reference_date_type")
             row.TargetReferenceDate = GetSafeString(r, "target_reference_date")
             row.InfoTypeCode = GetSafeString(r, "info_type_code")
-            row.Status = "IMPORTED"
+            row.DeliveryType = GetSafeString(r, "delivery_type")
+            row.ProductionMonthType = GetSafeString(r, "production_month_type")
+            row.Status = "PROCESSED"
             row.ActiveFlag = "Y"
             row.CreatedAt = DateTime.Now
             row.CreatedUserId = userId
@@ -1266,28 +1395,35 @@ Namespace Services
             End Try
         End Sub
 
-        Private Sub MoveWorkFilesToCompleted(conn As OracleConnection, tran As OracleTransaction, impRunId As Long, folderPath As String, userId As String)
+        Private Sub MoveWorkFilesToCompleted(conn As OracleConnection, tran As OracleTransaction, impRunId As Long, folderPath As String, userId As String, Optional folderType As Integer = 4, Optional targetFileNames As List(Of String) = Nothing)
             Try
-                If String.IsNullOrEmpty(folderPath) OrElse Not Directory.Exists(folderPath) Then Return
-                Dim workFolder = Path.Combine(folderPath, "WORK")
-                If Not Directory.Exists(workFolder) Then Return
+                If targetFileNames Is Nothing OrElse targetFileNames.Count = 0 Then Return
 
-                Dim compFolder = Path.Combine(folderPath, "COMPLETED", userId, "5455", "4")
-                Utils.EnsureDirectory(compFolder)
+                Dim workRoot = ConfigurationManager.AppSettings("WorkFolderRoot")
+                If String.IsNullOrWhiteSpace(workRoot) Then workRoot = "C:\ASTI\DATA\WORK"
+                Dim completedRoot = ConfigurationManager.AppSettings("CompletedFolderRoot")
+                If String.IsNullOrWhiteSpace(completedRoot) Then completedRoot = "C:\ASTI\DATA\COMPLETED"
 
-                Dim files = Directory.EnumerateFiles(workFolder, "*.*", SearchOption.TopDirectoryOnly)
-                For Each srcPath In files
-                    Dim fileName = Path.GetFileName(srcPath)
-                    Dim nameNoExt = Path.GetFileNameWithoutExtension(fileName)
-                    Dim ext = Path.GetExtension(fileName)
-                    Dim destName = $"{nameNoExt}_{userId}_{DateTime.Now:yyyyMMddHHmmss}{ext}"
-                    Dim destPath = Path.Combine(compFolder, destName)
+                Dim userWorkDir = Path.Combine(workRoot, userId, "5455", folderType.ToString())
+                Dim userCompletedDir = Path.Combine(completedRoot, userId, "5455", folderType.ToString())
+                Utils.EnsureDirectory(userCompletedDir)
 
-                    Try
-                        File.Move(srcPath, destPath)
-                    Catch
-                    End Try
-                Next
+                If Directory.Exists(userWorkDir) Then
+                    For Each fileName In targetFileNames
+                        Dim srcPath = Path.Combine(userWorkDir, fileName)
+                        If File.Exists(srcPath) Then
+                            Dim nameNoExt = Path.GetFileNameWithoutExtension(fileName)
+                            Dim ext = Path.GetExtension(fileName)
+                            Dim destName = $"{nameNoExt}_{userId}_{DateTime.Now:yyyyMMddHHmmss}{ext}"
+                            Dim destPath = Path.Combine(userCompletedDir, destName)
+
+                            Try
+                                File.Move(srcPath, destPath)
+                            Catch
+                            End Try
+                        End If
+                    Next
+                End If
             Catch
             End Try
         End Sub

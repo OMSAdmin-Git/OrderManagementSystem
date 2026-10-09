@@ -3566,6 +3566,9 @@ Namespace OMS.Data
                     ' 6. 納入指示 新規確定
                     _oderStageRepo.UpdateKakuteiNewOrdersSuzuki(tran, impfilestageId)
 
+                    ' 7. 内示 (0600, 0602, 6604) ステータスを 'PROCESSED' に更新
+                    _oderStageRepo.UpdateNaijiStatusProcessed(tran, impfilestageId)
+
                 Else
 
                 '-----------------------------------------------

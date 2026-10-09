@@ -614,59 +614,63 @@ Namespace Pages.Orders
                                 'Dim blnflg As Boolean = False
                                 Dim mapResult As OMS.Data.OrderStageImport.MappingResult = OMS.Data.OrderStageImport.ResolveMapping(_mappingRepo, customerSettingId, folderType, errors)
 
-                                'If mapResult IsNot Nothing AndAlso (spprocesstype = 0 OrElse
-                                '                                    (spprocesstype = 1 AndAlso folderType <> 4) OrElse
-                                '                                    (spprocesstype = 2 AndAlso folderType <> 4)) Then
-                                If mapResult IsNot Nothing AndAlso (spprocesstype = 0 OrElse
-                                                                    (spprocesstype = 2 AndAlso folderType <> 4)) Then
-
-                                    '特殊処理以外の通常の取込実行
-                                    'スズキ特殊処理
-                                    'ヤマハ(IM以外)の場合(ASTI追加内示)
-
-                                    '取込ファイルからデータを取得する処理
-                                    OMS.Data.OrderStageImport.ParseImportFile(
-                                                                tran,
-                                                                customerSettingId,
-                                                                customerCode,
-                                                                impfilestageId,
-                                                                spprocesstype,
-                                                                strWorkFile,
-                                                                TorikomiFile,
-                                                                ErrFlg,
-                                                                ErrFileFlg,
-                                                                errcnt,
-                                                                folderType,
-                                                                newId,
-                                                                UserId,
-                                                                pgId,
-                                                                errors,
-                                                                rowsForTemp2,
-                                                                mapResult)
-
-                                    'blnflg = True
-
-                                ElseIf mapResult Is Nothing AndAlso spprocesstype = 1 AndAlso folderType = 4 Then
-                                    '特殊加工:スズキ フォルダ区分:混合
-                                    Dim suzukiService As New OMS.Business.Services.SuzukiDataImportService(Utils.GetConnectionString())
-                                    Dim suzukiSuccess As Boolean = suzukiService.ExecuteStageImportToOrdersStage(
-                                        tran.Connection,
-                                        tran,
-                                        customerSettingId,
-                                        customerCode,
-                                        impfilestageId,
-                                        folderType,
-                                        UserId,
-                                        pgId,
-                                        errors,
-                                        rowsForTemp2
-                                    )
-                                    If Not suzukiSuccess Then
-                                        ErrFlg = True
-                                        Continue For
+                                ' スズキ特殊処理 (spprocesstype = 1)
+                                If spprocesstype = 1 Then
+                                    ' ファイル種別判定: スズキ4桁EDIコードを持つか確認
+                                    Dim fileExt As String = Path.GetExtension(strWorkFile).ToLowerInvariant()
+                                    Dim isSuzukiEdi As Boolean = False
+                                    If fileExt <> ".xlsx" Then
+                                        Dim peekCode As String = OMS.Business.Services.SuzukiCsvParser.PeekInfoTypeCode(strWorkFile)
+                                        If Not String.IsNullOrEmpty(peekCode) AndAlso peekCode.Length = 4 AndAlso OMS.Business.Services.SuzukiPreImportService.SupportedInfoCodes.Contains(peekCode) Then
+                                            isSuzukiEdi = True
+                                        End If
                                     End If
 
-                                    'blnflg = True
+                                    If isSuzukiEdi Then
+                                        ' スズキ4桁EDIデータ: スズキ専用ステージングテーブルから読込
+                                        Dim suzukiService As New OMS.Business.Services.SuzukiDataImportService(Utils.GetConnectionString())
+                                        Dim suzukiSuccess As Boolean = suzukiService.ExecuteStageImportToOrdersStage(
+                                            tran.Connection,
+                                            tran,
+                                            customerSettingId,
+                                            customerCode,
+                                            impfilestageId,
+                                            folderType,
+                                            UserId,
+                                            pgId,
+                                            errors,
+                                            rowsForTemp2
+                                        )
+                                        If Not suzukiSuccess Then
+                                            ErrFlg = True
+                                            Continue For
+                                        End If
+                                    Else
+                                        ' ASTI追加内示 等の手動取込ファイル: MAPPING_PROFILE_MST を使用してファイル読込を行う
+                                        If mapResult IsNot Nothing Then
+                                            OMS.Data.OrderStageImport.ParseImportFile(
+                                                                        tran,
+                                                                        customerSettingId,
+                                                                        customerCode,
+                                                                        impfilestageId,
+                                                                        spprocesstype,
+                                                                        strWorkFile,
+                                                                        TorikomiFile,
+                                                                        ErrFlg,
+                                                                        ErrFileFlg,
+                                                                        errcnt,
+                                                                        folderType,
+                                                                        newId,
+                                                                        UserId,
+                                                                        pgId,
+                                                                        errors,
+                                                                        rowsForTemp2,
+                                                                        mapResult)
+                                        Else
+                                            errors.Add($"顧客設定ID:{customerSettingId}:MAPPINNG_PROFILE_MSTに未登録")
+                                            Continue For
+                                        End If
+                                    End If
 
                                 ElseIf mapResult Is Nothing AndAlso spprocesstype = 2 AndAlso folderType = 4 Then
                                     '特殊加工:ヤマハ(IM以外) フォルダ区分:混合
@@ -689,6 +693,34 @@ Namespace Pages.Orders
                                                                 pgId,
                                                                 errors,
                                                                 rowsForTemp2)
+
+                                    'blnflg = True
+
+                                ElseIf mapResult IsNot Nothing AndAlso (spprocesstype = 0 OrElse
+                                                                        (spprocesstype = 2 AndAlso folderType <> 4)) Then
+
+                                    '特殊処理以外の通常の取込実行
+                                    'ヤマハ(IM以外)の場合(ASTI追加内示)
+
+                                    '取込ファイルからデータを取得する処理
+                                    OMS.Data.OrderStageImport.ParseImportFile(
+                                                                tran,
+                                                                customerSettingId,
+                                                                customerCode,
+                                                                impfilestageId,
+                                                                spprocesstype,
+                                                                strWorkFile,
+                                                                TorikomiFile,
+                                                                ErrFlg,
+                                                                ErrFileFlg,
+                                                                errcnt,
+                                                                folderType,
+                                                                newId,
+                                                                UserId,
+                                                                pgId,
+                                                                errors,
+                                                                rowsForTemp2,
+                                                                mapResult)
 
                                     'blnflg = True
 

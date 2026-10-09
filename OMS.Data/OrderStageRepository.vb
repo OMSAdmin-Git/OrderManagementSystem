@@ -2344,7 +2344,7 @@ Namespace OMS.Data
 
             Const sql As String =
                         "INSERT INTO orders_stage (" &
-                        "  customer_setting_id, customer_code, billing_to, customer_order_no, demand_status, ship_to, " &
+                        "  order_id, customer_setting_id, customer_code, billing_to, customer_order_no, demand_status, ship_to, " &
                         "  order_date, due_date, ship_scheduled_date, customer_item_no, item_no, " &
                         "  demand_qty, demand_unit, currency_code, ship_stock_location, company_id, " &
                         "  product_code, billing_standard, ship_process_type, delivery_instr_flag, " &
@@ -2364,7 +2364,7 @@ Namespace OMS.Data
                         "  container_no, order_reason, customer_lot_no, " &
                         "  delivery_type, production_month_type " &
                         ") VALUES (" &
-                        "  :p_customer_setting_id, :p_customer_code, :p_billing_to, :p_customer_order_no, :p_demand_status, :p_ship_to, " &
+                        "  :p_order_id, :p_customer_setting_id, :p_customer_code, :p_billing_to, :p_customer_order_no, :p_demand_status, :p_ship_to, " &
                         "  :p_order_date, :p_due_date, :p_ship_scheduled_date, :p_customer_item_no, :p_item_no, " &
                         "  :p_demand_qty, :p_demand_unit, :p_currency_code, :p_ship_stock_location, :p_company_id, " &
                         "  :p_product_code, :p_billing_standard, :p_ship_process_type, :p_delivery_instr_flag, " &
@@ -2391,6 +2391,8 @@ Namespace OMS.Data
 
                 For Each r In records
                     cmd.Parameters.Clear()
+
+                    cmd.Parameters.Add(":p_order_id", OracleDbType.Int64).Value = If(r.OrderId.HasValue, CObj(r.OrderId.Value), DBNull.Value)
 
                     ' 例：文字列は SafeVarchar で桁超を丸め（定義長に合わせる）
                     cmd.Parameters.Add(":p_customer_setting_id", OracleDbType.Int64).Value = r.CustomerSettingId ' NUMBER(10,0)
