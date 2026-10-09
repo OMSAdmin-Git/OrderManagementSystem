@@ -606,7 +606,7 @@ Namespace Pages.Orders
 
                 ' 裏画面 Download
                 If (errorCount <> 0 Or pastErrorCnt <> 0) Then
-                    Dim fileListName = Path.Combine(Server.MapPath(strPath), Utils.GetTempFileName("FileList.txt"))
+                    Dim fileListName = Path.Combine(strPath, Utils.GetTempFileName("FileList.txt"))
                     Dim orderFilename = repo.GeOrderZipFilename("エラーリスト", ProcessingStartDate)
                     Utils.SaveFileList(fileListName, fileList)
                     Dim url As String = $"DownloadProcess.ashx?file={HttpUtility.UrlEncode(orderFilename)}&list={HttpUtility.UrlEncode(fileListName)}"
