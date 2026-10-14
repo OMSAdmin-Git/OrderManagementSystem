@@ -107,7 +107,7 @@
                                     <%# OMS.Common.Utils.ToFolderTypeNameSafe(Eval("FolderType")) %>
                                 </ItemTemplate>
                             </asp:TemplateField>
-                            <asp:BoundField DataField="SpProcessType" HeaderText="特殊加工区分(Debug用)" Visible="true" />
+                            <asp:BoundField DataField="SpProcessType" HeaderText="特殊加工区分(Debug用)" Visible="false" />
                             <asp:BoundField DataField="SpProcessType" HeaderText="特殊加工区分" Visible="false" />
                             <asp:BoundField DataField="FolderPath" HeaderText="フォルダパス" Visible="false" />
                             <asp:BoundField DataField="FileName" HeaderText="ファイル名" />
