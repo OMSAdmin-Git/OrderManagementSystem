@@ -102,7 +102,9 @@ Namespace Services
         ''' 取込処理メインエントリ
         ''' </summary>
         Public Function ExecuteImport(folderPath As String, customerSettingId As Long, folderType As Integer, Optional userId As String = "SUZUKI-AT", Optional isBatch As Boolean = True, Optional reconcileFlag As String = "", Optional fcstReconcileFlag As String = "", Optional ByRef webErrors As List(Of String) = Nothing, Optional ByRef outStageRows As List(Of ImpFilesStageRow) = Nothing, Optional ByRef totalFilesCount As Integer = 0, Optional ByRef validFilesCount As Integer = 0, Optional ByRef errorFilesCount As Integer = 0) As Integer
-            Dim loggerPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "app.log")
+            Dim logDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Logs")
+            If Not Directory.Exists(logDir) Then Directory.CreateDirectory(logDir)
+            Dim loggerPath = Path.Combine(logDir, $"SuzukiImport_{DateTime.Now:yyyyMMdd}.log")
             Dim logger As New Logger(loggerPath)
 
             ' ユーザーIDの厳密チェック (Strict User ID check)
@@ -110,7 +112,7 @@ Namespace Services
                 If isBatch Then
                     userId = "SUZUKI-AT"
                 Else
-                    logger.Write("[SUZUKI_IMPORT] User ID is empty. Aborting execution.")
+                    logger.Write("[SUZUKI_IMPORT] 実行ユーザーIDが指定されていないため、処理を中断します。")
                     If webErrors IsNot Nothing Then
                         webErrors.Add("ユーザーIDが取得できませんでした。ログイン状態を確認してください。")
                     End If
@@ -118,10 +120,10 @@ Namespace Services
                 End If
             End If
 
-            logger.Write($"[SUZUKI_IMPORT] Start processing folder={folderPath} user={userId} isBatch={isBatch}")
+            logger.Write($"[SUZUKI_IMPORT] 取込準備 (Pre-Import) 処理を開始します (対象フォルダ: {folderPath}, 実行ユーザ: {userId}, バッチ実行: {isBatch})")
 
             If String.IsNullOrWhiteSpace(folderPath) OrElse Not Directory.Exists(folderPath) Then
-                logger.Write($"[SUZUKI_IMPORT] Target folder does not exist: {folderPath}")
+                logger.Write($"[SUZUKI_IMPORT] 取込対象フォルダが存在しません: {folderPath}")
                 Return 0
             End If
 
@@ -147,7 +149,7 @@ Namespace Services
                 Array.Empty(Of String)())
 
             If sourceFiles.Length = 0 Then
-                logger.Write("[SUZUKI_IMPORT] No import target files (.csv, .xlsx, .txt) found in source folder.")
+                logger.Write("[SUZUKI_IMPORT] 取込対象フォルダに対象ファイル (.csv, .xlsx, .txt) が見つかりませんでした。")
                 totalFilesCount = 0
                 validFilesCount = 0
                 errorFilesCount = 0
@@ -194,7 +196,7 @@ Namespace Services
                         tran.Commit()
                     Catch ex As Exception
                         tran.Rollback()
-                        logger.Write($"[SUZUKI_IMPORT] Failed to insert IMP_RUN: {ex.Message}")
+                        logger.Write($"[SUZUKI_IMPORT] 実行管理レコード (IMP_RUN) の登録に失敗しました: {ex.Message}")
                         Return 0
                     End Try
                 End Using
@@ -262,11 +264,11 @@ Namespace Services
                                     If outStageRows IsNot Nothing Then
                                         outStageRows.Add(stageRow)
                                     End If
-                                    logger.Write($"[SUZUKI_IMPORT] Successfully staged manual import file: {fileName}")
+                                    logger.Write($"[SUZUKI_IMPORT] 手動取込ファイルを作業フォルダへ退避・ステージングしました: {fileName}")
                                 Catch ex As Exception
                                     tran.Rollback()
                                     errorFilesCount += 1
-                                    logger.Write($"[SUZUKI_IMPORT] Error staging manual import file {fileName}: {ex.Message}")
+                                    logger.Write($"[SUZUKI_IMPORT] 手動取込ファイルのステージング中にエラーが発生しました ({fileName}): {ex.Message}")
                                     Dim errList As New List(Of String)() From {$"取込準備エラー: {ex.Message}"}
                                     ExportErrorsToCsv(folderPath, fileName, errList, isBatch, webErrors)
                                     MoveBackErrorFile(workFilePath, folderPath, fileName, userId)
@@ -341,7 +343,7 @@ Namespace Services
                                         End Using
                                     End If
 
-                                    logger.Write($"[SUZUKI_IMPORT] Found {errorRows.Count} part matching errors in {fileName} (valid rows: {validRowsCount})")
+                                    logger.Write($"[SUZUKI_IMPORT] 品番未引当エラーを検知しました ({fileName}): エラー {errorRows.Count} 件 (正常行: {validRowsCount} 件)")
 
                                     If validRowsCount = 0 Then
                                         ' --- Rule 4: 全件がASTI品番エラーの場合 ---
@@ -368,7 +370,7 @@ Namespace Services
                                     End If
                                 Else
                                     ' --- Rule 2: 全件正常の場合 ---
-                                    logger.Write($"[SUZUKI_IMPORT] File staged successfully in WORK: {fileName}")
+                                    logger.Write($"[SUZUKI_IMPORT] ファイルのステージングが完了しました: {fileName}")
                                 End If
 
                                 ' 正常データおよびIMP_FILES_STAGEを確定
@@ -382,7 +384,7 @@ Namespace Services
                             Catch ex As Exception
                                 tran.Rollback()
                                 errorFilesCount += 1
-                                logger.Write($"[SUZUKI_IMPORT] DB Error processing {fileName}: {ex.Message}")
+                                logger.Write($"[SUZUKI_IMPORT] ファイル処理中にDBエラーが発生しました ({fileName}): {ex.Message}")
                                 Dim errList As New List(Of String)()
                                 errList.Add($"処理エラー: {ex.Message}")
                                 ExportErrorsToCsv(folderPath, fileName, errList, isBatch, webErrors)
@@ -390,7 +392,7 @@ Namespace Services
                             End Try
                         End Using
                     Catch ex As Exception
-                        logger.Write($"[SUZUKI_IMPORT] File Error: {ex.Message}")
+                        logger.Write($"[SUZUKI_IMPORT] ファイル処理エラー: {ex.Message}")
                     End Try
                 Next
 
@@ -816,9 +818,11 @@ Namespace Services
                     Next
                 End Using
             Catch ex As Exception
-                Dim loggerPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "app.log")
+                Dim logDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Logs")
+                If Not Directory.Exists(logDir) Then Directory.CreateDirectory(logDir)
+                Dim loggerPath = Path.Combine(logDir, $"SuzukiImport_{DateTime.Now:yyyyMMdd}.log")
                 Dim logger As New Logger(loggerPath)
-                logger.Write($"[SUZUKI_IMPORT] Error exporting CSV: {ex.Message}")
+                logger.Write($"[SUZUKI_IMPORT] CSVエクスポート処理エラー: {ex.Message}")
             End Try
         End Sub
 

@@ -45,7 +45,7 @@ Namespace Services
             If Not Directory.Exists(logDir) Then Directory.CreateDirectory(logDir)
             Dim loggerPath = Path.Combine(logDir, $"SuzukiImport_{DateTime.Now:yyyyMMdd}.log")
             Dim logger As New Logger(loggerPath)
-            logger.Write($"[SUZUKI_IMPORT] Stage 2 Order Registration started: CustomerSettingId={customerSettingId}, FolderType={folderType}, ImpRunId={impRunId}")
+            logger.Write($"[SUZUKI_IMPORT] 受注取込 (Import) を開始しました (取引先設定ID: {customerSettingId}, フォルダ種別: {folderType}, 実行管理ID: {impRunId})")
 
             Dim pgId As String = "SUZUKI_SPIRITS_DATA_IMPORT"
             Dim totalRegistered As Integer = 0
@@ -58,36 +58,36 @@ Namespace Services
                 Using tran As OracleTransaction = conn.BeginTransaction()
                     Try
                         ' 【工程 1】受注ワーク削除 (DELETE ①)
-                        logger.Write("[SUZUKI_IMPORT] Step 1: Purging ORDERS_STAGE...")
+                        logger.Write("[SUZUKI_IMPORT] 工程 1: ORDERS_STAGE の既存ワークデータをクリアしています...")
                         _orderStageRepo.DeleteOrdersStageForSuzuki(tran, customerSettingId, folderType)
 
                         ' 【工程 2 & 3】スズキ専用テーブルよりデータ抽出 & ORDERS_STAGE 行オブジェクト作成
-                        logger.Write("[SUZUKI_IMPORT] Step 2 & 3: Extracting active staging data from SUZUKI_SPIRITS_* tables...")
+                        logger.Write("[SUZUKI_IMPORT] 工程 2 & 3: スズキ専用ステージングテーブルより有効データを抽出中...")
                         Dim rowsForTemp2 As New List(Of OrdersStageRow)()
                         Dim errors As New List(Of String)()
 
                         ExtractStagingRows(conn, tran, customerSettingId, folderType, 0, impRunId, userId, pgId, rowsForTemp2)
-                        logger.Write($"[SUZUKI_IMPORT] Extracted {rowsForTemp2.Count} raw staging rows.")
+                        logger.Write($"[SUZUKI_IMPORT] ステージングデータ {rowsForTemp2.Count} 件を抽出しました。")
 
                         ' 【工程 4】プロフィットセンター (PC) 解決 & 特殊コード加算・更新 (0630, 663N, 663S)
-                        logger.Write("[SUZUKI_IMPORT] Step 4: Resolving Profit Centers & Applying adjustments (0630, 663N, 663S)...")
+                        logger.Write("[SUZUKI_IMPORT] 工程 4: プロフィットセンター(PC)解決および増減・変更データ(0630, 663N, 663S)を反映中...")
                         Dim adjustmentStageIds As New HashSet(Of Long)()
                         ResolveProfitCenters(conn, tran, rowsForTemp2, customerSettingId)
                         ApplySpecialAdjustments(conn, tran, 0, impRunId, rowsForTemp2, userId, pgId, adjustmentStageIds)
                         ResolveProfitCenters(conn, tran, rowsForTemp2, customerSettingId)
 
                         If rowsForTemp2.Count = 0 Then
-                            logger.Write("[SUZUKI_IMPORT] No active records found in Suzuki staging tables or adjustments. Skipping registration.")
+                            logger.Write("[SUZUKI_IMPORT] 処理対象の有効データが存在しないため、登録処理をスキップします。")
                             tran.Commit()
                             Return 0
                         End If
 
                         ' 【工程 5】エラーチェック
-                        logger.Write("[SUZUKI_IMPORT] Step 5: Validating staged rows...")
+                        logger.Write("[SUZUKI_IMPORT] 工程 5: ワークデータの整合性チェックを実行中...")
                         ValidateStagedRows(rowsForTemp2, customerSettingId, errors)
 
                         If errors.Count > 0 Then
-                            logger.Write($"[SUZUKI_IMPORT] Validation failed with {errors.Count} error(s).")
+                            logger.Write($"[SUZUKI_IMPORT] データ検証エラーが {errors.Count} 件発生しました。")
                             If isBatch Then
                                 ExportErrorsToCsv(folderPath, errors)
                             End If
@@ -96,9 +96,9 @@ Namespace Services
                         End If
 
                         ' 【工程 6】受注ワーク登録 & 洗い替え・消込処理
-                        logger.Write("[SUZUKI_IMPORT] Step 6: Inserting into ORDERS_STAGE & Reconciling...")
+                        logger.Write("[SUZUKI_IMPORT] 工程 6: ORDERS_STAGE への展開および消込処理を実行中...")
                         Dim insertedCount As Integer = _orderStageRepo.InsertRange(tran, rowsForTemp2)
-                        logger.Write($"[SUZUKI_IMPORT] Inserted {insertedCount} rows into ORDERS_STAGE.")
+                        logger.Write($"[SUZUKI_IMPORT] ORDERS_STAGE へ {insertedCount} 件のデータを登録しました。")
 
                         ' 解決された各取引先設定IDごとに正規データ読み込み & 内示洗い替え・消込
                         committedSettings = rowsForTemp2.Select(Function(r) r.CustomerSettingId).Distinct().ToList()
@@ -133,7 +133,7 @@ Namespace Services
                         Next
 
                         ' 【工程 7】本番保存 (INSERT ORDERS / INSERT ORDER_HISTORY)
-                        logger.Write("[SUZUKI_IMPORT] Step 7: Committing to master ORDERS & ORDER_HISTORY...")
+                        logger.Write("[SUZUKI_IMPORT] 工程 7: 受注マスタ (ORDERS) および履歴 (ORDER_HISTORY) へ本登録中...")
                         For Each csId In committedSettings
                             _orderStageRepo.UpdateOrdersFromStage(tran, csId, DateTime.Now, userId, pgId)
                             Dim saveCount As Integer = _orderStageRepo.InsertOrdersFromStage(tran, csId, DateTime.Now, userId, pgId)
@@ -211,18 +211,18 @@ Namespace Services
                         MoveWorkFilesToCompleted(conn, tran, impRunId, folderPath, userId, folderType, processedFileNames)
 
                         tran.Commit()
-                        logger.Write($"[SUZUKI_IMPORT] Successfully committed {totalRegistered} orders.")
+                        logger.Write($"[SUZUKI_IMPORT] 受注本番テーブルへの登録が正常に完了しました (登録件数: {totalRegistered} 件)。")
 
                     Catch ex As Exception
                         tran.Rollback()
-                        logger.Write($"[SUZUKI_IMPORT] Error during order registration: {ex.Message}")
+                        logger.Write($"[SUZUKI_IMPORT] 受注取込処理中にエラーが発生しました: {ex.Message}")
                         Throw
                     End Try
                 End Using
 
                 ' 【工程 8】STRA納期設定 & IMP_RUN 完了更新 (バッチ実行のみ)
                 If isBatch Then
-                    logger.Write("[SUZUKI_IMPORT] Step 8: Executing STRA納期設定...")
+                    logger.Write("[SUZUKI_IMPORT] 工程 8: 後続の STRA納期設定処理を実行中...")
                     ExecuteStraDeliveryDateSetting(conn, committedSettings, userId, logger)
                 End If
 
@@ -1081,7 +1081,7 @@ Namespace Services
         End Sub
 
         Private Sub ApplyAdjustment663N(conn As OracleConnection, tran As OracleTransaction, impFileId As Long, impRunId As Long, rows As List(Of OrdersStageRow), dateCache As Dictionary(Of Date, Date), userId As String, pgId As String, Optional outAdjustmentStageIds As HashSet(Of Long) = Nothing)
-            Dim sql = "SELECT * FROM SUZUKI_SPIRITS_6604AND6634 WHERE info_type_code = '663N' AND active_flag = 'Y' AND (status IS NULL OR status <> 'REGISTERED')"
+            Dim sql = "SELECT * FROM SUZUKI_SPIRITS_663NAND663SAND664T WHERE info_type_code = '663N' AND active_flag = 'Y' AND (status IS NULL OR status <> 'REGISTERED')"
             If impFileId > 0 Then sql &= " AND imp_file_id = :p_imp_file_id"
             If impRunId > 0 Then sql &= " AND imp_run_id = :p_imp_run_id"
 
@@ -1138,7 +1138,7 @@ Namespace Services
         End Sub
 
         Private Sub ApplyAdjustment663S(conn As OracleConnection, tran As OracleTransaction, impFileId As Long, impRunId As Long, rows As List(Of OrdersStageRow), userId As String, pgId As String, Optional outAdjustmentStageIds As HashSet(Of Long) = Nothing)
-            Dim sql = "SELECT * FROM SUZUKI_SPIRITS_6604AND6634 WHERE info_type_code = '663S' AND active_flag = 'Y' AND (status IS NULL OR status <> 'REGISTERED')"
+            Dim sql = "SELECT * FROM SUZUKI_SPIRITS_663NAND663SAND664T WHERE info_type_code = '663S' AND active_flag = 'Y' AND (status IS NULL OR status <> 'REGISTERED')"
             If impFileId > 0 Then sql &= " AND imp_file_id = :p_imp_file_id"
             If impRunId > 0 Then sql &= " AND imp_run_id = :p_imp_run_id"
 
@@ -1379,19 +1379,19 @@ Namespace Services
                             Dim straErr = _orderStageRepo.DeliveryDateSetting(conn, tran, "5455", pc, csId, DateTime.Now, userId)
                             If String.IsNullOrEmpty(straErr) Then
                                 tran.Commit()
-                                logger.Write($"[SUZUKI_IMPORT] STRA Delivery Date Setting completed for Setting ID {csId} (PC: '{pc}')")
+                                logger.Write($"[SUZUKI_IMPORT] STRA納期設定処理が正常に完了しました (取引先設定ID: {csId}, PC: '{pc}')")
                             Else
                                 tran.Rollback()
-                                logger.Write($"[SUZUKI_IMPORT] STRA Delivery Date Setting warning for Setting ID {csId} (PC: '{pc}'): {straErr}")
+                                logger.Write($"[SUZUKI_IMPORT] STRA納期設定処理警告 (取引先設定ID: {csId}, PC: '{pc}'): {straErr}")
                             End If
                         Catch ex As Exception
                             tran.Rollback()
-                            logger.Write($"[SUZUKI_IMPORT] Error running DeliveryDateSetting for Setting ID {csId} (PC: '{pc}'): {ex.Message}")
+                            logger.Write($"[SUZUKI_IMPORT] STRA納期設定実行エラー (取引先設定ID: {csId}, PC: '{pc}'): {ex.Message}")
                         End Try
                     End Using
                 Next
             Catch ex As Exception
-                logger.Write($"[SUZUKI_IMPORT] Error in ExecuteStraDeliveryDateSetting: {ex.Message}")
+                logger.Write($"[SUZUKI_IMPORT] STRA納期設定処理で例外が発生しました: {ex.Message}")
             End Try
         End Sub
 

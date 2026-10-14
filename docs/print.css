@@ -1,41 +1,86 @@
+/* 印刷・PDF出力用スタイル設定 */
 @media print {
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    color: #222;
-    font-size: 10.5pt;
-    line-height: 1.5;
-  }
-  h1, h2, h3, h4 {
-    page-break-after: avoid !important;
-    break-after: avoid !important;
-  }
-  table, pre, blockquote, .test-phase {
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-  }
-  tr {
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-  }
-  .page-break {
-    page-break-before: always !important;
-    break-before: always !important;
+  @page {
+    margin: 15mm 12mm 15mm 12mm;
   }
 }
 
-.test-phase {
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Meiryo", sans-serif;
+  color: #24292e;
+  font-size: 10.5pt;
+  line-height: 1.5;
+}
+
+/* 見出しがページの最下部に孤立（改ページで詳細と泣き別れ）するのを防止 */
+h1, h2, h3, h4, h5, h6 {
+  page-break-after: avoid !important;
+  break-after: avoid !important;
+  break-after: avoid-page !important;
+  margin-top: 14px;
+  margin-bottom: 8px;
+}
+
+/* Chromium対策: 見出しの直後の要素も手前での改ページを禁止 */
+h1 + *, h2 + *, h3 + *, h4 + *, h5 + *, h6 + * {
+  page-break-before: avoid !important;
+  break-before: avoid !important;
+  break-before: avoid-page !important;
+}
+
+/* セクションやブロック単位で絶対に分割させないコンテナ */
+.keep-together, .no-break, .test-phase {
+  page-break-inside: avoid !important;
+  break-inside: avoid !important;
+  break-inside: avoid-page !important;
+}
+
+/* リスト項目の途中改ページ防止 */
+li {
+  page-break-inside: avoid !important;
+  break-inside: avoid !important;
+}
+
+/* コードブロックの途中分割を防止（overflow: visible が必須） */
+pre, code, pre code {
+  page-break-inside: avoid !important;
+  break-inside: avoid !important;
+  overflow: visible !important;
+  white-space: pre-wrap !important;
+  word-break: break-all;
+}
+
+pre {
+  background-color: #f6f8fa;
   border: 1px solid #d0d7de;
+  padding: 8px 12px;
   border-radius: 6px;
-  padding: 12px 16px;
-  margin-bottom: 16px;
-  background-color: #fafbfc;
+  font-size: 9pt;
 }
 
+code {
+  background-color: #f3f4f6;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-size: 9pt;
+}
+
+/* 表のページ跨ぎ制御 */
 table {
-  width: 100%;
+  page-break-inside: auto;
   border-collapse: collapse;
+  width: 100%;
   margin: 12px 0;
   font-size: 10pt;
+}
+
+thead {
+  display: table-header-group !important; /* 改ページ時も表ヘッダーを反復 */
+}
+
+tr {
+  page-break-inside: avoid !important;
+  break-inside: avoid !important;
 }
 
 th, td {
@@ -49,18 +94,22 @@ th {
   font-weight: 600;
 }
 
-code {
-  background-color: #f3f4f6;
-  padding: 2px 4px;
-  border-radius: 4px;
-  font-size: 9pt;
+/* 確実な改ページ制御（Chromiumで要素が潰れないよう高さを確保） */
+.page-break {
+  page-break-before: always !important;
+  break-before: page !important;
+  display: block !important;
+  height: 1px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  clear: both !important;
 }
 
-pre {
-  background-color: #f6f8fa;
+.test-phase {
   border: 1px solid #d0d7de;
-  padding: 8px 12px;
   border-radius: 6px;
-  font-size: 9pt;
-  overflow-x: auto;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  background-color: #fafbfc;
 }
+

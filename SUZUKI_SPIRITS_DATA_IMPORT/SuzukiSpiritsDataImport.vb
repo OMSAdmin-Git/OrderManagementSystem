@@ -9,9 +9,17 @@ Namespace SUZUKI_SPIRITS_DATA_IMPORT
     Module SuzukiSpiritsDataImport
 
         Sub Main(args As String())
+            Dim logDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Logs")
+            If Not Directory.Exists(logDir) Then Directory.CreateDirectory(logDir)
+            Dim loggerPath = Path.Combine(logDir, $"SuzukiImport_{DateTime.Now:yyyyMMdd}.log")
+            Dim logger As New Logger(loggerPath)
+
             Console.WriteLine("==============================================")
-            Console.WriteLine(" SUZUKI_SPIRITS_DATA_IMPORT Console Runner ")
+            Console.WriteLine(" SUZUKI SPIRITS データ取込バッチ処理 ")
             Console.WriteLine("==============================================")
+            logger.Write("==============================================")
+            logger.Write(" SUZUKI SPIRITS データ取込バッチ処理を開始します ")
+            logger.Write("==============================================")
 
             Dim userId As String = "SUZUKI-AT"
             Dim isBatch As Boolean = True
@@ -46,40 +54,46 @@ Namespace SUZUKI_SPIRITS_DATA_IMPORT
                 targetFolder = GetSuzukiFolderPath(customerSettingId)
             End If
 
-            Console.WriteLine($"[INFO] Mode: {If(isBatch, "BATCH (/batch)", "MANUAL (/manual)")}")
-            Console.WriteLine($"[INFO] User ID: {userId}")
-            Console.WriteLine($"[INFO] Target Folder: {targetFolder}")
-            Console.WriteLine($"[INFO] Customer Setting ID: {customerSettingId}")
+            Dim modeText = If(isBatch, "バッチ実行 (/batch)", "手動実行 (/manual)")
+            Console.WriteLine($"[INFO] 動作モード: {modeText}")
+            Console.WriteLine($"[INFO] 実行ユーザーID: {userId}")
+            Console.WriteLine($"[INFO] 取込対象フォルダ: {targetFolder}")
+            Console.WriteLine($"[INFO] 取引先設定ID: {customerSettingId}")
+
+            logger.Write($"[INFO] 動作モード: {modeText}, 実行ユーザーID: {userId}, 取込対象フォルダ: {targetFolder}, 取引先設定ID: {customerSettingId}")
 
             Try
                 Dim preCount As Integer = 0
 
                 ' 1. Stage 1 (Pre-Import): フォルダが存在する場合はファイル取込を実行
                 If Not String.IsNullOrWhiteSpace(targetFolder) AndAlso Directory.Exists(targetFolder) Then
-                    Console.WriteLine("[INFO] Step 1: Checking and executing Pre-Import (Stage 1)...")
+                    Console.WriteLine("[INFO] 工程 1: 取込準備 (Pre-Import) を開始します...")
                     Dim preService As New SuzukiPreImportService()
                     preCount = preService.ExecuteImport(targetFolder, customerSettingId, folderType, userId, isBatch)
-                    Console.WriteLine($"[INFO] Pre-Import processed {preCount} file(s).")
+                    Console.WriteLine($"[INFO] 取込準備 (Pre-Import) 完了: {preCount} 件のファイルを正常に処理しました。")
                 Else
-                    Console.WriteLine($"[INFO] Target folder not specified or does not exist: '{targetFolder}'. Skipping Pre-Import.")
+                    Console.WriteLine($"[INFO] 取込対象フォルダが未指定、または存在しません: '{targetFolder}'。取込準備 (Pre-Import) をスキップします。")
                 End If
 
-                ' 2. Stage 2 (Order Registration & Reconciliation)
+                ' 2. Stage 2 (Order Registration & Reconciliation) -> 受注取込 (Import)
                 ' バッチモードで Pre-Import が実行された場合 (preCount > 0)、ExecuteImport 内で既に
                 ' 当該 impRunId を対象に ExecuteOrderRegistration が実行されているため、重複実行を防止する。
                 ' 未処理ファイルが 0 件だがステージングに未登録データが存在する場合のみ、明示的に登録を実行する。
                 If Not isBatch OrElse preCount = 0 Then
-                    Console.WriteLine("[INFO] Step 2: Executing Order Registration & Reconciliation for pending staging data (Stage 2)...")
+                    Console.WriteLine("[INFO] 工程 2: 受注取込・本登録 (Import) および STRA納期設定を開始します...")
                     Dim importService As New SuzukiDataImportService()
                     Dim registeredCount As Integer = importService.ExecuteOrderRegistration(customerSettingId, folderType, 0, userId, isBatch)
-                    Console.WriteLine($"[SUCCESS] Order Registration completed successfully. Registered {registeredCount} order(s).")
+                    Console.WriteLine($"[SUCCESS] 受注取込 (Import) が正常に完了しました。登録件数: {registeredCount} 件")
                 Else
-                    Console.WriteLine("[INFO] Step 2: Order Registration & Reconciliation was automatically executed during Pre-Import batch flow.")
+                    Console.WriteLine("[INFO] 工程 2: バッチ実行フローに基づき、取込準備 (Pre-Import) から受注取込 (Import)・STRA納期設定まで自動実行されました。")
                 End If
 
+                Console.WriteLine("[SUCCESS] 全てのバッチ処理工程 (Pre-Import / Import / STRA納期設定) が正常に完了しました。")
+                logger.Write("[SUCCESS] 全てのバッチ処理工程 (Pre-Import / Import / STRA納期設定) が正常に完了しました。")
                 Environment.ExitCode = 0
             Catch ex As Exception
-                Console.WriteLine($"[ERROR] Import failed: {ex.Message}")
+                Console.WriteLine($"[ERROR] 取込処理に失敗しました: {ex.Message}")
+                logger.Write($"[ERROR] 取込処理に失敗しました: {ex.Message}")
                 Environment.ExitCode = 1
             End Try
         End Sub
