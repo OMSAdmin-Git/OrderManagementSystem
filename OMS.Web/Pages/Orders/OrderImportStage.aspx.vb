@@ -300,11 +300,6 @@ Namespace Pages.Orders
 
                 Dim spprocesstype As String = keys("SpProcessType")?.ToString()
 
-                ' 【ヤマハ納品対応】スズキ特殊処理(1)は納品対象外のため無効化（処理スキップ）
-                If spprocesstype = "1" Then
-                    Continue For
-                End If
-
                 ' DropDownList を取得（IDは .aspx のテンプレート列に合わせる）
                 Dim ddlReconcileFlag = TryCast(row.FindControl("ddlReconcileFlag"), DropDownList)
                 Dim ddlFcstReconcileFlag = TryCast(row.FindControl("ddlFcstReconcileFlag"), DropDownList)

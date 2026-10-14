@@ -3486,8 +3486,8 @@ Namespace OMS.Data
             Dim cnt As Integer = 0
 
             Dim ReconcileType As Integer = 1
-            If rowsForTemp2.Count > 0 Then
-                ReconcileType = rowsForTemp2(0).ReconcileType
+            If rowsForTemp2.Count > 0 AndAlso rowsForTemp2(0).ReconcileType.HasValue Then
+                ReconcileType = rowsForTemp2(0).ReconcileType.Value
             End If
 
             '-----------------
@@ -3539,7 +3539,37 @@ Namespace OMS.Data
                 _oderStageRepo.InsertStageFromOrders(tran, CustomerSettingId)
                 '-----------------------------------------------
 
+                If spprocesstype = 1 Then
+                    '-----------------------------------------------
+                    ' スズキ特殊加工 (Stage 2 工程6)
+                    '-----------------------------------------------
+                    ' 1. 出荷先変換 (SUZUKI_SPIRITS_CONVERSION_MST)
+                    _oderStageRepo.ConvertShipToForSuzuki(tran, CustomerSettingId)
 
+                    ' 2. 内示加工 (0602除外、0600/0813/6604洗い替え)
+                    _oderStageRepo.ReplaceNaijiRelationSuzuki(tran, impfilestageId, CustomerSettingId, Now, UserId, pgId)
+
+                    ' 3. 受注残加工
+                    If ReconcileFlag = "Y" Then
+                        _oderStageRepo.BacklogForecast(tran, CustomerSettingId, impfilestageId, ReconcileType, Now, UserId, pgId)
+                    End If
+
+                    ' 4. 納入指示加工: 打切 / 取消
+                    _oderStageRepo.UpdateClese(tran, impfilestageId, 3)
+                    _oderStageRepo.UpdateCancel(tran, impfilestageId, 3)
+
+                    ' 5. 納入指示加工: 内示消込 (0650/0651->0600, 0814->0813, 6624->6604)
+                    If FcstReconcileFlag = "Y" Then
+                        _oderStageRepo.ReconcileForecastSuzuki(tran, CustomerSettingId, impfilestageId, Now, UserId, pgId)
+                    End If
+
+                    ' 6. 納入指示 新規確定
+                    _oderStageRepo.UpdateKakuteiNewOrdersSuzuki(tran, impfilestageId)
+
+                    ' 7. 内示 (0600, 0602, 6604) ステータスを 'PROCESSED' に更新
+                    _oderStageRepo.UpdateNaijiStatusProcessed(tran, impfilestageId)
+
+                Else
 
                 '-----------------------------------------------
                 '--------
@@ -3732,6 +3762,8 @@ Namespace OMS.Data
                 _oderStageRepo.UpdateNonyuSijiNewOrders(tran, impfilestageId)
 
                 '-----------------------------------------------
+
+                End If
 
 
                 'If ErrFlg = False Then
