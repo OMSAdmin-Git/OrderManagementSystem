@@ -139,6 +139,7 @@ Namespace OMS.Data
                     delimiter           AS ""Delimiter"",
                     enclosure           AS ""Enclosure"",
                     header_flag         AS ""HeaderFlag"",
+                    charset             AS ""Charset"",
                     active_flag         AS ""ActiveFlag"",
                     created_at          AS ""CreatedAt"",
                     created_user_id     AS ""CreatedUserId"",

@@ -5088,7 +5088,8 @@ Namespace OMS.Data
                         "  order_time, sales_unit_price, delivery_time, " &
                         "  usage_location, production_category, container_no, " &
                         "  container_capacity, customer_lot_no, initial_flag, order_reason, " &
-                        "  target_reference_date_type, target_reference_date, info_type_code " &
+                        "  target_reference_date_type, target_reference_date, info_type_code, " &
+                        "  delivery_type, production_month_type " &
                         ") SELECT " &
                         "  customer_setting_id, customer_code, billing_to, customer_order_no, demand_status, ship_to, " &
                         "  order_date, due_date, customer_item_no, item_no, " &
@@ -5105,7 +5106,8 @@ Namespace OMS.Data
                         "  order_time, sales_unit_price, delivery_time, " &
                         "  usage_location, production_category, container_no, " &
                         "  container_capacity, customer_lot_no, initial_flag, order_reason, " &
-                        "  target_reference_date_type, target_reference_date, info_type_code " &
+                        "  target_reference_date_type, target_reference_date, info_type_code, " &
+                        "  delivery_type, production_month_type " &
                         "  FROM orders_stage " &
                         "  WHERE customer_setting_id = :p_customer_setting_id " &
                         "  AND status = 'PROCESSED' " &
@@ -5199,7 +5201,8 @@ Namespace OMS.Data
                         "  order_time, sales_unit_price, delivery_time, " &
                         "  usage_location, production_category, container_no, " &
                         "  container_capacity, customer_lot_no, initial_flag, order_reason, " &
-                        "  target_reference_date_type, target_reference_date, info_type_code " &
+                        "  target_reference_date_type, target_reference_date, info_type_code, " &
+                        "  delivery_type, production_month_type " &
                         ") SELECT " &
                         "  order_id, customer_setting_id, customer_code, billing_to, customer_order_no, demand_status, ship_to, " &
                         "  order_date, due_date, ship_scheduled_date, customer_item_no, item_no, " &
@@ -5216,7 +5219,8 @@ Namespace OMS.Data
                         "  order_time, sales_unit_price, delivery_time, " &
                         "  usage_location, production_category, container_no, " &
                         "  container_capacity, customer_lot_no, initial_flag, order_reason, " &
-                        "  target_reference_date_type, target_reference_date, info_type_code " &
+                        "  target_reference_date_type, target_reference_date, info_type_code, " &
+                        "  delivery_type, production_month_type " &
                         "  FROM orders " &
                         "  WHERE customer_setting_id = :p_customer_setting_id " &
                         "  AND status = 'PROCESSED' " &

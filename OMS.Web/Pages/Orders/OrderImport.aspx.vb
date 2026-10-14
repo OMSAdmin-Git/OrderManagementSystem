@@ -724,7 +724,8 @@ Namespace Pages.Orders
 
                                     'blnflg = True
 
-                                ElseIf mapResult Is Nothing AndAlso spprocesstype = 3 AndAlso folderType <> 4 Then
+                                    'ElseIf mapResult Is Nothing AndAlso spprocesstype = 3 AndAlso folderType <> 4 Then
+                                ElseIf spprocesstype = 3 AndAlso folderType <> 4 Then
                                     ' Yamaha robotex 内示/確定/ASTI内示取得
                                     OMS.Data.OrderStageImport.YamahaRobotexOrdersStageImport(tran,
                                                                                             customerSettingId,

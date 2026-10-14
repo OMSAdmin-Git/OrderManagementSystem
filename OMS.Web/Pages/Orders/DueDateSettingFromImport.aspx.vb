@@ -242,7 +242,7 @@ Namespace Pages.Orders
                             ''#If DEBUG Then
                             ''                            ' #### DEBUG
                             ''                            tran.Commit()
-                            ''                            tran = conn.BeginTransaction()
+                            ''                             tran.Commit()
                             ''                            ' #### DEBUG
                             ''#End If
                             'If (CheckError(errors)) Then
