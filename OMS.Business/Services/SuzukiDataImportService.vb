@@ -158,6 +158,7 @@ Namespace Services
                         Dim processedStageIds = rowsForTemp2.
                             Where(Function(r) r.ImpFileStageId.HasValue).
                             Select(Function(r) r.ImpFileStageId.Value).
+                            Distinct().
                             ToList()
 
                         ' 【特殊コード対応】0630, 663N, 663S 等の増減・変更ファイルIDも決済対象に含める
@@ -168,22 +169,26 @@ Namespace Services
                         Next
 
                         ' 処理対象のファイル名を収集 (MoveWorkFilesToCompleted で登録済みファイルのみを選択的に移動するため)
+                        ' ※ Oracle ORA-01795 (IN句の要素数1000個上限) 対策として500件ずつチャンク分割して取得
                         Dim processedFileNames As New List(Of String)()
                         If processedStageIds.Count > 0 Then
-                            Dim idListStr = String.Join(",", processedStageIds)
-                            Using cmdNames As New OracleCommand($"SELECT DISTINCT NVL(staged_file_name, file_name) AS fname FROM imp_files_stage WHERE imp_file_stage_id IN ({idListStr})", conn)
-                                cmdNames.Transaction = tran
-                                Using rNames = cmdNames.ExecuteReader()
-                                    While rNames.Read()
-                                        If Not rNames.IsDBNull(0) Then
-                                            Dim fn = rNames(0).ToString().Trim()
-                                            If Not String.IsNullOrEmpty(fn) AndAlso Not processedFileNames.Contains(fn) Then
-                                                processedFileNames.Add(fn)
+                            For i As Integer = 0 To processedStageIds.Count - 1 Step 500
+                                Dim chunk = processedStageIds.Skip(i).Take(500).ToList()
+                                Dim idListStr = String.Join(",", chunk)
+                                Using cmdNames As New OracleCommand($"SELECT DISTINCT NVL(staged_file_name, file_name) AS fname FROM imp_files_stage WHERE imp_file_stage_id IN ({idListStr})", conn)
+                                    cmdNames.Transaction = tran
+                                    Using rNames = cmdNames.ExecuteReader()
+                                        While rNames.Read()
+                                            If Not rNames.IsDBNull(0) Then
+                                                Dim fn = rNames(0).ToString().Trim()
+                                                If Not String.IsNullOrEmpty(fn) AndAlso Not processedFileNames.Contains(fn) Then
+                                                    processedFileNames.Add(fn)
+                                                End If
                                             End If
-                                        End If
-                                    End While
+                                        End While
+                                    End Using
                                 End Using
-                            End Using
+                            Next
                         End If
 
                         Dim stageRepo As New ImpFilesStageRepository(_connectionString)
