@@ -243,7 +243,7 @@ Namespace Pages.Orders
                             'ACTIVE_FLAG(有効フラグ)             'Y'
                             Dim ordersh = reph.GetOrders(conn, tran, OrderHistoryRepository.OrdersTable.ProductPlan, customerSettingId:=customerSettingId, status:="EXPORTED", activeFlag:="Y")
                             '[PROD_PLAN_STAGE]
-                            '書式・条件（PROD_PLAN_STAGE）処理中のCUSTOMER_SETTING_ID
+                            '書式・条件（PROD_PLAN_STAGE）処理中のCUSTOMER_ETTING_ID
                             'STATUS(ステータス)                 'POST_PLAN_DUE_SET'
                             'CTIVE_FLAG(有効フラグ)             'Y'
                             Dim orderss = reps.GetOrders(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, customerSettingId:=customerSettingId, status:="POST_PLAN_DUE_SET", activeFlag:="Y")
@@ -432,7 +432,9 @@ Namespace Pages.Orders
                 '                ' #### DEBUG
                 '#End If
 
+                '--------------------------
                 ' UPDATE (生産計画) prod_plan
+                '--------------------------
                 'PROD_PLAN_ID（生産計画ID）をキーとして、PROD_PLAN（生産計画テーブル）をPROD_PLAN_STAGEの値に更新
                 errors.Add(repo.ProductionPlanUpdate(conn, tran, ProcessingStartDate, loginUserId))
                 If (CheckError(errors)) Then
@@ -444,7 +446,12 @@ Namespace Pages.Orders
                 ' (DB 操作なので ファイル出力前に 処理を移動した)
 
                 ' Pharse-2
-                ' Update (受注) orders
+                ' PROD_PLAN_STAGE 読み直し
+                rowsu = reps.ToClass(reps.GetOrders(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, status:="EXPORTED", activeFlag:="Y"))
+
+                '--------------------------
+                ' UPDATE (受注) orders
+                '--------------------------
                 ' CUSTOMER_ORDER_NO（客先発注No）をキーとして、ORDERS（受注テーブル）をPROD_PLAN_STAGEの値に更新
                 For Each customerSettingId In idList
                     Dim trgRow = rowsu.FirstOrDefault(Function(x) x.CustomerSettingId = customerSettingId)
@@ -457,19 +464,21 @@ Namespace Pages.Orders
                     DBError(tran)
                 End If
 
-
                 ' 2026/10/01 Orders status を 'EXPORTED'に更新を中止 (再 生産管理実行 のため)
-                '' Update (受注) orders
-                'For Each customerSettingId In idList
-                '    Dim trgRow = rowsu.FirstOrDefault(Function(x) x.CustomerSettingId = customerSettingId)
-                '    If (trgRow IsNot Nothing) Then
-                '        errors.Add(repo.Update(conn, tran, OrderRepository.OrdersTable.Orders, kCustomerSettingId:=customerSettingId, kDemandStatus:="F", kStatus:="DUE_SET", kActiveFlag:="Y", status:="EXPORTED", updatedAt:=trgRow.UpdatedAt, updatedUserId:=trgRow.UpdatedUserId, updatedPgId:=trgRow.UpdatedPgId))
-                '    End If
-                'Next
-                'If (CheckError(errors)) Then
-                '    ' エラー
-                '    DBError(tran)
-                'End If
+                '--------------------------
+                ' UPDATE (受注) orders
+                '--------------------------
+                For Each customerSettingId In idList
+                    Dim trgRow = rowsu.FirstOrDefault(Function(x) x.CustomerSettingId = customerSettingId)
+                    If (trgRow IsNot Nothing) Then
+                        errors.Add(repo.Update(conn, tran, OrderRepository.OrdersTable.Orders, kCustomerSettingId:=customerSettingId, kDemandStatus:="F", kStatus:="DUE_SET", kActiveFlag:="Y", updatedAt:=trgRow.UpdatedAt, updatedUserId:=trgRow.UpdatedUserId, updatedPgId:=trgRow.UpdatedPgId))
+                        'errors.Add(repo.Update(conn, tran, OrderRepository.OrdersTable.Orders, kCustomerSettingId:=customerSettingId, kDemandStatus:="F", kStatus:="DUE_SET", kActiveFlag:="Y", status:="EXPORTED", updatedAt:=trgRow.UpdatedAt, updatedUserId:=trgRow.UpdatedUserId, updatedPgId:=trgRow.UpdatedPgId))
+                    End If
+                Next
+                If (CheckError(errors)) Then
+                    ' エラー
+                    DBError(tran)
+                End If
 
                 '#If DEBUG Then
                 '                ' #### DEBUG
@@ -493,12 +502,6 @@ Namespace Pages.Orders
 
                     '完了メッセージ表示
                     'lblResult.Text = "ファイル出力完了しました。"
-                    '#If DEBUG Then
-                    '                ' #### DEBUG
-                    '                tran.Commit()
-                    '                tran = conn.BeginTransaction()
-                    '                ' #### DEBUG
-                    '#End If
                 End If
             Catch ex As Exception
                 Dim m = ex.Message

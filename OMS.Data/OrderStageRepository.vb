@@ -3,6 +3,7 @@ Imports System.ComponentModel
 Imports System.Data
 Imports System.IO
 Imports System.Runtime.Remoting.Metadata.W3cXsd2001
+Imports System.Security.Cryptography
 Imports System.Text
 Imports DocumentFormat.OpenXml.Drawing.Charts
 Imports DocumentFormat.OpenXml.Spreadsheet
@@ -995,6 +996,9 @@ Namespace OMS.Data
             osr.DeliveryCode = dt.Field(Of String)("delivery_code")
             osr.TransportMethod = dt.Field(Of String)("transport_method")
             osr.CustomerOrderLineNo = dt.Field(Of String)("customer_order_line_no")
+            If (osr.CustomerOrderLineNo Is Nothing) Then
+                osr.CustomerOrderLineNo = "0"
+            End If
             osr.CustomerInfoType = dt.Field(Of String)("customer_info_type")
             osr.InfoType = dt.Field(Of String)("info_type")
             osr.SelfFcstFlag = dt.Field(Of String)("self_fcst_flag")
@@ -5459,7 +5463,7 @@ Namespace OMS.Data
         Public Property DeliveryCode As String                  ' DELIVERY_CODE VARCHAR2(25)
 
         Public Property TransportMethod As String               ' TRANSPORT_METHOD VARCHAR2(3)
-        Public Property CustomerOrderLineNo As String           ' CUSTOMER_ORDER_LINE_NO VARCHAR2(2)
+        Public Property CustomerOrderLineNo As String = "0"     ' CUSTOMER_ORDER_LINE_NO VARCHAR2(2)
         Public Property CustomerInfoType As String              ' CUSTOMER_INFO_TYPE VARCHAR2(50)
         Public Property InfoType As String                      ' INFO_TYPE CHAR(1)
         Public Property SelfFcstFlag As String                  ' SELF_FCST_FLAG CHAR(1)
@@ -5553,6 +5557,9 @@ Namespace OMS.Data
             DeliveryCode = org.DeliveryCode
             TransportMethod = org.TransportMethod
             CustomerOrderLineNo = org.CustomerOrderLineNo
+            If (CustomerOrderLineNo Is Nothing) Then
+                CustomerOrderLineNo = "0"
+            End If
             CustomerInfoType = org.CustomerInfoType
             InfoType = org.InfoType
             SelfFcstFlag = org.SelfFcstFlag
@@ -5635,6 +5642,9 @@ Namespace OMS.Data
             DeliveryCode = org.DeliveryCode
             TransportMethod = org.TransportMethod
             CustomerOrderLineNo = org.CustomerOrderLineNo
+            If (CustomerOrderLineNo Is Nothing) Then
+                CustomerOrderLineNo = "0"
+            End If
             CustomerInfoType = org.CustomerInfoType
             InfoType = org.InfoType
             SelfFcstFlag = org.SelfFcstFlag
@@ -5744,6 +5754,9 @@ Namespace OMS.Data
             'dst.Char50 = src.Char50
             dst.TransportMethod = src.TransportMethod
             dst.CustomerOrderLineNo = src.CustomerOrderLineNo
+            If (dst.CustomerOrderLineNo Is Nothing) Then
+                dst.CustomerOrderLineNo = "0"
+            End If
             dst.CustomerInfoType = src.CustomerInfoType
             dst.InfoType = src.InfoType
             dst.SelfFcstFlag = src.SelfFcstFlag
