@@ -336,6 +336,67 @@ Namespace Services
             LoadSpirits6624(conn, tran, impFileId, impRunId, customerSettingId, billingTo, currencyCode, dateCache, unitCache, userId, pgId, ruleReconcileType, outRows)
         End Sub
 
+        ''' <summary>
+        ''' SPIRITSデータマッピング仕様に基づく 取引先情報区分 (CUSTOMER_INFO_TYPE) の変換
+        ''' </summary>
+        Public Shared Function ConvertCustomerInfoType(infoCode As String, orderDataType As String, orderNotes As String) As String
+            Select Case infoCode
+                Case "0600", "6604"
+                    Select Case (If(orderDataType, "")).Trim()
+                        Case "1", "2" : Return "新規"
+                        Case "3" : Return "変更"
+                        Case Else : Return ""
+                    End Select
+                Case "0602"
+                    Select Case (If(orderDataType, "")).Trim()
+                        Case "2" : Return "新規"
+                        Case "3" : Return "変更"
+                        Case Else : Return ""
+                    End Select
+                Case "0651"
+                    If Not String.IsNullOrEmpty(orderNotes) AndAlso orderNotes.Length >= 17 Then
+                        If orderNotes.Substring(16, 1) <> "0" Then
+                            Return "打切"
+                        End If
+                    End If
+                    Return ""
+                Case Else
+                    Return ""
+            End Select
+        End Function
+
+        ''' <summary>
+        ''' 取引先情報区分から 情報区分 (INFO_TYPE) を解決
+        ''' INFO_TYPE_MST を優先参照し、未定義または取得失敗時は標準コード (新規:I, 変更:U, 打切:N) にフォールバック
+        ''' </summary>
+        Public Function ResolveInfoType(customerSettingId As Long, customerInfoType As String) As String
+            Return ResolveInfoTypeStatic(_orderStageRepo, customerSettingId, customerInfoType)
+        End Function
+
+        Public Shared Function ResolveInfoTypeStatic(repo As OrderStageRepository, customerSettingId As Long, customerInfoType As String) As String
+            If String.IsNullOrWhiteSpace(customerInfoType) Then Return ""
+
+            Dim cleanType = customerInfoType.Trim()
+            If repo IsNot Nothing AndAlso customerSettingId > 0 Then
+                Try
+                    Dim resolved As String = ""
+                    Dim errMsg As String = ""
+                    If repo.GetInfoType(customerSettingId, cleanType, resolved, errMsg) AndAlso Not String.IsNullOrEmpty(resolved) Then
+                        Return resolved.Trim()
+                    End If
+                Catch
+                    ' fallback to standard code
+                End Try
+            End If
+
+            Select Case cleanType
+                Case "新規" : Return "I"
+                Case "変更" : Return "U"
+                Case "打切" : Return "N"
+                Case Else : Return ""
+            End Select
+        End Function
+
 #Region "スズキ専用テーブル別 データ抽出メソッド"
 
         Private Sub LoadSpirits0600(conn As OracleConnection, tran As OracleTransaction, impFileId As Long, impRunId As Long, customerSettingId As Long, billingTo As String, currencyCode As String, dateCache As Dictionary(Of Date, Date), unitCache As Dictionary(Of String, (DemandUnit As String, ShipWh As String)), userId As String, pgId As String, ruleReconcileType As Short, outRows As List(Of OrdersStageRow))
@@ -358,6 +419,9 @@ Namespace Services
                         Dim dateType = If(r.IsDBNull(r.GetOrdinal("delivery_date_type")), "", r("delivery_date_type").ToString())
                         Dim prorated = If(dateType = "1" OrElse dateType = "4", 2, 1)
                         Dim orderQty = GetSafeInt64(r, "order_qty")
+                        Dim orderDataType = If(r.IsDBNull(r.GetOrdinal("order_data_type")), "", r("order_data_type").ToString())
+                        Dim custInfoType = ConvertCustomerInfoType("0600", orderDataType, "")
+                        Dim resolvedInfoType = ResolveInfoType(customerSettingId, custInfoType)
 
                         outRows.Add(New OrdersStageRow With {
                             .CustomerSettingId = customerSettingId,
@@ -387,8 +451,8 @@ Namespace Services
                             .OrderType = 1,
                             .ReconcileType = ruleReconcileType,
                             .ProratedType = prorated,
-                            .CustomerInfoType = "0600",
-                            .InfoType = "0",
+                            .CustomerInfoType = custInfoType,
+                            .InfoType = resolvedInfoType,
                             .SelfFcstFlag = "N",
                             .SelfFcstDeleteFlag = "N",
                             .ImpRunId = If(r.IsDBNull(r.GetOrdinal("imp_run_id")), Nothing, Convert.ToInt64(r("imp_run_id"))),
@@ -433,6 +497,9 @@ Namespace Services
                         Dim dateType = If(r.IsDBNull(r.GetOrdinal("delivery_date_type")), "", r("delivery_date_type").ToString())
                         Dim prorated = If(dateType = "1" OrElse dateType = "4", 2, 1)
                         Dim orderQty = GetSafeInt64(r, "order_qty")
+                        Dim orderDataType = If(r.IsDBNull(r.GetOrdinal("order_data_type")), "", r("order_data_type").ToString())
+                        Dim custInfoType = ConvertCustomerInfoType("0602", orderDataType, "")
+                        Dim resolvedInfoType = ResolveInfoType(customerSettingId, custInfoType)
 
                         outRows.Add(New OrdersStageRow With {
                             .CustomerSettingId = customerSettingId,
@@ -462,8 +529,8 @@ Namespace Services
                             .OrderType = 1,
                             .ReconcileType = ruleReconcileType,
                             .ProratedType = prorated,
-                            .CustomerInfoType = "0602",
-                            .InfoType = "0",
+                            .CustomerInfoType = custInfoType,
+                            .InfoType = resolvedInfoType,
                             .SelfFcstFlag = "N",
                             .SelfFcstDeleteFlag = "N",
                             .ImpRunId = If(r.IsDBNull(r.GetOrdinal("imp_run_id")), Nothing, Convert.ToInt64(r("imp_run_id"))),
@@ -537,8 +604,8 @@ Namespace Services
                             .OrderType = 3,
                             .ReconcileType = ruleReconcileType,
                             .ProratedType = prorated,
-                            .CustomerInfoType = "0650",
-                            .InfoType = "0",
+                            .CustomerInfoType = "",
+                            .InfoType = "",
                             .SelfFcstFlag = "N",
                             .SelfFcstDeleteFlag = "N",
                             .ImpRunId = If(r.IsDBNull(r.GetOrdinal("imp_run_id")), Nothing, Convert.ToInt64(r("imp_run_id"))),
@@ -584,6 +651,9 @@ Namespace Services
                         Dim dateType = If(r.IsDBNull(r.GetOrdinal("delivery_date_type")), "", r("delivery_date_type").ToString())
                         Dim prorated = If(dateType = "1" OrElse dateType = "4", 2, 1)
                         Dim orderQty = GetSafeInt64(r, "order_qty")
+                        Dim orderNotes = If(r.IsDBNull(r.GetOrdinal("order_notes")), "", r("order_notes").ToString())
+                        Dim custInfoType = ConvertCustomerInfoType("0651", "", orderNotes)
+                        Dim resolvedInfoType = ResolveInfoType(customerSettingId, custInfoType)
 
                         outRows.Add(New OrdersStageRow With {
                             .CustomerSettingId = customerSettingId,
@@ -613,8 +683,8 @@ Namespace Services
                             .OrderType = 3,
                             .ReconcileType = ruleReconcileType,
                             .ProratedType = prorated,
-                            .CustomerInfoType = "0651",
-                            .InfoType = "0",
+                            .CustomerInfoType = custInfoType,
+                            .InfoType = resolvedInfoType,
                             .SelfFcstFlag = "N",
                             .SelfFcstDeleteFlag = "N",
                             .ImpRunId = If(r.IsDBNull(r.GetOrdinal("imp_run_id")), Nothing, Convert.ToInt64(r("imp_run_id"))),
@@ -764,8 +834,8 @@ Namespace Services
                             .OrderType = 3,
                             .ReconcileType = ruleReconcileType,
                             .ProratedType = prorated,
-                            .CustomerInfoType = "0814",
-                            .InfoType = "0",
+                            .CustomerInfoType = "",
+                            .InfoType = "",
                             .SelfFcstFlag = "N",
                             .SelfFcstDeleteFlag = "N",
                             .ImpRunId = If(r.IsDBNull(r.GetOrdinal("imp_run_id")), Nothing, Convert.ToInt64(r("imp_run_id"))),
@@ -810,6 +880,9 @@ Namespace Services
                         Dim dateType = If(r.IsDBNull(r.GetOrdinal("delivery_date_type")), "", r("delivery_date_type").ToString())
                         Dim prorated = If(dateType = "1" OrElse dateType = "4", 2, 1)
                         Dim orderQty = GetSafeInt64(r, "order_qty")
+                        Dim orderDataType = If(r.IsDBNull(r.GetOrdinal("order_data_type")), "", r("order_data_type").ToString())
+                        Dim custInfoType = ConvertCustomerInfoType("6604", orderDataType, "")
+                        Dim resolvedInfoType = ResolveInfoType(customerSettingId, custInfoType)
 
                         outRows.Add(New OrdersStageRow With {
                             .CustomerSettingId = customerSettingId,
@@ -839,8 +912,8 @@ Namespace Services
                             .OrderType = 1,
                             .ReconcileType = ruleReconcileType,
                             .ProratedType = prorated,
-                            .CustomerInfoType = "6604",
-                            .InfoType = "0",
+                            .CustomerInfoType = custInfoType,
+                            .InfoType = resolvedInfoType,
                             .SelfFcstFlag = "N",
                             .SelfFcstDeleteFlag = "N",
                             .ImpRunId = If(r.IsDBNull(r.GetOrdinal("imp_run_id")), Nothing, Convert.ToInt64(r("imp_run_id"))),
@@ -912,8 +985,8 @@ Namespace Services
                             .OrderType = 3,
                             .ReconcileType = ruleReconcileType,
                             .ProratedType = prorated,
-                            .CustomerInfoType = "6624",
-                            .InfoType = "0",
+                            .CustomerInfoType = "",
+                            .InfoType = "",
                             .SelfFcstFlag = "N",
                             .SelfFcstDeleteFlag = "N",
                             .ImpRunId = If(r.IsDBNull(r.GetOrdinal("imp_run_id")), Nothing, Convert.ToInt64(r("imp_run_id"))),
