@@ -26,6 +26,20 @@
             }, 50);
             return true;
         }
+    
+        function onButtonClick(btn) {
+            var btnText = btn.value;
+            var btnNameSpan = document.getElementById('clickedBtnName');
+            if (btnNameSpan) {
+                btnNameSpan.innerText = btnText;
+            }
+            var overlay = document.getElementById('loadingOverlay');
+            if (overlay) overlay.style.display = 'flex';
+            setTimeout(function () {
+                btn.disabled = true;
+            }, 50);
+            return true;
+        }
     </script>
 </head>
 <body>
@@ -93,7 +107,7 @@
                                     <%# OMS.Common.Utils.ToFolderTypeNameSafe(Eval("FolderType")) %>
                                 </ItemTemplate>
                             </asp:TemplateField>
-                            <%--<asp:BoundField DataField="SpProcessType" HeaderText="特殊加工区分(Debug用)"  />--%>
+                            <asp:BoundField DataField="SpProcessType" HeaderText="特殊加工区分(Debug用)" Visible="false" />
                             <asp:BoundField DataField="SpProcessType" HeaderText="特殊加工区分" Visible="false" />
                             <asp:BoundField DataField="FolderPath" HeaderText="フォルダパス" Visible="false" />
                             <asp:BoundField DataField="FileName" HeaderText="ファイル名" />
