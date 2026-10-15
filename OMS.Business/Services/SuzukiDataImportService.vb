@@ -397,6 +397,44 @@ Namespace Services
             End Select
         End Function
 
+        ''' <summary>
+        ''' SPIRITSデータマッピング仕様に基づく 分割区分 (PRORATED_TYPE) の変換
+        ''' 1: 日割り, 2: 日割以外
+        ''' </summary>
+        Public Shared Function ConvertProratedType(infoCode As String, deliveryDateType As String) As Short
+            Dim dt = (If(deliveryDateType, "")).Trim()
+            Select Case infoCode
+                Case "0600"
+                    Select Case dt
+                        Case "1" : Return 2
+                        Case "5" : Return 1
+                        Case Else : Return 1
+                    End Select
+
+                Case "6604"
+                    Select Case dt
+                        Case "1", "4" : Return 2
+                        Case "5" : Return 1
+                        Case Else : Return 1
+                    End Select
+
+                Case "0650", "0651", "0813", "0814"
+                    Select Case dt
+                        Case "5", "6" : Return 1
+                        Case Else : Return 1
+                    End Select
+
+                Case "0602", "6624"
+                    Select Case dt
+                        Case "5" : Return 1
+                        Case Else : Return 1
+                    End Select
+
+                Case Else
+                    Return 1
+            End Select
+        End Function
+
 #Region "スズキ専用テーブル別 データ抽出メソッド"
 
         Private Sub LoadSpirits0600(conn As OracleConnection, tran As OracleTransaction, impFileId As Long, impRunId As Long, customerSettingId As Long, billingTo As String, currencyCode As String, dateCache As Dictionary(Of Date, Date), unitCache As Dictionary(Of String, (DemandUnit As String, ShipWh As String)), userId As String, pgId As String, ruleReconcileType As Short, outRows As List(Of OrdersStageRow))
@@ -417,7 +455,7 @@ Namespace Services
                         Dim dueDate = If(delDate.HasValue, GetWorkingDueDateCached(delDate.Value, dateCache), CType(Nothing, Date?))
                         Dim unitWh = GetUnitAndWhCached(itemNo, unitCache)
                         Dim dateType = If(r.IsDBNull(r.GetOrdinal("delivery_date_type")), "", r("delivery_date_type").ToString())
-                        Dim prorated = If(dateType = "1" OrElse dateType = "4", 2, 1)
+                        Dim prorated = ConvertProratedType("0600", dateType)
                         Dim orderQty = GetSafeInt64(r, "order_qty")
                         Dim orderDataType = If(r.IsDBNull(r.GetOrdinal("order_data_type")), "", r("order_data_type").ToString())
                         Dim custInfoType = ConvertCustomerInfoType("0600", orderDataType, "")
@@ -495,7 +533,7 @@ Namespace Services
                         Dim dueDate = If(delDate.HasValue, GetWorkingDueDateCached(delDate.Value, dateCache), CType(Nothing, Date?))
                         Dim unitWh = GetUnitAndWhCached(itemNo, unitCache)
                         Dim dateType = If(r.IsDBNull(r.GetOrdinal("delivery_date_type")), "", r("delivery_date_type").ToString())
-                        Dim prorated = If(dateType = "1" OrElse dateType = "4", 2, 1)
+                        Dim prorated = ConvertProratedType("0602", dateType)
                         Dim orderQty = GetSafeInt64(r, "order_qty")
                         Dim orderDataType = If(r.IsDBNull(r.GetOrdinal("order_data_type")), "", r("order_data_type").ToString())
                         Dim custInfoType = ConvertCustomerInfoType("0602", orderDataType, "")
@@ -573,7 +611,7 @@ Namespace Services
                         Dim dueDate = If(delDate.HasValue, GetWorkingDueDateCached(delDate.Value, dateCache), CType(Nothing, Date?))
                         Dim unitWh = GetUnitAndWhCached(itemNo, unitCache)
                         Dim dateType = If(r.IsDBNull(r.GetOrdinal("delivery_date_type")), "", r("delivery_date_type").ToString())
-                        Dim prorated = If(dateType = "1" OrElse dateType = "4", 2, 1)
+                        Dim prorated = ConvertProratedType("0650", dateType)
                         Dim orderQty = GetSafeInt64(r, "order_qty")
 
                         outRows.Add(New OrdersStageRow With {
@@ -649,7 +687,7 @@ Namespace Services
                         Dim dueDate = If(delDate.HasValue, GetWorkingDueDateCached(delDate.Value, dateCache), CType(Nothing, Date?))
                         Dim unitWh = GetUnitAndWhCached(itemNo, unitCache)
                         Dim dateType = If(r.IsDBNull(r.GetOrdinal("delivery_date_type")), "", r("delivery_date_type").ToString())
-                        Dim prorated = If(dateType = "1" OrElse dateType = "4", 2, 1)
+                        Dim prorated = ConvertProratedType("0651", dateType)
                         Dim orderQty = GetSafeInt64(r, "order_qty")
                         Dim orderNotes = If(r.IsDBNull(r.GetOrdinal("order_notes")), "", r("order_notes").ToString())
                         Dim custInfoType = ConvertCustomerInfoType("0651", "", orderNotes)
@@ -728,7 +766,7 @@ Namespace Services
                         Dim dueDate = If(delDate.HasValue, GetWorkingDueDateCached(delDate.Value, dateCache), CType(Nothing, Date?))
                         Dim unitWh = GetUnitAndWhCached(itemNo, unitCache)
                         Dim dateType = If(r.IsDBNull(r.GetOrdinal("delivery_date_type")), "", r("delivery_date_type").ToString())
-                        Dim prorated = If(dateType = "1" OrElse dateType = "4", 2, 1)
+                        Dim prorated = ConvertProratedType("0813", dateType)
                         Dim orderQty = GetSafeInt64(r, "order_qty")
 
                         outRows.Add(New OrdersStageRow With {
@@ -803,7 +841,7 @@ Namespace Services
                         Dim dueDate = If(delDate.HasValue, GetWorkingDueDateCached(delDate.Value, dateCache), CType(Nothing, Date?))
                         Dim unitWh = GetUnitAndWhCached(itemNo, unitCache)
                         Dim dateType = If(r.IsDBNull(r.GetOrdinal("delivery_date_type")), "", r("delivery_date_type").ToString())
-                        Dim prorated = If(dateType = "1" OrElse dateType = "4", 2, 1)
+                        Dim prorated = ConvertProratedType("0814", dateType)
                         Dim orderQty = GetSafeInt64(r, "order_qty")
 
                         outRows.Add(New OrdersStageRow With {
@@ -878,7 +916,7 @@ Namespace Services
                         Dim dueDate = If(delDate.HasValue, GetWorkingDueDateCached(delDate.Value, dateCache), CType(Nothing, Date?))
                         Dim unitWh = GetUnitAndWhCached(itemNo, unitCache)
                         Dim dateType = If(r.IsDBNull(r.GetOrdinal("delivery_date_type")), "", r("delivery_date_type").ToString())
-                        Dim prorated = If(dateType = "1" OrElse dateType = "4", 2, 1)
+                        Dim prorated = ConvertProratedType("6604", dateType)
                         Dim orderQty = GetSafeInt64(r, "order_qty")
                         Dim orderDataType = If(r.IsDBNull(r.GetOrdinal("order_data_type")), "", r("order_data_type").ToString())
                         Dim custInfoType = ConvertCustomerInfoType("6604", orderDataType, "")
@@ -954,7 +992,7 @@ Namespace Services
                         Dim dueDate = If(delDate.HasValue, GetWorkingDueDateCached(delDate.Value, dateCache), CType(Nothing, Date?))
                         Dim unitWh = GetUnitAndWhCached(itemNo, unitCache)
                         Dim dateType = If(r.IsDBNull(r.GetOrdinal("delivery_date_type")), "", r("delivery_date_type").ToString())
-                        Dim prorated = If(dateType = "1" OrElse dateType = "4", 2, 1)
+                        Dim prorated = ConvertProratedType("6624", dateType)
                         Dim orderQty = GetSafeInt64(r, "order_qty")
 
                         outRows.Add(New OrdersStageRow With {

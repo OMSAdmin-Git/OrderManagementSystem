@@ -273,4 +273,36 @@ Public Class SuzukiDataImportTests
         Assert.AreEqual("", SuzukiDataImportService.ResolveInfoTypeStatic(Nothing, 0, Nothing))
     End Sub
 
+    ''' <summary>
+    ''' SPIRITSデータマッピング: 分割区分 (PRORATED_TYPE) 変換テスト
+    ''' 0600: 1->2(日割以外), 5->1(日割り)
+    ''' 6604: 1,4->2(日割以外), 5->1(日割り)
+    ''' 0650/0651/0814: 5,6->1(日割り)
+    ''' 0602/6624: 5->1(日割り)
+    ''' </summary>
+    <TestMethod>
+    Public Sub ConvertProratedType_MapsCorrectlyPerSpecification()
+        ' 0600
+        Assert.AreEqual(CType(2, Short), SuzukiDataImportService.ConvertProratedType("0600", "1"))
+        Assert.AreEqual(CType(1, Short), SuzukiDataImportService.ConvertProratedType("0600", "5"))
+        Assert.AreEqual(CType(1, Short), SuzukiDataImportService.ConvertProratedType("0600", ""))
+
+        ' 6604
+        Assert.AreEqual(CType(2, Short), SuzukiDataImportService.ConvertProratedType("6604", "1"))
+        Assert.AreEqual(CType(2, Short), SuzukiDataImportService.ConvertProratedType("6604", "4"))
+        Assert.AreEqual(CType(1, Short), SuzukiDataImportService.ConvertProratedType("6604", "5"))
+
+        ' 0650, 0651, 0814
+        Assert.AreEqual(CType(1, Short), SuzukiDataImportService.ConvertProratedType("0650", "5"))
+        Assert.AreEqual(CType(1, Short), SuzukiDataImportService.ConvertProratedType("0650", "6"))
+        Assert.AreEqual(CType(1, Short), SuzukiDataImportService.ConvertProratedType("0651", "5"))
+        Assert.AreEqual(CType(1, Short), SuzukiDataImportService.ConvertProratedType("0651", "6"))
+        Assert.AreEqual(CType(1, Short), SuzukiDataImportService.ConvertProratedType("0814", "5"))
+        Assert.AreEqual(CType(1, Short), SuzukiDataImportService.ConvertProratedType("0814", "6"))
+
+        ' 0602, 6624
+        Assert.AreEqual(CType(1, Short), SuzukiDataImportService.ConvertProratedType("0602", "5"))
+        Assert.AreEqual(CType(1, Short), SuzukiDataImportService.ConvertProratedType("6624", "5"))
+    End Sub
+
 End Class
