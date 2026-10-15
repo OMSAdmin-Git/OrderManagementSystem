@@ -1,7 +1,8 @@
-﻿Imports System
+Imports System
 Imports System.Collections.Generic
 Imports Microsoft.VisualStudio.TestTools.UnitTesting
 Imports OMS.Data
+Imports OMS.Business.Services
 
 <TestClass>
 Public Class SuzukiDataImportTests
@@ -199,6 +200,77 @@ Public Class SuzukiDataImportTests
         Assert.IsTrue(washTargets.Contains("0600"), "0600 は洗い替え対象である必要があります")
         Assert.IsTrue(washTargets.Contains("6604"), "6604 は洗い替え対象である必要があります")
         Assert.IsFalse(washTargets.Contains("0813"), "0813 は2026/09/25仕様変更により洗い替え対象外である必要があります")
+    End Sub
+
+    ''' <summary>
+    ''' SPIRITSデータマッピング: 0600 / 6604 の 取引先情報区分変換テスト
+    ''' 1(内示) -> 新規, 2(確定) -> 新規, 3(変更) -> 変更
+    ''' </summary>
+    <TestMethod>
+    Public Sub ConvertCustomerInfoType_0600_And_6604_MapsCorrectly()
+        Assert.AreEqual("新規", SuzukiDataImportService.ConvertCustomerInfoType("0600", "1", ""))
+        Assert.AreEqual("新規", SuzukiDataImportService.ConvertCustomerInfoType("0600", "2", ""))
+        Assert.AreEqual("変更", SuzukiDataImportService.ConvertCustomerInfoType("0600", "3", ""))
+        Assert.AreEqual("", SuzukiDataImportService.ConvertCustomerInfoType("0600", "9", ""))
+        Assert.AreEqual("", SuzukiDataImportService.ConvertCustomerInfoType("0600", "", ""))
+
+        Assert.AreEqual("新規", SuzukiDataImportService.ConvertCustomerInfoType("6604", "1", ""))
+        Assert.AreEqual("新規", SuzukiDataImportService.ConvertCustomerInfoType("6604", "2", ""))
+        Assert.AreEqual("変更", SuzukiDataImportService.ConvertCustomerInfoType("6604", "3", ""))
+        Assert.AreEqual("", SuzukiDataImportService.ConvertCustomerInfoType("6604", "0", ""))
+    End Sub
+
+    ''' <summary>
+    ''' SPIRITSデータマッピング: 0602 の 取引先情報区分変換テスト
+    ''' 2(確定) -> 新規, 3(変更) -> 変更
+    ''' </summary>
+    <TestMethod>
+    Public Sub ConvertCustomerInfoType_0602_MapsCorrectly()
+        Assert.AreEqual("新規", SuzukiDataImportService.ConvertCustomerInfoType("0602", "2", ""))
+        Assert.AreEqual("変更", SuzukiDataImportService.ConvertCustomerInfoType("0602", "3", ""))
+        Assert.AreEqual("", SuzukiDataImportService.ConvertCustomerInfoType("0602", "1", ""))
+        Assert.AreEqual("", SuzukiDataImportService.ConvertCustomerInfoType("0602", "", ""))
+    End Sub
+
+    ''' <summary>
+    ''' SPIRITSデータマッピング: 0651 の 取引先情報区分変換テスト
+    ''' 発行注釈 17桁目 <> '0' -> 打切, それ以外 -> ""
+    ''' </summary>
+    <TestMethod>
+    Public Sub ConvertCustomerInfoType_0651_MapsCorrectly()
+        ' 17桁目が '1' の場合 -> "打切"
+        Dim noteUchikiri = "12345678901234561000"
+        Assert.AreEqual("打切", SuzukiDataImportService.ConvertCustomerInfoType("0651", "", noteUchikiri))
+
+        ' 17桁目が '0' の場合 -> ""
+        Dim noteNormal = "12345678901234560000"
+        Assert.AreEqual("", SuzukiDataImportService.ConvertCustomerInfoType("0651", "", noteNormal))
+
+        ' 17桁未満の場合 -> ""
+        Assert.AreEqual("", SuzukiDataImportService.ConvertCustomerInfoType("0651", "", "SHORT_NOTE"))
+        Assert.AreEqual("", SuzukiDataImportService.ConvertCustomerInfoType("0651", "", ""))
+    End Sub
+
+    ''' <summary>
+    ''' SPIRITSデータマッピング: 0650, 0814, 6624 は 取引先情報区分ブランク
+    ''' </summary>
+    <TestMethod>
+    Public Sub ConvertCustomerInfoType_NonMappedCodes_ReturnEmpty()
+        Assert.AreEqual("", SuzukiDataImportService.ConvertCustomerInfoType("0650", "1", "12345678901234561000"))
+        Assert.AreEqual("", SuzukiDataImportService.ConvertCustomerInfoType("0814", "2", ""))
+        Assert.AreEqual("", SuzukiDataImportService.ConvertCustomerInfoType("6624", "3", ""))
+    End Sub
+
+    ''' <summary>
+    ''' 情報区分 (INFO_TYPE) 解決テスト: 新規->I, 変更->U, 打切->N, 空白->空文字
+    ''' </summary>
+    <TestMethod>
+    Public Sub ResolveInfoTypeStatic_ResolvesStandardCodes()
+        Assert.AreEqual("I", SuzukiDataImportService.ResolveInfoTypeStatic(Nothing, 0, "新規"))
+        Assert.AreEqual("U", SuzukiDataImportService.ResolveInfoTypeStatic(Nothing, 0, "変更"))
+        Assert.AreEqual("N", SuzukiDataImportService.ResolveInfoTypeStatic(Nothing, 0, "打切"))
+        Assert.AreEqual("", SuzukiDataImportService.ResolveInfoTypeStatic(Nothing, 0, ""))
+        Assert.AreEqual("", SuzukiDataImportService.ResolveInfoTypeStatic(Nothing, 0, Nothing))
     End Sub
 
 End Class
