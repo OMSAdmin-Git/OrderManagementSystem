@@ -825,71 +825,72 @@ Namespace Pages.Orders
                                                             Next
                                                     End Select
                                                 End If
-                                                '
-                                                ' orderStageRow は DB から取得した内容 (処理経過で Dqty などは 変更される)
-                                                ' 最終的に生成されるのは ordersStage で 開始日から終了日までの営業日レコードデータが
-                                                ' 生成される。(不要なレコードも 含まれる。 DemandQty 0 のものも含まれるため)
-                                                '----------------------------
-                                                ' Update
-                                                '----------------------------
-                                                '【３．処理日以前のDEMAND_QTY（需要数）を集約する。】
-                                                '・以下の条件に合致するデータが存在する場合、以下の処理を行う。
-                                                '-条件：[処理開始日]より過去のSHIP_SCHEDULED_DATE（出荷予定日）に需要数が割り当てられたレコードが存在する
-                                                '-処理：[処理開始日]より過去の出荷予定日に割り当てられた需要数を[処理開始日]のデータに合算する
-                                                '
-                                                '[処理開始日]の出荷予定日のレコードが存在しない場合は、新規にレコードを作成し、
-                                                '需要数以外の項目は集約対象期間の昇順で先頭のレコードを参照する
-                                                '（例：処理開始日が3/10の場合、3/1～3/9に割り当てられた需要数を3/10に合算する）
-                                                '集約されたレコードの需要数をブランクに更新する
+                                            '
+                                            '----------------------------
+                                            ' Update
+                                            ' (生産計画) PROD_PLAN_STAGE
+                                            '----------------------------
+                                            ' orderStageRow は DB から取得した内容 (処理経過で Dqty などは 変更される)
+                                            ' 最終的に生成されるのは ordersStage で 開始日から終了日までの営業日レコードデータが
+                                            ' 生成される。(不要なレコードも 含まれる。 DemandQty 0 のものも含まれるため)
+                                            '【３．処理日以前のDEMAND_QTY（需要数）を集約する。】
+                                            '・以下の条件に合致するデータが存在する場合、以下の処理を行う。
+                                            '-条件：[処理開始日]より過去のSHIP_SCHEDULED_DATE（出荷予定日）に需要数が割り当てられたレコードが存在する
+                                            '-処理：[処理開始日]より過去の出荷予定日に割り当てられた需要数を[処理開始日]のデータに合算する
+                                            '
+                                            '[処理開始日]の出荷予定日のレコードが存在しない場合は、新規にレコードを作成し、
+                                            '需要数以外の項目は集約対象期間の昇順で先頭のレコードを参照する
+                                            '（例：処理開始日が3/10の場合、3/1～3/9に割り当てられた需要数を3/10に合算する）
+                                            '集約されたレコードの需要数をブランクに更新する
 
-                                                ' 過去データの集約
-                                                Dim oldOrders = ordersStage.FindAll(Function(x) x.ShipScheduledDate < ProcessingStartDate).OrderBy(Function(x) x.ShipScheduledDate).ToList()
-                                                Dim orders = ordersStage.FindAll(Function(x) x.ShipScheduledDate >= ProcessingStartDate).OrderBy(Function(x) x.ShipScheduledDate).ToList()
+                                            ' 過去データの集約
+                                            Dim oldOrders = ordersStage.FindAll(Function(x) x.ShipScheduledDate < ProcessingStartDate).OrderBy(Function(x) x.ShipScheduledDate).ToList()
+                                            Dim orders = ordersStage.FindAll(Function(x) x.ShipScheduledDate >= ProcessingStartDate).OrderBy(Function(x) x.ShipScheduledDate).ToList()
 
-                                                If (oldOrders.Count > 0) Then
-                                                    ' 作業日に該当する レコードを取得
-                                                    Dim thisRecord = ordersStage.Find(Function(x) x.ShipScheduledDate = ProcessingStartDate)
-                                                    ' 日付範囲 
-                                                    If (thisRecord Is Nothing) Then
-                                                        ' 昇順先頭レコードを先頭レコードをもとに作成 CopyConstructor 内で 詳細仕様書(96) Suzuki 対応 2026/08/18
-                                                        thisRecord = New OrdersStageRow(oldOrders(0))
-                                                        thisRecord.ShipScheduledDate = ProcessingStartDate
-                                                        thisRecord.DemandQty = 0
-                                                        thisRecord.StageId = Nothing
-                                                        ordersStage.Add(thisRecord)
-                                                        ' 分割期間よりも以前の場合 prod_plan_stage にレコードが無いため追加する
-                                                        errors.Add(reps.Insert(conn, tran, OrderRepository.OrdersTable.ProductPlan, thisRecord))
+                                            If (oldOrders.Count > 0) Then
+                                                ' 作業日に該当する レコードを取得
+                                                Dim thisRecord = ordersStage.Find(Function(x) x.ShipScheduledDate = ProcessingStartDate)
+                                                ' 日付範囲 
+                                                If (thisRecord Is Nothing) Then
+                                                    ' 昇順先頭レコードを先頭レコードをもとに作成 CopyConstructor 内で 詳細仕様書(96) Suzuki 対応 2026/08/18
+                                                    thisRecord = New OrdersStageRow(oldOrders(0))
+                                                    thisRecord.ShipScheduledDate = ProcessingStartDate
+                                                    thisRecord.DemandQty = 0
+                                                    thisRecord.StageId = Nothing
+                                                    ordersStage.Add(thisRecord)
+                                                    ' 分割期間よりも以前の場合 prod_plan_stage にレコードが無いため追加する
+                                                    errors.Add(reps.Insert(conn, tran, OrderRepository.OrdersTable.ProductPlan, thisRecord))
 
-                                                        ' 
+                                                    ' 
 
-                                                        '#If DEBUG Then
-                                                        '                                                    ' #### DEBUG
-                                                        '                                                    tran.Commit()
-                                                        '                                                    tran = conn.BeginTransaction()
-                                                        '                                                    ' #### DEBUG
-                                                        '#End If
-                                                        If (CheckError(errors)) Then
-                                                            ' エラー
-                                                            DBError(tran)
-                                                            Continue For
-                                                        End If
+                                                    '#If DEBUG Then
+                                                    '                                                    ' #### DEBUG
+                                                    '                                                    tran.Commit()
+                                                    '                                                    tran = conn.BeginTransaction()
+                                                    '                                                    ' #### DEBUG
+                                                    '#End If
+                                                    If (CheckError(errors)) Then
+                                                        ' エラー
+                                                        DBError(tran)
+                                                        Continue For
                                                     End If
-                                                    ' 日付範囲に 該当するレコードがない場合は、全て 過去日として 全数 作業日に 集約する
-                                                    If (orders.Count = 0) Then
-                                                        thisRecord.DemandQty = thisRecord.DemandQty + oldOrders.Sum(Function(x) x.DemandQty)
-                                                    Else
-                                                        ' 作業日以前の Qty をまとめる
-                                                        ' 自身の数量を加算していない 修正 2026/7/22
-                                                        thisRecord.DemandQty = thisRecord.DemandQty + oldOrders.Sum(Function(x) x.DemandQty)
-                                                        ' 作業日以前の Qty を0クリア
-                                                    End If
-                                                    oldOrders.ForEach(Sub(x) x.DemandQty = 0)
                                                 End If
+                                                ' 日付範囲に 該当するレコードがない場合は、全て 過去日として 全数 作業日に 集約する
+                                                If (orders.Count = 0) Then
+                                                    thisRecord.DemandQty = thisRecord.DemandQty + oldOrders.Sum(Function(x) x.DemandQty)
+                                                Else
+                                                    ' 作業日以前の Qty をまとめる
+                                                    ' 自身の数量を加算していない 修正 2026/7/22
+                                                    thisRecord.DemandQty = thisRecord.DemandQty + oldOrders.Sum(Function(x) x.DemandQty)
+                                                    ' 作業日以前の Qty を0クリア
+                                                End If
+                                                oldOrders.ForEach(Sub(x) x.DemandQty = 0)
+                                            End If
 
-                                                For Each tg In ordersStage
-                                                    'Prod_Plan_Stage 更新
-                                                    'kOrderStageId:=tg.StageId, 追加したレコード検索できないので除く
-                                                    errors.Add(reps.Update(conn, tran, OrderStageRepository.OrdersTable.ProductPlan,
+                                            For Each tg In ordersStage
+                                                'Prod_Plan_Stage 更新
+                                                'kOrderStageId:=tg.StageId, 追加したレコード検索できないので除く
+                                                errors.Add(reps.Update(conn, tran, OrderStageRepository.OrdersTable.ProductPlan,
                                                                         kOrderStageId:=tg.StageId,
                                                                         kOrderId:=tg.OrderId,
                                                                         kShipScheduledDate:=tg.ShipScheduledDate,
@@ -899,50 +900,52 @@ Namespace Pages.Orders
                                                                         updatedAt:=tg.UpdatedAt,
                                                                         updatedUserId:=tg.UpdatedUserId,
                                                                         updatedPgId:=tg.UpdatedPgId))
-                                                Next
-                                                '#If DEBUG Then
-                                                '                                            ' #### DEBUG
-                                                '                                            tran.Commit()
-                                                '                                            tran = conn.BeginTransaction()
-                                                '                                            ' #### DEBUG
-                                                '#End If
-                                                If (CheckError(errors)) Then
-                                                    ' エラー
-                                                    DBError(tran)
-                                                    Continue For
-                                                End If
-                                                '' ++++++++++++++++++++++ DEBUG
-                                                'tran.Commit()
-                                                'tran = conn.BeginTransaction()
-                                                'Throw New Exception("デバッグ 中 Exception")
-                                                '' ++++++++++++++++++++++ DEBUG
+                                            Next
+                                            '#If DEBUG Then
+                                            '                                            ' #### DEBUG
+                                            '                                            tran.Commit()
+                                            '                                            tran = conn.BeginTransaction()
+                                            '                                            ' #### DEBUG
+                                            '#End If
+                                            If (CheckError(errors)) Then
+                                                ' エラー
+                                                DBError(tran)
+                                                Continue For
+                                            End If
+                                            '' ++++++++++++++++++++++ DEBUG
+                                            'tran.Commit()
+                                            'tran = conn.BeginTransaction()
+                                            'Throw New Exception("デバッグ 中 Exception")
+                                            '' ++++++++++++++++++++++ DEBUG
 
-                                                ' 不要なレコードを削除する (DEMAND_QTY（需要数）がブランク)
-                                                '----------------------------
-                                                ' Delete 1レコードずつDelete
-                                                '----------------------------
-                                                ' 生産計画ワーク削除
-                                                errors.Add(reps.Delete(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, customerSettingId:=customerSettingId, demandQty:=0))
-                                                '#If DEBUG Then
-                                                '                                            ' #### DEBUG
-                                                '                                            tran.Commit()
-                                                '                                            tran = conn.BeginTransaction()
-                                                '                                            ' #### DEBUG
-                                                '#End If
-                                                If (CheckError(errors)) Then
-                                                    ' エラー
-                                                    DBError(tran)
-                                                    Continue For
-                                                End If
+                                            ' 不要なレコードを削除する (DEMAND_QTY（需要数）がブランク)
+                                            '----------------------------
+                                            ' Delete 1レコードずつDelete
+                                            '----------------------------
+                                            ' 生産計画ワーク削除
+                                            errors.Add(reps.Delete(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, customerSettingId:=customerSettingId, demandQty:=0))
+                                            '#If DEBUG Then
+                                            '                                            ' #### DEBUG
+                                            '                                            tran.Commit()
+                                            '                                            tran = conn.BeginTransaction()
+                                            '                                            ' #### DEBUG
+                                            '#End If
+                                            If (CheckError(errors)) Then
+                                                ' エラー
+                                                DBError(tran)
+                                                Continue For
                                             End If
                                         End If
                                     End If
+                                End If
 
-                                    '----------------------------
-                                    ' UPDATE (生産計画ワーク)
-                                    ' Update STATUS "PLAN_SET" 一括Update
-                                    '----------------------------
-                                    For Each tg In ordersStageRows
+                                ' 2026/10/20 仕様更新
+                                '----------------------------
+                                ' UPDATE
+                                ' (生産計画ワーク) PROD_PLAN_STAGE
+                                ' Update STATUS "PLAN_SET" 一括Update
+                                '----------------------------
+                                For Each tg In ordersStageRows
                                     errors.Add(reps.Update(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, kOrderId:=tg.OrderId, kCustomerSettingId:=customerSettingId, kStatus:="DUE_SET", status:="PLAN_SET"))
                                     If (CheckError(errors)) Then
                                         ' エラー

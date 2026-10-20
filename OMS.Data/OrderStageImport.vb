@@ -3233,7 +3233,10 @@ Namespace OMS.Data
                 Dim sysDate = DateTime.Now      ' システム日付
                 'Dim dt = Utils.ConvertCsvToDataTable(filename)
                 Dim ordersStage As New List(Of OrdersStageRow)
+                Dim rcnt = 0
                 For Each row As DataRow In dt.Rows
+
+                    ErrFlg = False
                     Dim calType = "00001"
                     Dim orderStageRow = New OrdersStageRow
                     Dim shipto = ""
@@ -3259,8 +3262,8 @@ Namespace OMS.Data
                     ' File 取得
                     customerItemNo = row("客先品目No")
                     If (customerItemNo = "") Then
-                        errMsg = "客先品目Noが不正な値です。"
-                        errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                        errMsg = "客先品目Noが不正な値です。:{customerItemNo}"
+                        errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg} ")
                         ErrFlg = True
                     End If
 
@@ -3397,7 +3400,7 @@ Namespace OMS.Data
                     If ErrFlg = True Then
                         fileidx += 1
                         errcnt += 1
-                        ErrFileFlg = True
+                        'ErrFileFlg = True
                         Continue For
                     End If
 
@@ -3416,6 +3419,8 @@ Namespace OMS.Data
             Catch ex As Exception
                 errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　{ex.Message}")
             End Try
+
+            ErrFlg = errors.Count <> 0 And rowsForTemp2.Count = 0
 
             Return errors.Count = 0
 
