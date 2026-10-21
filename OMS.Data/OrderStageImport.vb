@@ -3186,6 +3186,7 @@ Namespace OMS.Data
                                                        ByRef ErrFlg As Boolean,
                                                        ByRef ErrFileFlg As Boolean,
                                                        ByRef errcnt As Integer,
+                                                       ByRef rpds As Integer,
                                                        ByVal FolderType As Integer,
                                                        ByVal newId As Integer,
                                                        ByVal UserId As String,
@@ -3211,24 +3212,27 @@ Namespace OMS.Data
             Dim stardedAt = Date.Parse(runRepo.Rows(0).Item("started_at").ToString())
 
             Try
+                Dim dt As DataTable
                 ' ファイル形式確認
                 Dim ft = YamahaRobotexFileCheck(strWorkFile)
-
-                If (ft = YamahaRobotexType.Unknown) Then
-                    errcnt += 1
-                    ErrFileFlg = True
-                    Throw New ApplicationException($"ファイル{Path.GetFileName(strWorkFile)}が Yamaha robotex 内示/確定/ASTI内示 フォーマットではありません。")
-                End If
-
-                Dim dt As DataTable
-                ' ASTI 内示 Excel 形式の場合
-                If (ft = YamahaRobotexType.ASTIInternalNotification2) Then
-                    ' Excel形式のCSVをDataTableに変換
-                    dt = OrderProductionPlanExcelFile.OrderExcelAstiFileYamaharobotex(strWorkFile)
-                Else
-                    ' ファイル読み込み Yamaha Robotex 内示/確定/ASTI 追加内示 
-                    dt = YamahaRobotexCreateNewDataSetFromCsv(strWorkFile, ft)
-                End If
+                Select Case ft
+                    Case YamahaRobotexType.Unknown
+                        errcnt += 1
+                        ErrFileFlg = True
+                        Throw New ApplicationException($"ファイル{Path.GetFileName(strWorkFile)}が Yamaha robotex 内示/確定/ASTI内示 フォーマットではありません。")
+                    ' ASTI 内示 Excel 形式の場合
+                    Case YamahaRobotexType.ASTIInternalNotification2
+                        ' Excel形式のCSVをDataTableに変換
+                        dt = OrderProductionPlanExcelFile.OrderExcelAstiFileYamaharobotex(strWorkFile)
+                    ' 内示
+                    Case YamahaRobotexType.UnofficialNotice
+                        rpds = 4        ' 1レコード 4データ
+                        ' ファイル読み込み Yamaha Robotex 内示/確定/ASTI 追加内示 
+                        dt = YamahaRobotexCreateNewDataSetFromCsv(strWorkFile, ft)
+                    Case Else
+                        ' ファイル読み込み Yamaha Robotex 内示/確定/ASTI 追加内示 
+                        dt = YamahaRobotexCreateNewDataSetFromCsv(strWorkFile, ft)
+                End Select
 
                 Dim sysDate = DateTime.Now      ' システム日付
                 'Dim dt = Utils.ConvertCsvToDataTable(filename)
@@ -3258,12 +3262,18 @@ Namespace OMS.Data
                     Dim comment = ""
                     Dim selfFcstFlag = ""
                     Dim selfFcstDeleteFlag = ""
+                    Dim recordIdx = fileidx
+                    Select Case ft
+                        Case YamahaRobotexType.UnofficialNotice ' 内示
+                            recordIdx = (fileidx - 1) \ 4 + 1
+                        Case Else
+                    End Select
 
                     ' File 取得
                     customerItemNo = row("客先品目No")
                     If (customerItemNo = "") Then
                         errMsg = "客先品目Noが不正な値です。:{customerItemNo}"
-                        errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg} ")
+                        errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {recordIdx}：{errMsg} ")
                         ErrFlg = True
                     End If
 
@@ -3271,7 +3281,7 @@ Namespace OMS.Data
                     If (ddate = "") Then
                         ddate = CDate("1900/01/01").ToString("yyyyMMdd")
                         errMsg = "希望納期が不正な値です。"
-                        errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                        errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {recordIdx}：{errMsg}")
                         ErrFlg = True
                     End If
                     dtcvt = DateTime.ParseExact(ddate, "yyyyMMdd", Nothing)
@@ -3282,7 +3292,7 @@ Namespace OMS.Data
                     If (dqty = "") Then
                         dqty = 0
                         errMsg = "需要数が不正な値です。"
-                        errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                        errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {recordIdx}：{errMsg}")
                         ErrFlg = True
                     End If
                     demandQty = Long.Parse(dqty)
@@ -3296,7 +3306,7 @@ Namespace OMS.Data
                     If (selfFcstFlag = "") Then
                         selfFcstFlag = "N"
                         errMsg = "ASTI追加内示フラグが不正な値です。"
-                        errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                        errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {recordIdx}：{errMsg}")
                         ErrFlg = True
                     End If
 
@@ -3304,7 +3314,7 @@ Namespace OMS.Data
                     If (selfFcstDeleteFlag = "") Then
                         selfFcstDeleteFlag = "N"
                         errMsg = "ASTI追加内示削除フラグが不正な値です。"
-                        errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                        errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {recordIdx}：{errMsg}")
                         ErrFlg = True
                     End If
 
@@ -3316,30 +3326,30 @@ Namespace OMS.Data
 
                     ' Field 検索
                     If (reps.GetShipTo(customerCode, deliverycode, shipto, errMsg) = False) Then
-                        errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                        errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {recordIdx}：{errMsg}")
                         ErrFlg = True
                     End If
 
                     If (reps.GetProductCode(customerCode, customerItemNo, productCode, itemNo, errMsg) = False) Then
-                        errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                        errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {recordIdx}：{errMsg}:{customerItemNo}")
                         ErrFlg = True
                     End If
                     If (reps.GetDemandUnit(productCode, demandunit, errMsg) = False) Then
-                        errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                        errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {recordIdx}：{errMsg}")
                         ErrFlg = True
                     End If
                     If (reps.GetCurrencyCode(customerCode, currencycode, errMsg) = False) Then
-                        errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                        errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {recordIdx}：{errMsg}")
                     End If
                     If (reps.GetShipStockLocation(productCode, shipstocklocation, errMsg) = False) Then
-                        errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                        errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {recordIdx}：{errMsg}")
                         ErrFlg = True
                     End If
                     If (reps.GetProratedType(CustomerSettingId, FolderType, proratedType, errMsg) = False) Then
-                        errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                        errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {recordIdx}：{errMsg}")
                     End If
                     If (reps.GetReconcileType(CustomerSettingId, FolderType, reconciletype, errMsg) = False) Then
-                        errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                        errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {recordIdx}：{errMsg}")
                     End If
                     ' 固定値 1: 内示 2: 確定 3: それ以外
                     shipprocesstype = If(orderType = 1, "O", If(orderType = 2, "E", "K"))

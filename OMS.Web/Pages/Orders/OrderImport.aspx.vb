@@ -613,7 +613,8 @@ Namespace Pages.Orders
                                 'Dim mapError As String = ""
                                 'Dim blnflg As Boolean = False
                                 Dim mapResult As OMS.Data.OrderStageImport.MappingResult = OMS.Data.OrderStageImport.ResolveMapping(_mappingRepo, customerSettingId, folderType, errors)
-
+                                ' 1レコードあたりの 展開データ数 (Yamaharobotex:4)
+                                Dim rpds As Integer = 1
                                 ' スズキ特殊処理 (spprocesstype = 1)
                                 If spprocesstype = 1 Then
                                     ' ファイル種別判定: スズキ4桁EDIコードを持つか確認
@@ -737,6 +738,7 @@ Namespace Pages.Orders
                                                                                             ErrFlg,
                                                                                             ErrFileFlg,
                                                                                             errcnt,
+                                                                                            rpds,
                                                                                             folderType,
                                                                                             newId,
                                                                                             UserId,
@@ -788,8 +790,8 @@ Namespace Pages.Orders
                                     'If ErrFlg = False Then
 
                                     resultCnt += 1
-                                    resultRowCnt += savedCount
-                                    successs.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　読込 {savedCount} 件　異常 {errcnt} 件")
+                                    resultRowCnt += savedCount / rpds
+                                    successs.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　読込 {savedCount / rpds} 件　異常 {errcnt / rpds} 件")
 
                                     'End If
 
