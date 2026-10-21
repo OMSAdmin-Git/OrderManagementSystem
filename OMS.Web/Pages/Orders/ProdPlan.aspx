@@ -146,7 +146,7 @@
             <!-- アクションボタン -->
             <div class="action-buttons">
                 <asp:Button ID="btnProdPlan"           runat="server" CssClass="btn-asti btn-asti-process" Text="生産計画"  
-                    OnClick="btnProdPlan_Click" />
+                    OnClick="btnProdPlan_Click" OnClientClick="return onButtonClick(this);"/>
                 <asp:Button ID="btnExportProdPlanList" runat="server" CssClass="btn-asti secondary-excel " Text="Excel出力" 
                     OnClick="btnExportProdPlanList_Click" OnClientClick="return onButtonClick(this);"/>
                  <div class="custom-file-upload"> 
@@ -164,7 +164,7 @@
                 <asp:Label ID="lblProdPlanContinueMessage" runat="server" Text="生産計画条件マスタに登録されていないデータを検出しました。​生産計画を続行しますか？​"></asp:Label>
                 <asp:Button ID="btnProdPlanOK" runat="server" CssClass="btn-asti btn-asti-process" Text="はい" CausesValidation="false"  
                     OnClick="btnProdPlanOK_Click"
-                    OnClientClick="btnProdPlanOK.style.display='none';btnProdPlanNO.style.display='none';lblProdPlanContinueMessage.style.display='none'; "
+                    OnClientClick="btnProdPlanOK.style.display='none';btnProdPlanNO.style.display='none';lblProdPlanContinueMessage.style.display='none'; return onButtonClick(this);"
                     />
                 <asp:Button ID="btnProdPlanNO"  runat="server" CssClass="btn-asti btn-asti-process" Text="いいえ" CausesValidation="false" OnClick="btnProdPlanNO_Click" />
                 <!-- ダウンロードを裏で実行するための隠し iframe -->
