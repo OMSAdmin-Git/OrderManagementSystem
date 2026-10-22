@@ -166,6 +166,20 @@ Namespace OMS.Data
         'End Function
 
         ''' <summary>
+        ''' GetAssortmentLeadTime Error を返すよう追加
+        ''' </summary>
+        ''' <param name="customerCode"></param>
+        ''' <param name="profitCenter"></param>
+        ''' <param name="itemNumber"></param>
+        ''' <returns></returns>
+        Public Function GetAssortmentLeadTime(customerCode As String, profitCenter As String, itemNumber As String) As Integer
+
+            Dim rt = GetAssortmentLeadTime(customerCode, profitCenter, itemNumber, False)
+            Return rt.lt
+
+        End Function
+
+        ''' <summary>
         ''' 品揃えリードタイム取得
         ''' 2026/7/15 不具合修正 
         ''' </summary>
@@ -173,8 +187,9 @@ Namespace OMS.Data
         ''' <param name="profitCenter">部門</param>
         ''' <param name="itemNumber">客先品目No</param>
         ''' <returns></returns>
-        Public Function GetAssortmentLeadTime(customerCode As String, profitCenter As String, itemNumber As String) As Integer
+        Public Function GetAssortmentLeadTime(customerCode As String, profitCenter As String, itemNumber As String, sw As Boolean) As (lt As Int16, err As String)
             Dim lt As Decimal = 0 ' 戻り値の初期値
+            Dim err As String = ""
             Dim dt As New DataTable()
             Try
                 Using conn As New OracleConnection(_connectionString)
@@ -192,6 +207,8 @@ Namespace OMS.Data
                             ' 結果の存在チェックと型変換
                             If result IsNot Nothing AndAlso Not IsDBNull(result) Then
                                 lt = Convert.ToDecimal(result)
+                            Else
+                                err = $"客先品目マスタ(ITEMM)に 客先品目No {itemNumber} が存在しません。"
                             End If
                         End Using
                     End Using
@@ -200,8 +217,22 @@ Namespace OMS.Data
             Catch ex As Exception
                 Dim s = ex.Message
             End Try
-            Return lt
+            Return (lt, err)
         End Function
+
+        ''' <summary>
+        ''' GetAssortmentLeadTime Error を返すよう追加
+        ''' </summary>
+        ''' <param name="shipTo"></param>
+        ''' <param name="shipStockLocation"></param>
+        ''' <returns></returns>
+        Public Function GetTransferLeadTime(shipTo As String, shipStockLocation As String) As Integer
+
+            Dim rt = GetTransferLeadTime(shipTo, shipStockLocation, False)
+            Return rt.lt
+
+        End Function
+
         ''' <summary>
         ''' 輸送リードタイム取得
         ''' 2026/6/30 仕様変更  
@@ -209,8 +240,9 @@ Namespace OMS.Data
         ''' <param name="shipTo">出荷先</param>
         ''' <param name="shipStockLocation">出荷在庫場所</param>
         ''' <returns></returns>
-        Public Function GetTransferLeadTime(shipTo As String, shipStockLocation As String) As Int16
+        Public Function GetTransferLeadTime(shipTo As String, shipStockLocation As String, sw As Boolean) As (lt As Int16, err As String)
             Dim lt As Decimal = 0 ' 戻り値の初期値
+            Dim err As String = ""
             Dim dt As New DataTable()
             Try
                 Using conn As New OracleConnection(_connectionString)
@@ -244,6 +276,8 @@ Namespace OMS.Data
                             ' 結果の存在チェックと型変換
                             If result IsNot Nothing AndAlso Not IsDBNull(result) Then
                                 lt = Convert.ToDecimal(result)
+                            Else
+                                err = $"出荷ルートマスタ(SHPROUTM)に 出荷先コード {shipTo} と 出荷在庫場所 {shipStockLocation} の組み合わせが存在しません。"
                             End If
                         End Using
                     End Using
@@ -252,7 +286,7 @@ Namespace OMS.Data
             Catch ex As Exception
                 Dim s = ex.Message
             End Try
-            Return lt
+            Return (lt, err)
         End Function
 
         ''' <summary>
