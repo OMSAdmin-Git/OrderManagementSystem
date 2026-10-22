@@ -408,8 +408,8 @@ Namespace Pages.Orders
                             ' SHIP_SCHEDULED_DATE（出荷予定日）のyyyy/mm
 
                             ' 上記 Order.Field でグループ分け
-                            'Dim ordersStageRowsGroup = orderStageRowsOrg.GroupBy(Function(x) New With {Key x.CustomerSettingId, Key x.CustomerItemNo, Key x.OrderType, Key x.ProratedType, Key x.ShipScheduledDate.Value.Year, Key x.ShipScheduledDate.Value.Month}).ToList()
-                            Dim ordersStageRowsGroup = orderStageRowsOrg.GroupBy(Function(x) New With {Key x.CustomerSettingId, Key x.CustomerItemNo, Key x.OrderType, Key x.ProratedType, Key x.DueDate.Value.Year, Key x.DueDate.Value.Month}).ToList()
+                            Dim ordersStageRowsGroup = orderStageRowsOrg.GroupBy(Function(x) New With {Key x.CustomerSettingId, Key x.CustomerItemNo, Key x.OrderType, Key x.ProratedType, Key x.ShipScheduledDate.Value.Year, Key x.ShipScheduledDate.Value.Month}).ToList()
+                            'Dim ordersStageRowsGroup = orderStageRowsOrg.GroupBy(Function(x) New With {Key x.CustomerSettingId, Key x.CustomerItemNo, Key x.OrderType, Key x.ProratedType, Key x.DueDate.Value.Year, Key x.DueDate.Value.Month}).ToList()
                             ' 当月 顧客単位の OrderStage リスト 
                             Dim ordersStageRows = New List(Of OrdersStageRow)
                             ' グループ分け　Loop
