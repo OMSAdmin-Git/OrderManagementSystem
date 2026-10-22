@@ -131,6 +131,7 @@ Namespace Pages.Orders
             Dim unofficialNotice = 0
             Dim confirmed = 0
             Dim pastErrorCnt = 0
+            Dim sippingStatusErrorCnt = 0
             Dim errors As New List(Of String)()
             Dim loginUserId As String = PageHelpers.GetUserId(Me)
 
@@ -323,6 +324,7 @@ Namespace Pages.Orders
                 ''出荷状況エラーリスト出力	
                 Dim repos = New OrderStraRepository(Utils.GetConnectionString())
                 Dim errorRows = repos.GetOrderStage(conn, tran, status:="POST_PLAN_DUE_SET", activeFlag:="N", additionalConditions:=" AND ship_scheduled_date >=  order_date  AND order_type > 1 ")
+                sippingStatusErrorCnt = errorRows.Rows.Count
                 If (errorRows.Rows.Count <> 0) Then
                     errors.Add(OrderProductionPlanExcelFile.ShippingStatusErrorExcelOut(strPath, FileDate, repos.ToClass(errorRows)))
                     If (CheckError(errors)) Then
@@ -365,6 +367,8 @@ Namespace Pages.Orders
                 ' このSQLでは 過去日チェックの条件は考慮されないので、エラーレコードも出力される。
                 '
                 'CSV出力(内示)
+                tran.Commit()
+                tran = conn.BeginTransaction()
                 Dim sql = " SELECT * 
                             FROM prod_plan_stra_view 
                             WHERE demand_status = 'F' "
@@ -522,7 +526,7 @@ Namespace Pages.Orders
                 If (unofficialNotice = 0 And confirmed = 0 And pastErrorCnt = 0) Then
                     lblResult.Text = $"有効なデータが無かったため受注データの出力は行われませんでした。"
                 Else
-                    lblResult.Text = $"内示{unofficialNotice}件、確定{confirmed}件、過去エラー{pastErrorCnt}件の受注データの出力を行いました。"
+                    lblResult.Text = $"内示{unofficialNotice}件、確定{confirmed}件、出荷状況エラー{sippingStatusErrorCnt}件、過去エラー{pastErrorCnt}件の受注データの出力を行いました。"
                 End If
                 tran.Dispose()
                 conn.Close()
