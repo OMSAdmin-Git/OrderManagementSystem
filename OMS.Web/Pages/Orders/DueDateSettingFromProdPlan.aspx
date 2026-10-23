@@ -124,14 +124,13 @@
                 <!-- ダウンロードを裏で実行するための隠し iframe -->
                 <iframe id = "downloadFrame" style="display:none;"></iframe>
             </div>
-
             <!-- 結果表示 -->
             <div>
                 <br />
                 <asp:Label ID="lblResult" runat="server" ForeColor="Green" />
+                <br />
                 <asp:Label ID="lblError" runat="server" ForeColor="Red" />
             </div>
-
             <!--------------------------------------------->
             <!-- エラー表示用ポップアップ (Modal Dialog) -->
             <div id="errorModalOverlay" class="modal-overlay" runat="server">

@@ -1085,7 +1085,7 @@ Namespace Pages.Orders
                 If errors.Count = 0 Then
                     tran.Commit()
                 Else
-                    lblError.Text = String.Join(vbCrLf, errors)
+                    lblError.Text = String.Join("<br/>", errors.Select(Function(s) Server.HtmlEncode(s)))
                     tran.Rollback()
                 End If
 
@@ -1701,8 +1701,7 @@ Namespace Pages.Orders
                 Dim m = ex.Message
             Finally
                 If (errors.Count > 0) Then
-                    'lblError.Text = errors(0)
-                    lblError.Text = String.Join(vbCrLf, errors)
+                    lblError.Text = String.Join("<br/>", errors.Select(Function(s) Server.HtmlEncode(s)))
                 Else
                     tran.Commit()
                     tran.Dispose()

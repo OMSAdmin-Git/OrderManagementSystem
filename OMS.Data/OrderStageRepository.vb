@@ -5612,20 +5612,20 @@ Namespace OMS.Data
 
                 Dim itemNo = orderRow.ItemNo
                 'FUSRDEC1 ((A)品揃リードタイム)
-                Dim assortLeadTime = shproutm.GetAssortmentLeadTime(customerCode, profitCenter, itemNo)
-                'Dim alt = shproutm.GetAssortmentLeadTime(customerCode, profitCenter, itemNo, False)
-                'If (alt.err <> "") Then
-                '    errors.Add(alt.err)
-                'End If
-                'Dim assortLeadTime = alt.lt
+                'Dim assortLeadTime = shproutm.GetAssortmentLeadTime(customerCode, profitCenter, itemNo)
+                Dim alt = shproutm.GetAssortmentLeadTime(customerCode, profitCenter, itemNo, False)
+                If (alt.err <> "") Then
+                    errors.Add(alt.err)
+                End If
+                Dim assortLeadTime = alt.lt
 
                 'FTRANLT(輸送L/T)
-                Dim transferLeadTime = shproutm.GetTransferLeadTime(orderRow.ShipTo, orderRow.ShipStockLocation)
-                'Dim tlt = shproutm.GetTransferLeadTime(orderRow.ShipTo, orderRow.ShipStockLocation, False)
-                'If (tlt.err <> "") Then
-                '    errors.Add(tlt.err)
-                'End If
-                'Dim transferLeadTime = tlt.lt
+                'Dim transferLeadTime = shproutm.GetTransferLeadTime(orderRow.ShipTo, orderRow.ShipStockLocation)
+                Dim tlt = shproutm.GetTransferLeadTime(orderRow.ShipTo, orderRow.ShipStockLocation, False)
+                If (tlt.err <> "") Then
+                    errors.Add(tlt.err)
+                End If
+                Dim transferLeadTime = tlt.lt
 
                 Dim orderid = orderRow.OrderId
                 Dim dueDate = orderRow.DueDate

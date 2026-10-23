@@ -208,7 +208,7 @@ Namespace OMS.Data
                             If result IsNot Nothing AndAlso Not IsDBNull(result) Then
                                 lt = Convert.ToDecimal(result)
                             Else
-                                err = $"客先品目マスタ(ITEMM)に 客先品目No {itemNumber} が存在しません。"
+                                err = $"ユーザー定義項目(ITEMM)に 客先品目No {itemNumber} が存在しません。"
                             End If
                         End Using
                     End Using
