@@ -81,6 +81,16 @@ Namespace OMS.Common
             End Select
         End Function
 
+        ' トランザクションが有効（未クローズ）か判定する関数
+        Public Function IsTransactionActive(tran As OracleTransaction) As Boolean
+            ' オブジェクト自体が Nothing、または Connection が Nothing の場合は終了している
+            If tran Is Nothing OrElse tran.Connection Is Nothing Then
+                Return False
+            End If
+
+            Return True
+        End Function
+
 #End Region
 
 #Region "パス / ファイル・フォルダ操作"

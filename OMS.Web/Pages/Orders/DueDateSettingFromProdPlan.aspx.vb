@@ -128,6 +128,7 @@ Namespace Pages.Orders
             'lblError.Text = "開発未着手"
 
             Dim errors As New List(Of String)()
+            Dim warnings As New List(Of String)()
             Dim valid As Integer = 0
             Dim count As Integer = 0
             Dim loginUserId As String = PageHelpers.GetUserId(Me)
@@ -246,11 +247,22 @@ Namespace Pages.Orders
                                 ' 納期計算
                                 Dim itemNo As String = orderRow.ItemNo
                                 'FUSRDEC1 ((A)品揃リードタイム)
-                                Dim assortLeadTime = shproutm.GetAssortmentLeadTime(customerCode, profitCenter, itemNo)
-                                'FTRANLT(輸送L/T)
-                                Dim transferLeadTime = shproutm.GetTransferLeadTime(orderRow.ShipTo, orderRow.ShipStockLocation)
-                                Dim orderid = orderRow.OrderId
+                                'Dim assortLeadTime = shproutm.GetAssortmentLeadTime(customerCode, profitCenter, itemNo)
+                                Dim alt = shproutm.GetAssortmentLeadTime(customerCode, profitCenter, itemNo, False)
+                                If (alt.err <> "") Then
+                                    warnings.Add(alt.err)
+                                End If
+                                Dim assortLeadTime = alt.lt
 
+                                'FTRANLT(輸送L/T)
+                                'Dim transferLeadTime = shproutm.GetTransferLeadTime(orderRow.ShipTo, orderRow.ShipStockLocation)
+                                Dim tlt = shproutm.GetTransferLeadTime(orderRow.ShipTo, orderRow.ShipStockLocation, False)
+                                If (tlt.err <> "") Then
+                                    warnings.Add(tlt.err)
+                                End If
+                                Dim transferLeadTime = tlt.lt
+
+                                Dim orderid = orderRow.OrderId
                                 Dim shipScheduledDate = orderRow.ShipScheduledDate
                                 Dim shipDateOrg = orderRow.ShipDate
                                 '#If DEBUG Then
@@ -353,8 +365,10 @@ Namespace Pages.Orders
                         End If
                     End If
                     ' 1取引先終了時
-                    tran.Commit()
-                    tran = conn.BeginTransaction()
+                    If (IsTransactionActive(tran)) Then
+                        tran.Commit()
+                        tran = conn.BeginTransaction()
+                    End If
                 Next
                 If (fileList.Count <> 0) Then
                     Dim orderFilename = repo.GeOrderZipFilename("生産計画差異リスト", ProcessingStartDate)
@@ -369,19 +383,21 @@ Namespace Pages.Orders
                 Dim err = ex.Message
                 errors.Add(err)
             Finally
+                errors.AddRange(warnings)
                 lblError.Text = ""
                 If (errors.Count > 0) Then
-                    'lblError.Text = errors(0)
-                    lblError.Text = String.Join(vbCrLf, errors)
+                    lblError.Text = String.Join("<br/>", errors.Select(Function(s) Server.HtmlEncode(s)))
                 End If
                 If (count = 0 And valid = 0) Then
                     lblResult.Text = $"有効なデータが無かったため納期設定は行われませんでした。"
                 Else
                     lblResult.Text = $"{count}件中{valid}件の納期設定を行いました。"
                 End If
-                tran.Dispose()
-                conn.Close()
-                conn.Dispose()
+                If (IsTransactionActive(tran)) Then
+                    tran.Dispose()
+                    conn.Close()
+                    conn.Dispose()
+                End If
             End Try
         End Sub
 
@@ -411,8 +427,9 @@ Namespace Pages.Orders
         ''' <param name="tran"></param>
         Private Sub DBError(tran As OracleTransaction)
 
-            tran.Rollback()
-
+            If (IsTransactionActive(tran)) Then
+                tran.Rollback()
+            End If
         End Sub
 
         ' 差異リスト出力ボタン

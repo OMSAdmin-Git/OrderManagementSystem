@@ -745,6 +745,11 @@ Namespace Pages.Orders
                                                                                             pgId,
                                                                                             errors,
                                                                                             rowsForTemp2)
+
+                                    ' 同じ内容を削除する
+                                    errors = errors.Distinct().ToList()
+
+
                                     'blnflg = True
 
                                 ElseIf mapResult Is Nothing Then

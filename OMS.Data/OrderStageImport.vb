@@ -3596,7 +3596,10 @@ Namespace OMS.Data
                     Dim recordIdx = fileidx
                     Select Case ft
                         Case YamahaRobotexType.UnofficialNotice ' 内示
-                            recordIdx = (fileidx - 1) \ 4 + 1
+                            'recordIdx = (fileidx - 1) \ 4 + 1
+                            Dim idx = (fileidx - 1) \ 4 + 1
+                            ' 実データの行番号を計算する
+                            recordIdx = (idx - 1) * 4 + 1 + 1
                         Case Else
                     End Select
 

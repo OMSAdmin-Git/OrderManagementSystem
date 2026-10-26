@@ -132,6 +132,7 @@ Namespace Pages.Orders
             lblResult.Text = ""
 
             Dim errors As New List(Of String)()
+            Dim warnings As New List(Of String)()
             Dim valid As Integer = 0
             Dim count As Integer = 0
             Dim loginUserId As String = PageHelpers.GetUserId(Me)
@@ -258,7 +259,8 @@ Namespace Pages.Orders
                             ' UPDATE(受注) 受注ワーク
                             ' 正規データ更新 受注データ
                             ' 受注履歴追加
-                            errors.Add(reps.DeliveryDateSetting(conn, tran, customerCode, profitCenter, customerSettingId, processingStartDate, PageHelpers.GetUserId(Me)))
+                            Dim wng = reps.DeliveryDateSetting(conn, tran, customerCode, profitCenter, customerSettingId, processingStartDate, PageHelpers.GetUserId(Me))
+                            warnings = wng.Split(New String() {vbCrLf}, StringSplitOptions.None).ToList()
                             If (CheckError(errors)) Then
                                 Continue For
                             End If
@@ -302,9 +304,9 @@ Namespace Pages.Orders
             Catch ex As Exception
                 errors.Add(ex.Message)
             Finally
+                errors.AddRange(warnings)
                 If (errors.Count > 0) Then
-                    'lblError.Text = errors(0)
-                    lblError.Text = String.Join(vbCrLf, errors)
+                    lblError.Text = String.Join("<br/>", errors.Select(Function(s) Server.HtmlEncode(s)))
                 End If
                 If (count = 0 And valid = 0) Then
                     lblResult.Text = $"有効なデータが無かったため納期設定は行われませんでした。"
@@ -479,8 +481,7 @@ Namespace Pages.Orders
                 errors.Add(ex.Message)
             Finally
                 If (errors.Count > 0) Then
-                    'lblError.Text = errors(0)
-                    lblError.Text = String.Join(vbCrLf, errors)
+                    lblError.Text = String.Join("<br/>", errors.Select(Function(s) Server.HtmlEncode(s)))
                 End If
                 If (fileList.Count = 0) Then
                     lblResult.Text = $"受注取込差異データが無かったため出力は行われませんでした。"

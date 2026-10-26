@@ -174,8 +174,9 @@
             <div>
                 <br />
                 <asp:Label ID="lblResult" runat="server" ForeColor="Green" />
+                <br />
                 <asp:Label ID="lblError" runat="server" ForeColor="Red" />
-           </div>
+            </div>
                 <!--------------------------------------------->
                 <!-- エラー表示用ポップアップ (Modal Dialog) -->
                 <div id="errorModalOverlay" class="modal-overlay" runat="server">

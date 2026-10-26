@@ -518,8 +518,7 @@ Namespace Pages.Orders
                     tran.Commit()
                 Else
                     If (errors.Count > 0) Then
-                        'lblError.Text = errors(0)
-                        lblError.Text = String.Join(vbCrLf, errors)
+                        lblError.Text = String.Join("<br/>", errors.Select(Function(s) Server.HtmlEncode(s)))
                     End If
                     tran.Rollback()
                 End If
@@ -625,7 +624,7 @@ Namespace Pages.Orders
                 errors.Add(ex.Message)
             Finally
                 If (errors.Count > 0) Then
-                    lblError.Text = String.Join(vbCrLf, errors)
+                    lblError.Text = String.Join("<br/>", errors.Select(Function(s) Server.HtmlEncode(s)))
                 Else
                     If (errorCount <> 0 Or pastErrorCnt <> 0) Then
                         lblResult.Text = $"出荷状況エラーリストファイルを出力しました。"
