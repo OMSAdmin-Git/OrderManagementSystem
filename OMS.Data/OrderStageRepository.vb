@@ -4510,6 +4510,36 @@ Namespace OMS.Data
         End Function
 
         ''' <summary>
+        ''' バッチ失敗時にスズキ専用ステージングテーブルから未コミット・対象ファイルのレコードを物理削除する
+        ''' </summary>
+        Public Sub DeleteSuzukiStagingRowsByFileId(ByVal tran As OracleTransaction, ByVal impFileStageId As Long)
+            If impFileStageId <= 0 Then Return
+
+            Dim tables As String() = {
+                "SUZUKI_SPIRITS_0501AND0502",
+                "SUZUKI_SPIRITS_0600AND0630",
+                "SUZUKI_SPIRITS_0602",
+                "SUZUKI_SPIRITS_0650",
+                "SUZUKI_SPIRITS_0651",
+                "SUZUKI_SPIRITS_0740",
+                "SUZUKI_SPIRITS_0814",
+                "SUZUKI_SPIRITS_6604AND6634",
+                "SUZUKI_SPIRITS_6624",
+                "SUZUKI_SPIRITS_663NAND663SAND664T"
+            }
+
+            For Each tbl In tables
+                Dim sql As String = $"DELETE FROM {tbl} WHERE imp_file_id = :p_imp_file_id"
+                Using cmd As New OracleCommand(sql, tran.Connection)
+                    cmd.Transaction = tran
+                    cmd.BindByName = True
+                    cmd.Parameters.Add(":p_imp_file_id", OracleDbType.Int64).Value = impFileStageId
+                    cmd.ExecuteNonQuery()
+                End Using
+            Next
+        End Sub
+
+        ''' <summary>
         ''' 【Stage 2 工程1】ORDERS_STAGE（受注ワークテーブル）の物理削除（汎用）
         ''' </summary>
         Public Function DeleteOrdersStageByCustomerSettingAndFolder(ByVal tran As OracleTransaction, ByVal customerSettingId As Long, ByVal folderType As Integer) As Integer

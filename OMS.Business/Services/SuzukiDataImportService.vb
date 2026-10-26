@@ -41,7 +41,7 @@ Namespace Services
         ''' <param name="userId">ユーザーID</param>
         ''' <param name="isBatch">バッチフラグ</param>
         ''' <returns>登録件数</returns>
-        Public Function ExecuteOrderRegistration(customerSettingId As Long, folderType As Integer, impRunId As Long, userId As String, Optional isBatch As Boolean = True) As Integer
+        Public Function ExecuteOrderRegistration(customerSettingId As Long, folderType As Integer, impRunId As Long, userId As String, Optional isBatch As Boolean = True, Optional alreadyReturnedFiles As HashSet(Of String) = Nothing) As Integer
             Dim logDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Logs")
             If Not Directory.Exists(logDir) Then Directory.CreateDirectory(logDir)
             Dim loggerPath = Path.Combine(logDir, $"SuzukiImport_{DateTime.Now:yyyyMMdd}.log")
@@ -90,6 +90,8 @@ Namespace Services
                         Dim validShipTos = GetValidShipToCodes(conn, tran)
                         Dim defaultCsId = GetDefaultSuzukiCustomerSettingId(conn, tran)
 
+                        rowsForTemp2 = rowsForTemp2.OrderBy(Function(r) r.FileName).ThenBy(Function(r) r.RowNo.GetValueOrDefault()).ToList()
+
                         Dim fatalErrors As New List(Of String)()
                         Dim trimmingWarnings As New List(Of String)()
                         ValidateStagedRows(rowsForTemp2, defaultCsId, fatalErrors, trimmingWarnings, validShipTos)
@@ -102,14 +104,13 @@ Namespace Services
                             logger.Write($"[SUZUKI_IMPORT] データ検証エラーが {fatalErrors.Count} 件発生しました。")
                             errors.AddRange(fatalErrors)
 
-                            Dim errFileNames = rowsForTemp2.Where(Function(r) Not String.IsNullOrEmpty(r.FileName)).Select(Function(r) r.FileName).Distinct().ToList()
-                            CopyErrorFilesToSource(folderPath, errFileNames, userId, folderType)
-
                             If isBatch Then
+                                Dim errFileNames = rowsForTemp2.Where(Function(r) Not String.IsNullOrEmpty(r.FileName)).Select(Function(r) r.FileName).Distinct().ToList()
+                                CopyErrorFilesToSource(folderPath, errFileNames, userId, folderType, alreadyReturnedFiles)
                                 ExportErrorsToExcel(folderPath, errors)
+                                CleanupFailedBatchStage(rowsForTemp2, adjustmentStageIds, impRunId, customerSettingId, userId, folderType, logger)
                             End If
-                            tran.Rollback()
-                            Throw New Exception($"Stage 2 Validation Error: {String.Join("; ", fatalErrors.Take(5))}")
+                            Throw New Exception($"Stage 2 Validation Error: {fatalErrors.Count} 件のデータ検証エラーが発生しました。詳細はエラーリストをご確認ください。")
                         ElseIf trimmingWarnings.Count > 0 AndAlso isBatch Then
                             ExportErrorsToExcel(folderPath, errors)
                         End If
@@ -238,7 +239,12 @@ Namespace Services
                         logger.Write($"[SUZUKI_IMPORT] 受注本番テーブルへの登録が正常に完了しました (登録件数: {totalRegistered} 件)。")
 
                     Catch ex As Exception
-                        tran.Rollback()
+                        Try
+                            If tran IsNot Nothing AndAlso tran.Connection IsNot Nothing Then
+                                tran.Rollback()
+                            End If
+                        Catch
+                        End Try
                         logger.Write($"[SUZUKI_IMPORT] 受注取込処理中にエラーが発生しました: {ex.Message}")
                         Throw
                     End Try
@@ -289,6 +295,8 @@ Namespace Services
                 PopulateFileNamesForStagedRows(conn, tran, tempRows)
                 Dim validShipTos = GetValidShipToCodes(conn, tran)
                 Dim defaultCsId = GetDefaultSuzukiCustomerSettingId(conn, tran)
+                tempRows = tempRows.OrderBy(Function(r) r.FileName).ThenBy(Function(r) r.RowNo.GetValueOrDefault()).ToList()
+
                 Dim fatalErrors As New List(Of String)()
                 Dim trimmingWarnings As New List(Of String)()
                 ValidateStagedRows(tempRows, defaultCsId, fatalErrors, trimmingWarnings, validShipTos)
@@ -474,6 +482,7 @@ Namespace Services
             Dim sql = "SELECT * FROM SUZUKI_SPIRITS_0600AND0630 WHERE info_type_code = '0600' AND active_flag = 'Y' AND (status IS NULL OR status <> 'REGISTERED')"
             If impFileId > 0 Then sql &= " AND imp_file_id = :p_imp_file_id"
             If impRunId > 0 Then sql &= " AND imp_run_id = :p_imp_run_id"
+            sql &= " ORDER BY NVL(imp_file_no, 0), imp_file_id"
 
             Using cmd As New OracleCommand(sql, conn)
                 cmd.Transaction = tran
@@ -553,6 +562,7 @@ Namespace Services
             Dim sql = "SELECT * FROM SUZUKI_SPIRITS_0602 WHERE active_flag = 'Y' AND (status IS NULL OR status <> 'REGISTERED')"
             If impFileId > 0 Then sql &= " AND imp_file_id = :p_imp_file_id"
             If impRunId > 0 Then sql &= " AND imp_run_id = :p_imp_run_id"
+            sql &= " ORDER BY NVL(imp_file_no, 0), imp_file_id"
 
             Using cmd As New OracleCommand(sql, conn)
                 cmd.Transaction = tran
@@ -632,6 +642,7 @@ Namespace Services
             Dim sql = "SELECT * FROM SUZUKI_SPIRITS_0650 WHERE active_flag = 'Y' AND (status IS NULL OR status <> 'REGISTERED')"
             If impFileId > 0 Then sql &= " AND imp_file_id = :p_imp_file_id"
             If impRunId > 0 Then sql &= " AND imp_run_id = :p_imp_run_id"
+            sql &= " ORDER BY NVL(imp_file_no, 0), imp_file_id"
 
             Using cmd As New OracleCommand(sql, conn)
                 cmd.Transaction = tran
@@ -709,6 +720,7 @@ Namespace Services
             Dim sql = "SELECT * FROM SUZUKI_SPIRITS_0651 WHERE active_flag = 'Y' AND (status IS NULL OR status <> 'REGISTERED')"
             If impFileId > 0 Then sql &= " AND imp_file_id = :p_imp_file_id"
             If impRunId > 0 Then sql &= " AND imp_run_id = :p_imp_run_id"
+            sql &= " ORDER BY NVL(imp_file_no, 0), imp_file_id"
 
             Using cmd As New OracleCommand(sql, conn)
                 cmd.Transaction = tran
@@ -789,6 +801,7 @@ Namespace Services
             Dim sql = "SELECT * FROM SUZUKI_SPIRITS_0813 WHERE active_flag = 'Y' AND (status IS NULL OR status <> 'REGISTERED')"
             If impFileId > 0 Then sql &= " AND imp_file_id = :p_imp_file_id"
             If impRunId > 0 Then sql &= " AND imp_run_id = :p_imp_run_id"
+            sql &= " ORDER BY NVL(imp_file_no, 0), imp_file_id"
 
             Using cmd As New OracleCommand(sql, conn)
                 cmd.Transaction = tran
@@ -865,6 +878,7 @@ Namespace Services
             Dim sql = "SELECT * FROM SUZUKI_SPIRITS_0814 WHERE active_flag = 'Y' AND (status IS NULL OR status <> 'REGISTERED')"
             If impFileId > 0 Then sql &= " AND imp_file_id = :p_imp_file_id"
             If impRunId > 0 Then sql &= " AND imp_run_id = :p_imp_run_id"
+            sql &= " ORDER BY NVL(imp_file_no, 0), imp_file_id"
 
             Using cmd As New OracleCommand(sql, conn)
                 cmd.Transaction = tran
@@ -941,6 +955,7 @@ Namespace Services
             Dim sql = "SELECT * FROM SUZUKI_SPIRITS_6604AND6634 WHERE info_type_code = '6604' AND active_flag = 'Y' AND (status IS NULL OR status <> 'REGISTERED')"
             If impFileId > 0 Then sql &= " AND imp_file_id = :p_imp_file_id"
             If impRunId > 0 Then sql &= " AND imp_run_id = :p_imp_run_id"
+            sql &= " ORDER BY NVL(imp_file_no, 0), imp_file_id"
 
             Using cmd As New OracleCommand(sql, conn)
                 cmd.Transaction = tran
@@ -1018,6 +1033,7 @@ Namespace Services
             Dim sql = "SELECT * FROM SUZUKI_SPIRITS_6624 WHERE active_flag = 'Y' AND (status IS NULL OR status <> 'REGISTERED')"
             If impFileId > 0 Then sql &= " AND imp_file_id = :p_imp_file_id"
             If impRunId > 0 Then sql &= " AND imp_run_id = :p_imp_run_id"
+            sql &= " ORDER BY NVL(imp_file_no, 0), imp_file_id"
 
             Using cmd As New OracleCommand(sql, conn)
                 cmd.Transaction = tran
@@ -1103,7 +1119,7 @@ Namespace Services
             Dim pcCache As New Dictionary(Of String, String)()
             Dim csMap As New Dictionary(Of String, Long)()
 
-            Using cmd As New OracleCommand("SELECT customer_setting_id, profit_center FROM customer_setting_mst WHERE customer_code = '5455' AND active_flag = 'Y' AND profit_center IS NOT NULL", conn)
+            Using cmd As New OracleCommand("SELECT customer_setting_id, profit_center FROM customer_setting_mst WHERE customer_code = '5455' AND active_flag = 'Y' AND profit_center IS NOT NULL ORDER BY customer_setting_id ASC", conn)
                 cmd.Transaction = tran
                 Using r = cmd.ExecuteReader()
                     While r.Read()
@@ -1120,19 +1136,21 @@ Namespace Services
                 Dim pCode = If(String.IsNullOrEmpty(row.ProductCode), row.ItemNo, row.ProductCode)
                 If String.IsNullOrEmpty(pCode) Then Continue For
 
+                Dim cleanCode = pCode.Trim()
                 Dim pc As String = ""
-                If pcCache.ContainsKey(pCode) Then
-                    pc = pcCache(pCode)
+                If pcCache.ContainsKey(cleanCode) Then
+                    pc = pcCache(cleanCode)
                 Else
-                    Using cmd As New OracleCommand("SELECT FUSRSTR1 FROM USRDEFFLDF WHERE FTABLEID = 'ITEMM' AND FRECKEY = :p_key", conn)
+                    Using cmd As New OracleCommand("SELECT FUSRSTR1 FROM USRDEFFLDF WHERE FTABLEID = 'ITEMM' AND (FRECKEY = :p_key_char OR TRIM(FRECKEY) = :p_key_trim)", conn)
                         cmd.Transaction = tran
-                        cmd.Parameters.Add(":p_key", OracleDbType.Varchar2).Value = pCode
+                        cmd.Parameters.Add(":p_key_char", OracleDbType.Char, 45).Value = cleanCode.PadRight(45)
+                        cmd.Parameters.Add(":p_key_trim", OracleDbType.Varchar2).Value = cleanCode
                         Dim res = cmd.ExecuteScalar()
                         If res IsNot Nothing AndAlso Not DBNull.Value.Equals(res) Then
                             pc = res.ToString().Trim()
                         End If
                     End Using
-                    pcCache(pCode) = pc
+                    pcCache(cleanCode) = pc
                 End If
 
                 If Not String.IsNullOrEmpty(pc) AndAlso csMap.ContainsKey(pc) Then
@@ -1168,6 +1186,7 @@ Namespace Services
             Dim sql = "SELECT * FROM SUZUKI_SPIRITS_0600AND0630 WHERE info_type_code = '0630' AND active_flag = 'Y' AND (status IS NULL OR status <> 'REGISTERED')"
             If impFileId > 0 Then sql &= " AND imp_file_id = :p_imp_file_id"
             If impRunId > 0 Then sql &= " AND imp_run_id = :p_imp_run_id"
+            sql &= " ORDER BY NVL(imp_file_no, 0), imp_file_id"
 
             Using cmd As New OracleCommand(sql, conn)
                 cmd.Transaction = tran
@@ -1237,6 +1256,7 @@ Namespace Services
             Dim sql = "SELECT * FROM SUZUKI_SPIRITS_663NAND663SAND664T WHERE info_type_code = '663N' AND active_flag = 'Y' AND (status IS NULL OR status <> 'REGISTERED')"
             If impFileId > 0 Then sql &= " AND imp_file_id = :p_imp_file_id"
             If impRunId > 0 Then sql &= " AND imp_run_id = :p_imp_run_id"
+            sql &= " ORDER BY NVL(imp_file_no, 0), imp_file_id"
 
             Using cmd As New OracleCommand(sql, conn)
                 cmd.Transaction = tran
@@ -1295,6 +1315,7 @@ Namespace Services
             Dim sql = "SELECT * FROM SUZUKI_SPIRITS_663NAND663SAND664T WHERE info_type_code = '663S' AND active_flag = 'Y' AND (status IS NULL OR status <> 'REGISTERED')"
             If impFileId > 0 Then sql &= " AND imp_file_id = :p_imp_file_id"
             If impRunId > 0 Then sql &= " AND imp_run_id = :p_imp_run_id"
+            sql &= " ORDER BY NVL(imp_file_no, 0), imp_file_id"
 
             Using cmd As New OracleCommand(sql, conn)
                 cmd.Transaction = tran
@@ -1638,7 +1659,7 @@ Namespace Services
         ''' <summary>
         ''' エラー対象となったファイルを元の取込フォルダへ複製バックアップ (仕様書 SPIRITSデータ受注登録 p.11 [ファイルコピー])
         ''' </summary>
-        Private Sub CopyErrorFilesToSource(folderPath As String, targetFileNames As List(Of String), userId As String, Optional folderType As Integer = 4)
+        Private Sub CopyErrorFilesToSource(folderPath As String, targetFileNames As List(Of String), userId As String, Optional folderType As Integer = 4, Optional alreadyReturnedFiles As HashSet(Of String) = Nothing)
             Try
                 If targetFileNames Is Nothing OrElse targetFileNames.Count = 0 OrElse String.IsNullOrEmpty(folderPath) OrElse Not Directory.Exists(folderPath) Then Return
 
@@ -1648,6 +1669,11 @@ Namespace Services
 
                 If Directory.Exists(userWorkDir) Then
                     For Each fileName In targetFileNames
+                        ' Stage 1 (Pre-Import) で既に取込元に返却済みのファイルは重複返却を防止
+                        If alreadyReturnedFiles IsNot Nothing AndAlso alreadyReturnedFiles.Contains(fileName) Then
+                            Continue For
+                        End If
+
                         Dim srcPath = Path.Combine(userWorkDir, fileName)
                         If File.Exists(srcPath) Then
                             Dim nameNoExt = Path.GetFileNameWithoutExtension(fileName)
@@ -1677,9 +1703,8 @@ Namespace Services
 
                 Dim timeStamp = DateTime.Now.ToString("yyyyMMddHHmmss")
                 Dim errExcelFile = Path.Combine(errDir, $"エラーリスト_{timeStamp}.xlsx")
-                Dim errCsvFile = Path.Combine(errDir, $"エラーリスト_{timeStamp}.csv")
 
-                ' 1. ClosedXML を使用した Excel (.xlsx) 出力
+                ' ClosedXML を使用した Excel (.xlsx) 出力 (SPIRITSデータ受注登録 仕様書 p.11)
                 Using wb As New ClosedXML.Excel.XLWorkbook()
                     Dim ws = wb.Worksheets.Add("エラーリスト")
                     ws.Style.Font.SetFontName("Yu Gothic")
@@ -1701,15 +1726,105 @@ Namespace Services
                     wb.SaveAs(errExcelFile)
                 End Using
 
-                ' 2. CSV 出力 (既存の互換性維持)
-                Dim sb As New StringBuilder()
-                sb.AppendLine("""行"",""エラー内容""")
-                For i As Integer = 0 To errors.Count - 1
-                    sb.AppendLine($"""{i + 1}"",""{errors(i).Replace("""", """""")}""")
-                Next
-                File.WriteAllText(errCsvFile, sb.ToString(), Encoding.GetEncoding(932))
-
             Catch ex As Exception
+            End Try
+        End Sub
+
+        ''' <summary>
+        ''' バッチ処理でデータ検証エラーが発生した際、IMP_FILES_STAGE、スズキ専用ステージングテーブル、
+        ''' および作業フォルダから対象ファイルを安全に物理削除・パージする (WebのOrderImport一覧への残留防止)
+        ''' </summary>
+        Private Sub CleanupFailedBatchStage(rows As List(Of OrdersStageRow), adjustmentStageIds As IEnumerable(Of Long), impRunId As Long, customerSettingId As Long, userId As String, folderType As Integer, logger As Logger)
+            Try
+                Dim stageIds As New HashSet(Of Long)()
+                If rows IsNot Nothing Then
+                    For Each r In rows
+                        If r.ImpFileStageId.HasValue Then stageIds.Add(r.ImpFileStageId.Value)
+                    Next
+                End If
+                If adjustmentStageIds IsNot Nothing Then
+                    For Each adjId In adjustmentStageIds
+                        stageIds.Add(adjId)
+                    Next
+                End If
+
+                Dim stageRepo As New ImpFilesStageRepository(_connectionString)
+                Using cleanupConn As New OracleConnection(_connectionString)
+                    cleanupConn.Open()
+
+                    ' 1. impRunId からスズキ専用テーブルに登録されたすべての imp_file_id を収集
+                    If impRunId > 0 Then
+                        Dim tables As String() = {
+                            "SUZUKI_SPIRITS_0501AND0502",
+                            "SUZUKI_SPIRITS_0600AND0630",
+                            "SUZUKI_SPIRITS_0602",
+                            "SUZUKI_SPIRITS_0650",
+                            "SUZUKI_SPIRITS_0651",
+                            "SUZUKI_SPIRITS_0740",
+                            "SUZUKI_SPIRITS_0814",
+                            "SUZUKI_SPIRITS_6604AND6634",
+                            "SUZUKI_SPIRITS_6624",
+                            "SUZUKI_SPIRITS_663NAND663SAND664T"
+                        }
+                        For Each tbl In tables
+                            Using cmdFind As New OracleCommand($"SELECT DISTINCT imp_file_id FROM {tbl} WHERE imp_run_id = :p_run_id", cleanupConn)
+                                cmdFind.Parameters.Add(":p_run_id", OracleDbType.Int64).Value = impRunId
+                                Using rFind = cmdFind.ExecuteReader()
+                                    While rFind.Read()
+                                        If Not rFind.IsDBNull(0) Then
+                                            Dim fId = Convert.ToInt64(rFind(0))
+                                            If fId > 0 Then stageIds.Add(fId)
+                                        End If
+                                    End While
+                                End Using
+                            End Using
+                        Next
+                    End If
+
+                    ' 2. バッチ実行ユーザー (SUZUKI-AT) かつ未完了 (DISCOVERED) の残骸ステージIDも念のため収集
+                    If String.Equals(userId, "SUZUKI-AT", StringComparison.OrdinalIgnoreCase) Then
+                        Using cmdStage As New OracleCommand("SELECT imp_file_stage_id FROM imp_files_stage WHERE created_user_id = :p_user AND status = 'DISCOVERED'", cleanupConn)
+                            cmdStage.Parameters.Add(":p_user", OracleDbType.Varchar2).Value = userId
+                            Using rStage = cmdStage.ExecuteReader()
+                                While rStage.Read()
+                                    If Not rStage.IsDBNull(0) Then
+                                        stageIds.Add(Convert.ToInt64(rStage(0)))
+                                    End If
+                                End While
+                            End Using
+                        End Using
+                    End If
+
+                    ' 3. 収集したすべてのステージIDを物理削除
+                    If stageIds.Count > 0 Then
+                        Using cleanupTran As OracleTransaction = cleanupConn.BeginTransaction()
+                            Try
+                                For Each stgId In stageIds
+                                    stageRepo.DeleteImpFileStageRange(cleanupTran, stgId)
+                                    _orderStageRepo.DeleteSuzukiStagingRowsByFileId(cleanupTran, stgId)
+                                Next
+                                cleanupTran.Commit()
+                                logger.Write($"[SUZUKI_IMPORT] バッチエラー後クリーンアップ: {stageIds.Count} 件のファイルステージデータをパージしました。")
+                            Catch ex As Exception
+                                Try : cleanupTran.Rollback() : Catch : End Try
+                                logger.Write($"[SUZUKI_IMPORT] バッチエラー後クリーンアップロールバック: {ex.Message}")
+                            End Try
+                        End Using
+                    End If
+                End Using
+
+                ' 4. 作業フォルダ (WORK) 内の対象一時ファイルを全削除
+                Dim workRoot = ConfigurationManager.AppSettings("WorkFolderRoot")
+                If String.IsNullOrWhiteSpace(workRoot) Then workRoot = "C:\ASTI\DATA\WORK"
+                Dim userWorkDir = Path.Combine(workRoot, userId, "5455", folderType.ToString())
+                If Directory.Exists(userWorkDir) Then
+                    For Each f In Directory.GetFiles(userWorkDir)
+                        Try : File.Delete(f) : Catch : End Try
+                    Next
+                End If
+            Catch ex As Exception
+                ' クリーンアップ中の例外はエラーフローを阻害しないようログのみ
+                logger.Write($"[SUZUKI_IMPORT] バッチエラー後クリーンアップ警告: {ex.Message}")
             End Try
         End Sub
 
