@@ -5911,6 +5911,10 @@ Namespace OMS.Data
         Public Property OrderId As Long?                        ' ORDER_ID NUMBER(10,0)
         'Public Property ProdPlanId As Long?                        ' ORDER_ID NUMBER(10,0)
 
+        ' ====== 行・元フアイル情報 (アラー表示・引当準備用) ======
+        Public Property RowNo As Integer?                       ' 元フアイルの行番号 (未特定時はNothing)
+        Public Property FileName As String                      ' 取込元フアイル名
+
         ' ====== 取引先・品目等 ======
         Public Property CustomerSettingId As Long               ' CUSTOMER_SETTING_ID NUMBER(10,0)
         'Public Property CustomerSettingId As String             ' CUSTOMER_SETTING_ID VARCHAR2(25)

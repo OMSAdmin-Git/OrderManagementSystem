@@ -60,7 +60,7 @@ Namespace OMS.Data.SUZUKI
                 sb.AppendLine("  contractor_code, contractor_office_code, publication_date, target_reference_date_type, target_reference_date, ")
                 sb.AppendLine("  supplier_code, delivery_form_type, customer_item_no, item_no, process_type, ")
                 sb.AppendLine("  customer_item_no_process_no1, customer_order_no, pickup_instructions_times, old_delivery_date, delivery_date, ")
-                sb.AppendLine("  old_order_qty, order_qty, cahnge_reason, reserve, imp_file_id, ")
+                sb.AppendLine("  old_order_qty, order_qty, cahnge_reason, reserve, imp_file_id, imp_file_no, ")
                 sb.AppendLine("  imp_run_id, status, active_flag, created_at, created_user_id, ")
                 sb.AppendLine("  created_pg_id, updated_at, updated_user_id, updated_pg_id ")
                 sb.AppendLine(") VALUES (")
@@ -68,7 +68,7 @@ Namespace OMS.Data.SUZUKI
                 sb.AppendLine(" :p_contractor_code, :p_contractor_office_code, :p_publication_date, :p_target_reference_date_type, :p_target_reference_date, ")
                 sb.AppendLine(" :p_supplier_code, :p_delivery_form_type, :p_customer_item_no, :p_item_no, :p_process_type, ")
                 sb.AppendLine(" :p_customer_item_no_process_no1, :p_customer_order_no, :p_pickup_instructions_times, :p_old_delivery_date, :p_delivery_date, ")
-                sb.AppendLine(" :p_old_order_qty, :p_order_qty, :p_cahnge_reason, :p_reserve, :p_imp_file_id, ")
+                sb.AppendLine(" :p_old_order_qty, :p_order_qty, :p_cahnge_reason, :p_reserve, :p_imp_file_id, :p_imp_file_no, ")
                 sb.AppendLine(" :p_imp_run_id, :p_status, :p_active_flag, :p_created_at, :p_created_user_id, ")
                 sb.AppendLine(" :p_created_pg_id, :p_updated_at, :p_updated_user_id, :p_updated_pg_id ")
                 sb.AppendLine(")")
@@ -108,6 +108,8 @@ Namespace OMS.Data.SUZUKI
                         cmd.Parameters.Add(":p_cahnge_reason", OracleDbType.Varchar2, 2).Value = SafeVarchar(r.CahngeReason, 2)
                         cmd.Parameters.Add(":p_reserve", OracleDbType.Varchar2, 20).Value = SafeVarchar(r.Reserve, 20)
                         cmd.Parameters.Add(":p_imp_file_id", OracleDbType.Int64).Value = SafeNullable(r.ImpFileId)
+
+                        cmd.Parameters.Add(":p_imp_file_no", OracleDbType.Int64).Value = SafeNullable(r.ImpFileNo)
 
                         cmd.Parameters.Add(":p_imp_run_id", OracleDbType.Int64).Value = SafeNullable(r.ImpRunId)
                         cmd.Parameters.Add(":p_status", OracleDbType.Varchar2, 20).Value = SafeVarchar(r.Status, 20)
@@ -164,6 +166,8 @@ Namespace OMS.Data.SUZUKI
         Public Property CahngeReason As String                      ' 変更理由            VARCHAR2    2 CHAR
         Public Property Reserve As String                           ' 予備                VARCHAR2    20 CHAR
         Public Property ImpFileId As Long?                          ' 取込ファイルID      NUMBER      10,0
+
+        Public Property ImpFileNo As Long?                          ' 取込ファイル行番号  NUMBER      10,0
         Public Property ImpRunId As Long?                           ' 取込実行ID          NUMBER      10,0
         Public Property Status As String                            ' ステータス          VARCHAR2    20
         Public Property ActiveFlag As String                        ' 有効フラグ          CHAR        1

@@ -9,6 +9,7 @@ Imports Oracle.ManagedDataAccess.Client
 Imports OMS.Common
 Imports OMS.Data
 Imports OMS.Data.SUZUKI
+Imports ClosedXML.Excel
 
 Namespace Services
 
@@ -84,15 +85,33 @@ Namespace Services
 
                         ' 【工程 5】エラーチェック
                         logger.Write("[SUZUKI_IMPORT] 工程 5: ワークデータの整合性チェックを実行中...")
-                        ValidateStagedRows(rowsForTemp2, customerSettingId, errors)
+                        PopulateFileNamesForStagedRows(conn, tran, rowsForTemp2)
 
-                        If errors.Count > 0 Then
-                            logger.Write($"[SUZUKI_IMPORT] データ検証エラーが {errors.Count} 件発生しました。")
+                        Dim validShipTos = GetValidShipToCodes(conn, tran)
+                        Dim defaultCsId = GetDefaultSuzukiCustomerSettingId(conn, tran)
+
+                        Dim fatalErrors As New List(Of String)()
+                        Dim trimmingWarnings As New List(Of String)()
+                        ValidateStagedRows(rowsForTemp2, defaultCsId, fatalErrors, trimmingWarnings, validShipTos)
+
+                        If trimmingWarnings.Count > 0 Then
+                            errors.AddRange(trimmingWarnings)
+                        End If
+
+                        If fatalErrors.Count > 0 Then
+                            logger.Write($"[SUZUKI_IMPORT] データ検証エラーが {fatalErrors.Count} 件発生しました。")
+                            errors.AddRange(fatalErrors)
+
+                            Dim errFileNames = rowsForTemp2.Where(Function(r) Not String.IsNullOrEmpty(r.FileName)).Select(Function(r) r.FileName).Distinct().ToList()
+                            CopyErrorFilesToSource(folderPath, errFileNames, userId, folderType)
+
                             If isBatch Then
-                                ExportErrorsToCsv(folderPath, errors)
+                                ExportErrorsToExcel(folderPath, errors)
                             End If
                             tran.Rollback()
-                            Throw New Exception($"Stage 2 Validation Error: {String.Join("; ", errors.Take(5))}")
+                            Throw New Exception($"Stage 2 Validation Error: {String.Join("; ", fatalErrors.Take(5))}")
+                        ElseIf trimmingWarnings.Count > 0 AndAlso isBatch Then
+                            ExportErrorsToExcel(folderPath, errors)
                         End If
 
                         ' 【工程 6】受注ワーク登録 & 洗い替え・消込処理
@@ -267,8 +286,17 @@ Namespace Services
                 End If
 
                 ' 4. エラーチェック
-                ValidateStagedRows(tempRows, customerSettingId, errors)
-                If errors.Count > 0 Then
+                PopulateFileNamesForStagedRows(conn, tran, tempRows)
+                Dim validShipTos = GetValidShipToCodes(conn, tran)
+                Dim defaultCsId = GetDefaultSuzukiCustomerSettingId(conn, tran)
+                Dim fatalErrors As New List(Of String)()
+                Dim trimmingWarnings As New List(Of String)()
+                ValidateStagedRows(tempRows, defaultCsId, fatalErrors, trimmingWarnings, validShipTos)
+                If trimmingWarnings.Count > 0 Then
+                    errors.AddRange(trimmingWarnings)
+                End If
+                If fatalErrors.Count > 0 Then
+                    errors.AddRange(fatalErrors)
                     Return False
                 End If
 
@@ -467,6 +495,7 @@ Namespace Services
                         Dim resolvedInfoType = ResolveInfoType(customerSettingId, custInfoType)
 
                         outRows.Add(New OrdersStageRow With {
+                            .RowNo = GetSafeInt(r, "imp_file_no"),
                             .CustomerSettingId = customerSettingId,
                             .CustomerCode = "5455",
                             .BillingTo = billingTo,
@@ -545,6 +574,7 @@ Namespace Services
                         Dim resolvedInfoType = ResolveInfoType(customerSettingId, custInfoType)
 
                         outRows.Add(New OrdersStageRow With {
+                            .RowNo = GetSafeInt(r, "imp_file_no"),
                             .CustomerSettingId = customerSettingId,
                             .CustomerCode = "5455",
                             .BillingTo = billingTo,
@@ -620,6 +650,7 @@ Namespace Services
                         Dim orderQty = GetSafeInt64(r, "order_qty")
 
                         outRows.Add(New OrdersStageRow With {
+                            .RowNo = GetSafeInt(r, "imp_file_no"),
                             .CustomerSettingId = customerSettingId,
                             .CustomerCode = "5455",
                             .BillingTo = billingTo,
@@ -699,6 +730,7 @@ Namespace Services
                         Dim resolvedInfoType = ResolveInfoType(customerSettingId, custInfoType)
 
                         outRows.Add(New OrdersStageRow With {
+                            .RowNo = GetSafeInt(r, "imp_file_no"),
                             .CustomerSettingId = customerSettingId,
                             .CustomerCode = "5455",
                             .BillingTo = billingTo,
@@ -775,6 +807,7 @@ Namespace Services
                         Dim orderQty = GetSafeInt64(r, "order_qty")
 
                         outRows.Add(New OrdersStageRow With {
+                            .RowNo = GetSafeInt(r, "imp_file_no"),
                             .CustomerSettingId = customerSettingId,
                             .CustomerCode = "5455",
                             .BillingTo = billingTo,
@@ -850,6 +883,7 @@ Namespace Services
                         Dim orderQty = GetSafeInt64(r, "order_qty")
 
                         outRows.Add(New OrdersStageRow With {
+                            .RowNo = GetSafeInt(r, "imp_file_no"),
                             .CustomerSettingId = customerSettingId,
                             .CustomerCode = "5455",
                             .BillingTo = billingTo,
@@ -928,6 +962,7 @@ Namespace Services
                         Dim resolvedInfoType = ResolveInfoType(customerSettingId, custInfoType)
 
                         outRows.Add(New OrdersStageRow With {
+                            .RowNo = GetSafeInt(r, "imp_file_no"),
                             .CustomerSettingId = customerSettingId,
                             .CustomerCode = "5455",
                             .BillingTo = billingTo,
@@ -1001,6 +1036,7 @@ Namespace Services
                         Dim orderQty = GetSafeInt64(r, "order_qty")
 
                         outRows.Add(New OrdersStageRow With {
+                            .RowNo = GetSafeInt(r, "imp_file_no"),
                             .CustomerSettingId = customerSettingId,
                             .CustomerCode = "5455",
                             .BillingTo = billingTo,
@@ -1174,6 +1210,7 @@ Namespace Services
                                 Using ordR = cmdOrd.ExecuteReader()
                                     If ordR.Read() Then
                                         Dim fallbackRow = CreateOrdersStageRowFromOrdersReader(ordR, userId, pgId)
+                                        fallbackRow.RowNo = GetSafeInt(r, "imp_file_no")
                                         fallbackRow.DemandQty = (If(fallbackRow.DemandQty, 0L)) + addQty
                                         fallbackRow.PreDailyOrderQty = fallbackRow.DemandQty
                                         If impFileId > 0 Then
@@ -1231,6 +1268,7 @@ Namespace Services
                                 Using ordR = cmdOrd.ExecuteReader()
                                     If ordR.Read() Then
                                         Dim fallbackRow = CreateOrdersStageRowFromOrdersReader(ordR, userId, pgId)
+                                        fallbackRow.RowNo = GetSafeInt(r, "imp_file_no")
                                         fallbackRow.DueDate = newDueDate
                                         fallbackRow.PreDailyDeliveryDate = newDelDate
                                         If impFileId > 0 Then
@@ -1286,6 +1324,7 @@ Namespace Services
                                 Using ordR = cmdOrd.ExecuteReader()
                                     If ordR.Read() Then
                                         Dim fallbackRow = CreateOrdersStageRowFromOrdersReader(ordR, userId, pgId)
+                                        fallbackRow.RowNo = GetSafeInt(r, "imp_file_no")
                                         fallbackRow.DemandQty = newQty
                                         fallbackRow.PreDailyOrderQty = Convert.ToDecimal(newQty)
                                         If impFileId > 0 Then
@@ -1373,6 +1412,16 @@ Namespace Services
             End Try
         End Function
 
+        Private Function GetSafeInt(r As IDataRecord, col As String) As Integer?
+            Try
+                Dim idx = r.GetOrdinal(col)
+                If r.IsDBNull(idx) Then Return Nothing
+                Return Convert.ToInt32(r.GetValue(idx))
+            Catch
+                Return Nothing
+            End Try
+        End Function
+
         Private Function GetSafeInt64(r As IDataRecord, col As String) As Long?
             Try
                 Dim idx = r.GetOrdinal(col)
@@ -1408,37 +1457,262 @@ Namespace Services
 #Region "検証 & 出荷先変換"
 
         ''' <summary>
-        ''' 【Stage 2 工程5】エラーチェック
+        ''' 【Stage 2 工程5】エラーチェック (仕様書 受注ファイル取込ページ p.5-6 および SPIRITSデータ受注登録 p.11 完全準拠)
         ''' </summary>
-        Private Sub ValidateStagedRows(rows As List(Of OrdersStageRow), defaultSettingId As Long, errors As List(Of String))
-            For Each r In rows
-                ' 1. 取引先設定IDチェック
-                If r.CustomerSettingId <= 0 Then
-                    errors.Add($"品目No: {r.ItemNo} の取引先設定IDが特定できません。")
+        Private Sub ValidateStagedRows(rows As List(Of OrdersStageRow),
+                                       defaultSettingId As Long,
+                                       fatalErrors As List(Of String),
+                                       Optional trimmingWarnings As List(Of String) = Nothing,
+                                       Optional validShipToSet As HashSet(Of String) = Nothing)
+            If rows Is Nothing Then Return
+            If trimmingWarnings Is Nothing Then trimmingWarnings = New List(Of String)()
+
+            For idx As Integer = 0 To rows.Count - 1
+                Dim r = rows(idx)
+
+                ' --- プレフィックス構築 (取引先コード、取込ファイル、行番号/識別子) ---
+                Dim fName = If(Not String.IsNullOrEmpty(r.FileName), r.FileName, "SUZUKI_EDI")
+                Dim prefix As String
+                If r.RowNo.HasValue Then
+                    prefix = $" 取引先コード：5455　取込ファイル：[{fName} ]　Row {r.RowNo.Value}："
+                Else
+                    Dim itemPart = If(Not String.IsNullOrWhiteSpace(r.ItemNo), r.ItemNo, If(Not String.IsNullOrWhiteSpace(r.CustomerItemNo), r.CustomerItemNo, ""))
+                    Dim orderPart = If(Not String.IsNullOrWhiteSpace(r.CustomerOrderNo), $", 発注No: {r.CustomerOrderNo}", "")
+                    If Not String.IsNullOrEmpty(itemPart) Then
+                        prefix = $" 取引先コード：5455　取込ファイル：[{fName} ]　[品目No: {itemPart}{orderPart}]："
+                    Else
+                        prefix = $" 取引先コード：5455　取込ファイル：[{fName} ]　Row {idx + 1}："
+                    End If
                 End If
 
-                ' 2. 必須項目チェック
-                If String.IsNullOrWhiteSpace(r.ItemNo) Then
-                    errors.Add("品目Noが未設定です。")
-                End If
-
+                ' --- ① 必須チェック ---
+                ' 希望納期
                 If Not r.DueDate.HasValue Then
-                    errors.Add($"希望納期が不正です (品目No: {r.ItemNo})")
+                    fatalErrors.Add(prefix & "希望納期が空です。")
                 End If
 
-                If Not r.DemandQty.HasValue OrElse r.DemandQty.Value < 0 Then
-                    errors.Add($"需要数が負数または不正です (品目No: {r.ItemNo})")
+                ' 客先品目No / 製品コード (どちらもNULLの場合エラー)
+                If String.IsNullOrWhiteSpace(r.CustomerItemNo) AndAlso String.IsNullOrWhiteSpace(r.ProductCode) Then
+                    fatalErrors.Add(prefix & "客先品目No及び製品コードが空です。")
                 End If
 
+                ' 需要数
+                If Not r.DemandQty.HasValue Then
+                    fatalErrors.Add(prefix & "需要数が空です。")
+                End If
+
+                ' 客先発注No (受注区分が 2:確定 または 3:納入指示 の場合のみチェック)
+                If r.OrderType.HasValue AndAlso (r.OrderType.Value = 2 OrElse r.OrderType.Value = 3) Then
+                    If String.IsNullOrWhiteSpace(r.CustomerOrderNo) Then
+                        fatalErrors.Add(prefix & "客先発注Noが空です。")
+                    End If
+                End If
+
+                ' --- ② STRAMMICマスタチェック (品目No) ---
+                If String.IsNullOrWhiteSpace(r.ItemNo) Then
+                    fatalErrors.Add(prefix & "品目No及び製品コードが取得できません。")
+                End If
+
+                ' --- ③ STRAMMICマスタチェック (出荷先) ---
                 If String.IsNullOrWhiteSpace(r.ShipTo) Then
-                    errors.Add($"出荷先が未設定です (品目No: {r.ItemNo})")
+                    fatalErrors.Add(prefix & "出荷先が空です。")
+                ElseIf validShipToSet IsNot Nothing AndAlso validShipToSet.Count > 0 Then
+                    If Not validShipToSet.Contains(r.ShipTo.Trim()) Then
+                        fatalErrors.Add(prefix & "出荷先が存在しません。")
+                    End If
+                End If
+
+                ' --- ④ 入力形式チェック ---
+                If r.DemandQty.HasValue AndAlso r.DemandQty.Value < 0 Then
+                    fatalErrors.Add(prefix & "需要数が不正な値です。")
+                End If
+
+                ' --- ⑤ 桁数チェック (超過時はトリミングして続行、エラーではなく警告扱い) ---
+                ' CustomerOrderNo: max 40
+                If Not String.IsNullOrEmpty(r.CustomerOrderNo) AndAlso r.CustomerOrderNo.Length > 40 Then
+                    r.CustomerOrderNo = r.CustomerOrderNo.Substring(0, 40)
+                    trimmingWarnings.Add(prefix & "客先発注Noが桁数超過のためトリミングされました。")
+                End If
+
+                ' Remarks: max 45
+                If Not String.IsNullOrEmpty(r.Remarks) AndAlso r.Remarks.Length > 45 Then
+                    r.Remarks = r.Remarks.Substring(0, 45)
+                    trimmingWarnings.Add(prefix & "コメントが桁数超過のためトリミングされました。")
+                End If
+
+                ' CustomerItemNo: max 45
+                If Not String.IsNullOrEmpty(r.CustomerItemNo) AndAlso r.CustomerItemNo.Length > 45 Then
+                    r.CustomerItemNo = r.CustomerItemNo.Substring(0, 45)
+                    trimmingWarnings.Add(prefix & "客先品目Noが桁数超過のためトリミングされました。")
+                End If
+
+                ' ItemNo: max 45
+                If Not String.IsNullOrEmpty(r.ItemNo) AndAlso r.ItemNo.Length > 45 Then
+                    r.ItemNo = r.ItemNo.Substring(0, 45)
+                    trimmingWarnings.Add(prefix & "品目Noが桁数超過のためトリミングされました。")
+                End If
+
+                ' ShipTo: max 25
+                If Not String.IsNullOrEmpty(r.ShipTo) AndAlso r.ShipTo.Length > 25 Then
+                    r.ShipTo = r.ShipTo.Substring(0, 25)
+                    trimmingWarnings.Add(prefix & "出荷先が桁数超過のためトリミングされました。")
+                End If
+
+                ' --- ⑥ STRAMMICマスタチェック (PC) & SPIRITS仕様書 p.11 チェック ---
+                If r.CustomerSettingId <= 0 OrElse (defaultSettingId > 0 AndAlso r.CustomerSettingId = defaultSettingId) Then
+                    fatalErrors.Add(prefix & "取引先設定(PC)が特定できません。")
                 End If
             Next
         End Sub
 
         ''' <summary>
-        ''' メモリ内出荷先変換 (画面実行時用)
+        ''' 有効な出荷先コード一覧を SECTM (部署マスタ) から取得
         ''' </summary>
+        Private Function GetValidShipToCodes(conn As OracleConnection, tran As OracleTransaction) As HashSet(Of String)
+            Dim codes As New HashSet(Of String)(StringComparer.OrdinalIgnoreCase)
+            Try
+                Using cmd As New OracleCommand("SELECT TRIM(fsectcd) FROM sectm WHERE fsecttyp = 'ST' AND fsectcd IS NOT NULL", conn)
+                    cmd.Transaction = tran
+                    Using r = cmd.ExecuteReader()
+                        While r.Read()
+                            If Not r.IsDBNull(0) Then
+                                Dim code = r.GetString(0).Trim()
+                                If Not String.IsNullOrEmpty(code) Then codes.Add(code)
+                            End If
+                        End While
+                    End Using
+                End Using
+            Catch ex As Exception
+            End Try
+            Return codes
+        End Function
+
+        ''' <summary>
+        ''' スズキのデフォルト設定ID (PC未設定・工場未設定) を取得
+        ''' </summary>
+        Private Function GetDefaultSuzukiCustomerSettingId(conn As OracleConnection, tran As OracleTransaction) As Long
+            Try
+                Using cmd As New OracleCommand("SELECT customer_setting_id FROM customer_setting_mst WHERE customer_code = '5455' AND profit_center IS NULL AND customer_unit_id IS NULL AND active_flag = 'Y'", conn)
+                    cmd.Transaction = tran
+                    Dim res = cmd.ExecuteScalar()
+                    If res IsNot Nothing AndAlso Not DBNull.Value.Equals(res) Then
+                        Return Convert.ToInt64(res)
+                    End If
+                End Using
+            Catch ex As Exception
+            End Try
+            Return 0
+        End Function
+
+        ''' <summary>
+        ''' IMP_FILES_STAGE からファイル名マッピングを取得して各行に反映
+        ''' </summary>
+        Private Sub PopulateFileNamesForStagedRows(conn As OracleConnection, tran As OracleTransaction, rows As List(Of OrdersStageRow))
+            If rows Is Nothing OrElse rows.Count = 0 Then Return
+            Dim stageIds = rows.Where(Function(r) r.ImpFileStageId.HasValue).Select(Function(r) r.ImpFileStageId.Value).Distinct().ToList()
+            If stageIds.Count = 0 Then Return
+
+            Dim fileMap As New Dictionary(Of Long, String)()
+            For i As Integer = 0 To stageIds.Count - 1 Step 500
+                Dim chunk = stageIds.Skip(i).Take(500).ToList()
+                Dim idListStr = String.Join(",", chunk)
+                Using cmd As New OracleCommand($"SELECT imp_file_stage_id, NVL(staged_file_name, file_name) AS fname FROM imp_files_stage WHERE imp_file_stage_id IN ({idListStr})", conn)
+                    cmd.Transaction = tran
+                    Using r = cmd.ExecuteReader()
+                        While r.Read()
+                            Dim sId = Convert.ToInt64(r("imp_file_stage_id"))
+                            Dim fn = If(r.IsDBNull(r.GetOrdinal("fname")), "", r("fname").ToString().Trim())
+                            fileMap(sId) = fn
+                        End While
+                    End Using
+                End Using
+            Next
+
+            For Each row In rows
+                If row.ImpFileStageId.HasValue AndAlso fileMap.ContainsKey(row.ImpFileStageId.Value) Then
+                    row.FileName = fileMap(row.ImpFileStageId.Value)
+                End If
+            Next
+        End Sub
+
+        ''' <summary>
+        ''' エラー対象となったファイルを元の取込フォルダへ複製バックアップ (仕様書 SPIRITSデータ受注登録 p.11 [ファイルコピー])
+        ''' </summary>
+        Private Sub CopyErrorFilesToSource(folderPath As String, targetFileNames As List(Of String), userId As String, Optional folderType As Integer = 4)
+            Try
+                If targetFileNames Is Nothing OrElse targetFileNames.Count = 0 OrElse String.IsNullOrEmpty(folderPath) OrElse Not Directory.Exists(folderPath) Then Return
+
+                Dim workRoot = ConfigurationManager.AppSettings("WorkFolderRoot")
+                If String.IsNullOrWhiteSpace(workRoot) Then workRoot = "C:\ASTI\DATA\WORK"
+                Dim userWorkDir = Path.Combine(workRoot, userId, "5455", folderType.ToString())
+
+                If Directory.Exists(userWorkDir) Then
+                    For Each fileName In targetFileNames
+                        Dim srcPath = Path.Combine(userWorkDir, fileName)
+                        If File.Exists(srcPath) Then
+                            Dim nameNoExt = Path.GetFileNameWithoutExtension(fileName)
+                            Dim ext = Path.GetExtension(fileName)
+                            Dim timeStamp = DateTime.Now.ToString("yyyyMMdd_HHmmss")
+                            Dim destName = $"{nameNoExt}_{userId}_{timeStamp}{ext}"
+                            Dim destPath = Path.Combine(folderPath, destName)
+                            Try
+                                File.Copy(srcPath, destPath, True)
+                            Catch
+                            End Try
+                        End If
+                    Next
+                End If
+            Catch
+            End Try
+        End Sub
+
+        ''' <summary>
+        ''' 【Stage 2 エラー情報出力】Excel (.xlsx) および CSV レポート出力 (仕様書 SPIRITSデータ受注登録 p.11 完全準拠)
+        ''' </summary>
+        Private Sub ExportErrorsToExcel(folderPath As String, errors As List(Of String))
+            Try
+                If String.IsNullOrEmpty(folderPath) OrElse Not Directory.Exists(folderPath) Then Return
+                Dim errDir = Path.Combine(folderPath, "エラーリスト")
+                Utils.EnsureDirectory(errDir)
+
+                Dim timeStamp = DateTime.Now.ToString("yyyyMMddHHmmss")
+                Dim errExcelFile = Path.Combine(errDir, $"エラーリスト_{timeStamp}.xlsx")
+                Dim errCsvFile = Path.Combine(errDir, $"エラーリスト_{timeStamp}.csv")
+
+                ' 1. ClosedXML を使用した Excel (.xlsx) 出力
+                Using wb As New ClosedXML.Excel.XLWorkbook()
+                    Dim ws = wb.Worksheets.Add("エラーリスト")
+                    ws.Style.Font.SetFontName("Yu Gothic")
+                    ws.Style.Font.SetFontSize(10)
+
+                    ' ヘッダー行
+                    ws.Cell(1, 1).Value = "行"
+                    ws.Cell(1, 2).Value = "エラー内容"
+                    ws.Row(1).Style.Font.Bold = True
+
+                    ' データ行
+                    For i As Integer = 0 To errors.Count - 1
+                        Dim rowNum = i + 2
+                        ws.Cell(rowNum, 1).Value = i + 1
+                        ws.Cell(rowNum, 2).Value = errors(i)
+                    Next
+
+                    ws.Columns().AdjustToContents()
+                    wb.SaveAs(errExcelFile)
+                End Using
+
+                ' 2. CSV 出力 (既存の互換性維持)
+                Dim sb As New StringBuilder()
+                sb.AppendLine("""行"",""エラー内容""")
+                For i As Integer = 0 To errors.Count - 1
+                    sb.AppendLine($"""{i + 1}"",""{errors(i).Replace("""", """""")}""")
+                Next
+                File.WriteAllText(errCsvFile, sb.ToString(), Encoding.GetEncoding(932))
+
+            Catch ex As Exception
+            End Try
+        End Sub
+
         Private Sub ApplyShipToConversionInMemory(conn As OracleConnection, tran As OracleTransaction, rows As List(Of OrdersStageRow))
             Dim convMap As New Dictionary(Of String, String)()
             Using cmd As New OracleCommand("SELECT delivery_code_order, delivery_code_plan FROM suzuki_spirits_conversion_mst WHERE active_flag = 'Y'", conn)
@@ -1540,23 +1814,6 @@ Namespace Services
                         End If
                     Next
                 End If
-            Catch
-            End Try
-        End Sub
-
-        Private Sub ExportErrorsToCsv(folderPath As String, errors As List(Of String))
-            Try
-                If String.IsNullOrEmpty(folderPath) OrElse Not Directory.Exists(folderPath) Then Return
-                Dim errDir = Path.Combine(folderPath, "エラーリスト")
-                Utils.EnsureDirectory(errDir)
-
-                Dim errFile = Path.Combine(errDir, $"エラーリスト_{DateTime.Now:yyyyMMddHHmmss}.csv")
-                Dim sb As New StringBuilder()
-                sb.AppendLine("エラー内容")
-                For Each errStr In errors
-                    sb.AppendLine($"""{errStr.Replace("""", """""")}""")
-                Next
-                File.WriteAllText(errFile, sb.ToString(), Encoding.UTF8)
             Catch
             End Try
         End Sub
