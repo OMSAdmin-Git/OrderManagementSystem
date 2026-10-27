@@ -28,6 +28,7 @@ Namespace OMS.Data
 
         Public Property IsValid As Boolean = False
         Public Property InsertedCount As Integer = 0
+        Public Property ReConciledCount As Integer = 0
         ' 検証成功時に呼び出し元で利用するパース済みの値
         Public Property CustomerSettingId As Long
         Public Property ImpFileStageId As Long
@@ -4113,6 +4114,9 @@ Namespace OMS.Data
 
                 'End If
 
+                '2026/10/21 消込済データ件数を取得
+                result.ReConciledCount = _oderStageRepo.GetReconciledCount(tran, impfilestageId)
+                '--
 
             Else
 

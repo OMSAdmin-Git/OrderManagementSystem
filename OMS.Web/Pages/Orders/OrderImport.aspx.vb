@@ -783,13 +783,20 @@ Namespace Pages.Orders
                                     )
                                 Dim savedCount As Integer = importResult.InsertedCount
 
+                                Dim reconciledCount As Integer = importResult.ReConciledCount
+
                                 If savedCount > 0 Then
 
                                     'If ErrFlg = False Then
 
                                     resultCnt += 1
                                     resultRowCnt += savedCount
-                                    successs.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　読込 {savedCount} 件　異常 {errcnt} 件")
+
+                                    If reconciledCount = 0 Then
+                                        successs.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　読込 {savedCount} 件　異常 {errcnt} 件")
+                                    Else
+                                        successs.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　読込 {savedCount} 件 (消込 {reconciledCount} 件)　異常 {errcnt} 件")
+                                    End If
 
                                     'End If
 

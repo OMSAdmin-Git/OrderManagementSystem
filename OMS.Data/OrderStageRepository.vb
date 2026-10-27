@@ -5901,6 +5901,39 @@ Namespace OMS.Data
             Return rt
         End Function
 
+        ''' <summary>
+        ''' 消込済データ件数取得処理    処理中の一時取込ファイルIDのACTIVE_FLAG='N' で'RECONCILED'消込済データの件数を取得する
+        ''' </summary>
+        ''' <param name="tran">実行中のトランザクション</param>
+        ''' <param name="impFileStageId">処理中の一時取込ファイルID</param>
+        Public Function GetReconciledCount(ByVal tran As OracleTransaction, ByVal ImpFileStageId As Long) As Integer
+
+            Dim ReconciledCount As Integer = 0
+
+            Const sql As String =
+                        " SELECT count(*) as cnt " &
+                        "  FROM orders_stage " &
+                        "  WHERE 1=1 " &
+                        "  AND imp_file_stage_id = :p_imp_file_stage_id " &
+                        "  AND status = 'RECONCILED' " &
+                        "  AND active_flag = 'N' "
+
+            Using cmd As New OracleCommand(sql, tran.Connection)
+                cmd.Transaction = tran
+                cmd.BindByName = True
+                cmd.CommandType = CommandType.Text
+
+                cmd.Parameters.Clear()
+                cmd.Parameters.Add(":p_imp_file_stage_id", OracleDbType.Int64).Value = ImpFileStageId
+
+                ReconciledCount = Convert.ToInt32(cmd.ExecuteScalar())
+
+            End Using
+
+            Return ReconciledCount
+
+        End Function
+
     End Class
 
     ''' <summary>
