@@ -7,6 +7,7 @@ Imports System.Security.Cryptography
 Imports System.Text
 Imports DocumentFormat.OpenXml.Drawing.Charts
 Imports DocumentFormat.OpenXml.Spreadsheet
+Imports DocumentFormat.OpenXml.Wordprocessing
 Imports Microsoft.VisualBasic.ApplicationServices
 Imports OMS.Common
 Imports OMS.Data.SectmRepository
@@ -5611,9 +5612,21 @@ Namespace OMS.Data
 
                 Dim itemNo = orderRow.ItemNo
                 'FUSRDEC1 ((A)品揃リードタイム)
-                Dim assortLeadTime = shproutm.GetAssortmentLeadTime(customerCode, profitCenter, itemNo)
+                'Dim assortLeadTime = shproutm.GetAssortmentLeadTime(customerCode, profitCenter, itemNo)
+                Dim alt = shproutm.GetAssortmentLeadTime(customerCode, profitCenter, itemNo, False)
+                If (alt.err <> "") Then
+                    errors.Add(alt.err)
+                End If
+                Dim assortLeadTime = alt.lt
+
                 'FTRANLT(輸送L/T)
-                Dim transferLeadTime = shproutm.GetTransferLeadTime(orderRow.ShipTo, orderRow.ShipStockLocation)
+                'Dim transferLeadTime = shproutm.GetTransferLeadTime(orderRow.ShipTo, orderRow.ShipStockLocation)
+                Dim tlt = shproutm.GetTransferLeadTime(orderRow.ShipTo, orderRow.ShipStockLocation, False)
+                If (tlt.err <> "") Then
+                    errors.Add(tlt.err)
+                End If
+                Dim transferLeadTime = tlt.lt
+
                 Dim orderid = orderRow.OrderId
                 Dim dueDate = orderRow.DueDate
                 ' Calender ID 固定値

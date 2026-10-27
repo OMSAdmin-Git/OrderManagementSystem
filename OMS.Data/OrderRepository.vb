@@ -1416,17 +1416,19 @@ Namespace OMS.Data
         ''' <param name="tran"></param>
         ''' <param name="type"></param>
         ''' <returns></returns>
-        Public Function ProdPlanCount(conn As OracleConnection, tran As OracleTransaction, type As OrdersTable, userid As String) As (unofficialNotice As Integer, confirmed As Integer)
+        Public Function ProdPlanCount(conn As OracleConnection, tran As OracleTransaction, type As OrdersTable, userid As String) As (unofficialNotice As Integer, confirmed As Integer, rerr As Integer)
 
             Dim dt As New DataTable()
             Dim uc = 0
             Dim cc = 0
+            Dim ec = 0
             ' 受注ファイル出力時 Prd_Plan で 内示処理と 確定処理を 行ったレコード数を 返す SQL
             Dim sql = $"SELECT 
                          COUNT(CASE WHEN active_flag = 'Y' AND status = 'POST_PLAN_DUE_SET' AND demand_status = 'F' AND updated_user_id = '{userid}' THEN 1 ELSE NULL END) AS UnofficialNotice,
-                         COUNT(CASE WHEN active_flag = 'Y' AND status = 'POST_PLAN_DUE_SET' AND demand_status = 'O' AND updated_user_id = '{userid}' THEN 1 ELSE NULL END) AS Confirmed
+                         COUNT(CASE WHEN active_flag = 'Y' AND status = 'POST_PLAN_DUE_SET' AND demand_status = 'O' AND updated_user_id = '{userid}' THEN 1 ELSE NULL END) AS Confirmed,
+                         COUNT(CASE WHEN active_flag = 'N' AND status = 'POST_PLAN_DUE_SET' AND updated_user_id = '{userid}' THEN 1 ELSE NULL END) AS RecordError
                         FROM 
-                         prod_plan "
+                         prod_plan_stage "
             Try
                 Using cmd As New OracleCommand(sql, conn)
                     cmd.BindByName = True
@@ -1438,12 +1440,13 @@ Namespace OMS.Data
                     If (dt.Rows.Count = 1) Then
                         uc = dt.Rows(0).Field(Of Decimal)("UnofficialNotice")
                         cc = dt.Rows(0).Field(Of Decimal)("Confirmed")
+                        ec = dt.Rows(0).Field(Of Decimal)("RecordError")
                     End If
                 End Using
             Catch ex As Exception
                 Dim m = ex.Message
             End Try
-            Return (uc, cc)
+            Return (uc, cc, ec)
         End Function
 
         Public Function ProdPlanStraViewCsvFile(

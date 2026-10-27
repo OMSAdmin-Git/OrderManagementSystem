@@ -613,7 +613,8 @@ Namespace Pages.Orders
                                 'Dim mapError As String = ""
                                 'Dim blnflg As Boolean = False
                                 Dim mapResult As OMS.Data.OrderStageImport.MappingResult = OMS.Data.OrderStageImport.ResolveMapping(_mappingRepo, customerSettingId, folderType, errors)
-
+                                ' 1レコードあたりの 展開データ数 (Yamaharobotex:4)
+                                Dim rpds As Integer = 1
                                 ' スズキ特殊処理 (spprocesstype = 1)
                                 If spprocesstype = 1 Then
                                     ' ファイル種別判定: スズキ4桁EDIコードを持つか確認
@@ -737,12 +738,18 @@ Namespace Pages.Orders
                                                                                             ErrFlg,
                                                                                             ErrFileFlg,
                                                                                             errcnt,
+                                                                                            rpds,
                                                                                             folderType,
                                                                                             newId,
                                                                                             UserId,
                                                                                             pgId,
                                                                                             errors,
                                                                                             rowsForTemp2)
+
+                                    ' 同じ内容を削除する
+                                    errors = errors.Distinct().ToList()
+
+
                                     'blnflg = True
 
                                 ElseIf mapResult Is Nothing Then

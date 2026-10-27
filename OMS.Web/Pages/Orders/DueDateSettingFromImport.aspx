@@ -127,6 +127,7 @@
             <div>
                 <br />
                 <asp:Label ID="lblResult" runat="server" ForeColor="Green" />
+                <br />
                 <asp:Label ID="lblError" runat="server" ForeColor="Red" />
             </div>
 
