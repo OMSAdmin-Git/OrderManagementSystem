@@ -323,7 +323,7 @@ Namespace Pages.Orders
                 Dim trfilename = ""
                 ''出荷状況エラーリスト出力	
                 Dim repos = New OrderStraRepository(Utils.GetConnectionString())
-                Dim errorRows = repos.GetOrderStage(conn, tran, status:="POST_PLAN_DUE_SET", activeFlag:="N", additionalConditions:=" AND ship_scheduled_date >=  order_date  AND order_type > 1 ")
+                Dim errorRows = repos.GetOrderStage(conn, tran, status:="POST_PLAN_DUE_SET", activeFlag:="N", additionalConditions:=" AND TRUNC(ship_scheduled_date) >=  TRUNC(order_date)  AND order_type > 1 ")
                 sippingStatusErrorCnt = errorRows.Rows.Count
                 If (errorRows.Rows.Count <> 0) Then
                     errors.Add(OrderProductionPlanExcelFile.ShippingStatusErrorExcelOut(strPath, FileDate, repos.ToClass(errorRows)))
@@ -335,7 +335,7 @@ Namespace Pages.Orders
                     fileList.Add(trfilename)
                 End If
                 '過去日エラーリスト出力
-                Dim pastErrorRows = repos.GetOrderStage(conn, tran, status:="POST_PLAN_DUE_SET", activeFlag:="N", additionalConditions:=" AND ship_scheduled_date <  order_date ")
+                Dim pastErrorRows = repos.GetOrderStage(conn, tran, status:="POST_PLAN_DUE_SET", activeFlag:="N", additionalConditions:=" AND TRUNC(ship_scheduled_date) <  TRUNC(order_date) ")
                 pastErrorCnt = pastErrorRows.Rows.Count
                 If (pastErrorRows.Rows.Count <> 0) Then
                     errors.Add(OrderProductionPlanExcelFile.PastDateErrorExcelOut(strPath, FileDate, repos.ToClass(pastErrorRows)))
