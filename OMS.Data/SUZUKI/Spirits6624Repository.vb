@@ -63,7 +63,7 @@ Namespace OMS.Data.SUZUKI
                 sb.AppendLine("  delivery_type, order_data_type, delivery_date_type, order_qty_type, delivery_date, ")
                 sb.AppendLine("  delivery_time, ship_instructions_date, order_qty, arrange_manager, order_reason, ")
                 sb.AppendLine("  first_article_type, order_notes, supply_line, supply_process, construction_no, ")
-                sb.AppendLine("  packing_type, imp_file_id, imp_run_id, status, active_flag, ")
+                sb.AppendLine("  packing_type, imp_file_id, imp_file_no, imp_run_id, status, active_flag, ")
                 sb.AppendLine("  created_at, created_user_id, created_pg_id, updated_at, updated_user_id, ")
                 sb.AppendLine("  updated_pg_id ")
                 sb.AppendLine(") VALUES (")
@@ -75,7 +75,7 @@ Namespace OMS.Data.SUZUKI
                 sb.AppendLine(" :p_delivery_type, :p_order_data_type, :p_delivery_date_type, :p_order_qty_type, :p_delivery_date, ")
                 sb.AppendLine(" :p_delivery_time, :p_ship_instructions_date, :p_order_qty, :p_arrange_manager, :p_order_reason, ")
                 sb.AppendLine(" :p_first_article_type, :p_order_notes, :p_supply_line, :p_supply_process, :p_construction_no, ")
-                sb.AppendLine(" :p_packing_type, :p_imp_file_id, :p_imp_run_id, :p_status, :p_active_flag, ")
+                sb.AppendLine(" :p_packing_type, :p_imp_file_id, :p_imp_file_no, :p_imp_run_id, :p_status, :p_active_flag, ")
                 sb.AppendLine(" :p_created_at, :p_created_user_id, :p_created_pg_id, :p_updated_at, :p_updated_user_id, ")
                 sb.AppendLine(" :p_updated_pg_id ")
                 sb.AppendLine(")")
@@ -129,6 +129,8 @@ Namespace OMS.Data.SUZUKI
                         cmd.Parameters.Add(":p_construction_no", OracleDbType.Varchar2, 16).Value = SafeVarchar(r.ConstructionNo, 16)
                         cmd.Parameters.Add(":p_packing_type", OracleDbType.Varchar2, 1).Value = SafeVarchar(r.PackingType, 1)
                         cmd.Parameters.Add(":p_imp_file_id", OracleDbType.Int64).Value = SafeNullable(r.ImpFileId)
+
+                        cmd.Parameters.Add(":p_imp_file_no", OracleDbType.Int64).Value = SafeNullable(r.ImpFileNo)
                         cmd.Parameters.Add(":p_imp_run_id", OracleDbType.Int64).Value = SafeNullable(r.ImpRunId)
                         cmd.Parameters.Add(":p_status", OracleDbType.Char, 20).Value = SafeVarchar(r.Status, 20)
                         cmd.Parameters.Add(":p_active_flag", OracleDbType.Char, 1).Value = SafeVarchar(r.ActiveFlag, 1)
@@ -198,6 +200,8 @@ Namespace OMS.Data.SUZUKI
         Public Property ConstructionNo As String            ' 工事番号					VARCHAR2		16 CHAR
         Public Property PackingType As String               ' 包装区分					VARCHAR2		1 CHAR
         Public Property ImpFileId As Long?                  ' 取込ファイルID			NUMBER			10,0
+
+        Public Property ImpFileNo As Long?                  ' 取込ファイル行番号		NUMBER			10,0
         Public Property ImpRunId As Long?                   ' 取込実行ID				NUMBER			10,0
         Public Property Status As String                    ' ステータス				VARCHAR2		20
         Public Property ActiveFlag As String                ' 有効フラグ				CHAR			1

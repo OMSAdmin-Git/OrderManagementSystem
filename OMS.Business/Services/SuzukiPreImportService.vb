@@ -6,6 +6,7 @@ Imports OMS.Common
 Imports OMS.Data
 Imports OMS.Data.SUZUKI
 Imports Oracle.ManagedDataAccess.Client
+Imports ClosedXML.Excel
 
 Namespace Services
 
@@ -176,6 +177,7 @@ Namespace Services
             Dim runRepo As New ImpRunRepository(_connectionString)
             Dim stageRepo As New ImpFilesStageRepository(_connectionString)
             Dim impRunId As Long = 0
+            Dim returnedFiles As New HashSet(Of String)(StringComparer.OrdinalIgnoreCase)
 
             ' DBトランザクション実行
             Using conn As New OracleConnection(_connectionString)
@@ -224,7 +226,7 @@ Namespace Services
                                 If webErrors IsNot Nothing Then
                                     webErrors.Add($"【{fileName}】{reasonMsg}")
                                 End If
-                                ExportErrorsToCsv(folderPath, fileName, New List(Of String)() From {reasonMsg}, isBatch)
+                                ExportErrorsToExcel(folderPath, fileName, New List(Of String)() From {reasonMsg}, isBatch)
                                 MoveBackErrorFile(workFilePath, folderPath, fileName, userId)
                                 Continue For
                             End If
@@ -270,7 +272,7 @@ Namespace Services
                                     errorFilesCount += 1
                                     logger.Write($"[SUZUKI_IMPORT] 手動取込ファイルのステージング中にエラーが発生しました ({fileName}): {ex.Message}")
                                     Dim errList As New List(Of String)() From {$"取込準備エラー: {ex.Message}"}
-                                    ExportErrorsToCsv(folderPath, fileName, errList, isBatch, webErrors)
+                                    ExportErrorsToExcel(folderPath, fileName, errList, isBatch, webErrors)
                                     MoveBackErrorFile(workFilePath, folderPath, fileName, userId)
                                 End Try
                             End Using
@@ -349,7 +351,7 @@ Namespace Services
                                         ' --- Rule 4: 全件がASTI品番エラーの場合 ---
                                         ' エラーリストの最後に「対象データが1件もありません。」を追加
                                         errorRows.Add("対象データが1件もありません。")
-                                        ExportErrorsToCsv(folderPath, fileName, errorRows, isBatch, webErrors)
+                                        ExportErrorsToExcel(folderPath, fileName, errorRows, isBatch, webErrors)
 
                                         ' workに移動したファイルは元のフォルダへ戻す (※workフォルダには残らない)
                                         MoveBackErrorFile(workFilePath, folderPath, fileName, userId)
@@ -360,10 +362,11 @@ Namespace Services
                                     Else
                                         ' --- Rule 3: 一部の行がASTI品番エラーの場合 ---
                                         ' 1. エラーリストへ追加 (CSV出力 & 画面エラーリスト)
-                                        ExportErrorsToCsv(folderPath, fileName, errorRows, isBatch, webErrors)
+                                        ExportErrorsToExcel(folderPath, fileName, errorRows, isBatch, webErrors)
 
                                         ' 2. 取込元フォルダにファイル名にuseridとtimestampをつけてコピー (※コピーなのでworkフォルダに残る)
                                         CopyErrorBackupFile(workFilePath, folderPath, fileName, userId)
+                                        returnedFiles.Add(fileName)
 
                                         ' 3. スズキ特殊テーブルの該当データは削除する
                                         DeleteErrorRows(conn, tran, infoCode, impFileStageId)
@@ -387,7 +390,7 @@ Namespace Services
                                 logger.Write($"[SUZUKI_IMPORT] ファイル処理中にDBエラーが発生しました ({fileName}): {ex.Message}")
                                 Dim errList As New List(Of String)()
                                 errList.Add($"処理エラー: {ex.Message}")
-                                ExportErrorsToCsv(folderPath, fileName, errList, isBatch, webErrors)
+                                ExportErrorsToExcel(folderPath, fileName, errList, isBatch, webErrors)
                                 MoveBackErrorFile(workFilePath, folderPath, fileName, userId)
                             End Try
                         End Using
@@ -398,8 +401,17 @@ Namespace Services
 
                 ' Step 10: Transition to Order Registration (Batch Mode Only)
                 If isBatch Then
-                    Dim importService As New SuzukiDataImportService(_connectionString)
-                    importService.ExecuteOrderRegistration(customerSettingId, folderType, impRunId, userId)
+                    Try
+                        Dim importService As New SuzukiDataImportService(_connectionString)
+                        importService.ExecuteOrderRegistration(customerSettingId, folderType, impRunId, userId, True, returnedFiles)
+                    Catch ex As Exception
+                        logger.Write($"[SUZUKI_IMPORT] 受注取込(Stage 2)エラー: {ex.Message}")
+                        Try
+                            runRepo.UpdateRange(impRunId, "ERROR", DateTime.Now, processCount, 0, 0, ex.Message)
+                        Catch
+                        End Try
+                        Throw
+                    End Try
                 End If
 
                 ' 実行管理更新
@@ -794,7 +806,7 @@ Namespace Services
             Return result
         End Function
 
-        Private Sub ExportErrorsToCsv(sourceFolder As String, originalFileName As String, errors As List(Of String), isBatch As Boolean, Optional ByRef webErrors As List(Of String) = Nothing)
+        Private Sub ExportErrorsToExcel(sourceFolder As String, originalFileName As String, errors As List(Of String), isBatch As Boolean, Optional ByRef webErrors As List(Of String) = Nothing)
             Try
                 ' Add to webErrors list if passed from Web UI caller
                 If webErrors IsNot Nothing AndAlso errors IsNot Nothing Then
@@ -803,26 +815,44 @@ Namespace Services
                     Next
                 End If
 
+                If String.IsNullOrEmpty(sourceFolder) OrElse Not Directory.Exists(sourceFolder) Then Return
+
                 Dim errorDir = Path.Combine(sourceFolder, "エラーリスト")
                 Utils.EnsureDirectory(errorDir)
 
-                Dim timeStamp = DateTime.Now.ToString("yyyyMMdd_HHmmss")
-                Dim csvPath = Path.Combine(errorDir, $"ErrorList_{Path.GetFileNameWithoutExtension(originalFileName)}_{timeStamp}.csv")
+                Dim timeStamp = DateTime.Now.ToString("yyyyMMddHHmmss")
+                Dim fileNameWithoutExt = Path.GetFileNameWithoutExtension(originalFileName)
+                Dim excelPath = Path.Combine(errorDir, $"エラーリスト_{fileNameWithoutExt}_{timeStamp}.xlsx")
 
-                Using sw As New StreamWriter(csvPath, False, Encoding.GetEncoding("shift-jis"))
-                    sw.WriteLine(Chr(34) & "行" & Chr(34) & "," & Chr(34) & "エラー内容" & Chr(34))
-                    For i As Integer = 0 To errors.Count - 1
-                        Dim rowNum = (i + 1).ToString()
-                        Dim errMsg = If(errors(i), "").Replace(Chr(34), Chr(34) & Chr(34))
-                        sw.WriteLine(Chr(34) & rowNum & Chr(34) & "," & Chr(34) & errMsg & Chr(34))
-                    Next
+                ' ClosedXML を使用した Excel (.xlsx) 出力 (SPIRITSデータ取込 仕様書 p.6)
+                Using wb As New ClosedXML.Excel.XLWorkbook()
+                    Dim ws = wb.Worksheets.Add("エラーリスト")
+                    ws.Style.Font.SetFontName("Yu Gothic")
+                    ws.Style.Font.SetFontSize(10)
+
+                    ' ヘッダー行
+                    ws.Cell(1, 1).Value = "行"
+                    ws.Cell(1, 2).Value = "エラー内容"
+                    ws.Row(1).Style.Font.Bold = True
+
+                    ' データ行
+                    If errors IsNot Nothing Then
+                        For i As Integer = 0 To errors.Count - 1
+                            Dim rowNum = i + 2
+                            ws.Cell(rowNum, 1).Value = i + 1
+                            ws.Cell(rowNum, 2).Value = errors(i)
+                        Next
+                    End If
+
+                    ws.Columns().AdjustToContents()
+                    wb.SaveAs(excelPath)
                 End Using
             Catch ex As Exception
                 Dim logDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Logs")
                 If Not Directory.Exists(logDir) Then Directory.CreateDirectory(logDir)
                 Dim loggerPath = Path.Combine(logDir, $"SuzukiImport_{DateTime.Now:yyyyMMdd}.log")
                 Dim logger As New Logger(loggerPath)
-                logger.Write($"[SUZUKI_IMPORT] CSVエクスポート処理エラー: {ex.Message}")
+                logger.Write($"[SUZUKI_IMPORT] Excelエラーリスト出力エラー: {ex.Message}")
             End Try
         End Sub
 

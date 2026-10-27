@@ -96,7 +96,8 @@ Namespace Services
 
             Dim workingDayCache As New Dictionary(Of String, Date?)()
 
-            For Each line In lines
+            For lineIdx As Integer = 0 To lines.Length - 1
+                Dim line = lines(lineIdx)
                 If String.IsNullOrWhiteSpace(line) Then Continue For
                 Dim cols As String() = SplitCsvLine(line)
                 If cols.Length < 35 Then Continue For
@@ -105,6 +106,7 @@ Namespace Services
                 If code <> "0600" AndAlso code <> "0630" Then Continue For
 
                 Dim row As New Spirits0600And0630Row() With {
+                    .ImpFileNo = lineIdx + 1,
                     .InfoTypeCode = code,
                     .DocTitleType = CleanCol(cols, 1),
                     .PaymentMethodWordType = CleanCol(cols, 2),
@@ -159,7 +161,8 @@ Namespace Services
             Dim list As New List(Of Spirits0602Row)()
             Dim lines As String() = ReadLinesAutoEncoding(filePath)
 
-            For Each line In lines
+            For lineIdx As Integer = 0 To lines.Length - 1
+                Dim line = lines(lineIdx)
                 If String.IsNullOrWhiteSpace(line) Then Continue For
                 Dim cols As String() = SplitCsvLine(line)
                 If cols.Length < 25 Then Continue For
@@ -168,6 +171,7 @@ Namespace Services
                 If code <> "0602" Then Continue For
 
                 Dim row As New Spirits0602Row() With {
+                    .ImpFileNo = lineIdx + 1,
                     .InfoTypeCode = code,
                     .DocTitleType = CleanCol(cols, 1),
                     .PaymentMethodWordType = CleanCol(cols, 2),
@@ -217,7 +221,8 @@ Namespace Services
             Dim list As New List(Of Spirits0501And0502Row)()
             Dim lines As String() = ReadLinesAutoEncoding(filePath)
 
-            For Each line In lines
+            For lineIdx As Integer = 0 To lines.Length - 1
+                Dim line = lines(lineIdx)
                 If String.IsNullOrWhiteSpace(line) Then Continue For
                 Dim cols As String() = SplitCsvLine(line)
                 If cols.Length < 10 Then Continue For
@@ -226,6 +231,7 @@ Namespace Services
                 If code <> "0501" AndAlso code <> "0502" Then Continue For
 
                 Dim row As New Spirits0501And0502Row() With {
+                    .ImpFileNo = lineIdx + 1,
                     .InfoTypeCode = CleanCol(cols, 0),
                     .DocTitleType = CleanCol(cols, 1),
                     .PaymentMethodWordType = CleanCol(cols, 2),
@@ -266,7 +272,8 @@ Namespace Services
             Dim list As New List(Of Spirits0650Row)()
             Dim lines As String() = ReadLinesAutoEncoding(filePath)
 
-            For Each line In lines
+            For lineIdx As Integer = 0 To lines.Length - 1
+                Dim line = lines(lineIdx)
                 If String.IsNullOrWhiteSpace(line) Then Continue For
                 Dim cols As String() = SplitCsvLine(line)
                 If cols.Length < 10 Then Continue For
@@ -275,6 +282,7 @@ Namespace Services
                 If code <> "0650" Then Continue For
 
                 Dim row As New Spirits0650Row() With {
+                    .ImpFileNo = lineIdx + 1,
                     .InfoTypeCode = CleanCol(cols, 0),
                     .DocTitleType = CleanCol(cols, 1),
                     .PaymentMethodWordType = CleanCol(cols, 2),
@@ -331,7 +339,8 @@ Namespace Services
             Dim list As New List(Of Spirits0651Row)()
             Dim lines As String() = ReadLinesAutoEncoding(filePath)
 
-            For Each line In lines
+            For lineIdx As Integer = 0 To lines.Length - 1
+                Dim line = lines(lineIdx)
                 If String.IsNullOrWhiteSpace(line) Then Continue For
                 Dim cols As String() = SplitCsvLine(line)
                 If cols.Length < 10 Then Continue For
@@ -340,6 +349,7 @@ Namespace Services
                 If code <> "0651" Then Continue For
 
                 Dim row As New Spirits0651Row() With {
+                    .ImpFileNo = lineIdx + 1,
                     .InfoTypeCode = CleanCol(cols, 0),
                     .DocTitleType = CleanCol(cols, 1),
                     .PaymentMethodWordType = CleanCol(cols, 2),
@@ -396,7 +406,8 @@ Namespace Services
             Dim list As New List(Of Spirits0740Row)()
             Dim lines As String() = ReadLinesAutoEncoding(filePath)
 
-            For Each line In lines
+            For lineIdx As Integer = 0 To lines.Length - 1
+                Dim line = lines(lineIdx)
                 If String.IsNullOrWhiteSpace(line) Then Continue For
                 Dim cols As String() = SplitCsvLine(line)
                 If cols.Length < 10 Then Continue For
@@ -405,6 +416,7 @@ Namespace Services
                 If code <> "0740" Then Continue For
 
                 Dim row As New Spirits0740Row() With {
+                    .ImpFileNo = lineIdx + 1,
                     .InfoTypeCode = CleanCol(cols, 0),
                     .DocTitleType = CleanCol(cols, 1),
                     .PaymentMethodWordType = CleanCol(cols, 2),
@@ -520,7 +532,8 @@ Namespace Services
             Dim list As New List(Of Spirits0814Row)()
             Dim lines As String() = ReadLinesAutoEncoding(filePath)
 
-            For Each line In lines
+            For lineIdx As Integer = 0 To lines.Length - 1
+                Dim line = lines(lineIdx)
                 If String.IsNullOrWhiteSpace(line) Then Continue For
                 Dim cols As String() = SplitCsvLine(line)
                 If cols.Length < 10 Then Continue For
@@ -529,6 +542,7 @@ Namespace Services
                 If code <> "0814" Then Continue For
 
                 Dim row As New Spirits0814Row() With {
+                    .ImpFileNo = lineIdx + 1,
                     .InfoTypeCode = CleanCol(cols, 0),
                     .DocTitleType = CleanCol(cols, 1),
                     .PaymentMethodWordType = CleanCol(cols, 2),
@@ -591,7 +605,8 @@ Namespace Services
             Dim list As New List(Of Spirits6604And6634Row)()
             Dim lines As String() = ReadLinesAutoEncoding(filePath)
 
-            For Each line In lines
+            For lineIdx As Integer = 0 To lines.Length - 1
+                Dim line = lines(lineIdx)
                 If String.IsNullOrWhiteSpace(line) Then Continue For
                 Dim cols As String() = SplitCsvLine(line)
                 If cols.Length < 10 Then Continue For
@@ -600,6 +615,7 @@ Namespace Services
                 If code <> "6604" AndAlso code <> "6634" Then Continue For
 
                 Dim row As New Spirits6604And6634Row() With {
+                    .ImpFileNo = lineIdx + 1,
                     .InfoTypeCode = CleanCol(cols, 0),
                     .DocTitleType = CleanCol(cols, 1),
                     .PaymentMethodWordType = CleanCol(cols, 2),
@@ -647,7 +663,8 @@ Namespace Services
             Dim list As New List(Of Spirits6624Row)()
             Dim lines As String() = ReadLinesAutoEncoding(filePath)
 
-            For Each line In lines
+            For lineIdx As Integer = 0 To lines.Length - 1
+                Dim line = lines(lineIdx)
                 If String.IsNullOrWhiteSpace(line) Then Continue For
                 Dim cols As String() = SplitCsvLine(line)
                 If cols.Length < 10 Then Continue For
@@ -656,6 +673,7 @@ Namespace Services
                 If code <> "6624" Then Continue For
 
                 Dim row As New Spirits6624Row() With {
+                    .ImpFileNo = lineIdx + 1,
                     .InfoTypeCode = CleanCol(cols, 0),
                     .DocTitleType = CleanCol(cols, 1),
                     .PaymentMethodWordType = CleanCol(cols, 2),
@@ -712,7 +730,8 @@ Namespace Services
             Dim list As New List(Of Spirits663NAnd663SAnd66Row)()
             Dim lines As String() = ReadLinesAutoEncoding(filePath)
 
-            For Each line In lines
+            For lineIdx As Integer = 0 To lines.Length - 1
+                Dim line = lines(lineIdx)
                 If String.IsNullOrWhiteSpace(line) Then Continue For
                 Dim cols As String() = SplitCsvLine(line)
                 If cols.Length < 10 Then Continue For
@@ -721,6 +740,7 @@ Namespace Services
                 If code <> "663N" AndAlso code <> "663S" AndAlso code <> "664T" Then Continue For
 
                 Dim row As New Spirits663NAnd663SAnd66Row() With {
+                    .ImpFileNo = lineIdx + 1,
                     .InfoTypeCode = CleanCol(cols, 0),
                     .DocTitleType = CleanCol(cols, 1),
                     .PaymentMethodWordType = CleanCol(cols, 2),
