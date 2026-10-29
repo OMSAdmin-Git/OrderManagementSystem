@@ -386,6 +386,8 @@ Namespace Pages.Orders
                 errors.AddRange(warnings)
                 lblError.Text = ""
                 If (errors.Count > 0) Then
+                    ' 同じエラーをまとめる
+                    errors = errors.Distinct().ToList()
                     lblError.Text = String.Join("<br/>", errors.Select(Function(s) Server.HtmlEncode(s)))
                 End If
                 If (count = 0 And valid = 0) Then

@@ -287,7 +287,7 @@ Namespace Pages.Orders
                             'SHIP_SCHEDULED_DATE(出荷予定日) < ORDER_DATE(受注日)
                             'STATUS(ステータス)                 'POST_PLAN_DUE_SET'
                             'CTIVE_FLAG(有効フラグ)             'Y'
-                            Dim orderso = reps.ToClass(reps.GetOrders(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, customerSettingId:=customerSettingId, status:="POST_PLAN_DUE_SET", activeFlag:="Y", additionalConditions:="AND ship_scheduled_date <  order_date "))
+                            Dim orderso = reps.ToClass(reps.GetOrders(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, customerSettingId:=customerSettingId, status:="POST_PLAN_DUE_SET", activeFlag:="Y", additionalConditions:="AND TRUNC(ship_scheduled_date) <  TRUNC(order_date) "))
                             'ACTIVE_FLAG(有効フラグ)           'N'
                             'UPDATED_AT(更新日時)              [処理開始日時]
                             'UPDATED_USER_ID(更新ユーザーID)   [ログインユーザーID]
