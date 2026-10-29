@@ -283,8 +283,16 @@ Namespace Pages.Orders
 
                                 Dim calType = "00001"
                                 Dim cal = New CalenderRepository(Utils.GetConnectionString())
+                                Dim ssd = shipScheduledDate.Value
                                 Dim shipDate = cal.AddWorkingDays(conn, tran, calType, shipScheduledDate.Value, assortLeadTime)
                                 Dim dueDate = cal.AddWorkingDays(conn, tran, calType, shipDateOrg.Value, transferLeadTime)
+                                ' リードタイム 0 の時
+                                If (assortLeadTime = 0) Then
+                                    shipDate = ssd
+                                End If
+                                If (transferLeadTime = 0) Then
+                                    dueDate = ssd
+                                End If
 
                                 ' UPDATE(生産計画)
                                 Dim status = "POST_PLAN_DUE_SET"
