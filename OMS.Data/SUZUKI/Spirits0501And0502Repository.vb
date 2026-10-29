@@ -62,7 +62,7 @@ Namespace OMS.Data.SUZUKI
                 sb.AppendLine("  target_reference_date, customer_item_no, item_no, customer_item_no_process_no, customer_item_name, ")
                 sb.AppendLine("  suppliers_code, reserve1, arrange_manager, purchase_manager, reserve2, ")
                 sb.AppendLine("  order_data_type, delivery_date_type, order_qty_type, delivery_date, order_qty, ")
-                sb.AppendLine("  imp_file_id, imp_run_id, active_flag, created_at, created_user_id, ")
+                sb.AppendLine("  imp_file_id, imp_file_no, imp_run_id, active_flag, created_at, created_user_id, ")
                 sb.AppendLine("  created_pg_id, updated_at, updated_user_id, updated_pg_id ")
                 sb.AppendLine(") VALUES (")
                 sb.AppendLine(" :p_info_type_code, :p_doc_title_type, :p_payment_method_word_type, :p_client_code, ")
@@ -70,7 +70,7 @@ Namespace OMS.Data.SUZUKI
                 sb.AppendLine(" :p_target_reference_date, :p_customer_item_no, :p_item_no, :p_customer_item_no_process_no, :p_customer_item_name, ")
                 sb.AppendLine(" :p_suppliers_code, :p_reserve1, :p_arrange_manager, :p_purchase_manager, :p_reserve2, ")
                 sb.AppendLine(" :p_order_data_type, :p_delivery_date_type, :p_order_qty_type, :p_delivery_date, :p_order_qty, ")
-                sb.AppendLine(" :p_imp_file_id, :p_imp_run_id, :p_active_flag, :p_created_at, :p_created_user_id, ")
+                sb.AppendLine(" :p_imp_file_id, :p_imp_file_no, :p_imp_run_id, :p_active_flag, :p_created_at, :p_created_user_id, ")
                 sb.AppendLine(" :p_created_pg_id, :p_updated_at, :p_updated_user_id, :p_updated_pg_id ")
                 sb.AppendLine(")")
 
@@ -106,6 +106,8 @@ Namespace OMS.Data.SUZUKI
                         cmd.Parameters.Add(":p_delivery_date", OracleDbType.Date).Value = SafeNullable(r.DeliveryDate)
                         cmd.Parameters.Add(":p_order_qty", OracleDbType.Int64).Value = SafeNullable(r.OrderQty)
                         cmd.Parameters.Add(":p_imp_file_id", OracleDbType.Int64).Value = SafeNullable(r.ImpFileId)
+
+                        cmd.Parameters.Add(":p_imp_file_no", OracleDbType.Int64).Value = SafeNullable(r.ImpFileNo)
                         cmd.Parameters.Add(":p_imp_run_id", OracleDbType.Int64).Value = SafeNullable(r.ImpRunId)
                         cmd.Parameters.Add(":p_active_flag", OracleDbType.Char, 1).Value = SafeVarchar(r.ActiveFlag, 1)
                         cmd.Parameters.Add(":p_created_at", OracleDbType.Date).Value = SafeNullable(r.CreatedAt)
@@ -155,6 +157,8 @@ Namespace OMS.Data.SUZUKI
         Public Property DeliveryDate As Date?               ' 納入指示日			DATE			
         Public Property OrderQty As Long?                   ' 所要数量				NUMBER			8,0
         Public Property ImpFileId As Long?                  ' 取込ファイルID		NUMBER			10,0
+
+        Public Property ImpFileNo As Long?                  ' 取込ファイル行番号	NUMBER			10,0
         Public Property ImpRunId As Long?                   ' 取込実行ID			NUMBER			10,0
         Public Property ActiveFlag As String                ' 有効フラグ			CHAR			1
         Public Property CreatedAt As Date?                  ' 登録日時				DATE			
