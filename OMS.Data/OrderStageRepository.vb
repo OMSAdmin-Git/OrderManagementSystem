@@ -3205,7 +3205,7 @@ Namespace OMS.Data
                         " AND EXISTS ( " &
                         " SELECT 1 " &
                         " FROM orders_stage cur " &
-                        " WHERE cur.imp_file_stage_id = :p_imp_file_stage_id " &
+                        " WHERE cur.imp_file_stage_id IS NULL " &
                         " AND cur.customer_setting_id = :p_customer_setting_id " &
                         " AND cur.order_type = 2 " &
                         " AND cur.active_flag = 'Y' " &
@@ -5651,7 +5651,7 @@ Namespace OMS.Data
 
                 'FTRANLT(輸送L/T)
                 'Dim transferLeadTime = shproutm.GetTransferLeadTime(orderRow.ShipTo, orderRow.ShipStockLocation)
-                Dim tlt = shproutm.GetTransferLeadTime(orderRow.ShipTo, orderRow.ShipStockLocation, False)
+                Dim tlt = shproutm.GetTransferLeadTime(customerCode, profitCenter, itemNo, orderRow.ShipTo, orderRow.ShipStockLocation, False)
                 If (tlt.err <> "") Then
                     errors.Add(tlt.err)
                 End If

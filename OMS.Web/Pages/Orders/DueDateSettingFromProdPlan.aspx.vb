@@ -256,7 +256,7 @@ Namespace Pages.Orders
 
                                 'FTRANLT(輸送L/T)
                                 'Dim transferLeadTime = shproutm.GetTransferLeadTime(orderRow.ShipTo, orderRow.ShipStockLocation)
-                                Dim tlt = shproutm.GetTransferLeadTime(orderRow.ShipTo, orderRow.ShipStockLocation, False)
+                                Dim tlt = shproutm.GetTransferLeadTime(customerCode, profitCenter, itemNo, orderRow.ShipTo, orderRow.ShipStockLocation, False)
                                 If (tlt.err <> "") Then
                                     warnings.Add(tlt.err)
                                 End If
@@ -283,8 +283,16 @@ Namespace Pages.Orders
 
                                 Dim calType = "00001"
                                 Dim cal = New CalenderRepository(Utils.GetConnectionString())
+                                Dim ssd = shipScheduledDate.Value
                                 Dim shipDate = cal.AddWorkingDays(conn, tran, calType, shipScheduledDate.Value, assortLeadTime)
                                 Dim dueDate = cal.AddWorkingDays(conn, tran, calType, shipDateOrg.Value, transferLeadTime)
+                                ' リードタイム 0 の時
+                                If (assortLeadTime = 0) Then
+                                    shipDate = ssd
+                                End If
+                                If (transferLeadTime = 0) Then
+                                    dueDate = ssd
+                                End If
 
                                 ' UPDATE(生産計画)
                                 Dim status = "POST_PLAN_DUE_SET"
@@ -386,6 +394,8 @@ Namespace Pages.Orders
                 errors.AddRange(warnings)
                 lblError.Text = ""
                 If (errors.Count > 0) Then
+                    ' 同じエラーをまとめる
+                    errors = errors.Distinct().ToList()
                     lblError.Text = String.Join("<br/>", errors.Select(Function(s) Server.HtmlEncode(s)))
                 End If
                 If (count = 0 And valid = 0) Then
