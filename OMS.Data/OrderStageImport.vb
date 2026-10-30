@@ -4645,7 +4645,11 @@ Namespace OMS.Data
                         astiRowDt("ASTI追加内示フラグ") = "N"
                         astiRowDt("ASTI追加内示削除フラグ") = "N"
                         'astiRowDt("取引先コード") = "5977"
-                        astiN.Rows.Add(astiRowDt)
+                        ' 2026/10/30
+                        ' 需要数 0 の場合は追加しない
+                        If (astiRowDt("需要数") <> 0) Then
+                            astiN.Rows.Add(astiRowDt)
+                        End If
                     Next
                     'Dim cnt2 = newDt.Rows.Count
 

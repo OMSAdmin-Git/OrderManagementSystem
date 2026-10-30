@@ -5651,7 +5651,7 @@ Namespace OMS.Data
 
                 'FTRANLT(輸送L/T)
                 'Dim transferLeadTime = shproutm.GetTransferLeadTime(orderRow.ShipTo, orderRow.ShipStockLocation)
-                Dim tlt = shproutm.GetTransferLeadTime(orderRow.ShipTo, orderRow.ShipStockLocation, False)
+                Dim tlt = shproutm.GetTransferLeadTime(customerCode, profitCenter, itemNo, orderRow.ShipTo, orderRow.ShipStockLocation, False)
                 If (tlt.err <> "") Then
                     errors.Add(tlt.err)
                 End If

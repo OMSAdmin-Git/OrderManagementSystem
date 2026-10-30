@@ -165,19 +165,19 @@ Namespace OMS.Data
 
         'End Function
 
-        ''' <summary>
-        ''' GetAssortmentLeadTime Error を返すよう追加
-        ''' </summary>
-        ''' <param name="customerCode"></param>
-        ''' <param name="profitCenter"></param>
-        ''' <param name="itemNumber"></param>
-        ''' <returns></returns>
-        Public Function GetAssortmentLeadTime(customerCode As String, profitCenter As String, itemNumber As String) As Integer
+        '''' <summary>
+        '''' GetAssortmentLeadTime Error を返すよう追加
+        '''' </summary>
+        '''' <param name="customerCode"></param>
+        '''' <param name="profitCenter"></param>
+        '''' <param name="itemNumber"></param>
+        '''' <returns></returns>
+        'Public Function GetAssortmentLeadTime(customerCode As String, profitCenter As String, itemNumber As String) As Integer
 
-            Dim rt = GetAssortmentLeadTime(customerCode, profitCenter, itemNumber, False)
-            Return rt.lt
+        '    Dim rt = GetAssortmentLeadTime(customerCode, profitCenter, itemNumber, False)
+        '    Return rt.lt
 
-        End Function
+        'End Function
 
         ''' <summary>
         ''' 品揃えリードタイム取得
@@ -208,7 +208,7 @@ Namespace OMS.Data
                             If result IsNot Nothing AndAlso Not IsDBNull(result) Then
                                 lt = Convert.ToDecimal(result)
                             Else
-                                err = $"ユーザー定義項目(ITEMM)に 客先品目No {itemNumber} が存在しません。"
+                                err = $"取引先コード{customerCode} PC{profitCenter} 品目No.{itemNumber} ユーザー定義項目(ITEMM)に 客先品目No {itemNumber} が存在しません。"
                             End If
                         End Using
                     End Using
@@ -220,27 +220,30 @@ Namespace OMS.Data
             Return (lt, err)
         End Function
 
-        ''' <summary>
-        ''' GetAssortmentLeadTime Error を返すよう追加
-        ''' </summary>
-        ''' <param name="shipTo"></param>
-        ''' <param name="shipStockLocation"></param>
-        ''' <returns></returns>
-        Public Function GetTransferLeadTime(shipTo As String, shipStockLocation As String) As Integer
+        '''' <summary>
+        '''' GetAssortmentLeadTime Error を返すよう追加
+        '''' </summary>
+        '''' <param name="shipTo"></param>
+        '''' <param name="shipStockLocation"></param>
+        '''' <returns></returns>
+        'Public Function GetTransferLeadTime(shipTo As String, shipStockLocation As String) As Integer
 
-            Dim rt = GetTransferLeadTime(shipTo, shipStockLocation, False)
-            Return rt.lt
+        '    Dim rt = GetTransferLeadTime("", "", "", shipTo, shipStockLocation, False)
+        '    Return rt.lt
 
-        End Function
+        'End Function
 
         ''' <summary>
         ''' 輸送リードタイム取得
-        ''' 2026/6/30 仕様変更  
         ''' </summary>
-        ''' <param name="shipTo">出荷先</param>
-        ''' <param name="shipStockLocation">出荷在庫場所</param>
+        ''' <param name="customerCode"></param>
+        ''' <param name="profitCenter"></param>
+        ''' <param name="itemNumber"></param>
+        ''' <param name="shipTo"></param>
+        ''' <param name="shipStockLocation"></param>
+        ''' <param name="sw"></param>
         ''' <returns></returns>
-        Public Function GetTransferLeadTime(shipTo As String, shipStockLocation As String, sw As Boolean) As (lt As Int16, err As String)
+        Public Function GetTransferLeadTime(customerCode As String, profitCenter As String, itemNumber As String, shipTo As String, shipStockLocation As String, sw As Boolean) As (lt As Int16, err As String)
             Dim lt As Decimal = 0 ' 戻り値の初期値
             Dim err As String = ""
             Dim dt As New DataTable()
@@ -277,7 +280,11 @@ Namespace OMS.Data
                             If result IsNot Nothing AndAlso Not IsDBNull(result) Then
                                 lt = Convert.ToDecimal(result)
                             Else
-                                err = $"出荷ルートマスタ(SHPROUTM)に 出荷先コード {shipTo} と 出荷在庫場所 {shipStockLocation} の組み合わせが存在しません。"
+                                'If (customerCode = "" Or profitCenter = "" Or itemNumber = "") Then
+                                '    err = $"出荷ルートマスタ(SHPROUTM)に 出荷先コード {shipTo} と 出荷在庫場所 {shipStockLocation} の組み合わせが存在しません。"
+                                'Else
+                                err = $"取引先コード{customerCode} PC{profitCenter} 品目No.{itemNumber} 出荷ルートマスタ(SHPROUTM)に 出荷先コード {shipTo} と 出荷在庫場所 {shipStockLocation} の組み合わせが存在しません。"
+                                'End If
                             End If
                         End Using
                     End Using
