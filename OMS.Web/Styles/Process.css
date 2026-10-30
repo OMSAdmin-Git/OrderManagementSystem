@@ -45,6 +45,23 @@ body {
         color: #222;
     }
 
+.process-header-suzuki {
+    background-color: #5aa8c6; /* 背景色（例：赤） */
+    font-weight: bold; /* 太字指定 */
+    font-size: 20px;
+    color: #EEEEEE; /* 文字色（例：白） */
+
+    display: inline-block; /* 文字の長さに合わせて背景を塗る */
+    padding: 8px 16px; /* 文字のまわりに少し余白を作る（お好みで調整） */
+    border-radius: 4px; /* 角を少し丸くするときれいに見えます */
+}
+
+/* ★追加：中のLabel（span）がブラウザの文字色（黒）で上書きされるのを防ぐ */
+.process-header-suzuki span {
+    color: inherit; /* 親（div）の白色を引き継ぐ */
+    font-size: inherit; /* 親の25pxを引き継ぐ */
+}
+
 /* ===================================================================
    データ表示エリア（GridView / 表形式）
    -------------------------------------------------------------------

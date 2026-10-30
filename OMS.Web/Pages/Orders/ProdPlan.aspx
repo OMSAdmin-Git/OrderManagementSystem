@@ -68,12 +68,22 @@
             <!-- ヘッダー -->
             <div class="process-header">
                 <h1>生産計画</h1>
+
+                <!-- スズキ 状況表示 -->
+                <div class="process-header-suzuki">
+                    <asp:Label ID="Label2" runat="server" Text="スズキ SPIRIT 最終ダウンロード時間: ​"></asp:Label>
+                    <asp:Label ID="Label1" runat="server" Text="2026/10/30 13:00:00"></asp:Label>
+                 </div>
+
                 <div class="user-info">
                     <asp:Label ID="lblUser" runat="server" Text="ようこそ"></asp:Label>
                     &nbsp;               
-            <asp:Button ID="btnOrderMenu" runat="server" CssClass="btn-back" Text="メニューへ" OnClick="btnOrderMenu_Click" />
+                    <asp:Button ID="btnOrderMenu" runat="server" CssClass="btn-back" Text="メニューへ" OnClick="btnOrderMenu_Click" />
                 </div>
             </div>
+
+
+
             <!-- 検索条件 -->
             <div class="search-section">
                 <div class="search-item">

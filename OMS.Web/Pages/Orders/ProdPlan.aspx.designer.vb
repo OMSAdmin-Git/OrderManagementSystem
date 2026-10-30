@@ -24,6 +24,24 @@ Namespace Pages.Orders
         Protected WithEvents form1 As Global.System.Web.UI.HtmlControls.HtmlForm
 
         '''<summary>
+        '''Label2 コントロール。
+        '''</summary>
+        '''<remarks>
+        '''自動生成されたフィールド。
+        '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
+        '''</remarks>
+        Protected WithEvents Label2 As Global.System.Web.UI.WebControls.Label
+
+        '''<summary>
+        '''Label1 コントロール。
+        '''</summary>
+        '''<remarks>
+        '''自動生成されたフィールド。
+        '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
+        '''</remarks>
+        Protected WithEvents Label1 As Global.System.Web.UI.WebControls.Label
+
+        '''<summary>
         '''lblUser コントロール。
         '''</summary>
         '''<remarks>

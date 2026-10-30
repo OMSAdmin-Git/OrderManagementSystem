@@ -5696,6 +5696,9 @@ Namespace OMS.Data
                 tran.Rollback()
             End If
 
+            ' 同じエラーをまとめる
+            errors = errors.Distinct().ToList()
+
             Return String.Join(Environment.NewLine, errors)
 
         End Function
