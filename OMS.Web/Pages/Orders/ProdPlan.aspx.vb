@@ -2069,7 +2069,7 @@ Namespace Pages.Orders
 
             ' ログファイルが格納されているフォルダパスを指定
             Dim appPath = IO.Path.GetDirectoryName(IO.Path.GetDirectoryName(Hosting.HostingEnvironment.ApplicationPhysicalPath))
-            Dim targetDirectory As String = System.IO.Path.Combine(appPath, ConfigurationManager.AppSettings("SuzukiLogFolderRoot"))
+            Dim targetDirectory As String = IO.Path.Combine(appPath, ConfigurationManager.AppSettings("SuzukiLogFolderRoot"))
             Dim resultTime As String = "--/--/-- --:--"
 
             Try
@@ -2078,7 +2078,7 @@ Namespace Pages.Orders
 
                 ' 2. ファイル名から日付部分を抽出し、日付の新しい順（降順）にソート
                 Dim sortedFiles = files.Select(Function(f)
-                                                   Dim fileName As String = System.IO.Path.GetFileNameWithoutExtension(f)
+                                                   Dim fileName As String = IO.Path.GetFileNameWithoutExtension(f)
                                                    ' "SuzukiImport_20261102" のような末尾の8桁数字を抽出
                                                    Dim match As Match = Regex.Match(fileName, "SuzukiImport_(\d{8})$")
                                                    Dim fileDate As DateTime = DateTime.MinValue
