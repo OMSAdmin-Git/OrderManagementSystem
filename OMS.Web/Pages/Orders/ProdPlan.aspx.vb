@@ -2,6 +2,7 @@
 Imports System.Data
 Imports System.Globalization
 Imports System.IO
+Imports System.Linq
 Imports System.Runtime.Remoting.Metadata.W3cXsd2001
 Imports System.Web.UI
 Imports System.Web.UI.WebControls
@@ -43,6 +44,10 @@ Namespace Pages.Orders
                 btnProdPlanOK.Visible = False
                 btnProdPlanNO.Visible = False
 
+                ' スズキ Sprit Download 時間
+                Dim suzukiLogPath = ConfigurationManager.AppSettings("SuzukiLogFolderRoot")
+                Dim sdate = GetSuzukiSpritsDownloadDate()
+                SuzukiTimeValue.Text = sdate
             End If
         End Sub
 #End Region
@@ -2054,6 +2059,85 @@ Namespace Pages.Orders
                 EnsureDirectory(workFolder)
             End If
             Return workFolder
+        End Function
+
+        ''' <summary>
+        ''' SUzuki sprit ダウンロード日付取得
+        ''' </summary>
+        ''' <returns></returns>
+        Private Function GetSuzukiSpritsDownloadDate() As String
+
+            ' ログファイルが格納されているフォルダパスを指定
+            Dim appPath = IO.Path.GetDirectoryName(IO.Path.GetDirectoryName(Hosting.HostingEnvironment.ApplicationPhysicalPath))
+            Dim targetDirectory As String = System.IO.Path.Combine(appPath, ConfigurationManager.AppSettings("SuzukiLogFolderRoot"))
+            Dim resultTime As String = "--/--/-- --:--"
+
+            Try
+                ' 1. フォルダ内の「Sz_*.Log」に一致するファイルパスをすべて取得
+                Dim files As String() = Directory.GetFiles(targetDirectory, "SuzukiImport_*.Log")
+
+                ' 2. ファイル名から日付部分を抽出し、日付の新しい順（降順）にソート
+                Dim sortedFiles = files.Select(Function(f)
+                                                   Dim fileName As String = System.IO.Path.GetFileNameWithoutExtension(f)
+                                                   ' "SuzukiImport_20261102" のような末尾の8桁数字を抽出
+                                                   Dim match As Match = Regex.Match(fileName, "SuzukiImport_(\d{8})$")
+                                                   Dim fileDate As DateTime = DateTime.MinValue
+                                                   If match.Success Then
+                                                       DateTime.TryParseExact(match.Groups(1).Value, "yyyyMMdd", CultureInfo.InvariantCulture, DateTimeStyles.None, fileDate)
+                                                   End If
+                                                   Return New With {.Path = f, .Date = fileDate}
+                                               End Function).OrderByDescending(Function(x) x.Date).ToList()
+
+                ' 3. 新しい日付のファイルから順番に処理
+                For Each fileInfo In sortedFiles
+                    ' 日付のパースに失敗したファイル（Sz_から始まらない等）はスキップ
+                    If fileInfo.Date = DateTime.MinValue Then Continue For
+
+                    Using fs As New FileStream(fileInfo.Path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)
+                        Using sr As New StreamReader(fs)
+                            Dim allText As String = sr.ReadToEnd()
+                            Dim lines As String() = allText.Split(New String() {Environment.NewLine, vbLf}, StringSplitOptions.None)
+
+                            ' 各ファイル内を最後（末尾）から1行ずつ逆順にループ
+                            For i As Integer = lines.Length - 1 To 0 Step -1
+                                Dim line As String = lines(i).Trim()
+
+                                ' "[INFO] [SUCCESS]" が含まれる行を検索
+                                If line.Contains("[INFO] [SUCCESS]") Then
+                                    If line.Length >= 19 Then
+                                        Dim rawDate As String = line.Substring(0, 19)
+                                        Dim parsedDate As DateTime
+
+                                        ' 文字列を日時に変換し、指定フォーマットに変換
+                                        If DateTime.TryParseExact(rawDate, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.None, parsedDate) Then
+                                            resultTime = parsedDate.ToString("yyyy/M/d HH:mm")
+                                            Exit For ' 行ループを抜ける
+                                        End If
+                                    End If
+                                End If
+                            Next
+                        End Using
+                    End Using
+
+                    ' 該当データが見つかれば、古いファイルへの検索（ファイルループ）を終了
+                    If Not String.IsNullOrEmpty(resultTime) Then
+                        Exit For
+                    End If
+                Next
+
+                ' 結果の表示
+                If Not String.IsNullOrEmpty(resultTime) Then
+                    Console.WriteLine("変換後の時間: " & resultTime)
+                Else
+                    Console.WriteLine("対象のフォルダ内に該当するログが見つかりませんでした。")
+                End If
+
+            Catch ex As Exception
+                Console.WriteLine("エラーが発生しました: " & ex.Message)
+            End Try
+
+            Return resultTime
+
         End Function
 
     End Class

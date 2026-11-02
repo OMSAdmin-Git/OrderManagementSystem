@@ -5,6 +5,7 @@ Imports OMS.Common
 Imports OMS.Data
 Imports Oracle.ManagedDataAccess
 Imports Oracle.ManagedDataAccess.Client
+Imports System.Configuration
 
 Module StraYamahaRobotexMonthlyProcessing
 
@@ -43,15 +44,19 @@ Module StraYamahaRobotexMonthlyProcessing
         Dim rt As Integer = 0
         Dim errors As List(Of String) = New List(Of String)()
         ' 設定
-        Dim xmlDoc As XDocument = XDocument.Load("Config.xml")
-        Dim userId = ""
-        Dim logPath = ""
+        'Dim xmlDoc As XDocument = XDocument.Load("Config.xml")
+        'Dim userId = ""
+        'Dim logPath = ""
         Dim _logger As Logger = Nothing
         Try
-            For Each StraOrderBacklogUpdate In xmlDoc.Descendants("StraYamahaRobotexMonthlyProcessinglog")
-                userId = StraOrderBacklogUpdate.Element("UserId")?.Value
-                logPath = StraOrderBacklogUpdate.Element("LogPath")?.Value
-            Next
+            'For Each StraOrderBacklogUpdate In xmlDoc.Descendants("StraYamahaRobotexMonthlyProcessinglog")
+            '    userId = StraOrderBacklogUpdate.Element("UserId")?.Value
+            '    logPath = StraOrderBacklogUpdate.Element("LogPath")?.Value
+            'Next
+
+            Dim userId = ConfigurationManager.ConnectionStrings("OMSConnection").ConnectionString
+            Dim logPath = ConfigurationManager.AppSettings("LogPath")
+
             If (userId = "" Or logPath = "") Then
                 Throw New Exception("Configration  Error")
             End If

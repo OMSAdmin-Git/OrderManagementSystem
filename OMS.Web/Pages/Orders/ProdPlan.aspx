@@ -71,8 +71,8 @@
 
                 <!-- スズキ 状況表示 -->
                 <div class="process-header-suzuki">
-                    <asp:Label ID="Label2" runat="server" Text="スズキ SPIRIT 最終ダウンロード時間: ​"></asp:Label>
-                    <asp:Label ID="Label1" runat="server" Text="2026/10/30 13:00:00"></asp:Label>
+                    <asp:Label ID="SuzukiTimeTitle" runat="server" Text="スズキ SPIRIT 最終ダウンロード時間: ​"></asp:Label>
+                    <asp:Label ID="SuzukiTimeValue" runat="server" Text="----/--/-- --:--:--"></asp:Label>
                  </div>
 
                 <div class="user-info">
