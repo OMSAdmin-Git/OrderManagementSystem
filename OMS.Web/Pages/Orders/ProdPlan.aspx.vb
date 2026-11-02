@@ -47,8 +47,11 @@ Namespace Pages.Orders
                 ' スズキ Sprit Download 時間
                 Dim suzukiLogPath = ConfigurationManager.AppSettings("SuzukiLogFolderRoot")
                 Dim sdate = GetSuzukiSpritsDownloadDate()
+                If (String.IsNullOrEmpty(sdate)) Then
+                    sdate = "--/--/-- --:--"
+                End If
                 SuzukiTimeValue.Text = sdate
-            End If
+                End If
         End Sub
 #End Region
 
@@ -2070,7 +2073,7 @@ Namespace Pages.Orders
             ' ログファイルが格納されているフォルダパスを指定
             Dim appPath = IO.Path.GetDirectoryName(IO.Path.GetDirectoryName(Hosting.HostingEnvironment.ApplicationPhysicalPath))
             Dim targetDirectory As String = IO.Path.Combine(appPath, ConfigurationManager.AppSettings("SuzukiLogFolderRoot"))
-            Dim resultTime As String = "--/--/-- --:--"
+            Dim resultTime As String = ""
 
             Try
                 ' 1. フォルダ内の「Sz_*.Log」に一致するファイルパスをすべて取得
