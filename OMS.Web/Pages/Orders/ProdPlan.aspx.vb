@@ -48,7 +48,7 @@ Namespace Pages.Orders
                 Dim suzukiLogPath = ConfigurationManager.AppSettings("SuzukiLogFolderRoot")
                 Dim sdate = GetSuzukiSpritsDownloadDate()
                 If (String.IsNullOrEmpty(sdate)) Then
-                    sdate = "--/--/-- --:--"
+                    sdate = "--/--/-- --:--:--"
                 End If
                 SuzukiTimeValue.Text = sdate
                 End If
@@ -2093,7 +2093,7 @@ Namespace Pages.Orders
 
                 ' 3. 新しい日付のファイルから順番に処理
                 For Each fileInfo In sortedFiles
-                    ' 日付のパースに失敗したファイル（Sz_から始まらない等）はスキップ
+                    ' 日付のパースに失敗したファイル（SuzukiImport_から始まらない等）はスキップ
                     If fileInfo.Date = DateTime.MinValue Then Continue For
 
                     Using fs As New FileStream(fileInfo.Path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)
@@ -2113,7 +2113,7 @@ Namespace Pages.Orders
 
                                         ' 文字列を日時に変換し、指定フォーマットに変換
                                         If DateTime.TryParseExact(rawDate, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.None, parsedDate) Then
-                                            resultTime = parsedDate.ToString("yyyy/M/d HH:mm")
+                                            resultTime = parsedDate.ToString("yyyy/M/d HH:mm:ss")
                                             Exit For ' 行ループを抜ける
                                         End If
                                     End If
