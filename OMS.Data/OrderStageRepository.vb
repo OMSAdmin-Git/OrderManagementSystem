@@ -5337,7 +5337,8 @@ Namespace OMS.Data
             Optional ByVal customerUnitName As String = Nothing,
             Optional ByVal status As String = Nothing,
             Optional ByVal prodMgmtUserId As String = Nothing,
-            Optional ByVal activeFlag As String = Nothing
+            Optional ByVal activeFlag As String = Nothing,
+            Optional ByVal additionalOption As String = Nothing
         ) As DataTable
 
             Dim dt As New DataTable()
@@ -5456,7 +5457,11 @@ Namespace OMS.Data
                 prm.Add(New OracleParameter(":p_active", OracleDbType.Char) With {.Value = pActiveFlag})
             End If
 
-            sb.AppendLine("ORDER BY created_at, customer_setting_id ")
+            If (additionalOption IsNot Nothing) Then
+                sb.AppendLine(additionalOption)
+            Else
+                sb.AppendLine("ORDER BY created_at, customer_setting_id ")
+            End If
 
             Using conn As New OracleConnection(_connectionString)
                 Using cmd As New OracleCommand(sb.ToString(), conn)

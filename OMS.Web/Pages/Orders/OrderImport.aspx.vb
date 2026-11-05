@@ -1823,7 +1823,9 @@ Namespace Pages.Orders
             Dim dt As DataTable = repo.GetOrdersStage(
                                         status:="PROCESSED",
                                         prodMgmtUserId:=PageHelpers.GetUserId(Me),
-                                        activeFlag:="Y")
+                                        activeFlag:="Y",
+                                        additionalOption:="ORDER BY customer_setting_id, due_date ")
+
             gvImportOrder.DataSource = dt
             gvImportOrder.DataBind()
 
