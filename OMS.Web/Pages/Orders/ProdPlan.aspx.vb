@@ -2072,8 +2072,16 @@ Namespace Pages.Orders
 
             ' ログファイルが格納されているフォルダパスを指定
             Dim appPath = IO.Path.GetDirectoryName(IO.Path.GetDirectoryName(Hosting.HostingEnvironment.ApplicationPhysicalPath))
-            Dim targetDirectory As String = IO.Path.Combine(appPath, ConfigurationManager.AppSettings("SuzukiLogFolderRoot"))
+            Dim sfolder = ConfigurationManager.AppSettings("SuzukiLogFolderRoot")
+            If String.IsNullOrWhiteSpace(sfolder) Then
+                sfolder = "SUZUKI_SPIRITS_DATA_IMPORT\bin\Release\Logs"
+            End If
+            Dim targetDirectory As String = IO.Path.Combine(appPath, sfolder)
             Dim resultTime As String = ""
+            ' SUZUKI 履歴 Folder あるか
+            If (Not IO.Directory.Exists(targetDirectory)) Then
+                Return resultTime
+            End If
 
             Try
                 ' 1. フォルダ内の「Sz_*.Log」に一致するファイルパスをすべて取得
