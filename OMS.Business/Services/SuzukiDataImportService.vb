@@ -1857,14 +1857,29 @@ Namespace Services
         ''' </summary>
         Private Sub ExecuteStraDeliveryDateSetting(conn As OracleConnection, committedSettingIds As List(Of Long), userId As String, logger As Logger)
             Try
+                '' 納期設定対象の取引先設定 (5455の各設定) を取得
+                'Dim pcMap As New Dictionary(Of Long, String)()
+                'Using cmd As New OracleCommand("SELECT customer_setting_id, profit_center FROM customer_setting_mst WHERE customer_code = '5455' AND active_flag = 'Y'", conn)
+                '    Using r = cmd.ExecuteReader()
+                '        While r.Read()
+                '            Dim csId = Convert.ToInt64(r("customer_setting_id"))
+                '            Dim pc = If(r.IsDBNull(r.GetOrdinal("profit_center")), "", r("profit_center").ToString().Trim())
+                '            pcMap(csId) = pc
+                '        End While
+                '    End Using
+                'End Using
                 ' 納期設定対象の取引先設定 (5455の各設定) を取得
+                ' 2026/11/5 UserID 取得追加
                 Dim pcMap As New Dictionary(Of Long, String)()
-                Using cmd As New OracleCommand("SELECT customer_setting_id, profit_center FROM customer_setting_mst WHERE customer_code = '5455' AND active_flag = 'Y'", conn)
+                Dim uidMap As New Dictionary(Of Long, String)()
+                Using cmd As New OracleCommand("SELECT customer_setting_id, profit_center, prod_mgmt_user_id FROM customer_setting_mst WHERE customer_code = '5455' AND active_flag = 'Y'", conn)
                     Using r = cmd.ExecuteReader()
                         While r.Read()
                             Dim csId = Convert.ToInt64(r("customer_setting_id"))
                             Dim pc = If(r.IsDBNull(r.GetOrdinal("profit_center")), "", r("profit_center").ToString().Trim())
+                            Dim uid = If(r.IsDBNull(r.GetOrdinal("prod_mgmt_user_id")), "", r("prod_mgmt_user_id").ToString().Trim())
                             pcMap(csId) = pc
+                            uidMap(csId) = uid
                         End While
                     End Using
                 End Using
@@ -1876,25 +1891,50 @@ Namespace Services
                 Else
                     targetSettingIds = pcMap.Keys.ToList()
                 End If
-
+                ' 2026/11/5 createdUserID を更新する
+                'For Each csId In targetSettingIds
+                '    Dim pc As String = If(pcMap.ContainsKey(csId), pcMap(csId), "")
+                '    Using tran As OracleTransaction = conn.BeginTransaction()
+                '        Try
+                '            Dim straErr = _orderStageRepo.DeliveryDateSetting(conn, tran, "5455", pc, csId, DateTime.Now, userId, createdUserID:=uid)
+                '            If String.IsNullOrEmpty(straErr) Then
+                '                tran.Commit()
+                '                logger.Write($"[SUZUKI_IMPORT] STRA納期設定処理が正常に完了しました (取引先設定ID: {csId}, PC: '{pc}')")
+                '            Else
+                '                ' 2026/11/04 納期設定 エラーは致命的ではないため、ロールバックせずにコミットして警告ログを出力する
+                '                'tran.Rollback()
+                '                tran.Commit()
+                '                logger.Write($"[SUZUKI_IMPORT] STRA納期設定処理警告 (取引先設定ID: {csId}, PC: '{pc}'): {straErr}")
+                '            End If
+                '        Catch ex As Exception
+                '            tran.Rollback()
+                '            logger.Write($"[SUZUKI_IMPORT] STRA納期設定実行エラー (取引先設定ID: {csId}, PC: '{pc}'): {ex.Message}")
+                '        End Try
+                '    End Using
+                'Next
                 For Each csId In targetSettingIds
                     Dim pc As String = If(pcMap.ContainsKey(csId), pcMap(csId), "")
+                    Dim uid As String = If(uidMap.ContainsKey(csId), uidMap(csId), "")
                     Using tran As OracleTransaction = conn.BeginTransaction()
                         Try
-                            Dim straErr = _orderStageRepo.DeliveryDateSetting(conn, tran, "5455", pc, csId, DateTime.Now, userId)
+                            Dim straErr = _orderStageRepo.DeliveryDateSetting(conn, tran, "5455", pc, csId, DateTime.Now, userId, createdUserID:=uid)
                             If String.IsNullOrEmpty(straErr) Then
                                 tran.Commit()
-                                logger.Write($"[SUZUKI_IMPORT] STRA納期設定処理が正常に完了しました (取引先設定ID: {csId}, PC: '{pc}')")
+                                logger.Write($"[SUZUKI_IMPORT] STRA納期設定処理が正常に完了しました (取引先設定ID: {csId}, PC: '{pc}', user: {uid})")
                             Else
-                                tran.Rollback()
-                                logger.Write($"[SUZUKI_IMPORT] STRA納期設定処理警告 (取引先設定ID: {csId}, PC: '{pc}'): {straErr}")
+                                ' 2026/11/04 納期設定 エラーは致命的ではないため、ロールバックせずにコミットして警告ログを出力する
+                                'tran.Rollback()
+                                tran.Commit()
+                                logger.Write($"[SUZUKI_IMPORT] STRA納期設定処理警告 (取引先設定ID: {csId}, PC: '{pc}', user: {uid}): {straErr}")
                             End If
                         Catch ex As Exception
                             tran.Rollback()
-                            logger.Write($"[SUZUKI_IMPORT] STRA納期設定実行エラー (取引先設定ID: {csId}, PC: '{pc}'): {ex.Message}")
+                            logger.Write($"[SUZUKI_IMPORT] STRA納期設定実行エラー (取引先設定ID: {csId}, PC: '{pc}', user: {uid}): {ex.Message}")
                         End Try
                     End Using
                 Next
+
+
             Catch ex As Exception
                 logger.Write($"[SUZUKI_IMPORT] STRA納期設定処理で例外が発生しました: {ex.Message}")
             End Try

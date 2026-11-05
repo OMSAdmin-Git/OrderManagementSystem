@@ -922,6 +922,12 @@ Namespace OMS.Data
                     prm.Add(New OracleParameter(":p_updated_pg_id", OracleDbType.Varchar2) With {.Value = updatedPgId})
                 End If
 
+                ' 最後のカンマ削除
+                If sb.Length > 0 Then
+                    Dim startPos As Integer = Math.Max(0, sb.Length - 5)
+                    sb.Replace(",", " ", startPos, sb.Length - startPos)
+                End If
+
                 If orderId IsNot Nothing Then
                     sb.AppendLine($"WHERE {GetIdName(type)} = :p_orderid ")
                     prm.Add(New OracleParameter(":p_orderid", OracleDbType.Int64) With {.Value = orderId})
@@ -1424,9 +1430,9 @@ Namespace OMS.Data
             Dim ec = 0
             ' 受注ファイル出力時 Prd_Plan で 内示処理と 確定処理を 行ったレコード数を 返す SQL
             Dim sql = $"SELECT 
-                         COUNT(CASE WHEN active_flag = 'Y' AND status = 'POST_PLAN_DUE_SET' AND demand_status = 'F' AND updated_user_id = '{userid}' THEN 1 ELSE NULL END) AS UnofficialNotice,
-                         COUNT(CASE WHEN active_flag = 'Y' AND status = 'POST_PLAN_DUE_SET' AND demand_status = 'O' AND updated_user_id = '{userid}' THEN 1 ELSE NULL END) AS Confirmed,
-                         COUNT(CASE WHEN active_flag = 'N' AND status = 'POST_PLAN_DUE_SET' AND updated_user_id = '{userid}' THEN 1 ELSE NULL END) AS RecordError
+                         COUNT(CASE WHEN active_flag = 'Y' AND status = 'POST_PLAN_DUE_SET' AND demand_status = 'F' AND updated_user_id = '{userid}' OR created_user_id = '{userid}' THEN 1 ELSE NULL END) AS UnofficialNotice,
+                         COUNT(CASE WHEN active_flag = 'Y' AND status = 'POST_PLAN_DUE_SET' AND demand_status = 'O' AND updated_user_id = '{userid}' OR created_user_id = '{userid}' THEN 1 ELSE NULL END) AS Confirmed,
+                         COUNT(CASE WHEN active_flag = 'N' AND status = 'POST_PLAN_DUE_SET' AND updated_user_id = '{userid}' OR created_user_id = '{userid}' THEN 1 ELSE NULL END) AS RecordError
                         FROM 
                          prod_plan_stage "
             Try
@@ -1827,6 +1833,7 @@ Namespace OMS.Data
             sb.AppendLine("      UPDATED_AT,  ")
             sb.AppendLine("      UPDATED_USER_ID,  ")
             sb.AppendLine("      UPDATED_PG_ID, ")
+            sb.AppendLine("      CREATED_USER_ID, ")
             ' -- ORDER_ID ごとに UPDATED_AT が新しい順に連番を振る
             sb.AppendLine("      ROW_NUMBER() OVER (PARTITION BY ORDER_ID ORDER BY UPDATED_AT DESC) as rn ")
             sb.AppendLine("    FROM Orders_stage ")
@@ -1843,7 +1850,8 @@ Namespace OMS.Data
             sb.AppendLine("    o.STATUS              = s.STATUS, ")
             sb.AppendLine("    o.UPDATED_AT          = s.UPDATED_AT, ")
             sb.AppendLine("    o.UPDATED_USER_ID     = s.UPDATED_USER_ID, ")
-            sb.AppendLine("    o.UPDATED_PG_ID       = s.UPDATED_PG_ID ")
+            sb.AppendLine("    o.UPDATED_PG_ID       = s.UPDATED_PG_ID, ")
+            sb.AppendLine("    o.CREATED_USER_ID     = s.CREATED_USER_ID ")
 
             Try
                 'Using conn As New OracleConnection(_connectionString)

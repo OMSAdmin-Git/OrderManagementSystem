@@ -853,10 +853,11 @@ Namespace OMS.Data
                                         Optional status As String = Nothing,
                                         Optional updatedAt As Date? = Nothing,
                                         Optional updatedUserId As String = Nothing,
-                                        Optional updatedPgId As String = Nothing
+                                        Optional updatedPgId As String = Nothing,
+                                        Optional createdUserID As String = Nothing
                                         ) As String
 
-            Return UpdateDeadline(conn, tran, OrdersTable.Orders, orderId, shipScheduledDate, shipDate, shipPlanDate, dueDate, status, updatedAt, updatedUserId, updatedPgId)
+            Return UpdateDeadline(conn, tran, OrdersTable.Orders, orderId, shipScheduledDate, shipDate, shipPlanDate, dueDate, status, updatedAt, updatedUserId, updatedPgId, createdUserID)
 
         End Function
 
@@ -885,7 +886,8 @@ Namespace OMS.Data
                                         Optional status As String = Nothing,
                                         Optional updatedAt As Date? = Nothing,
                                         Optional updatedUserId As String = Nothing,
-                                        Optional updatedPgId As String = Nothing
+                                        Optional updatedPgId As String = Nothing,
+                                        Optional createdUserID As String = Nothing
                                         ) As String
 
             ' SHIP_SCHEDULED_DATE(出荷予定日)
@@ -932,8 +934,19 @@ Namespace OMS.Data
                     prm.Add(New OracleParameter(":p_updated_user_id", OracleDbType.Varchar2) With {.Value = updatedUserId})
                 End If
                 If updatedPgId IsNot Nothing Then
-                    sb.AppendLine("updated_pg_id = :p_updated_pg_id ")
+                    sb.AppendLine("updated_pg_id = :p_updated_pg_id, ")
                     prm.Add(New OracleParameter(":p_updated_pg_id", OracleDbType.Varchar2) With {.Value = updatedPgId})
+                End If
+
+                If createdUserID IsNot Nothing Then
+                    sb.AppendLine("created_user_id = :p_created_user_id, ")
+                    prm.Add(New OracleParameter(":p_created_user_id", OracleDbType.Varchar2) With {.Value = createdUserID})
+                End If
+
+                ' 最後のカンマ削除
+                If sb.Length > 0 Then
+                    Dim startPos As Integer = Math.Max(0, sb.Length - 5)
+                    sb.Replace(",", " ", startPos, sb.Length - startPos)
                 End If
 
                 If orderId IsNot Nothing Then
@@ -5591,7 +5604,7 @@ Namespace OMS.Data
         ''' <param name="customerSettingId"></param>
         ''' <param name="processingStartDate"></param>
         ''' <returns>error  "DBxxx エラー" + VbCrLf + "DBxxx エラー" </returns>
-        Public Function DeliveryDateSetting(conn As OracleConnection, tran As OracleTransaction, customerCode As String, profitCenter As String, customerSettingId As Long, processingStartDate As Date, updateUserId As String) As String
+        Public Function DeliveryDateSetting(conn As OracleConnection, tran As OracleTransaction, customerCode As String, profitCenter As String, customerSettingId As Long, processingStartDate As Date, updateUserId As String, Optional createdUserID As String = Nothing) As String
 
             ' 受注ワーク追加 (次の条件レコードを Orders から Orders_Stage にコピーする)
             ' ①	CUSTOMER_SETTING_ID = 処理中のCUSTOMER_SETTING_ID（取引先設定ID） 
@@ -5671,7 +5684,7 @@ Namespace OMS.Data
                 Dim status = "DUE_SET"
                 Dim updateAt = processingStartDate
                 Dim updatePgId = "DueDateSetting(Order)"
-                dberror = reps.UpdateDeadline(conn, tran, orderId:=orderid, shipScheduledDate:=shipScaduleDate, shipDate:=shipdate, shipPlanDate:=shipPlanDate, status:=status, updatedAt:=updateAt, updatedUserId:=updateUserId, updatedPgId:=updatePgId)
+                dberror = reps.UpdateDeadline(conn, tran, orderId:=orderid, shipScheduledDate:=shipScaduleDate, shipDate:=shipdate, shipPlanDate:=shipPlanDate, status:=status, updatedAt:=updateAt, updatedUserId:=updateUserId, updatedPgId:=updatePgId, createdUserID:=createdUserID)
                 If (dberror <> "") Then
                     errors.Add(dberror)
                     tran.Rollback()
