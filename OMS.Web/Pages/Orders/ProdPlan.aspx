@@ -132,11 +132,11 @@
                             <asp:TemplateField HeaderText="処理対象">
                                 <HeaderTemplate>
                                     <input type="checkbox" id="chkProdPlanAll"
-                                        onclick="OMS.Grid.toggleAll('<%= gvSelectCustomers.ClientID %>', this, 'chkProdPlan')" checked="checked" />
+                                        onclick="OMS.Grid.toggleAll('<%= gvSelectCustomers.ClientID %>', this, 'chkProdPlan')"  />
                                     <label for="chkDueDateSettingAll">処理対象</label>
                                 </HeaderTemplate>
                                 <ItemTemplate>
-                                    <asp:CheckBox ID="chkProdPlan" runat="server" Checked="True" />
+                                    <asp:CheckBox ID="chkProdPlan" runat="server" Checked="False" />
                                 </ItemTemplate>
                                 <ItemStyle HorizontalAlign="Center" />
                                 <HeaderStyle HorizontalAlign="Center" />
