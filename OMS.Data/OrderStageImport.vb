@@ -360,9 +360,6 @@ Namespace OMS.Data
             'ファイル内の行インデックス
             Dim fileidx As Integer = 0
 
-
-
-
             '許可する拡張子のリスト（小文字で定義）
             Dim allowedExtensions As New List(Of String) From {".txt"}
 
@@ -407,7 +404,6 @@ Namespace OMS.Data
                 Dim currentHinmokugyoNo As String = ""
 
                 fileidx = 0
-
 
                 '文字開始位置、文字数を指定する場合
                 While Not StmRdr.EndOfStream
@@ -594,10 +590,18 @@ Namespace OMS.Data
             If m_ImpData(0).customercode IsNot Nothing Then
 
 
-                '2026/10/19 重複データ(同一受注区分、同一客先発注NO)除外処理を追加
+                '2026/10/19 重複データ(同一受注区分、同一客先発注No、同一客先品目No)除外処理を追加
                 Dim keyCounts As New Dictionary(Of String, Integer)()
 
                 For IntDataCnt As Integer = 0 To UBound(m_ImpData)
+
+                    '客先発注No   (ordertype = 1:内示は任意、2:確定と3：納入指示は必須)
+                    Dim kyakuNo As String = ""
+                    kyakuNo = m_ImpData(IntDataCnt).ordersikibetuNo
+
+                    If String.IsNullOrEmpty(kyakuNo?.Trim()) Then
+                        Continue For ' カウントせず、次の行の読み込みへ飛ばす
+                    End If
 
                     Dim juchuKbun As String = ""
                     'フォルダタイプで処理分岐
@@ -609,16 +613,12 @@ Namespace OMS.Data
                         juchuKbun = FolderType
                     End If
 
-                    '客先発注番号   (ordertype = 1:内示は任意、2:確定と3：納入指示は必須)
-                    Dim kyakuNo As String = ""
-                    kyakuNo = m_ImpData(IntDataCnt).ordersikibetuNo
+                    '客先品目No
+                    Dim kyakuHinban As String = ""
+                    kyakuHinban = m_ImpData(IntDataCnt).customeritemNoConv
 
-                    If String.IsNullOrEmpty(kyakuNo?.Trim()) Then
-                        Continue For ' カウントせず、次の行の読み込みへ飛ばす
-                    End If
-
-                    '複合キーの作成
-                    Dim uniqueKey As String = $"{juchuKbun}_{kyakuNo}"
+                    '複合キーの作成(受注区分_客先発注No_客先品目No)
+                    Dim uniqueKey As String = $"{juchuKbun}_{kyakuNo}_{kyakuHinban}"
 
                     '辞書にカウントを記録
                     If keyCounts.ContainsKey(uniqueKey) Then
@@ -684,7 +684,11 @@ Namespace OMS.Data
 
 
 
-                    '2026/10/19 重複データ(同一受注区分、同一客先発注NO)除外処理を追加
+                    '2026/10/19 重複データ(同一受注区分、同一客先発注No、同一客先品目No)除外処理を追加
+                    '客先発注No   (ordertype = 1:内示は任意、2:確定と3：納入指示は必須)
+                    Dim kyakuNo As String = ""
+                    kyakuNo = m_ImpData(IntDataCnt).ordersikibetuNo
+
                     Dim juchuKbun As String = ""
                     'フォルダタイプで処理分岐
                     If FolderType = 4 Then
@@ -695,19 +699,19 @@ Namespace OMS.Data
                         juchuKbun = FolderType
                     End If
 
-                    '客先発注番号   (ordertype = 1:内示は任意、2:確定と3：納入指示は必須)
-                    Dim kyakuNo As String = ""
-                    kyakuNo = m_ImpData(IntDataCnt).ordersikibetuNo
+                    '客先品目No
+                    Dim kyakuHinban As String = ""
+                    kyakuHinban = m_ImpData(IntDataCnt).customeritemNoConv
 
-                    Dim uniqueKey As String = $"{juchuKbun}_{kyakuNo}"
+                    Dim uniqueKey As String = $"{juchuKbun}_{kyakuNo}_{kyakuHinban}"
 
-                    '客先発注番号が空の場合は処理をスルー
+                    '客先発注Noが空の場合は処理をスルー
                     If Not String.IsNullOrEmpty(kyakuNo?.Trim()) Then
 
-                        '客先発注番号がある場合のみ、重複チェックを行う
+                        '客先発注Noがある場合のみ、重複チェックを行う
                         If keyCounts.ContainsKey(uniqueKey) AndAlso keyCounts(uniqueKey) > 1 Then
-                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).ordergyoNo}：客先発注番号が重複しています。")
-                            '受注区分と客先発注番号が重複している場合は取込しない、エラーメッセージあり、ファイル移動もなし
+                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).ordergyoNo}：客先発注No、客先品目Noが重複しています。")
+                            '受注区分、客先発注No、客先品目Noが重複している場合は取込しない、エラーメッセージあり、ファイル移動もなし
                             fileidx += 1
                             errcnt += 1
                             Continue For
@@ -762,18 +766,18 @@ Namespace OMS.Data
                         proratedtype = 1
                         errMsg = ""
                         If _oderStageRepo.GetProratedType(CustomerSettingId, FolderType, proratedtype, errMsg) = False Then
-                            'errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：客先発注番号が空です。")
+                            'errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：客先発注Noが空です。")
                             'ErrFlg = True
                         End If
 
                     End If
 
-                    '客先発注番号   (ordertype = 1:内示は任意、2:確定と3：納入指示は必須)
+                    '客先発注No   (ordertype = 1:内示は任意、2:確定と3：納入指示は必須)
                     customerorderNo = m_ImpData(IntDataCnt).ordersikibetuNo
                     If ordertype = 2 OrElse ordertype = 3 Then
                         'ordertype = 1:内示は任意、2:確定と3：納入指示は必須
                         If String.IsNullOrEmpty(customerorderNo) Then
-                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).ordergyoNo}：客先発注番号が空です。")
+                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).ordergyoNo}：客先発注Noが空です。")
                             ErrFlg = True
                         End If
                     End If
@@ -797,12 +801,12 @@ Namespace OMS.Data
                     '日割前納期 ※希望納期をセット （希望納期が必須）
                     predailydeliveryDate = dueDate
 
-                    '2026/06/29 日割前納期に希望納期をセットした後に希望納期の稼働日チェック
-                    Dim cal = New CalenderRepository(Utils.GetConnectionString())
-                    Dim tdt = New Date
-                    tdt = dueDate
-                    dueDate = cal.AddWorkingDays2("00001", tdt, 0)
-                    '--
+                    ''2026/06/29 日割前納期に希望納期をセットした後に希望納期の稼働日チェック
+                    'Dim cal = New CalenderRepository(Utils.GetConnectionString())
+                    'Dim tdt = New Date
+                    'tdt = dueDate
+                    'dueDate = cal.AddWorkingDays2("00001", tdt, 0)
+                    ''--
 
                     '需要数   (必須)
                     strQtyValue = m_ImpData(IntDataCnt).nonyusijisu
@@ -960,10 +964,10 @@ Namespace OMS.Data
                     If isTruncated = True Then
                         errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).ordergyoNo}：分割区分が桁数超過のためトリミングされました。")
                     End If
-                    '客先発注番号
+                    '客先発注No
                     customerorderNo = SafeVarcharLength(customerorderNo, 40, isTruncated)
                     If isTruncated = True Then
-                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).ordergyoNo}：客先発注番号が桁数超過のためトリミングされました。")
+                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).ordergyoNo}：客先発注Noが桁数超過のためトリミングされました。")
                     End If
                     '需要数
                     demandqty = Convert.ToDecimal(SafeVarcharLength(demandqty.ToString(), 10, isTruncated))
@@ -1235,7 +1239,7 @@ Namespace OMS.Data
                     End If
 
 
-                    '2026/10/19 重複データ(同一受注区分、同一客先発注NO)除外処理を追加
+                    '2026/10/19 重複データ(同一受注区分、同一客先発注No、同一客先品目No)除外処理を追加
                     Dim keyCounts As New Dictionary(Of String, Integer)()
 
                     Using preStmRdr As New IO.StreamReader(strWorkFile, MapEncoding(mapResult.CharSet))
@@ -1258,6 +1262,14 @@ Namespace OMS.Data
                             ' 全行を走査してカウント
                             While precsv.Read()
 
+                                '客先発注No   (ordertype = 1:内示は任意、2:確定と3：納入指示は必須)
+                                Dim kyakuNo As String = ""
+                                kyakuNo = If(precsv.ColumnCount > mapResult.nKyakusakiHattyuNo AndAlso mapResult.nKyakusakiHattyuNo > -1, precsv.GetField(mapResult.nKyakusakiHattyuNo).Trim(), "")
+
+                                If String.IsNullOrEmpty(kyakuNo?.Trim()) Then
+                                    Continue While ' カウントせず、次の行の読み込みへ飛ばす
+                                End If
+
                                 Dim juchuKbun As String = ""
                                 'フォルダタイプで処理分岐
                                 If FolderType = 4 Then
@@ -1268,16 +1280,12 @@ Namespace OMS.Data
                                     juchuKbun = FolderType
                                 End If
 
-                                '客先発注番号   (ordertype = 1:内示は任意、2:確定と3：納入指示は必須)
-                                Dim kyakuNo As String = ""
-                                kyakuNo = If(precsv.ColumnCount > mapResult.nKyakusakiHattyuNo AndAlso mapResult.nKyakusakiHattyuNo > -1, precsv.GetField(mapResult.nKyakusakiHattyuNo).Trim(), "")
+                                '客先品目No
+                                Dim kyakuHinban As String = ""
+                                kyakuHinban = If(precsv.ColumnCount > mapResult.nKyakusakiHinmokuNo AndAlso mapResult.nKyakusakiHinmokuNo > -1, precsv.GetField(mapResult.nKyakusakiHinmokuNo).Trim(), "")
 
-                                If String.IsNullOrEmpty(kyakuNo?.Trim()) Then
-                                    Continue While ' カウントせず、次の行の読み込みへ飛ばす
-                                End If
-
-                                '複合キーの作成
-                                Dim uniqueKey As String = $"{juchuKbun}_{kyakuNo}"
+                                '複合キーの作成(受注区分_客先発注No_客先品目No)
+                                Dim uniqueKey As String = $"{juchuKbun}_{kyakuNo}_{kyakuHinban}"
 
                                 '辞書にカウントを記録
                                 If keyCounts.ContainsKey(uniqueKey) Then
@@ -1353,40 +1361,6 @@ Namespace OMS.Data
                                 ErrFlg = False
 
 
-                                '2026/10/19 重複データ(同一受注区分、同一客先発注NO)除外処理を追加
-                                Dim juchuKbun As String = ""
-                                'フォルダタイプで処理分岐
-                                If FolderType = 4 Then
-                                    '受注区分   (混在フォルダの場合は必須)
-                                    juchuKbun = If(csv.ColumnCount > mapResult.nJutyuKubun AndAlso mapResult.nJutyuKubun > -1, csv.GetField(mapResult.nJutyuKubun).Trim(), "")
-                                Else
-                                    '受注区分   (任意)
-                                    juchuKbun = FolderType
-                                End If
-
-                                '客先発注番号   (ordertype = 1:内示は任意、2:確定と3：納入指示は必須)
-                                Dim kyakuNo As String = ""
-                                kyakuNo = If(csv.ColumnCount > mapResult.nKyakusakiHattyuNo AndAlso mapResult.nKyakusakiHattyuNo > -1, csv.GetField(mapResult.nKyakusakiHattyuNo).Trim(), "")
-
-                                Dim uniqueKey As String = $"{juchuKbun}_{kyakuNo}"
-
-                                '客先発注番号が空の場合は処理をスルー
-                                If Not String.IsNullOrEmpty(kyakuNo?.Trim()) Then
-
-                                    '客先発注番号がある場合のみ、重複チェックを行う
-                                    If keyCounts.ContainsKey(uniqueKey) AndAlso keyCounts(uniqueKey) > 1 Then
-                                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：客先発注番号が重複しています。")
-                                        '受注区分と客先発注番号が重複している場合は取込しない、エラーメッセージあり、ファイル移動もなし
-                                        fileidx += 1
-                                        errcnt += 1
-                                        Continue While
-                                    End If
-
-                                End If
-                                '--
-
-
-
                                 '取引先設定IDのPC   （必須）
                                 'CUSTOMER_SETTING_MSTより取得
                                 profitcenterCSM = ""
@@ -1412,7 +1386,6 @@ Namespace OMS.Data
                                 errMsg = ""
 
                                 'Phase2対応
-                                'If spprocessType <> 2 Then
                                 If spprocessType = 0 Then
                                     If _oderStageRepo.GetProductCode(customerCode, customeritemNo, productcode, itemNo, errMsg) = False Then
                                         errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
@@ -1421,7 +1394,6 @@ Namespace OMS.Data
                                         '品目Noが取得できなかった場合、エラーメッセージあり、エラーカウントする、また品目NoのPCも取得できないのでこの先のPC一致チェックで取込対象外となる
                                         'ErrFlg = True
                                     End If
-
 
                                 ElseIf spprocessType = 1 Then
                                     '特殊処理=1は、スズキ
@@ -1437,7 +1409,6 @@ Namespace OMS.Data
                                     End If
 
                                 ElseIf spprocessType = 2 Then
-
                                     '特殊加工=2は、ヤマハ(IM以外)
                                     '品目ステータスを取得
                                     If mapResult.nYamahaItemStatus > -1 Then
@@ -1463,18 +1434,68 @@ Namespace OMS.Data
                                     'ErrFlg = True
                                 End If
 
+
+                                '2026/10/19 重複データ(同一受注区分、同一客先発注No、同一客先品目No)除外処理を追加
+                                '客先発注No   (ordertype = 1:内示は任意、2:確定と3：納入指示は必須)
+                                Dim kyakuNo As String = ""
+                                kyakuNo = If(csv.ColumnCount > mapResult.nKyakusakiHattyuNo AndAlso mapResult.nKyakusakiHattyuNo > -1, csv.GetField(mapResult.nKyakusakiHattyuNo).Trim(), "")
+
+                                Dim juchuKbun As String = ""
+                                'フォルダタイプで処理分岐
+                                If FolderType = 4 Then
+                                    '受注区分   (混在フォルダの場合は必須)
+                                    juchuKbun = If(csv.ColumnCount > mapResult.nJutyuKubun AndAlso mapResult.nJutyuKubun > -1, csv.GetField(mapResult.nJutyuKubun).Trim(), "")
+                                Else
+                                    '受注区分   (任意)
+                                    juchuKbun = FolderType
+                                End If
+
+                                '客先品目No
+                                Dim kyakuHinban As String = ""
+                                kyakuHinban = If(csv.ColumnCount > mapResult.nKyakusakiHinmokuNo AndAlso mapResult.nKyakusakiHinmokuNo > -1, csv.GetField(mapResult.nKyakusakiHinmokuNo).Trim(), "")
+
+                                '複合キーの作成(受注区分_客先発注No_客先品目No)
+                                Dim uniqueKey As String = $"{juchuKbun}_{kyakuNo}_{kyakuHinban}"
+                                '--
+
+
                                 '取引先設定IDのPCと同じPCのみ取込対象とする
                                 If String.IsNullOrEmpty(profitcenterCSM) OrElse String.IsNullOrEmpty(profitcenter) OrElse profitcenterCSM <> profitcenter Then
                                     'PCが違う場合は取込しない、エラーメッセージなし、エラーカウントしない、ファイル移動もなし
                                     'Debug用
-                                    'fileidx += 1
-                                    'errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：品目NoのPCが取込対象ではありません。")
-                                    'fileidx += 1
-                                    'errcnt += 1
+                                    fileidx += 1
+
+                                    '2026/10/19 重複データ(同一受注区分、同一客先発注No、同一客先品目No)除外処理を追加
+                                    '客先発注Noが空の場合は処理をスルー
+                                    If Not String.IsNullOrEmpty(kyakuNo?.Trim()) Then
+
+                                        '複合キーに該当したらその分をマイナスする
+                                        If keyCounts.ContainsKey(uniqueKey) AndAlso keyCounts(uniqueKey) > 1 Then
+                                            keyCounts(uniqueKey) -= 1
+                                        End If
+
+                                    End If
                                     '--
+
                                     Continue While
+
                                 End If
 
+                                '2026/10/19 重複データ(同一受注区分、同一客先発注No、同一客先品目No)除外処理を追加
+                                '客先発注Noが空の場合は処理をスルー
+                                If Not String.IsNullOrEmpty(kyakuNo?.Trim()) Then
+
+                                    '客先発注Noがある場合のみ、重複チェックを行う
+                                    If keyCounts.ContainsKey(uniqueKey) AndAlso keyCounts(uniqueKey) > 1 Then
+                                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：客先発注No、客先品目Noが重複しています。")
+                                        '受注区分、客先発注No、客先品目Noが重複している場合は取込しない、エラーメッセージあり、ファイル移動もなし
+                                        fileidx += 1
+                                        errcnt += 1
+                                        Continue While
+                                    End If
+
+                                End If
+                                '--
 
                                 'フォルダタイプで処理分岐
                                 If FolderType = 4 Then
@@ -1513,18 +1534,18 @@ Namespace OMS.Data
                                     proratedtype = 1
                                     errMsg = ""
                                     If _oderStageRepo.GetProratedType(CustomerSettingId, FolderType, proratedtype, errMsg) = False Then
-                                        'errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：客先発注番号が空です。")
+                                        'errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：客先発注Noが空です。")
                                         'ErrFlg = True
                                     End If
 
                                 End If
 
-                                '客先発注番号   (ordertype = 1:内示は任意、2:確定と3：納入指示は必須)
+                                '客先発注No   (ordertype = 1:内示は任意、2:確定と3：納入指示は必須)
                                 customerorderNo = If(csv.ColumnCount > mapResult.nKyakusakiHattyuNo AndAlso mapResult.nKyakusakiHattyuNo > -1, csv.GetField(mapResult.nKyakusakiHattyuNo).Trim(), "")
                                 If ordertype = 2 OrElse ordertype = 3 Then
                                     'ordertype = 1:内示は任意、2:確定と3：納入指示は必須
                                     If String.IsNullOrEmpty(customerorderNo) Then
-                                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：客先発注番号が空です。")
+                                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：客先発注Noが空です。")
                                         ErrFlg = True
                                     End If
                                 End If
@@ -1568,12 +1589,12 @@ Namespace OMS.Data
                                 '日割前納期 ※希望納期をセット （希望納期が必須）
                                 predailydeliveryDate = dueDate
 
-                                '2026/06/29 日割前納期に希望納期をセットした後に希望納期の稼働日チェック
-                                Dim cal = New CalenderRepository(Utils.GetConnectionString())
-                                Dim tdt = New Date?
-                                tdt = dueDate
-                                dueDate = cal.AddWorkingDays2("00001", tdt, 0)
-                                '--
+                                ''2026/06/29 日割前納期に希望納期をセットした後に希望納期の稼働日チェック
+                                'Dim cal = New CalenderRepository(Utils.GetConnectionString())
+                                'Dim tdt = New Date?
+                                'tdt = dueDate
+                                'dueDate = cal.AddWorkingDays2("00001", tdt, 0)
+                                ''--
 
                                 '需要数   (必須)
                                 strQtyValue = If(csv.ColumnCount > mapResult.nJuyouSuu AndAlso mapResult.nJuyouSuu > -1, csv.GetField(mapResult.nJuyouSuu).Trim(), "")
@@ -1768,10 +1789,10 @@ Namespace OMS.Data
                                 If isTruncated = True Then
                                     errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：分割区分が桁数超過のためトリミングされました。")
                                 End If
-                                '客先発注番号
+                                '客先発注No
                                 customerorderNo = SafeVarcharLength(customerorderNo, 40, isTruncated)
                                 If isTruncated = True Then
-                                    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：客先発注番号が桁数超過のためトリミングされました。")
+                                    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：客先発注Noが桁数超過のためトリミングされました。")
                                 End If
                                 '需要数
                                 demandqty = Convert.ToDecimal(SafeVarcharLength(demandqty.ToString(), 10, isTruncated))
@@ -1976,12 +1997,20 @@ Namespace OMS.Data
                             Dim lastRow = objSheet.LastRowUsed().RowNumber()
 
 
-                            '2026/10/19 重複データ(同一受注区分、同一客先発注NO)除外処理を追加
+                            '2026/10/19 重複データ(同一受注区分、同一客先発注No、同一客先品目No)除外処理を追加
                             Dim keyCounts As New Dictionary(Of String, Integer)()
 
                             For rowNum As Integer = mapResult.DataStartRowIndex To lastRow
 
                                 Dim xlRow = objSheet.Row(rowNum)
+
+                                '客先発注No   (ordertype = 1:内示は任意、2:確定と3：納入指示は必須)
+                                Dim kyakuNo As String = ""
+                                kyakuNo = If((mapResult.nKyakusakiHattyuNo) > 0, xlRow.Cell(mapResult.nKyakusakiHattyuNo).GetValue(Of String)().Trim(), "")
+
+                                If String.IsNullOrEmpty(kyakuNo?.Trim()) Then
+                                    Continue For ' カウントせず、次の行の読み込みへ飛ばす
+                                End If
 
                                 Dim juchuKbun As String = ""
                                 'フォルダタイプで処理分岐
@@ -1993,16 +2022,12 @@ Namespace OMS.Data
                                     juchuKbun = FolderType
                                 End If
 
-                                '客先発注番号   (ordertype = 1:内示は任意、2:確定と3：納入指示は必須)
-                                Dim kyakuNo As String = ""
-                                kyakuNo = If((mapResult.nKyakusakiHattyuNo) > 0, xlRow.Cell(mapResult.nKyakusakiHattyuNo).GetValue(Of String)().Trim(), "")
+                                '客先品目No
+                                Dim kyakuHinban As String = ""
+                                kyakuNo = If((mapResult.nKyakusakiHinmokuNo) > 0, xlRow.Cell(mapResult.nKyakusakiHinmokuNo).GetValue(Of String)().Trim(), "")
 
-                                If String.IsNullOrEmpty(kyakuNo?.Trim()) Then
-                                    Continue For ' カウントせず、次の行の読み込みへ飛ばす
-                                End If
-
-                                '複合キーの作成
-                                Dim uniqueKey As String = $"{juchuKbun}_{kyakuNo}"
+                                '複合キーの作成(受注区分_客先発注No_客先品目No)
+                                Dim uniqueKey As String = $"{juchuKbun}_{kyakuNo}_{kyakuHinban}"
 
                                 '辞書にカウントを記録
                                 If keyCounts.ContainsKey(uniqueKey) Then
@@ -2061,40 +2086,6 @@ Namespace OMS.Data
 
                                 ErrFlg = False
 
-
-                                '2026/10/19 重複データ(同一受注区分、同一客先発注NO)除外処理を追加
-                                Dim juchuKbun As String = ""
-                                'フォルダタイプで処理分岐
-                                If FolderType = 4 Then
-                                    '受注区分   (混在フォルダの場合は必須)
-                                    juchuKbun = If(mapResult.nJutyuKubun > 0, xlRow.Cell(mapResult.nJutyuKubun).GetValue(Of String)().Trim(), "")
-                                Else
-                                    '受注区分   (任意)
-                                    juchuKbun = FolderType
-                                End If
-
-                                '客先発注番号   (ordertype = 1:内示は任意、2:確定と3：納入指示は必須)
-                                Dim kyakuNo As String = ""
-                                kyakuNo = If((mapResult.nKyakusakiHattyuNo) > 0, xlRow.Cell(mapResult.nKyakusakiHattyuNo).GetValue(Of String)().Trim(), "")
-
-                                Dim uniqueKey As String = $"{juchuKbun}_{kyakuNo}"
-
-                                '客先発注番号が空の場合は処理をスルー
-                                If Not String.IsNullOrEmpty(kyakuNo?.Trim()) Then
-
-                                    '客先発注番号がある場合のみ、重複チェックを行う
-                                    If keyCounts.ContainsKey(uniqueKey) AndAlso keyCounts(uniqueKey) > 1 Then
-                                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：客先発注番号が重複しています。")
-                                        '受注区分と客先発注番号が重複している場合は取込しない、エラーメッセージあり、ファイル移動もなし
-                                        fileidx += 1
-                                        errcnt += 1
-                                        Continue For
-                                    End If
-
-                                End If
-                                '--
-
-
                                 '取引先設定IDのPC   （必須）
                                 'CUSTOMER_SETTING_MSTより取得
                                 profitcenterCSM = ""
@@ -2120,7 +2111,6 @@ Namespace OMS.Data
                                 errMsg = ""
 
                                 'Phase2対応
-                                'If spprocessType <> 2 Then
                                 If spprocessType = 0 Then
                                     If _oderStageRepo.GetProductCode(customerCode, customeritemNo, productcode, itemNo, errMsg) = False Then
                                         errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
@@ -2171,17 +2161,65 @@ Namespace OMS.Data
                                     'ErrFlg = True
                                 End If
 
+                                '2026/10/19 重複データ(同一受注区分、同一客先発注No、同一客先品目No)除外処理を追加
+                                '客先発注No   (ordertype = 1:内示は任意、2:確定と3：納入指示は必須)
+                                Dim kyakuNo As String = ""
+                                kyakuNo = If((mapResult.nKyakusakiHattyuNo) > 0, xlRow.Cell(mapResult.nKyakusakiHattyuNo).GetValue(Of String)().Trim(), "")
+
+                                Dim juchuKbun As String = ""
+                                'フォルダタイプで処理分岐
+                                If FolderType = 4 Then
+                                    '受注区分   (混在フォルダの場合は必須)
+                                    juchuKbun = If(mapResult.nJutyuKubun > 0, xlRow.Cell(mapResult.nJutyuKubun).GetValue(Of String)().Trim(), "")
+                                Else
+                                    '受注区分   (任意)
+                                    juchuKbun = FolderType
+                                End If
+
+                                '客先品目No
+                                Dim kyakuHinban As String = ""
+                                kyakuNo = If((mapResult.nKyakusakiHinmokuNo) > 0, xlRow.Cell(mapResult.nKyakusakiHinmokuNo).GetValue(Of String)().Trim(), "")
+
+                                '複合キーの作成(受注区分_客先発注No_客先品目No)
+                                Dim uniqueKey As String = $"{juchuKbun}_{kyakuNo}_{kyakuHinban}"
+                                '--
+
                                 '取引先設定IDのPCと同じPCのみ取込対象とする
                                 If String.IsNullOrEmpty(profitcenterCSM) OrElse String.IsNullOrEmpty(profitcenter) OrElse profitcenterCSM <> profitcenter Then
                                     'PCが違う場合は取込しない、エラーメッセージなし、エラーカウントしない、ファイル移動もなし
                                     'Debug用
-                                    'errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：品目NoのPCが取込対象ではありません。")
-                                    'fileidx += 1
-                                    'errcnt += 1
+                                    fileidx += 1
+
+                                    '2026/10/19 重複データ(同一受注区分、同一客先発注No、同一客先品目No)除外処理を追加
+                                    '客先発注Noが空の場合は処理をスルー
+                                    If Not String.IsNullOrEmpty(kyakuNo?.Trim()) Then
+
+                                        '複合キーに該当したらその分をマイナスする
+                                        If keyCounts.ContainsKey(uniqueKey) AndAlso keyCounts(uniqueKey) > 1 Then
+                                            keyCounts(uniqueKey) -= 1
+                                        End If
+
+                                    End If
+                                    '--
+
                                     Continue For
                                 End If
 
+                                '2026/10/19 重複データ(同一受注区分、同一客先発注No、同一客先品目No)除外処理を追加
+                                '客先発注Noが空の場合は処理をスルー
+                                If Not String.IsNullOrEmpty(kyakuNo?.Trim()) Then
 
+                                    '客先発注Noがある場合のみ、重複チェックを行う
+                                    If keyCounts.ContainsKey(uniqueKey) AndAlso keyCounts(uniqueKey) > 1 Then
+                                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：客先発注No、客先品目Noが重複しています。")
+                                        '受注区分、客先発注No、客先品目Noが重複している場合は取込しない、エラーメッセージあり、ファイル移動もなし
+                                        fileidx += 1
+                                        errcnt += 1
+                                        Continue For
+                                    End If
+
+                                End If
+                                '--
 
                                 'フォルダタイプで処理分岐
                                 If FolderType = 4 Then
@@ -2222,18 +2260,18 @@ Namespace OMS.Data
                                     proratedtype = 1
                                     errMsg = ""
                                     If _oderStageRepo.GetProratedType(CustomerSettingId, FolderType, proratedtype, errMsg) = False Then
-                                        'errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：客先発注番号が空です。")
+                                        'errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：客先発注Noが空です。")
                                         'ErrFlg = True
                                     End If
 
                                 End If
 
-                                '客先発注番号   (ordertype = 1:内示は任意、2:確定と3：納入指示は必須)
+                                '客先発注No   (ordertype = 1:内示は任意、2:確定と3：納入指示は必須)
                                 customerorderNo = If((mapResult.nKyakusakiHattyuNo) > 0, xlRow.Cell(mapResult.nKyakusakiHattyuNo).GetValue(Of String)().Trim(), "")
                                 If ordertype = 2 OrElse ordertype = 3 Then
                                     'ordertype = 1:内示は任意、2:確定と3：納入指示は必須
                                     If String.IsNullOrEmpty(customerorderNo) Then
-                                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：客先発注番号が空です。")
+                                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：客先発注Noが空です。")
                                         ErrFlg = True
                                     End If
                                 End If
@@ -2277,12 +2315,12 @@ Namespace OMS.Data
                                 '日割前納期 ※希望納期をセット （希望納期が必須）
                                 predailydeliveryDate = dueDate
 
-                                '2026/06/29 日割前納期に希望納期をセットした後に希望納期の稼働日チェック
-                                Dim cal = New CalenderRepository(Utils.GetConnectionString())
-                                Dim tdt = New Date
-                                tdt = dueDate
-                                dueDate = cal.AddWorkingDays2("00001", tdt, 0)
-                                '--
+                                ''2026/06/29 日割前納期に希望納期をセットした後に希望納期の稼働日チェック
+                                'Dim cal = New CalenderRepository(Utils.GetConnectionString())
+                                'Dim tdt = New Date
+                                'tdt = dueDate
+                                'dueDate = cal.AddWorkingDays2("00001", tdt, 0)
+                                ''--
 
 
                                 '需要数   (必須)
@@ -2481,10 +2519,10 @@ Namespace OMS.Data
                                 If isTruncated = True Then
                                     errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：分割区分が桁数超過のためトリミングされました。")
                                 End If
-                                '客先発注番号
+                                '客先発注No
                                 customerorderNo = SafeVarcharLength(customerorderNo, 40, isTruncated)
                                 If isTruncated = True Then
-                                    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：客先発注番号が桁数超過のためトリミングされました。")
+                                    errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：客先発注Noが桁数超過のためトリミングされました。")
                                 End If
                                 '需要数
                                 demandqty = Convert.ToDecimal(SafeVarcharLength(demandqty.ToString(), 10, isTruncated))
@@ -2712,10 +2750,24 @@ Namespace OMS.Data
 
                             Dim ridx As Integer = 0
 
-                            '2026/10/19 重複データ(同一受注区分、同一客先発注NO)除外処理を追加
+                            '2026/10/19 重複データ(同一受注区分、同一客先発注No、同一客先品目No)除外処理を追加
                             Dim keyCounts As New Dictionary(Of String, Integer)()
 
                             For intRowidx As Integer = StRowNum To EdRowNum Step stepRow
+
+                                '客先品目No   (任意だが、MATRIX形式は製品コードの項目がマトリックス共通表サンプルに存在しないので客先品目Noがないと品目Noが取得できない)
+                                Dim kyakuHinban As String = ""
+                                Dim cell1 As Integer = 0
+                                'Dim cellname As String = ""
+                                If Not String.IsNullOrEmpty(mapResult.mKyakusakiHinmokuNo) Then
+                                    xlRow = objSheet.Row(objSheet.Cell(mapResult.mKyakusakiHinmokuNo).Address.RowNumber + (stepRow * ridx))
+                                    cell1 = objSheet.Cell(mapResult.mKyakusakiHinmokuNo).Address.ColumnNumber
+                                    'cellname = objSheet.Cell(mKyakusakiHinmokuNo).Address.ColumnLetter & xlRow.RowNumber
+                                    kyakuHinban = If(mapResult.mKyakusakiHinmokuNo <> "", xlRow.Cell(cell1).GetValue(Of String)().Trim(), "")
+                                Else
+                                    kyakuHinban = ""
+                                End If
+
 
                                 '納期の列番号を始点として最終列までループ(横へループ)
                                 For intColIdx As Integer = StColNum To EdColNum
@@ -2732,6 +2784,15 @@ Namespace OMS.Data
                                         Continue For
                                     End If
 
+                                    '客先発注No   (ordertype = 1:内示は任意、2:確定と3：納入指示は必須)
+                                    Dim kyakuNo As String = ""
+                                    xlRow = objSheet.Row(objSheet.Cell(mapResult.mKyakusakiHattyuNo).Address.RowNumber + (stepRow * ridx))
+                                    kyakuNo = If((mapResult.mKyakusakiHattyuNo) <> "", xlRow.Cell(intColIdx).GetValue(Of String)().Trim(), "")
+
+                                    If String.IsNullOrEmpty(kyakuNo?.Trim()) Then
+                                        Continue For ' カウントせず、次の行の読み込みへ飛ばす
+                                    End If
+
                                     Dim juchuKbun As String = ""
                                     'フォルダタイプで処理分岐
                                     If FolderType = 4 Then
@@ -2743,17 +2804,10 @@ Namespace OMS.Data
                                         juchuKbun = FolderType
                                     End If
 
-                                    '客先発注番号   (ordertype = 1:内示は任意、2:確定と3：納入指示は必須)
-                                    Dim kyakuNo As String = ""
-                                    xlRow = objSheet.Row(objSheet.Cell(mapResult.mKyakusakiHattyuNo).Address.RowNumber + (stepRow * ridx))
-                                    kyakuNo = If((mapResult.mKyakusakiHattyuNo) <> "", xlRow.Cell(intColIdx).GetValue(Of String)().Trim(), "")
 
-                                    If String.IsNullOrEmpty(kyakuNo?.Trim()) Then
-                                        Continue For ' カウントせず、次の行の読み込みへ飛ばす
-                                    End If
+                                    '複合キーの作成(受注区分_客先発注No_客先品目No)
+                                    Dim uniqueKey As String = $"{juchuKbun}_{kyakuNo}_{kyakuHinban}"
 
-                                    '複合キーの作成
-                                    Dim uniqueKey As String = $"{juchuKbun}_{kyakuNo}"
 
                                     '辞書にカウントを記録
                                     If keyCounts.ContainsKey(uniqueKey) Then
@@ -2767,9 +2821,6 @@ Namespace OMS.Data
                                 ridx += 1
                             Next
                             '--
-
-
-
 
                             'Dim ridx As Integer = 0
                             ridx = 0
@@ -2929,10 +2980,56 @@ Namespace OMS.Data
                                 '納期の列番号を始点として最終列までループ(横へループ)
                                 For intColIdx As Integer = StColNum To EdColNum
 
+                                    '需要数   (必須)
+                                    If Not String.IsNullOrEmpty(mapResult.mJuyouSuu) Then
+                                        xlRow = objSheet.Row(objSheet.Cell(mapResult.mJuyouSuu).Address.RowNumber + (stepRow * ridx))
+                                        strQtyValue = If(mapResult.mJuyouSuu <> "", xlRow.Cell(intColIdx).GetValue(Of String)().Trim(), "")
+                                    Else
+                                        strQtyValue = ""
+                                    End If
+
+                                    If String.IsNullOrEmpty(strQtyValue) Then
+                                        'MATRIXでは、需要数が空だった場合は登録対象外(カウント外)とする
+                                        If mapResult.mJuyouSuu = "" Then
+                                            errors.Add($" 取引先コード：{customerCode} 取込ファイル：[{TorikomiFile} ] 需要数が取得できません。 (マッピングマスタ未登録)")
+                                        End If
+                                        Continue For
+                                    End If
+
+                                    '2026/10/19 重複データ(同一受注区分、同一客先発注No、同一客先品目No)除外処理を追加
+                                    Dim juchuKbun As String = ""
+                                    'フォルダタイプで処理分岐
+                                    If FolderType = 4 Then
+                                        '受注区分   (混在フォルダの場合は必須)
+                                        xlRow = objSheet.Row(objSheet.Cell(mapResult.mJutyuKubun).Address.RowNumber + (stepRow * ridx))
+                                        juchuKbun = If(mapResult.mJutyuKubun <> "", xlRow.Cell(intColIdx).GetValue(Of String)().Trim(), "")
+                                    Else
+                                        '受注区分   (任意)
+                                        juchuKbun = FolderType
+                                    End If
+
+                                    '客先発注No   (ordertype = 1:内示は任意、2:確定と3：納入指示は必須)
+                                    Dim kyakuNo As String = ""
+                                    xlRow = objSheet.Row(objSheet.Cell(mapResult.mKyakusakiHattyuNo).Address.RowNumber + (stepRow * ridx))
+                                    kyakuNo = If((mapResult.mKyakusakiHattyuNo) <> "", xlRow.Cell(intColIdx).GetValue(Of String)().Trim(), "")
+
+                                    '複合キーの作成(受注区分_客先発注No_客先品目No)
+                                    Dim uniqueKey As String = $"{juchuKbun}_{kyakuNo}_{customeritemNo}"
+                                    '--
+
+
 
                                     '取引先設定IDのPCと同じPCのみ取込対象とする
                                     If String.IsNullOrEmpty(profitcenterCSM) OrElse String.IsNullOrEmpty(profitcenter) OrElse profitcenterCSM <> profitcenter Then
                                         'PCが違う場合は取込しない、エラーメッセージなし、エラーカウントしない、ファイル移動もなし
+
+                                        ' 【修正追加】PCが違う場合は取込対象外となるため、重複カウントから減算する(CSV/LIST形式と同等)
+                                        If Not String.IsNullOrEmpty(kyakuNo?.Trim()) Then
+                                            If keyCounts.ContainsKey(uniqueKey) AndAlso keyCounts(uniqueKey) > 1 Then
+                                                keyCounts(uniqueKey) -= 1
+                                            End If
+                                        End If
+
                                         Continue For
                                     End If
 
@@ -2943,16 +3040,6 @@ Namespace OMS.Data
                                         ErrFlg = False
                                     End If
 
-                                    '受注日
-                                    '※受注日はヘッダー部で取得済み
-
-                                    '需要数   (必須)
-                                    If Not String.IsNullOrEmpty(mapResult.mJuyouSuu) Then
-                                        xlRow = objSheet.Row(objSheet.Cell(mapResult.mJuyouSuu).Address.RowNumber + (stepRow * ridx))
-                                        strQtyValue = If(mapResult.mJuyouSuu <> "", xlRow.Cell(intColIdx).GetValue(Of String)().Trim(), "")
-                                    Else
-                                        strQtyValue = ""
-                                    End If
 
                                     If String.IsNullOrEmpty(strQtyValue) Then
                                         'MATRIXでは、需要数が空だった場合は登録対象外とする
@@ -2972,40 +3059,18 @@ Namespace OMS.Data
                                         ErrFlg = True
                                     End If
 
-
-
-                                    '2026/10/19 重複データ(同一受注区分、同一客先発注NO)除外処理を追加
-                                    Dim juchuKbun As String = ""
-                                    'フォルダタイプで処理分岐
-                                    If FolderType = 4 Then
-                                        '受注区分   (混在フォルダの場合は必須)
-                                        xlRow = objSheet.Row(objSheet.Cell(mapResult.mJutyuKubun).Address.RowNumber + (stepRow * ridx))
-                                        juchuKbun = If(mapResult.mJutyuKubun <> "", xlRow.Cell(intColIdx).GetValue(Of String)().Trim(), "")
-                                    Else
-                                        '受注区分   (任意)
-                                        juchuKbun = FolderType
-                                    End If
-
-                                    '客先発注番号   (ordertype = 1:内示は任意、2:確定と3：納入指示は必須)
-                                    Dim kyakuNo As String = ""
-                                    xlRow = objSheet.Row(objSheet.Cell(mapResult.mKyakusakiHattyuNo).Address.RowNumber + (stepRow * ridx))
-                                    kyakuNo = If((mapResult.mKyakusakiHattyuNo) <> "", xlRow.Cell(intColIdx).GetValue(Of String)().Trim(), "")
-
-                                    Dim uniqueKey As String = $"{juchuKbun}_{kyakuNo}"
-
-                                    '客先発注番号が空の場合は処理をスルー
+                                    '客先発注Noが空の場合は処理をスルー
                                     If Not String.IsNullOrEmpty(kyakuNo?.Trim()) Then
-
-                                        '客先発注番号がある場合のみ、重複チェックを行う
+                                        '客先発注Noがある場合のみ、重複チェックを行う
                                         If keyCounts.ContainsKey(uniqueKey) AndAlso keyCounts(uniqueKey) > 1 Then
-                                            errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：客先発注番号が重複しています。")
-                                            '受注区分と客先発注番号が重複している場合は取込しない、エラーメッセージあり、ファイル移動もなし
+                                            errors.Add($" 取引先コード：{customerCode} 取込ファイル：[{TorikomiFile} ] セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：客先発注No、客先品目Noが重複しています。")
+                                            '受注区分、客先発注No、客先品目Noが重複している場合は取込しない
                                             errcnt += 1
                                             Continue For
                                         End If
-
                                     End If
-                                    '--
+
+
 
                                     '日割前受注数 ※需要数をセット
                                     predailyorderqty = demandqty
@@ -3116,7 +3181,7 @@ Namespace OMS.Data
 
                                     End If
 
-                                    '客先発注番号   (ordertype = 1:内示は任意、2:確定と3：納入指示は必須)
+                                    '客先発注No   (ordertype = 1:内示は任意、2:確定と3：納入指示は必須)
                                     If Not String.IsNullOrEmpty(mapResult.mKyakusakiHattyuNo) Then
                                         xlRow = objSheet.Row(objSheet.Cell(mapResult.mKyakusakiHattyuNo).Address.RowNumber + (stepRow * ridx))
                                         customerorderNo = If((mapResult.mKyakusakiHattyuNo) <> "", xlRow.Cell(intColIdx).GetValue(Of String)().Trim(), "")
@@ -3128,9 +3193,9 @@ Namespace OMS.Data
                                         'ordertype = 1:内示は任意、2:確定と3：納入指示は必須
                                         If String.IsNullOrEmpty(customerorderNo) Then
                                             If mapResult.mKyakusakiHattyuNo = "" Then
-                                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　客先発注番号が取得できません。 (マッピングマスタ未登録)")
+                                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　客先発注Noが取得できません。 (マッピングマスタ未登録)")
                                             Else
-                                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：客先発注番号が空です。")
+                                                errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：客先発注Noが空です。")
                                             End If
                                             ErrFlg = True
                                         End If
@@ -3139,10 +3204,10 @@ Namespace OMS.Data
                                     '-----------------
                                     '桁チェック
                                     '-----------------
-                                    '客先発注番号
+                                    '客先発注No
                                     customerorderNo = SafeVarcharLength(customerorderNo, 40, isTruncated)
                                     If isTruncated = True Then
-                                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：客先発注番号が桁数超過のためトリミングされました。")
+                                        errors.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：客先発注Noが桁数超過のためトリミングされました。")
                                     End If
                                     '-----------------
 
@@ -3176,12 +3241,12 @@ Namespace OMS.Data
                                     '日割前納期 ※希望納期をセット
                                     predailydeliveryDate = dueDate
 
-                                    '2026/06/29 日割前納期に希望納期をセットした後に希望納期の稼働日チェック
-                                    Dim cal = New CalenderRepository(Utils.GetConnectionString())
-                                    Dim tdt = New Date
-                                    tdt = dueDate
-                                    dueDate = cal.AddWorkingDays2("00001", tdt, 0)
-                                    '--
+                                    ''2026/06/29 日割前納期に希望納期をセットした後に希望納期の稼働日チェック
+                                    'Dim cal = New CalenderRepository(Utils.GetConnectionString())
+                                    'Dim tdt = New Date
+                                    'tdt = dueDate
+                                    'dueDate = cal.AddWorkingDays2("00001", tdt, 0)
+                                    ''--
 
                                     '自社予測フラグ   (任意)
                                     If Not String.IsNullOrEmpty(mapResult.mJishaYosokuFlag) Then
