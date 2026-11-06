@@ -1034,33 +1034,34 @@ Namespace Pages.Orders
                         DBError(tran)
                     End If
 
-                    ' 2026/10/08 仕様変更 ---------------------
-                    'idSelectList 生産計画処理を行った　CustomerSettingId リスト
-                    '---------------------------- 
-                    ' DELETE (受注)
-                    '---------------------------- 
-                    errors.Add(repo.DeleteOrders(conn, tran, idSelectList))
-                    If (CheckError(errors)) Then
-                        ' エラー
-                        DBError(tran)
-                    End If
-                    '---------------------------- 
-                    ' INSERT (受注)
-                    '---------------------------- 
-                    errors.Add(repo.CopyStageToOrders(conn, tran, idSelectList))
-                    If (CheckError(errors)) Then
-                        ' エラー
-                        DBError(tran)
-                    End If
-                    '---------------------------- 
-                    ' INSERT (受注履歴)
-                    '---------------------------- 
-                    errors.Add(repo.CopyOrderToHistory(conn, tran, idSelectList))                        
-                    If (CheckError(errors)) Then
-                        ' エラー
-                        DBError(tran)
-                    End If
-                    ' 2026/10/08 仕様変更 ---------------------
+                    '' 2026/11/06 仕様変更 ---------------------
+                    '' 2026/10/08 仕様変更 ---------------------
+                    ''idSelectList 生産計画処理を行った　CustomerSettingId リスト
+                    ''---------------------------- 
+                    '' DELETE (受注)
+                    ''---------------------------- 
+                    'errors.Add(repo.DeleteOrders(conn, tran, idSelectList))
+                    'If (CheckError(errors)) Then
+                    '    ' エラー
+                    '    DBError(tran)
+                    'End If
+                    ''---------------------------- 
+                    '' INSERT (受注)
+                    ''---------------------------- 
+                    'errors.Add(repo.CopyStageToOrders(conn, tran, idSelectList))
+                    'If (CheckError(errors)) Then
+                    '    ' エラー
+                    '    DBError(tran)
+                    'End If
+                    ''---------------------------- 
+                    '' INSERT (受注履歴)
+                    ''---------------------------- 
+                    'errors.Add(repo.CopyOrderToHistory(conn, tran, idSelectList))                        
+                    'If (CheckError(errors)) Then
+                    '    ' エラー
+                    '    DBError(tran)
+                    'End If
+                    '' 2026/10/08 仕様変更 ---------------------
 
                     '----------------------------
                     ' Excel 出力
@@ -1650,33 +1651,34 @@ Namespace Pages.Orders
                 '            ' #### DEBUG
                 '#End If
 
-                ' 2026/10/08 仕様変更 --------------------- start
-                'idSelectList 生産計画処理を行った　CustomerSettingId リスト
-                '---------------------------- 
-                ' DELETE (受注)
-                '---------------------------- 
-                errors.Add(repo.DeleteOrders(conn, tran, idSelectList))
-                If (CheckError(errors)) Then
-                    ' エラー
-                    DBError(tran)
-                End If
-                '---------------------------- 
-                ' INSERT (受注)
-                '---------------------------- 
-                errors.Add(repo.CopyStageToOrders(conn, tran, idSelectList))
-                If (CheckError(errors)) Then
-                    ' エラー
-                    DBError(tran)
-                End If
-                '---------------------------- 
-                ' INSERT (受注履歴)
-                '---------------------------- 
-                errors.Add(repo.CopyOrderToHistory(conn, tran, idSelectList))
-                If (CheckError(errors)) Then
-                    ' エラー
-                    DBError(tran)
-                End If
-                ' 2026/10/08 仕様変更 --------------------- end
+                ' 2026/11/06 仕様変更 --------------------- start
+                '' 2026/10/08 仕様変更 --------------------- start
+                ''idSelectList 生産計画処理を行った　CustomerSettingId リスト
+                ''---------------------------- 
+                '' DELETE (受注)
+                ''---------------------------- 
+                'errors.Add(repo.DeleteOrders(conn, tran, idSelectList))
+                'If (CheckError(errors)) Then
+                '    ' エラー
+                '    DBError(tran)
+                'End If
+                ''---------------------------- 
+                '' INSERT (受注)
+                ''---------------------------- 
+                'errors.Add(repo.CopyStageToOrders(conn, tran, idSelectList))
+                'If (CheckError(errors)) Then
+                '    ' エラー
+                '    DBError(tran)
+                'End If
+                ''---------------------------- 
+                '' INSERT (受注履歴)
+                ''---------------------------- 
+                'errors.Add(repo.CopyOrderToHistory(conn, tran, idSelectList))
+                'If (CheckError(errors)) Then
+                '    ' エラー
+                '    DBError(tran)
+                'End If
+                '' 2026/10/08 仕様変更 --------------------- end
 
                 '----------------------------
                 ' Update imp_run

@@ -1416,13 +1416,34 @@ Namespace OMS.Data
             Return filename
         End Function
         ''' <summary>
+        ''' 内示/確定 設定数を取得する (customerSettingIdListから)
+        ''' </summary>
+        ''' <param name="conn"></param>
+        ''' <param name="tran"></param>
+        ''' <param name="type"></param>
+        ''' <param name="userid"></param>
+        ''' <param name="customerSettingIdList"></param>
+        ''' <returns></returns>
+        Public Function ProdPlanCount(conn As OracleConnection, tran As OracleTransaction, type As OrdersTable, userid As String, customerSettingIdList As List(Of Long)) As (unofficialNotice As Integer, confirmed As Integer, rerr As Integer)
+            Dim count As (unofficialNotice As Integer, confirmed As Integer, rerr As Integer) = (0, 0, 0)
+
+            For Each customerSettingId In customerSettingIdList
+                Dim cnt = ProdPlanCount(conn, tran, OrderRepository.OrdersTable.ProductPlan, userid, customerSettingId)
+                count = (count.unofficialNotice + cnt.unofficialNotice, count.confirmed + cnt.confirmed, count.rerr + cnt.rerr)
+            Next
+
+            Return count
+        End Function
+
+
+        ''' <summary>
         ''' 内示/確定 設定数を取得する
         ''' </summary>
         ''' <param name="conn"></param>
         ''' <param name="tran"></param>
         ''' <param name="type"></param>
         ''' <returns></returns>
-        Public Function ProdPlanCount(conn As OracleConnection, tran As OracleTransaction, type As OrdersTable, userid As String) As (unofficialNotice As Integer, confirmed As Integer, rerr As Integer)
+        Public Function ProdPlanCount(conn As OracleConnection, tran As OracleTransaction, type As OrdersTable, userid As String, customerSettingId As Integer) As (unofficialNotice As Integer, confirmed As Integer, rerr As Integer)
 
             Dim dt As New DataTable()
             Dim uc = 0
@@ -1430,9 +1451,9 @@ Namespace OMS.Data
             Dim ec = 0
             ' 受注ファイル出力時 Prd_Plan で 内示処理と 確定処理を 行ったレコード数を 返す SQL
             Dim sql = $"SELECT 
-                         COUNT(CASE WHEN active_flag = 'Y' AND status = 'POST_PLAN_DUE_SET' AND demand_status = 'F' AND updated_user_id = '{userid}' OR created_user_id = '{userid}' THEN 1 ELSE NULL END) AS UnofficialNotice,
-                         COUNT(CASE WHEN active_flag = 'Y' AND status = 'POST_PLAN_DUE_SET' AND demand_status = 'O' AND updated_user_id = '{userid}' OR created_user_id = '{userid}' THEN 1 ELSE NULL END) AS Confirmed,
-                         COUNT(CASE WHEN active_flag = 'N' AND status = 'POST_PLAN_DUE_SET' AND updated_user_id = '{userid}' OR created_user_id = '{userid}' THEN 1 ELSE NULL END) AS RecordError
+                         COUNT(CASE WHEN active_flag = 'Y' AND status = 'POST_PLAN_DUE_SET' AND demand_status = 'F' AND customer_setting_id = {customerSettingId} AND (updated_user_id = '{userid}' OR created_user_id = '{userid}') THEN 1 ELSE NULL END) AS UnofficialNotice,
+                         COUNT(CASE WHEN active_flag = 'Y' AND status = 'POST_PLAN_DUE_SET' AND demand_status = 'O' AND customer_setting_id = {customerSettingId} AND (updated_user_id = '{userid}' OR created_user_id = '{userid}') THEN 1 ELSE NULL END) AS Confirmed,
+                         COUNT(CASE WHEN active_flag = 'N' AND status = 'POST_PLAN_DUE_SET' AND customer_setting_id = {customerSettingId} AND (updated_user_id = '{userid}' OR created_user_id = '{userid}') THEN 1 ELSE NULL END) AS RecordError
                         FROM 
                          prod_plan_stage "
             Try
@@ -1849,7 +1870,7 @@ Namespace OMS.Data
             sb.AppendLine("    o.SHIP_PLAN_DATE      = s.SHIP_PLAN_DATE, ")
             sb.AppendLine("    o.STATUS              = s.STATUS, ")
             sb.AppendLine("    o.UPDATED_AT          = s.UPDATED_AT, ")
-            sb.AppendLine("    o.UPDATED_USER_ID     = s.UPDATED_USER_ID, ")
+            sb.AppendLine("    o.UPDATED_USER_ID     = COALESCE(s.UPDATED_USER_ID, o.UPDATED_USER_ID),  ")
             sb.AppendLine("    o.UPDATED_PG_ID       = s.UPDATED_PG_ID, ")
             sb.AppendLine("    o.CREATED_USER_ID     = s.CREATED_USER_ID ")
 
