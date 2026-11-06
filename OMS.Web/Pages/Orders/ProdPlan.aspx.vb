@@ -663,11 +663,23 @@ Namespace Pages.Orders
                                                     Case 0, 6
                                                         ' 元の DemandQty を戻す
                                                         For Each osr In ordersStageRows
-                                                            Dim tg = ordersStage.Find(Function(x) x.ShipScheduledDate = osr.ShipScheduledDate)
-                                                            If (tg IsNot Nothing) Then
-                                                                tg.DemandQty = osr.DemandQty
+
+                                                            If (splitStartType = 3) Then
+                                                                If (orderType = 1) Then
+                                                                    Dim tg2 = ordersStage.Find(Function(x) x.ShipScheduledDate = Get4WeeksBefore(osr.ShipScheduledDate))
+                                                                    If (tg2 IsNot Nothing) Then
+                                                                        tg2.DemandQty = osr.DemandQty
+                                                                    Else
+                                                                        Throw New Exception("日付設定範囲でエラーが発生しました。")
+                                                                    End If
+                                                                End If
                                                             Else
-                                                                Throw New Exception("日付設定範囲でエラーが発生しました。")
+                                                                Dim tg = ordersStage.Find(Function(x) x.ShipScheduledDate = osr.ShipScheduledDate)
+                                                                If (tg IsNot Nothing) Then
+                                                                    tg.DemandQty = osr.DemandQty
+                                                                Else
+                                                                    Throw New Exception("日付設定範囲でエラーが発生しました。")
+                                                                End If
                                                             End If
                                                         Next
                                                 '日割り
