@@ -31,6 +31,8 @@ Namespace Pages.Orders
         Private _folderRepo As FolderRepository
         Private _compRootResolved As String
         Private _compUserRoot As String
+        ' 2026/11/9
+        Private _paramNames As New List(Of Long)()
 
         Private Sub Page_Init(sender As Object, e As EventArgs) Handles Me.Init
 
@@ -216,6 +218,8 @@ Namespace Pages.Orders
             Dim resultAllCnt As Integer = 0
 
             Dim ReDrawFlg As Boolean = False
+            ' 2026/11/9
+            _paramNames = New List(Of Long)
 
             '---------------------------------------------------------------
             'グリッド内のチェック状態チェック
@@ -236,6 +240,8 @@ Namespace Pages.Orders
                         groups(settingId) = New List(Of GridViewRow)()
                     End If
                     groups(settingId).Add(row)
+                    ' 2026/11/9
+                    _paramNames.Add(gvImpFilesStage.DataKeys(row.RowIndex)("CustomerSettingId"))
                 End If
             Next
 
@@ -1820,12 +1826,28 @@ Namespace Pages.Orders
             'gvImportOrder.DataBind()
 
             Dim repo As New OrderStageRepository(Utils.GetConnectionString())
+            ' 2026/11/9 
+            'Dim dt As DataTable = repo.GetOrdersStage(
+            '                            status:="PROCESSED",
+            '                            prodMgmtUserId:=PageHelpers.GetUserId(Me),
+            '                            activeFlag:="Y",
+            '                            additionalOption:="ORDER BY customer_setting_id, due_date ")
+            ' IN句の文字列を作成 (Profit center で絞り込む) 
+            Dim inClause As String = ""
+            ' ファイル選択 リストで [取込み実行]ボタンが押されたときに 使用しているPCリストを更新するため
+            ' 画面を一度抜けて から [保存]ボタン押す動作ができないため 機能を無効化している 2026/11/9
+            ' 
+            'If (_paramNames Is Nothing OrElse _paramNames.Count = 0) Then
+            'Else
+            '    inClause = $"And customer_setting_id In ({String.Join(", ", _paramNames)}) "
+            'End If
+
             Dim dt As DataTable = repo.GetOrdersStage(
                                         status:="PROCESSED",
                                         prodMgmtUserId:=PageHelpers.GetUserId(Me),
                                         activeFlag:="Y",
-                                        additionalOption:="ORDER BY customer_setting_id, due_date ")
-
+                                        additionalOption:=$" {inClause} ORDER BY customer_setting_id, due_date ")
+            ' 2026/11/9 ここまで
             gvImportOrder.DataSource = dt
             gvImportOrder.DataBind()
 
