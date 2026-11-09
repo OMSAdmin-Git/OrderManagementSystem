@@ -4270,6 +4270,63 @@ Namespace OMS.Data
             Return dt
 
         End Function
+        ''' <summary>
+        ''' ログインユーザーが担当する加工済みデータの取込先設定ID(customer_setting_id)の一覧とデータ件数を取得する
+        ''' </summary>
+        ''' <param name="LoginUserId">ログインユーザーID</param>
+        Public Function GetProcessedCustomerSettingIds(ByVal LoginUserId As String, additionalOption As String) As DataTable
+
+            Dim dt As New DataTable()
+
+            Dim sql As String = "SELECT os.customer_setting_id " &
+                                 " ,os.customer_code " &
+                                 " ,COUNT(*) As cnt " &
+                                 " FROM orders_stage os " &
+                                 " WHERE os.status = 'PROCESSED' "
+
+            sql &= additionalOption
+
+            Dim isAdmin As Boolean = String.Equals(LoginUserId, AdminUserID, StringComparison.OrdinalIgnoreCase)
+
+            If Not isAdmin Then
+                sql &= " AND EXISTS ( " &
+                         "   SELECT 1 " &
+                         "   FROM customer_setting_mst csm " &
+                         "   WHERE csm.customer_setting_id = os.customer_setting_id " &
+                         "     AND UPPER(csm.prod_mgmt_user_id) = UPPER(:p_login_user_id) " &
+                         " ) " &
+                         " GROUP BY os.customer_setting_id, os.customer_code " &
+                         " ORDER BY os.customer_setting_id ASC "
+            Else
+                sql &= " GROUP BY os.customer_setting_id, os.customer_code " &
+                       " ORDER BY os.customer_setting_id ASC "
+            End If
+
+            Using conn As New OracleConnection(_connectionString)
+                conn.Open()
+                Dim pLoginUserId As String = If(String.IsNullOrWhiteSpace(LoginUserId), Nothing, LoginUserId.Trim())
+
+                Using cmd As New OracleCommand(sql, conn)
+                    cmd.BindByName = True
+                    cmd.CommandType = CommandType.Text
+                    cmd.Parameters.Clear()
+
+                    If Not isAdmin Then
+                        ' パラメータ設定
+                        cmd.Parameters.Add(":p_login_user_id", OracleDbType.Varchar2, 9).Value = SafeVarchar(pLoginUserId, 9)
+                    End If
+
+                    Using reader As OracleDataReader = cmd.ExecuteReader()
+                        dt.Load(reader)
+                    End Using
+
+                End Using
+
+            End Using
+
+            Return dt
+
+        End Function
 
         ''' <summary>
         ''' ログインユーザーが担当する加工済みデータの取込先設定ID(customer_setting_id)単位の取込ファイルの一覧を取得する

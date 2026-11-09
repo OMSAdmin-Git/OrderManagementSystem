@@ -134,7 +134,7 @@
                                     <label for="chkOrderImportAll">処理対象</label>
                                 </HeaderTemplate>
                                 <ItemTemplate>
-                                    <asp:CheckBox ID="chkOrderImport" runat="server" Checked="False" />
+                                    <asp:CheckBox ID="chkOrderImport" runat="server" Checked="False" AutoPostBack="True" OnCheckedChanged="chkSelect_CheckedChanged"/>
                                 </ItemTemplate>
                                 <ItemStyle HorizontalAlign="Center" />
                                 <HeaderStyle HorizontalAlign="Center" />

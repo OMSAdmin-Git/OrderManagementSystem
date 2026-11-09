@@ -218,8 +218,6 @@ Namespace Pages.Orders
             Dim resultAllCnt As Integer = 0
 
             Dim ReDrawFlg As Boolean = False
-            ' 2026/11/9
-            _paramNames = New List(Of Long)
 
             '---------------------------------------------------------------
             'グリッド内のチェック状態チェック
@@ -240,8 +238,6 @@ Namespace Pages.Orders
                         groups(settingId) = New List(Of GridViewRow)()
                     End If
                     groups(settingId).Add(row)
-                    ' 2026/11/9
-                    _paramNames.Add(gvImpFilesStage.DataKeys(row.RowIndex)("CustomerSettingId"))
                 End If
             Next
 
@@ -1577,8 +1573,16 @@ Namespace Pages.Orders
             Using conn As New OracleConnection(connStr)
                 conn.Open()
 
-                '加工済み受注　取得
-                Dim dtCustomerSettingIds As DataTable = _oderStageRepo.GetProcessedCustomerSettingIds(UserId)
+                '加工済み受注　取得 2026/11/09
+                'Dim dtCustomerSettingIds As DataTable = _oderStageRepo.GetProcessedCustomerSettingIds(UserId)
+                Dim inClause = ""
+                ' ↓ (有効化)
+                'UpdatePCList()
+                'If (_paramNames IsNot Nothing AndAlso _paramNames.Count > 0) Then
+                '    inClause = $"And customer_setting_id In ({String.Join(", ", _paramNames)}) "
+                'End If
+                ' ↑
+                Dim dtCustomerSettingIds As DataTable = _oderStageRepo.GetProcessedCustomerSettingIds(UserId, inClause)
 
                 Dim previousId As Long = -1 ' 前回の取引先設定ID保持用
                 Dim customerSettingId As Long = 0
@@ -1834,13 +1838,14 @@ Namespace Pages.Orders
             '                            additionalOption:="ORDER BY customer_setting_id, due_date ")
             ' IN句の文字列を作成 (Profit center で絞り込む) 
             Dim inClause As String = ""
-            ' ファイル選択 リストで [取込み実行]ボタンが押されたときに 使用しているPCリストを更新するため
+            'ファイル選択 リストで [取込み実行]ボタンが押されたときに 使用しているPCリストを更新するため
             ' 画面を一度抜けて から [保存]ボタン押す動作ができないため 機能を無効化している 2026/11/9
-            ' 
+            ' ↓ (有効化)
             'If (_paramNames Is Nothing OrElse _paramNames.Count = 0) Then
             'Else
             '    inClause = $"And customer_setting_id In ({String.Join(", ", _paramNames)}) "
             'End If
+            ' ↑
 
             Dim dt As DataTable = repo.GetOrdersStage(
                                         status:="PROCESSED",
@@ -1888,6 +1893,34 @@ Namespace Pages.Orders
             errList.Add($" - PC：{dk("ProfitCenter")}")
             errList.Add($" - 注文工場/担当者コード：{dk("CustomerUnitName")}")
             errList.Add($" - フォルダ区分：{OMS.Common.Utils.ToFolderTypeNameSafe(dk("FolderType"))}")
+        End Sub
+        '''' <summary>
+        '''' Check box 選択時の処理
+        '''' </summary>
+        '''' <param name="sender"></param>
+        '''' <param name="e"></param>
+        Protected Sub chkSelect_CheckedChanged(sender As Object, e As EventArgs)
+            ' 2026/11/9
+            ' ↓ (有効化)
+            'UpdatePCList()
+            'gvImportOrder_Init()
+            ' ↑
+
+        End Sub
+        ''' <summary>
+        ''' 選択されている PC List を更新する
+        ''' </summary>
+        Private Sub UpdatePCList()
+            ' 2026/11/9
+            _paramNames = New List(Of Long)
+            For Each row As GridViewRow In gvImpFilesStage.Rows
+                If row.RowType <> DataControlRowType.DataRow Then Continue For
+                Dim chk As CheckBox = TryCast(row.FindControl("chkOrderImport"), CheckBox)
+                If chk IsNot Nothing AndAlso chk.Checked Then
+                    ' 2026/11/9
+                    _paramNames.Add(gvImpFilesStage.DataKeys(row.RowIndex)("CustomerSettingId"))
+                End If
+            Next
         End Sub
 
     End Class
