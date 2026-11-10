@@ -4444,6 +4444,63 @@ Namespace OMS.Data
             Return dt
 
         End Function
+        ''' <summary>
+        ''' ログインユーザーが担当する加工済みデータの取込先設定ID(customer_setting_id)の一覧とデータ件数を取得する
+        ''' </summary>
+        ''' <param name="LoginUserId">ログインユーザーID</param>
+        Public Function GetProcessedCustomerSettingIds(ByVal LoginUserId As String, additionalOption As String) As DataTable
+
+            Dim dt As New DataTable()
+
+            Dim sql As String = "SELECT os.customer_setting_id " &
+                                 " ,os.customer_code " &
+                                 " ,COUNT(*) As cnt " &
+                                 " FROM orders_stage os " &
+                                 " WHERE os.status = 'PROCESSED' "
+
+            sql &= additionalOption
+
+            Dim isAdmin As Boolean = String.Equals(LoginUserId, AdminUserID, StringComparison.OrdinalIgnoreCase)
+
+            If Not isAdmin Then
+                sql &= " AND EXISTS ( " &
+                         "   SELECT 1 " &
+                         "   FROM customer_setting_mst csm " &
+                         "   WHERE csm.customer_setting_id = os.customer_setting_id " &
+                         "     AND UPPER(csm.prod_mgmt_user_id) = UPPER(:p_login_user_id) " &
+                         " ) " &
+                         " GROUP BY os.customer_setting_id, os.customer_code " &
+                         " ORDER BY os.customer_setting_id ASC "
+            Else
+                sql &= " GROUP BY os.customer_setting_id, os.customer_code " &
+                       " ORDER BY os.customer_setting_id ASC "
+            End If
+
+            Using conn As New OracleConnection(_connectionString)
+                conn.Open()
+                Dim pLoginUserId As String = If(String.IsNullOrWhiteSpace(LoginUserId), Nothing, LoginUserId.Trim())
+
+                Using cmd As New OracleCommand(sql, conn)
+                    cmd.BindByName = True
+                    cmd.CommandType = CommandType.Text
+                    cmd.Parameters.Clear()
+
+                    If Not isAdmin Then
+                        ' パラメータ設定
+                        cmd.Parameters.Add(":p_login_user_id", OracleDbType.Varchar2, 9).Value = SafeVarchar(pLoginUserId, 9)
+                    End If
+
+                    Using reader As OracleDataReader = cmd.ExecuteReader()
+                        dt.Load(reader)
+                    End Using
+
+                End Using
+
+            End Using
+
+            Return dt
+
+        End Function
 
         ''' <summary>
         ''' ログインユーザーが担当する加工済みデータの取込先設定ID(customer_setting_id)単位の取込ファイルの一覧を取得する
@@ -6082,6 +6139,52 @@ Namespace OMS.Data
         '    Return YamahaRobotexType.Unknown
 
         'End Function
+        Public Function UpdateOrderStageStatus(conn As OracleConnection, tran As OracleTransaction, ByVal updateDate As Date, ByVal userId As String, ByVal prgId As String) As String
+            '' 1. 接続文字列の設定（環境に合わせて変更してください）
+            'Dim connectionString As String = "User Id=your_user;Password=your_password;Data Source=your_datasource;"
+            Dim rt As String = ""
+
+            Dim sql As String = "UPDATE Orders_Stage " &
+                    "SET status = 'EXPORTED', " &
+                    "    UPDATED_AT      = :p_updatedate, " &
+                    "    UPDATED_USER_ID = :p_userid, " &
+                    "    UPDATED_PG_ID   = :p_prgid " &
+                    "WHERE status = 'DUE_SET'"
+
+            ' 3. データベース接続と実行
+            'Using conn As New OracleConnection(connectionString)
+            Using cmd As New OracleCommand(sql, conn)
+
+                ' Oracleはデフォルトでパラメータを「追加順（位置）」で紐付けるため、
+                ' 名前で確実に紐付けるようにこの設定を True にします（推奨）
+                cmd.BindByName = True
+
+                ' 4. 外部から渡された変数をパラメータとしてセット
+                cmd.Parameters.Add(New OracleParameter("p_updatedate", OracleDbType.Date)).Value = updateDate
+                cmd.Parameters.Add(New OracleParameter("p_userid", OracleDbType.Varchar2, 45)).Value = userId
+                cmd.Parameters.Add(New OracleParameter("p_prgid", OracleDbType.Varchar2, 45)).Value = prgId
+
+                Try
+                    ' 接続を開いて実行
+                    'conn.Open()
+                    Dim rowsAffected As Integer = cmd.ExecuteNonQuery()
+
+                    Console.WriteLine($"{rowsAffected} 件のレコードを更新しました。")
+
+                Catch ex As OracleException
+                    ' エラーハンドリング
+                    'Console.WriteLine($"Oracleエラーが発生しました: {ex.Message}")
+                    rt = $"Oracleエラーが発生しました: {ex.Message}"
+                    'Throw
+                Catch ex As Exception
+                    'Console.WriteLine($"エラーが発生しました: {ex.Message}")
+                    rt = $"エラーが発生しました: {ex.Message}"
+                    'Throw
+                End Try
+            End Using
+            'End Using
+            Return rt
+        End Function
 
         ''' <summary>
         ''' 受注ファイル出力 過去日チェック をSQL で実行する場合

@@ -1416,13 +1416,34 @@ Namespace OMS.Data
             Return filename
         End Function
         ''' <summary>
+        ''' 内示/確定 設定数を取得する (customerSettingIdListから)
+        ''' </summary>
+        ''' <param name="conn"></param>
+        ''' <param name="tran"></param>
+        ''' <param name="type"></param>
+        ''' <param name="userid"></param>
+        ''' <param name="customerSettingIdList"></param>
+        ''' <returns></returns>
+        Public Function ProdPlanCount(conn As OracleConnection, tran As OracleTransaction, type As OrdersTable, userid As String, customerSettingIdList As List(Of Long)) As (unofficialNotice As Integer, confirmed As Integer, rerr As Integer)
+            Dim count As (unofficialNotice As Integer, confirmed As Integer, rerr As Integer) = (0, 0, 0)
+
+            For Each customerSettingId In customerSettingIdList
+                Dim cnt = ProdPlanCount(conn, tran, OrderRepository.OrdersTable.ProductPlan, userid, customerSettingId)
+                count = (count.unofficialNotice + cnt.unofficialNotice, count.confirmed + cnt.confirmed, count.rerr + cnt.rerr)
+            Next
+
+            Return count
+        End Function
+
+
+        ''' <summary>
         ''' 内示/確定 設定数を取得する
         ''' </summary>
         ''' <param name="conn"></param>
         ''' <param name="tran"></param>
         ''' <param name="type"></param>
         ''' <returns></returns>
-        Public Function ProdPlanCount(conn As OracleConnection, tran As OracleTransaction, type As OrdersTable, userid As String) As (unofficialNotice As Integer, confirmed As Integer, rerr As Integer)
+        Public Function ProdPlanCount(conn As OracleConnection, tran As OracleTransaction, type As OrdersTable, userid As String, customerSettingId As Integer) As (unofficialNotice As Integer, confirmed As Integer, rerr As Integer)
 
             Dim dt As New DataTable()
             Dim uc = 0
@@ -1430,9 +1451,9 @@ Namespace OMS.Data
             Dim ec = 0
             ' 受注ファイル出力時 Prd_Plan で 内示処理と 確定処理を 行ったレコード数を 返す SQL
             Dim sql = $"SELECT 
-                         COUNT(CASE WHEN active_flag = 'Y' AND status = 'POST_PLAN_DUE_SET' AND demand_status = 'F' AND updated_user_id = '{userid}' OR created_user_id = '{userid}' THEN 1 ELSE NULL END) AS UnofficialNotice,
-                         COUNT(CASE WHEN active_flag = 'Y' AND status = 'POST_PLAN_DUE_SET' AND demand_status = 'O' AND updated_user_id = '{userid}' OR created_user_id = '{userid}' THEN 1 ELSE NULL END) AS Confirmed,
-                         COUNT(CASE WHEN active_flag = 'N' AND status = 'POST_PLAN_DUE_SET' AND updated_user_id = '{userid}' OR created_user_id = '{userid}' THEN 1 ELSE NULL END) AS RecordError
+                         COUNT(CASE WHEN active_flag = 'Y' AND status = 'POST_PLAN_DUE_SET' AND demand_status = 'F' AND customer_setting_id = {customerSettingId} AND (updated_user_id = '{userid}' OR created_user_id = '{userid}') THEN 1 ELSE NULL END) AS UnofficialNotice,
+                         COUNT(CASE WHEN active_flag = 'Y' AND status = 'POST_PLAN_DUE_SET' AND demand_status = 'O' AND customer_setting_id = {customerSettingId} AND (updated_user_id = '{userid}' OR created_user_id = '{userid}') THEN 1 ELSE NULL END) AS Confirmed,
+                         COUNT(CASE WHEN active_flag = 'N' AND status = 'POST_PLAN_DUE_SET' AND customer_setting_id = {customerSettingId} AND (updated_user_id = '{userid}' OR created_user_id = '{userid}') THEN 1 ELSE NULL END) AS RecordError
                         FROM 
                          prod_plan_stage "
             Try
@@ -1849,7 +1870,7 @@ Namespace OMS.Data
             sb.AppendLine("    o.SHIP_PLAN_DATE      = s.SHIP_PLAN_DATE, ")
             sb.AppendLine("    o.STATUS              = s.STATUS, ")
             sb.AppendLine("    o.UPDATED_AT          = s.UPDATED_AT, ")
-            sb.AppendLine("    o.UPDATED_USER_ID     = s.UPDATED_USER_ID, ")
+            sb.AppendLine("    o.UPDATED_USER_ID     = COALESCE(s.UPDATED_USER_ID, o.UPDATED_USER_ID),  ")
             sb.AppendLine("    o.UPDATED_PG_ID       = s.UPDATED_PG_ID, ")
             sb.AppendLine("    o.CREATED_USER_ID     = s.CREATED_USER_ID ")
 
@@ -2035,86 +2056,86 @@ Namespace OMS.Data
 
             Return errors
         End Function
-        ''' <summary>
-        ''' idSelectList に登録されている customer_setting_id の prod_plan_stage のレコードを orders テーブルにコピーする
-        ''' </summary>
-        ''' <param name="conn"></param>
-        ''' <param name="tran"></param>
-        ''' <param name="idSelectList"></param>
-        ''' <returns></returns>
-        Public Function CopyStageToOrders(conn As OracleConnection, tran As OracleTransaction, idSelectList As List(Of Long)) As String
-            Dim errors = ""
-            If idSelectList Is Nothing OrElse idSelectList.Count = 0 Then Return ""
+        '''' <summary>
+        '''' idSelectList に登録されている customer_setting_id の prod_plan_stage のレコードを orders テーブルにコピーする
+        '''' </summary>
+        '''' <param name="conn"></param>
+        '''' <param name="tran"></param>
+        '''' <param name="idSelectList"></param>
+        '''' <returns></returns>
+        'Public Function CopyStageToOrders(conn As OracleConnection, tran As OracleTransaction, idSelectList As List(Of Long)) As String
+        '    Dim errors = ""
+        '    If idSelectList Is Nothing OrElse idSelectList.Count = 0 Then Return ""
 
-            ' 1. 実行する SQL 文（INSERT INTO ... SELECT 形式）
-            ' :id パラメーターに配列をバインドして、一致するレコードを 1 件ずつ抽出しながら挿入します
-            ' status: 'DUE_SET' prorated_type: 1(日割り) に固定
-            Dim sql As String = "INSERT INTO Orders " &
-                                "( customer_setting_id, customer_code, billing_to, customer_order_no, " &
-                                "demand_status, ship_to, order_date, due_date, " &
-                                "ship_scheduled_date, customer_item_no, item_no, demand_qty, " &
-                                "demand_unit, currency_code, ship_stock_location, " &
-                                "company_id, product_code, billing_standard, ship_process_type, " &
-                                "delivery_instr_flag, order_no, remarks, delivery_code, " &
-                                "total_ship_qty, ship_date, transport_method, ship_plan_date, " &
-                                "customer_order_line_no, pre_daily_order_qty, pre_daily_delivery_date, " &
-                                "imp_file_id, order_type, prorated_type, customer_info_type, " &
-                                "info_type, self_fcst_flag, self_fcst_delete_flag, reconcile_type, " &
-                                "imp_run_id, status, active_flag, created_at, " &
-                                "created_user_id, created_pg_id, updated_at, updated_user_id, " &
-                                "updated_pg_id, " &
-                                "delivery_time, container_capacity, initial_flag, " &
-                                "order_time, sales_unit_price, " &
-                                "usage_location, production_category, container_no, order_reason, " &
-                                "customer_lot_no )" &
-                                "SELECT " &
-                                "customer_setting_id, customer_code, billing_to, customer_order_no, " &
-                                "demand_status, ship_to, order_date, due_date, " &
-                                "ship_scheduled_date, customer_item_no, item_no, demand_qty, " &
-                                "demand_unit, currency_code, ship_stock_location, " &
-                                "company_id, product_code, billing_standard, ship_process_type, " &
-                                "delivery_instr_flag, order_no, remarks, delivery_code, " &
-                                "total_ship_qty, ship_date, transport_method, ship_plan_date, " &
-                                "customer_order_line_no, pre_daily_order_qty, pre_daily_delivery_date, " &
-                                "imp_file_id, order_type, 1, customer_info_type, " &
-                                "info_type, self_fcst_flag, self_fcst_delete_flag, reconcile_type, " &
-                                "imp_run_id, 'DUE_SET', active_flag, created_at, " &
-                                "created_user_id, created_pg_id, updated_at, updated_user_id, " &
-                                "updated_pg_id, " &
-                                "delivery_time, container_capacity, initial_flag, " &
-                                "order_time, sales_unit_price, " &
-                                "usage_location, production_category, container_no, order_reason, " &
-                                "customer_lot_no " &
-                                "FROM prod_plan_stage " &
-                                "WHERE customer_setting_id = :id"
-            'Using conn As New OracleConnection(connectionString)
-            'conn.Open()
+        '    ' 1. 実行する SQL 文（INSERT INTO ... SELECT 形式）
+        '    ' :id パラメーターに配列をバインドして、一致するレコードを 1 件ずつ抽出しながら挿入します
+        '    ' status: 'DUE_SET' prorated_type: 1(日割り) に固定
+        '    Dim sql As String = "INSERT INTO Orders " &
+        '                        "( customer_setting_id, customer_code, billing_to, customer_order_no, " &
+        '                        "demand_status, ship_to, order_date, due_date, " &
+        '                        "ship_scheduled_date, customer_item_no, item_no, demand_qty, " &
+        '                        "demand_unit, currency_code, ship_stock_location, " &
+        '                        "company_id, product_code, billing_standard, ship_process_type, " &
+        '                        "delivery_instr_flag, order_no, remarks, delivery_code, " &
+        '                        "total_ship_qty, ship_date, transport_method, ship_plan_date, " &
+        '                        "customer_order_line_no, pre_daily_order_qty, pre_daily_delivery_date, " &
+        '                        "imp_file_id, order_type, prorated_type, customer_info_type, " &
+        '                        "info_type, self_fcst_flag, self_fcst_delete_flag, reconcile_type, " &
+        '                        "imp_run_id, status, active_flag, created_at, " &
+        '                        "created_user_id, created_pg_id, updated_at, updated_user_id, " &
+        '                        "updated_pg_id, " &
+        '                        "delivery_time, container_capacity, initial_flag, " &
+        '                        "order_time, sales_unit_price, " &
+        '                        "usage_location, production_category, container_no, order_reason, " &
+        '                        "customer_lot_no )" &
+        '                        "SELECT " &
+        '                        "customer_setting_id, customer_code, billing_to, customer_order_no, " &
+        '                        "demand_status, ship_to, order_date, due_date, " &
+        '                        "ship_scheduled_date, customer_item_no, item_no, demand_qty, " &
+        '                        "demand_unit, currency_code, ship_stock_location, " &
+        '                        "company_id, product_code, billing_standard, ship_process_type, " &
+        '                        "delivery_instr_flag, order_no, remarks, delivery_code, " &
+        '                        "total_ship_qty, ship_date, transport_method, ship_plan_date, " &
+        '                        "customer_order_line_no, pre_daily_order_qty, pre_daily_delivery_date, " &
+        '                        "imp_file_id, order_type, 1, customer_info_type, " &
+        '                        "info_type, self_fcst_flag, self_fcst_delete_flag, reconcile_type, " &
+        '                        "imp_run_id, 'DUE_SET', active_flag, created_at, " &
+        '                        "created_user_id, created_pg_id, updated_at, updated_user_id, " &
+        '                        "updated_pg_id, " &
+        '                        "delivery_time, container_capacity, initial_flag, " &
+        '                        "order_time, sales_unit_price, " &
+        '                        "usage_location, production_category, container_no, order_reason, " &
+        '                        "customer_lot_no " &
+        '                        "FROM prod_plan_stage " &
+        '                        "WHERE customer_setting_id = :id"
+        '    'Using conn As New OracleConnection(connectionString)
+        '    'conn.Open()
 
-            Using cmd As New OracleCommand(sql, conn)
-                Try
+        '    Using cmd As New OracleCommand(sql, conn)
+        '        Try
 
-                    ' 2. パラメーター配列（Array Binding）の有効化
-                    ' リストの件数分、一括して処理を行う設定
-                    cmd.ArrayBindCount = idSelectList.Count
+        '            ' 2. パラメーター配列（Array Binding）の有効化
+        '            ' リストの件数分、一括して処理を行う設定
+        '            cmd.ArrayBindCount = idSelectList.Count
 
-                    ' 3. パラメーターの追加（List を配列に変換して渡す）
-                    Dim idParam As New OracleParameter()
-                    idParam.ParameterName = "id"
-                    idParam.OracleDbType = OracleDbType.Int64 ' Long 型に対応
-                    idParam.Value = idSelectList.ToArray()    ' 配列としてセット
+        '            ' 3. パラメーターの追加（List を配列に変換して渡す）
+        '            Dim idParam As New OracleParameter()
+        '            idParam.ParameterName = "id"
+        '            idParam.OracleDbType = OracleDbType.Int64 ' Long 型に対応
+        '            idParam.Value = idSelectList.ToArray()    ' 配列としてセット
 
-                    cmd.Parameters.Add(idParam)
+        '            cmd.Parameters.Add(idParam)
 
-                    ' 4. 一括挿入の実行
-                    Dim rowsInserted As Integer = cmd.ExecuteNonQuery()
-                    'Console.WriteLine($"{rowsInserted} 件のレコードを Orders テーブルに挿入しました。")
-                Catch ex As Exception
-                    errors = ex.Message
-                End Try
-            End Using
-            'End Using
-            Return errors
-        End Function
+        '            ' 4. 一括挿入の実行
+        '            Dim rowsInserted As Integer = cmd.ExecuteNonQuery()
+        '            'Console.WriteLine($"{rowsInserted} 件のレコードを Orders テーブルに挿入しました。")
+        '        Catch ex As Exception
+        '            errors = ex.Message
+        '        End Try
+        '    End Using
+        '    'End Using
+        '    Return errors
+        'End Function
         ''' <summary>
         ''' idSelectList に登録されている customer_setting_id の prod_plan_stage のレコードを orders テーブルにコピーする
         ''' </summary>

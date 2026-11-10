@@ -158,7 +158,7 @@ Namespace Pages.Orders
 
             Dim fileList As List(Of String) = New List(Of String)()
             Dim strPath = Server.MapPath("~/App_Data/Files/")
-
+            'Dim count As (unofficialNotice As Integer, confirmed As Integer, rerr As Integer) = (0, 0, 0)
             Try
                 '値取得
                 '[処理開始日時]を取得する。
@@ -313,6 +313,9 @@ Namespace Pages.Orders
                             '    DBError(tran)
                             '    Continue For
                             'End If
+
+                            'Dim cnt = repo.ProdPlanCount(conn, tran, OrderRepository.OrdersTable.ProductPlan, loginUserId, customerSettingId)
+                            'count = (count.unofficialNotice + cnt.unofficialNotice, count.confirmed + cnt.confirmed, count.rerr + cnt.rerr)
                         End If
                     End If
                 Next
@@ -347,7 +350,7 @@ Namespace Pages.Orders
                     fileList.Add(trfilename)
                 End If
                 ' 処理数を 集計する
-                Dim cnt = repo.ProdPlanCount(conn, tran, OrderRepository.OrdersTable.ProductPlan, loginUserId)
+                Dim cnt = repo.ProdPlanCount(conn, tran, OrderRepository.OrdersTable.ProductPlan, loginUserId, idList)
                 unofficialNotice = cnt.unofficialNotice
                 confirmed = cnt.confirmed
 
@@ -468,6 +471,23 @@ Namespace Pages.Orders
                     DBError(tran)
                 End If
 
+                '--------------------------
+                ' UPDATE (受注) ordersStage
+                '--------------------------
+                Dim repost = New OrderStageRepository(Utils.GetConnectionString())
+                ' CUSTOMER_ORDER_NO（客先発注No）をキーとして、ORDERS（受注テーブル）をPROD_PLAN_STAGEの値に更新
+                For Each customerSettingId In idList
+                    Dim trgRow = rowsu.FirstOrDefault(Function(x) x.CustomerSettingId = customerSettingId)
+                    If (trgRow IsNot Nothing) Then
+                        errors.Add(repost.UpdateOrderStageStatus(conn, tran, trgRow.UpdatedAt, trgRow.UpdatedUserId, trgRow.UpdatedPgId))
+                    End If
+                Next
+                If (CheckError(errors)) Then
+                    ' エラー
+                    DBError(tran)
+                End If
+
+                ' 2026/11/06 仕様変更
                 ' 2026/10/01 Orders status を 'EXPORTED'に更新を中止 (再 生産管理実行 のため)
                 '--------------------------
                 ' UPDATE (受注) orders
@@ -475,8 +495,8 @@ Namespace Pages.Orders
                 For Each customerSettingId In idList
                     Dim trgRow = rowsu.FirstOrDefault(Function(x) x.CustomerSettingId = customerSettingId)
                     If (trgRow IsNot Nothing) Then
-                        errors.Add(repo.Update(conn, tran, OrderRepository.OrdersTable.Orders, kCustomerSettingId:=customerSettingId, kDemandStatus:="F", kStatus:="DUE_SET", kActiveFlag:="Y", updatedAt:=trgRow.UpdatedAt, updatedUserId:=trgRow.UpdatedUserId, updatedPgId:=trgRow.UpdatedPgId))
-                        'errors.Add(repo.Update(conn, tran, OrderRepository.OrdersTable.Orders, kCustomerSettingId:=customerSettingId, kDemandStatus:="F", kStatus:="DUE_SET", kActiveFlag:="Y", status:="EXPORTED", updatedAt:=trgRow.UpdatedAt, updatedUserId:=trgRow.UpdatedUserId, updatedPgId:=trgRow.UpdatedPgId))
+                        'errors.Add(repo.Update(conn, tran, OrderRepository.OrdersTable.Orders, kCustomerSettingId:=customerSettingId, kDemandStatus:="F", kStatus:="DUE_SET", kActiveFlag:="Y", updatedAt:=trgRow.UpdatedAt, updatedUserId:=trgRow.UpdatedUserId, updatedPgId:=trgRow.UpdatedPgId))
+                        errors.Add(repo.Update(conn, tran, OrderRepository.OrdersTable.Orders, kCustomerSettingId:=customerSettingId, kDemandStatus:="F", kStatus:="DUE_SET", kActiveFlag:="Y", status:="EXPORTED", updatedAt:=trgRow.UpdatedAt, updatedUserId:=trgRow.UpdatedUserId, updatedPgId:=trgRow.UpdatedPgId))
                     End If
                 Next
                 If (CheckError(errors)) Then
