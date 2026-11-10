@@ -471,6 +471,22 @@ Namespace Pages.Orders
                     DBError(tran)
                 End If
 
+                '--------------------------
+                ' UPDATE (受注) ordersStage
+                '--------------------------
+                Dim repost = New OrderStageRepository(Utils.GetConnectionString())
+                ' CUSTOMER_ORDER_NO（客先発注No）をキーとして、ORDERS（受注テーブル）をPROD_PLAN_STAGEの値に更新
+                For Each customerSettingId In idList
+                    Dim trgRow = rowsu.FirstOrDefault(Function(x) x.CustomerSettingId = customerSettingId)
+                    If (trgRow IsNot Nothing) Then
+                        errors.Add(repost.UpdateOrderStageStatus(conn, tran, trgRow.UpdatedAt, trgRow.UpdatedUserId, trgRow.UpdatedPgId))
+                    End If
+                Next
+                If (CheckError(errors)) Then
+                    ' エラー
+                    DBError(tran)
+                End If
+
                 ' 2026/11/06 仕様変更
                 ' 2026/10/01 Orders status を 'EXPORTED'に更新を中止 (再 生産管理実行 のため)
                 '--------------------------
