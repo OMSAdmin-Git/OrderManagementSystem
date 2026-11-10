@@ -1196,7 +1196,7 @@ Namespace OMS.Data
             Dim profitcenterCSM As String
             Dim errMsg As String
 
-            Dim itemstatus As Integer
+            Dim itemstatus As String
             Dim infotypecode As String
 
 
@@ -1353,7 +1353,7 @@ Namespace OMS.Data
                                 reconciletype = 1
                                 profitcenterCSM = ""
                                 profitcenter = ""
-                                itemstatus = 0
+                                itemstatus = ""
                                 infotypecode = ""
 
                                 errMsg = ""
@@ -2079,7 +2079,7 @@ Namespace OMS.Data
                                 reconciletype = 1
                                 profitcenterCSM = ""
                                 profitcenter = ""
-                                itemstatus = 0
+                                itemstatus = ""
                                 infotypecode = ""
 
                                 errMsg = ""
@@ -4050,7 +4050,7 @@ Namespace OMS.Data
                     _oderStageRepo.UpdateCancel(tran, impfilestageId, 2)
 
 
-                    '確定データ無効化
+                    '確定データ無効化(客先発注No、客先品目No)
                     _oderStageRepo.ReplaceKakuteiRelation(tran,
                                                       CustomerSettingId,
                                                       impfilestageId,
@@ -4135,15 +4135,23 @@ Namespace OMS.Data
 
 
                         '--------------------------------
-                        '確定消込 ※客先発注Noでの消込
+                        '確定消込 ※客先発注No、客先品目Noでの消込
                         '--------------------------------
-                        '受注消込(客先発注No)
-                        _oderStageRepo.ExecuteOrderReconciliationByOrderNo(tran,
+                        '確定消込(客先発注No、客先品目No)
+                        '_oderStageRepo.ExecuteOrderReconciliationByOrderNo(tran,
+                        '                                               CustomerSettingId,
+                        '                                               impfilestageId,
+                        '                                               Now,
+                        '                                               UserId,
+                        '                                               pgId)
+                        '戻り値として確定消込で消込された品目No毎の数量を引数として受け取る
+                        Dim consumedDict As Dictionary(Of String, Decimal) = _oderStageRepo.ExecuteOrderReconciliationByOrderNo(tran,
                                                                        CustomerSettingId,
                                                                        impfilestageId,
                                                                        Now,
                                                                        UserId,
                                                                        pgId)
+
 
                         '内示消込フラグをチェック
                         If FcstReconcileFlag = "Y" Then
@@ -4157,9 +4165,18 @@ Namespace OMS.Data
                                 'tran.Commit()
                                 'Exit Sub
 
-                                '--------------------------------
-                                '納入指示データで内示消込
-                                '--------------------------------
+                                ''--------------------------------
+                                ''納入指示データで内示消込
+                                ''--------------------------------
+                                '_oderStageRepo.ReconcileForecast(tran,
+                                '                             CustomerSettingId,
+                                '                             impfilestageId,
+                                '                             3,
+                                '                             ReconcileType,
+                                '                             Now,
+                                '                             UserId,
+                                '                             pgId)
+                                '確定消込で消込された品目No毎の数量を渡す
                                 _oderStageRepo.ReconcileForecast(tran,
                                                              CustomerSettingId,
                                                              impfilestageId,
@@ -4167,7 +4184,8 @@ Namespace OMS.Data
                                                              ReconcileType,
                                                              Now,
                                                              UserId,
-                                                             pgId)
+                                                             pgId,
+                                                             consumedDict)
 
                             End If
 
