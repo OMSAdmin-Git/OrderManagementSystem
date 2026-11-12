@@ -1,23 +1,7 @@
-﻿Imports System
-Imports System.Configuration
-Imports System.Data
-Imports System.IO
-Imports System.Text
-Imports System.Web.Http
-Imports System.Web.UI
-Imports System.Web.UI.WebControls
+﻿Imports System.IO
 Imports OMS.Common
 Imports OMS.Data
 Imports Oracle.ManagedDataAccess.Client
-
-Imports System.Globalization
-Imports CsvHelper
-Imports CsvHelper.Configuration
-Imports WebGrease
-Imports DocumentFormat.OpenXml.Spreadsheet
-Imports DocumentFormat.OpenXml.Office2010.Excel
-Imports Microsoft.VisualBasic.ApplicationServices
-Imports Microsoft.Ajax.Utilities
 
 Namespace Pages.Orders
     Public Class OrderImport

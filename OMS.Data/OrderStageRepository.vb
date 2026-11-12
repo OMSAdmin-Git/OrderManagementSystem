@@ -1437,6 +1437,36 @@ Namespace OMS.Data
         End Function
 
         ''' <summary>
+        ''' PC(プロフィットセンター)マスタを一括取得し、メモリキャッシュを作成する
+        ''' </summary>
+        ''' <returns>Key: 品目No, Value: PCコード の辞書</returns>
+        Public Function CreateProfitCenterCache() As Dictionary(Of String, String)
+            Dim cache As New Dictionary(Of String, String)()
+
+            Const sql As String =
+                        " SELECT fvreckey, fusrstr1 FROM usrdeffldf WHERE ftableid = 'ITEMM' "
+
+            Using conn As New OracleConnection(_connectionString)
+                conn.Open()
+                Using cmd As New OracleCommand(sql, conn)
+                    Using reader As OracleDataReader = cmd.ExecuteReader()
+                        While reader.Read()
+                            Dim fvreckey As String = Convert.ToString(reader("fvreckey"))
+                            Dim fusrstr1 As String = Convert.ToString(reader("fusrstr1"))
+
+                            Dim key As String = If(fvreckey Is Nothing, "", fvreckey.Trim())
+
+                            If Not cache.ContainsKey(key) Then
+                                cache(key) = fusrstr1
+                            End If
+                        End While
+                    End Using
+                End Using
+            End Using
+            Return cache
+        End Function
+
+        ''' <summary>
         ''' 品目NoからPC(プロフィットセンター)を取得する
         ''' </summary>
         ''' <param name="itemNo">処理中の品目No</param>
@@ -1492,6 +1522,37 @@ Namespace OMS.Data
 
                 End Using
             End Using
+
+        End Function
+
+        ''' <summary>
+        ''' 品目NoからPC(プロフィットセンター)を取得する (メモリキャッシュ利用版)
+        ''' </summary>
+        ''' <param name="pcCache">事前に作成したPCマスタのキャッシュ</param>
+        ''' <param name="itemNo">処理中の品目No</param>
+        ''' <param name="Code">取得内容</param>
+        ''' <param name="errorMessage">エラーメッセージ</param>
+        Public Function GetProfitCenter3(ByVal pcCache As Dictionary(Of String, String), ByVal itemNo As String, ByRef Code As String, ByRef errorMessage As String) As Boolean
+
+            Dim pItemNo As String = If(String.IsNullOrWhiteSpace(itemNo), "", itemNo.Trim())
+            Code = ""
+            errorMessage = String.Empty
+
+            ' キャッシュから該当の品目Noを検索
+            If pcCache.ContainsKey(pItemNo) Then
+                Code = pcCache(pItemNo)
+
+                ' コードが空の場合のエラーハンドリングが必要なら適宜追加
+                If String.IsNullOrWhiteSpace(Code) Then
+                    errorMessage = "PCが設定されていません。"
+                    Return False
+                End If
+
+                Return True
+            Else
+                errorMessage = "PCが取得できません。"
+                Return False
+            End If
 
         End Function
 
@@ -1756,131 +1817,127 @@ Namespace OMS.Data
         End Function
 
         ''' <summary>
+        ''' 指定した取引先の製品受注基準マスタを一括取得し、メモリキャッシュ（辞書）を作成
+        ''' </summary>
+        ''' <param name="customerCode">対象の取引先コード</param>
+        ''' <returns>Key: 客先品目No(Trim済), Value: Tuple(製品コード, 客先品目No生の文字列)のリスト</returns>
+        Public Function CreateProductMasterCache(ByVal customerCode As String) As Dictionary(Of String, List(Of ProductCacheData))
+            Dim cache As New Dictionary(Of String, List(Of ProductCacheData))()
+
+            Dim sql As String =
+                    " SELECT fprdcd, fcustitemno FROM prdslsodrm " &
+                    " WHERE fcustcd = :p_customer_code "
+
+            Using conn As New OracleConnection(_connectionString)
+                conn.Open()
+                Using cmd As New OracleCommand(sql, conn)
+                    cmd.BindByName = True
+                    cmd.Parameters.Add(":p_customer_code", OracleDbType.Varchar2, 25).Value = customerCode
+
+                    Using reader As OracleDataReader = cmd.ExecuteReader()
+                        While reader.Read()
+                            Dim fprdcd As String = Convert.ToString(reader("fprdcd"))
+                            Dim fcustitemno As String = Convert.ToString(reader("fcustitemno"))
+
+                            ' 検索キーはTrimした客先品目Noにする
+                            Dim key As String = If(fcustitemno Is Nothing, "", fcustitemno.Trim())
+
+                            If Not cache.ContainsKey(key) Then
+                                cache(key) = New List(Of ProductCacheData)()
+                            End If
+
+                            ' Tupleの代わりに専用クラスを使用
+                            cache(key).Add(New ProductCacheData With {
+                        .ProductCode = fprdcd,
+                        .CustomerItemNo = fcustitemno
+                    })
+                        End While
+                    End Using
+                End Using
+            End Using
+
+            Return cache
+
+        End Function
+
+        ''' <summary>
         ''' 製品コード(品目No)およびPC(プロフィットセンター)を一括取得する
         ''' </summary>
+        ''' <param name="productCache">製品コードのキャッシュ</param>
         ''' <param name="CustomerCode">処理中の取引先コード</param>
         ''' <param name="CustomerItemNo">処理中の客先品目No</param>
         ''' <param name="Status">ステータス 2=試作品</param>
         ''' <param name="itemNo">取得した製品コード(品目No)</param>
-        ''' <param name="pcCode">取得したPC(プロフィットセンター)コード</param>
         ''' <param name="errorMessage">エラーメッセージ</param>
-        Public Function GetProductCode3(ByVal CustomerCode As String,
-                                        ByRef CustomerItemNo As String,
-                                        ByVal Status As String,
-                                        ByRef itemNo As String,
-                                        ByRef pcCode As String,
-                                        ByRef errorMessage As String
-                                    ) As Boolean
+        Public Function GetProductCode3(ByVal productCache As Dictionary(Of String, List(Of ProductCacheData)),
+                                ByVal CustomerCode As String,
+                                ByRef CustomerItemNo As String,
+                                ByVal Status As String,
+                                ByRef itemNo As String,
+                                ByRef errorMessage As String) As Boolean
 
-            '' --- 初期化 ---
-            'itemNo = ""
-            'pcCode = ""
-            'errorMessage = String.Empty
+            Dim pCustomerCode As String = If(String.IsNullOrWhiteSpace(CustomerCode), Nothing, CustomerCode.Trim())
+            Dim pCustomerItemNo As String = If(String.IsNullOrWhiteSpace(CustomerItemNo), Nothing, CustomerItemNo.Trim())
 
-            'Dim pCustomerCode As String = If(String.IsNullOrWhiteSpace(CustomerCode), Nothing, CustomerCode.Trim())
-            'Dim pCustomerItemNo As String = If(String.IsNullOrWhiteSpace(CustomerItemNo), Nothing, CustomerItemNo.Trim())
+            Dim PatternList As New List(Of String)()
 
-            '' --- 変換パターンの設定 ---
-            'Dim PatternList As New List(Of String)()
-            'Select Case CustomerCode
-            '    Case "5384" ' YMPC(ヤマハモーターパワープロダクツ)
-            '        PatternList.AddRange({"3-5-2", "5-5"})
-            '    Case "5952" ' YEJP(ヤマハ発動機 遠州森町工場)
-            '        PatternList.AddRange({"3-5-2", "5-5-2-2", "4-5-2", "3-5-5", "3-11", "5-5"})
-            '    Case "5977" ' YMC(ヤマハ発動機)
-            '        PatternList.AddRange({"3-5-2", "5-5"})
-            'End Select
+            Select Case CustomerCode
+                Case "5384"
+                    PatternList.AddRange({"3-5-2", "5-5"})
+                Case "5952"
+                    PatternList.AddRange({"3-5-2", "5-5-2-2", "4-5-2", "3-5-5", "3-11", "5-5"})
+                Case "5977"
+                    PatternList.AddRange({"3-5-2", "5-5"})
+            End Select
 
-            '' パターンリストが空の場合はエラー
-            'If PatternList Is Nothing OrElse PatternList.Count = 0 Then
-            '    errorMessage = "変換パターンリストが指定されていません。"
-            '    Return False
-            'End If
+            itemNo = ""
+            errorMessage = String.Empty
 
-            'Dim orgCustomerItemNo As String = pCustomerItemNo
+            If PatternList Is Nothing OrElse PatternList.Count = 0 Then
+                errorMessage = "変換パターンリストが指定されていません。"
+                Return False
+            End If
 
-            '' --- パターンの数だけループ処理 ---
-            'For Each currentPattern As String In PatternList
+            Dim orgCustomerItemNo As String = pCustomerItemNo
 
-            '    pCustomerItemNo = orgCustomerItemNo
-            '    pCustomerItemNo = FormatByCostmerItemNo(pCustomerItemNo, currentPattern)
+            ' パターンの数だけループ処理
+            For Each currentPattern As String In PatternList
+                pCustomerItemNo = orgCustomerItemNo
+                ' 客先品目Noにハイフォンをつける
+                pCustomerItemNo = FormatByCostmerItemNo(pCustomerItemNo, currentPattern)
 
-            '    ' SQLの統合（LEFT OUTER JOIN）
-            '    ' 製品受注基準マスタを主軸に、PCマスタを結合
-            '    Dim sql As String =
-            '    " SELECT " &
-            '    "   A.fprdcd, " &
-            '    "   A.fcustitemno, " &
-            '    "   B.fusrstr1 " &
-            '    " FROM prdslsodrm A " &
-            '    " LEFT OUTER JOIN usrdeffldf B " &
-            '    "   ON B.ftableid = 'ITEMM' AND B.fvreckey = A.fprdcd " &
-            '    " WHERE 1=1 " &
-            '    "   AND A.fcustcd = :p_customer_code " &
-            '    "   AND TRIM(A.fcustitemno) = :p_customer_item_no "
+                ' キャッシュ内に該当の客先品目Noが存在するか確認
+                If productCache.ContainsKey(pCustomerItemNo) Then
+                    Dim matchedRecords = productCache(pCustomerItemNo)
 
-            '    ' ステータス判定（試作品対応）
-            '    If Status IsNot Nothing AndAlso Status = "2" Then
-            '        sql &= " AND A.fprdcd LIKE '%S' "
-            '    Else
-            '        sql &= " AND A.fprdcd NOT LIKE '%S' "
-            '    End If
+                    ' ステータス判定 (2: 試作品は末尾'S'、それ以外は'S'以外)
+                    Dim targetRecords As IEnumerable(Of ProductCacheData)
+                    If Status IsNot Nothing AndAlso Status = "2" Then
+                        targetRecords = matchedRecords.Where(Function(r) r.ProductCode IsNot Nothing AndAlso r.ProductCode.EndsWith("S"))
+                    Else
+                        targetRecords = matchedRecords.Where(Function(r) r.ProductCode IsNot Nothing AndAlso Not r.ProductCode.EndsWith("S"))
+                    End If
 
-            '    Dim hitCount As Integer = 0
-            '    Dim fprdcd As String = Nothing
-            '    Dim fcustitemno As String = Nothing
-            '    Dim fusrstr1 As String = Nothing
+                    Dim hitCount As Integer = targetRecords.Count()
 
-            '    ' DBアクセス
-            '    Using conn As New OracleConnection(_connectionString)
-            '        conn.Open()
-            '        Using cmd As New OracleCommand(sql, conn)
-            '            cmd.BindByName = True
-            '            cmd.CommandType = CommandType.Text
+                    ' 件数判定
+                    If hitCount = 1 Then
+                        ' 結果が1件
+                        Dim hitData = targetRecords.First()
+                        itemNo = hitData.ProductCode           ' 専用クラスのプロパティを指定
+                        CustomerItemNo = hitData.CustomerItemNo
+                        Return True
+                    ElseIf hitCount > 1 Then
+                        ' 結果が複数件
+                        errorMessage = "製品受注基準マスタが複数件取得されました。"
+                        Return False
+                    End If
+                End If
+            Next
 
-            '            cmd.Parameters.Add(":p_customer_code", OracleDbType.Varchar2, 25).Value = SafeVarchar(pCustomerCode, 25)
-            '            cmd.Parameters.Add(":p_customer_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(pCustomerItemNo, 45)
-
-            '            Using reader As OracleDataReader = cmd.ExecuteReader()
-            '                While reader.Read()
-            '                    hitCount += 1
-            '                    If hitCount = 1 Then
-            '                        fprdcd = Convert.ToString(reader("fprdcd"))
-            '                        fcustitemno = Convert.ToString(reader("fcustitemno"))
-            '                        ' DBからNULLが返ってきた場合は空文字にする
-            '                        fusrstr1 = If(reader("fusrstr1") Is DBNull.Value, "", Convert.ToString(reader("fusrstr1")))
-            '                    End If
-            '                    If hitCount > 1 Then Exit While
-            '                End While
-            '            End Using
-            '        End Using
-            '    End Using
-
-            '    ' --- 件数判定とエラーハンドリング ---
-            '    If hitCount > 1 Then
-            '        errorMessage = "製品受注基準マスタが複数件取得されました。"
-            '        Return False
-            '    ElseIf hitCount = 1 Then
-            '        ' 製品データが1件見つかった場合、PCの存在チェック
-            '        If String.IsNullOrEmpty(fusrstr1) Then
-            '            ' LEFT JOINの結果がNULL、または空文字の場合はPC未登録エラー
-            '            'errorMessage = "PCが取得できません。"
-            '            Return False
-            '        End If
-
-            '        ' すべて正常に取得できた場合、値を格納して終了
-            '        itemNo = fprdcd
-            '        CustomerItemNo = fcustitemno
-            '        pcCode = fusrstr1
-            '        Return True
-            '    End If
-
-            '    ' hitCount = 0 の場合は、次の変換パターン（currentPattern）を試すためループを継続
-            'Next
-
-            '' すべてのパターンを試しても製品コード自体が1件もヒットしなかった場合
-            'errorMessage = "品目No及び製品コードが取得できません。品目No:" & orgCustomerItemNo & " (Debug用)"
-            'Return False
+            ' すべてのパターンを試しても取得できなかった場合
+            errorMessage = "品目No及び製品コードが取得できません。"
+            Return False
 
         End Function
 
@@ -3126,7 +3183,7 @@ Namespace OMS.Data
         End Sub
 
         ''' <summary>
-        ''' 確定データを無効化して、今回の取込データを更新する(客先発注Noおよび客先品目Noで無効化)
+        ''' 過去の確定データを無効化して、今回の取込データを更新する(客先発注Noおよび客先品目Noで無効化)
         ''' </summary>
         ''' <param name="tran">トランザクション</param>
         ''' <param name="customerSettingId">処理中の取引先設定ID</param>
@@ -3141,26 +3198,29 @@ Namespace OMS.Data
                                         ByVal updateUserId As String,
                                         ByVal updatepgId As String)
 
-            ' 過去データ（今回取込データ以外）で、キーが一致するものを無効化(REPLACED:洗替済データ)
-            Dim sql As String =
+            '2026/11/11 以前は過去データを無効化してから今回データを更新していたが順番を入れ替え
+            Dim sql As String = ""
+
+            ' 今回の取込データ INFO_TYPE='U'or NULL を'PROCESSED'加工済データ info_type=U(更新)に更新
+            sql =
                         " UPDATE orders_stage tgt" &
                         " SET " &
-                        " tgt.status = 'REPLACED', " &
-                        " tgt.active_flag = 'N', " &
+                        " tgt.info_type = 'U', " &
+                        " tgt.status = 'PROCESSED', " &
                         " tgt.updated_at = :p_updated_at, " &
                         " tgt.updated_user_id = :p_user_id, " &
                         " tgt.updated_pg_id = :p_updated_pg_id " &
                         " WHERE tgt.order_type = 2 " &
                         " AND tgt.active_flag = 'Y' " &
-                        " AND tgt.imp_file_stage_id IS NULL " &
+                        " AND NVL(tgt.info_type,'U') = 'U' " &
+                        " AND tgt.imp_file_stage_id = :p_imp_file_stage_id " &
                         " AND EXISTS ( " &
                         " SELECT 1 " &
                         " FROM orders_stage cur " &
-                        " WHERE cur.imp_file_stage_id = :p_imp_file_stage_id " &
+                        " WHERE cur.imp_file_stage_id IS NULL " &
                         " AND cur.customer_setting_id = :p_customer_setting_id " &
                         " AND cur.order_type = 2 " &
                         " AND cur.active_flag = 'Y' " &
-                        " AND (cur.info_type IN ('U', 'D') OR cur.info_type IS NULL) " &
                         " AND cur.customer_setting_id = tgt.customer_setting_id " &
                         " AND cur.customer_order_no = tgt.customer_order_no " &
                         " AND cur.customer_item_no = tgt.customer_item_no) "
@@ -3182,27 +3242,29 @@ Namespace OMS.Data
 
             End Using
 
-            ' 今回の取込データ INFO_TYPE='U'or NULL を'PROCESSED'加工済データ に更新
+
+
+            ' 過去データ（今回取込データ以外）で、キーが一致するものを無効化(REPLACED:洗替済データ active_flag = N)
+            ' info_type=U(更新)D(取消)NULLのデータが対象
             sql =
                         " UPDATE orders_stage tgt" &
                         " SET " &
-                        " tgt.info_type = 'U', " &
-                        " tgt.status = 'PROCESSED', " &
+                        " tgt.status = 'REPLACED', " &
+                        " tgt.active_flag = 'N', " &
                         " tgt.updated_at = :p_updated_at, " &
                         " tgt.updated_user_id = :p_user_id, " &
                         " tgt.updated_pg_id = :p_updated_pg_id " &
                         " WHERE tgt.order_type = 2 " &
                         " AND tgt.active_flag = 'Y' " &
-                        " AND NVL(tgt.info_type,'U') = 'U' " &
-                        " AND tgt.imp_file_stage_id = :p_imp_file_stage_id " &
+                        " AND tgt.imp_file_stage_id IS NULL " &
                         " AND EXISTS ( " &
                         " SELECT 1 " &
                         " FROM orders_stage cur " &
-                        " WHERE cur.imp_file_stage_id IS NULL " &
+                        " WHERE cur.imp_file_stage_id = :p_imp_file_stage_id " &
                         " AND cur.customer_setting_id = :p_customer_setting_id " &
                         " AND cur.order_type = 2 " &
                         " AND cur.active_flag = 'Y' " &
-                        " AND NVL(cur.info_type, 'U') = 'U' " &
+                        " AND (cur.info_type IN ('U', 'D') OR cur.info_type IS NULL) " &
                         " AND cur.customer_setting_id = tgt.customer_setting_id " &
                         " AND cur.customer_order_no = tgt.customer_order_no " &
                         " AND cur.customer_item_no = tgt.customer_item_no) "
@@ -6658,6 +6720,14 @@ Namespace OMS.Data
             Return dst
         End Function
 
+    End Class
+
+    ''' <summary>
+    ''' 製品マスタのキャッシュ用データクラス
+    ''' </summary>
+    Public Class ProductCacheData
+        Public Property ProductCode As String
+        Public Property CustomerItemNo As String
     End Class
 
 End Namespace

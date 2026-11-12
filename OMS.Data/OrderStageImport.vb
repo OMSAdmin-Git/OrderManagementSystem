@@ -372,7 +372,6 @@ Namespace OMS.Data
                 Return False
             End If
 
-
             '取引先設定IDのPC   （必須）
             'CUSTOMER_SETTING_MSTより取得
             profitcenterCSM = ""
@@ -381,6 +380,46 @@ Namespace OMS.Data
                 'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：{errMsg}")
                 'ErrFlg = True
             End If
+
+            '2026/11/09 酒井 処理時間把握のためログ機能追加
+            ' 実行ファイル（.exe）があるフォルダ内の "Logs" フォルダを指定
+            Dim logDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Logs")
+
+            ' フォルダが存在しなければ作成
+            If Not System.IO.Directory.Exists(logDir) Then
+                System.IO.Directory.CreateDirectory(logDir)
+            End If
+
+            ' 実行中のアセンブリ名を取得 (例: "MyWindowsApp")
+            Dim asmName As String = My.Application.Info.AssemblyName
+
+            ' ログファイルのパスを作成 (例: MyWindowsApp_20261107.log)
+            Dim loggerPath As String = Path.Combine(logDir, $"OrderImport_{DateTime.Now:yyyyMMdd}.log")
+            ' Loggerのインスタンス化
+            Dim logger As New Logger(loggerPath)
+
+            '処理時間計測用ストップウォッチ
+            Dim swMain As New System.Diagnostics.Stopwatch()
+            'Dim swSub As New System.Diagnostics.Stopwatch()
+            Dim timeSec As String = ""
+
+            swMain.Start()
+            logger.Write("==============================================")
+            logger.Write("[INFO] ParseImportFileY")
+            logger.Write("[INFO] CustomerSettingId: " & CustomerSettingId)
+            logger.Write("[INFO] CustomerCode: " & customerCode)
+            logger.Write("[INFO] ProfitCenter: " & profitcenterCSM)
+            logger.Write("[INFO] FolderType: " & FolderType)
+            logger.Write("[INFO] SpProcessType: " & spprocessType)
+            logger.Write("[INFO] strWorkFile: " & strWorkFile)
+            logger.Write("[INFO] TorikomiFile: " & TorikomiFile)
+            logger.Write("[INFO] UserId: " & UserId)
+            logger.Write("[INFO] 工程01: ParseImportFileYを開始します...")
+            '--
+
+
+            Dim productCache = _oderStageRepo.CreateProductMasterCache(customerCode)
+            Dim ProfitCenterCache = _oderStageRepo.CreateProfitCenterCache()
 
             Using StmRdr As New IO.StreamReader(strWorkFile, MapEncoding("UTF8"))
 
@@ -449,7 +488,15 @@ Namespace OMS.Data
                         Dim wkcustomeritemNo As String = currentCustomeritemNo
                         itemNo = ""
                         errMsg = ""
-                        If _oderStageRepo.GetProductCode2(customerCode, wkcustomeritemNo, currentStatus, itemNo, errMsg) = False Then
+
+                        'If _oderStageRepo.GetProductCode2(customerCode, wkcustomeritemNo, currentStatus, itemNo, errMsg) = False Then
+                        '    errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {currentHinmokugyoNo}：{errMsg}")
+                        '    errcnt += 1
+                        '    '品目Noが取得できなかった場合、エラーメッセージあり、エラーカウントする、また品目NoのPCも取得できないのでこの先のPC一致チェックで取込対象外となる
+                        '    'ErrFlg = True
+                        '    'fileidx += 1
+                        'End If
+                        If _oderStageRepo.GetProductCode3(productCache, customerCode, wkcustomeritemNo, currentStatus, itemNo, errMsg) = False Then
                             errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {currentHinmokugyoNo}：{errMsg}")
                             errcnt += 1
                             '品目Noが取得できなかった場合、エラーメッセージあり、エラーカウントする、また品目NoのPCも取得できないのでこの先のPC一致チェックで取込対象外となる
@@ -461,7 +508,12 @@ Namespace OMS.Data
                         'STRAMMIC.USRDEFFLDFより取得
                         profitcenter = ""
                         errMsg = ""
-                        If _oderStageRepo.GetProfitCenter(itemNo, profitcenter, errMsg) = False Then
+
+                        'If _oderStageRepo.GetProfitCenter(itemNo, profitcenter, errMsg) = False Then
+                        '    'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：{errMsg}")
+                        '    'ErrFlg = True
+                        'End If
+                        If _oderStageRepo.GetProfitCenter3(ProfitCenterCache, itemNo, profitcenter, errMsg) = False Then
                             'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {m_ImpData(IntDataCnt).hinmokugyoNo}：{errMsg}")
                             'ErrFlg = True
                         End If
@@ -883,7 +935,7 @@ Namespace OMS.Data
                     customerinfotype = ""
 
                     '情報区分
-                    infotype = "I"  '新規
+                    infotype = ""  '空白
 
                     '消込条件区分 ※順次/同月まで/同月内のみ
                     'IMP_RULE_MSTより取得
@@ -1126,6 +1178,10 @@ Namespace OMS.Data
 
             End If
 
+            swMain.Stop()
+            timeSec = swMain.Elapsed.TotalSeconds.ToString("0.000") & " 秒"
+            logger.Write("[INFO] 工程02: ParseImportFileY終了... 所要時間: " & timeSec)
+            logger.Write("==============================================")
 
 
             Return True
@@ -1208,6 +1264,17 @@ Namespace OMS.Data
             'ファイル内の行インデックス
             Dim fileidx As Integer = 0
 
+            '取引先設定IDのPC   （必須）
+            'CUSTOMER_SETTING_MSTより取得
+            profitcenterCSM = ""
+            errMsg = ""
+            If _oderStageRepo.GetProfitCenterFromCSM(CustomerSettingId, profitcenterCSM, errMsg) = False Then
+                'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                'ErrFlg = True
+            End If
+
+            Dim productCache = _oderStageRepo.CreateProductMasterCache(customerCode)
+            Dim ProfitCenterCache = _oderStageRepo.CreateProfitCenterCache()
 
             'ファイル読み込み
             Select Case mapResult.FileType
@@ -1298,7 +1365,6 @@ Namespace OMS.Data
                     End Using
                     '--
 
-
                     Using StmRdr As New IO.StreamReader(strWorkFile, MapEncoding(mapResult.CharSet))
 
                         Using csv As New CsvReader(StmRdr, config)
@@ -1351,7 +1417,7 @@ Namespace OMS.Data
                                 shipstocklocation = ""
                                 infotype = ""
                                 reconciletype = 1
-                                profitcenterCSM = ""
+                                'profitcenterCSM = ""
                                 profitcenter = ""
                                 itemstatus = ""
                                 infotypecode = ""
@@ -1361,14 +1427,14 @@ Namespace OMS.Data
                                 ErrFlg = False
 
 
-                                '取引先設定IDのPC   （必須）
-                                'CUSTOMER_SETTING_MSTより取得
-                                profitcenterCSM = ""
-                                errMsg = ""
-                                If _oderStageRepo.GetProfitCenterFromCSM(CustomerSettingId, profitcenterCSM, errMsg) = False Then
-                                    'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
-                                    'ErrFlg = True
-                                End If
+                                ''取引先設定IDのPC   （必須）
+                                ''CUSTOMER_SETTING_MSTより取得
+                                'profitcenterCSM = ""
+                                'errMsg = ""
+                                'If _oderStageRepo.GetProfitCenterFromCSM(CustomerSettingId, profitcenterCSM, errMsg) = False Then
+                                '    'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                                '    'ErrFlg = True
+                                'End If
 
                                 '客先品目No   (任意)
                                 If mapResult.nKyakusakiHinmokuNo > -1 Then
@@ -1410,18 +1476,27 @@ Namespace OMS.Data
 
                                 ElseIf spprocessType = 2 Then
                                     '特殊加工=2は、ヤマハ(IM以外)
+
                                     '品目ステータスを取得
                                     If mapResult.nYamahaItemStatus > -1 Then
                                         itemstatus = If(csv.ColumnCount > mapResult.nYamahaItemStatus AndAlso mapResult.nYamahaItemStatus > -1, csv.GetField(mapResult.nYamahaItemStatus).Trim(), "")
                                     End If
 
-                                    If _oderStageRepo.GetProductCode2(customerCode, customeritemNo, itemstatus, itemNo, errMsg) = False Then
+                                    'If _oderStageRepo.GetProductCode2(customerCode, customeritemNo, itemstatus, itemNo, errMsg) = False Then
+                                    '    errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                                    '    fileidx += 1
+                                    '    errcnt += 1
+                                    '    '品目Noが取得できなかった場合、エラーメッセージあり、エラーカウントする、また品目NoのPCも取得できないのでこの先のPC一致チェックで取込対象外となる
+                                    '    'ErrFlg = True
+                                    'End If
+                                    If _oderStageRepo.GetProductCode3(productCache, customerCode, customeritemNo, itemstatus, itemNo, errMsg) = False Then
                                         errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
                                         fileidx += 1
                                         errcnt += 1
                                         '品目Noが取得できなかった場合、エラーメッセージあり、エラーカウントする、また品目NoのPCも取得できないのでこの先のPC一致チェックで取込対象外となる
                                         'ErrFlg = True
                                     End If
+
                                 End If
 
 
@@ -1429,11 +1504,14 @@ Namespace OMS.Data
                                 'STRAMMIC.USRDEFFLDFより取得
                                 profitcenter = ""
                                 errMsg = ""
-                                If _oderStageRepo.GetProfitCenter(itemNo, profitcenter, errMsg) = False Then
+                                'If _oderStageRepo.GetProfitCenter(itemNo, profitcenter, errMsg) = False Then
+                                '    'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                                '    'ErrFlg = True
+                                'End If
+                                If _oderStageRepo.GetProfitCenter3(ProfitCenterCache, itemNo, profitcenter, errMsg) = False Then
                                     'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
                                     'ErrFlg = True
                                 End If
-
 
                                 '2026/10/19 重複データ(同一受注区分、同一客先発注No、同一客先品目No)除外処理を追加
                                 '客先発注No   (ordertype = 1:内示は任意、2:確定と3：納入指示は必須)
@@ -1699,10 +1777,16 @@ Namespace OMS.Data
                                     If mapResult.nYamahaItemStatus > -1 Then
                                         itemstatus = If(csv.ColumnCount > mapResult.nYamahaItemStatus AndAlso mapResult.nYamahaItemStatus > -1, csv.GetField(mapResult.nYamahaItemStatus).Trim(), "")
                                     End If
-                                    If _oderStageRepo.GetProductCode2(customerCode, customeritemNo, itemstatus, itemNo, errMsg) = False Then
+
+                                    'If _oderStageRepo.GetProductCode2(customerCode, customeritemNo, itemstatus, itemNo, errMsg) = False Then
+                                    '    errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                                    '    ErrFlg = True
+                                    'End If
+                                    If _oderStageRepo.GetProductCode3(productCache, customerCode, customeritemNo, itemstatus, itemNo, errMsg) = False Then
                                         errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
                                         ErrFlg = True
                                     End If
+
                                 End If
 
 
@@ -2077,7 +2161,7 @@ Namespace OMS.Data
                                 shipstocklocation = ""
                                 infotype = ""
                                 reconciletype = 1
-                                profitcenterCSM = ""
+                                'profitcenterCSM = ""
                                 profitcenter = ""
                                 itemstatus = ""
                                 infotypecode = ""
@@ -2086,14 +2170,14 @@ Namespace OMS.Data
 
                                 ErrFlg = False
 
-                                '取引先設定IDのPC   （必須）
-                                'CUSTOMER_SETTING_MSTより取得
-                                profitcenterCSM = ""
-                                errMsg = ""
-                                If _oderStageRepo.GetProfitCenterFromCSM(CustomerSettingId, profitcenterCSM, errMsg) = False Then
-                                    'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
-                                    'ErrFlg = True
-                                End If
+                                ''取引先設定IDのPC   （必須）
+                                ''CUSTOMER_SETTING_MSTより取得
+                                'profitcenterCSM = ""
+                                'errMsg = ""
+                                'If _oderStageRepo.GetProfitCenterFromCSM(CustomerSettingId, profitcenterCSM, errMsg) = False Then
+                                '    'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                                '    'ErrFlg = True
+                                'End If
 
                                 '客先品目No   (任意)
                                 If mapResult.nKyakusakiHinmokuNo > 0 Then
@@ -2142,7 +2226,14 @@ Namespace OMS.Data
                                         itemstatus = If(mapResult.nYamahaItemStatus > 0, xlRow.Cell(mapResult.nYamahaItemStatus).GetValue(Of String)().Trim(), "")
                                     End If
 
-                                    If _oderStageRepo.GetProductCode2(customerCode, customeritemNo, itemstatus, itemNo, errMsg) = False Then
+                                    'If _oderStageRepo.GetProductCode2(customerCode, customeritemNo, itemstatus, itemNo, errMsg) = False Then
+                                    '    errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                                    '    fileidx += 1
+                                    '    errcnt += 1
+                                    '    '品目Noが取得できなかった場合、エラーメッセージあり、エラーカウントする、また品目NoのPCも取得できないのでこの先のPC一致チェックで取込対象外となる
+                                    '    'ErrFlg = True
+                                    'End If
+                                    If _oderStageRepo.GetProductCode3(productCache, customerCode, customeritemNo, itemstatus, itemNo, errMsg) = False Then
                                         errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
                                         fileidx += 1
                                         errcnt += 1
@@ -2156,7 +2247,11 @@ Namespace OMS.Data
                                 'STRAMMIC.USRDEFFLDFより取得
                                 profitcenter = ""
                                 errMsg = ""
-                                If _oderStageRepo.GetProfitCenter(itemNo, profitcenter, errMsg) = False Then
+                                'If _oderStageRepo.GetProfitCenter(itemNo, profitcenter, errMsg) = False Then
+                                '    'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                                '    'ErrFlg = True
+                                'End If
+                                If _oderStageRepo.GetProfitCenter3(ProfitCenterCache, itemNo, profitcenter, errMsg) = False Then
                                     'errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
                                     'ErrFlg = True
                                 End If
@@ -2427,7 +2522,11 @@ Namespace OMS.Data
                                     If mapResult.nYamahaItemStatus > 0 Then
                                         itemstatus = If(mapResult.nYamahaItemStatus > 0, xlRow.Cell(mapResult.nYamahaItemStatus).GetValue(Of String)().Trim(), "")
                                     End If
-                                    If _oderStageRepo.GetProductCode2(customerCode, customeritemNo, itemstatus, itemNo, errMsg) = False Then
+                                    'If _oderStageRepo.GetProductCode2(customerCode, customeritemNo, itemstatus, itemNo, errMsg) = False Then
+                                    '    errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
+                                    '    ErrFlg = True
+                                    'End If
+                                    If _oderStageRepo.GetProductCode3(productCache, customerCode, customeritemNo, itemstatus, itemNo, errMsg) = False Then
                                         errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　Row {fileidx}：{errMsg}")
                                         ErrFlg = True
                                     End If
@@ -2857,7 +2956,7 @@ Namespace OMS.Data
                                 shipstocklocation = ""
                                 infotype = ""
                                 reconciletype = 1
-                                profitcenterCSM = ""
+                                'profitcenterCSM = ""
                                 profitcenter = ""
 
                                 If orderDateErrFlg = True Then
@@ -2899,19 +2998,22 @@ Namespace OMS.Data
                                 End If
 
 
-                                '取引先設定IDのPC   （必須）
-                                'CUSTOMER_SETTING_MSTより取得
-                                profitcenterCSM = ""
-                                errMsg = ""
-                                If _oderStageRepo.GetProfitCenterFromCSM(CustomerSettingId, profitcenterCSM, errMsg) = False Then
-                                    'ErrFlg = True
-                                End If
+                                ''取引先設定IDのPC   （必須）
+                                ''CUSTOMER_SETTING_MSTより取得
+                                'profitcenterCSM = ""
+                                'errMsg = ""
+                                'If _oderStageRepo.GetProfitCenterFromCSM(CustomerSettingId, profitcenterCSM, errMsg) = False Then
+                                '    'ErrFlg = True
+                                'End If
 
                                 '品目NoのPC   （必須）
                                 'STRAMMIC.USRDEFFLDFより取得
                                 profitcenter = ""
                                 errMsg = ""
-                                If _oderStageRepo.GetProfitCenter(itemNo, profitcenter, errMsg) = False Then
+                                'If _oderStageRepo.GetProfitCenter(itemNo, profitcenter, errMsg) = False Then
+                                '    'ErrFlg = True
+                                'End If
+                                If _oderStageRepo.GetProfitCenter3(ProfitCenterCache, itemNo, profitcenter, errMsg) = False Then
                                     'ErrFlg = True
                                 End If
 
