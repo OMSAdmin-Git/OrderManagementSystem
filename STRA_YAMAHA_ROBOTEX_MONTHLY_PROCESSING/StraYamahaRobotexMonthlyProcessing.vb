@@ -1,11 +1,12 @@
-﻿Imports System.Runtime.InteropServices.ComTypes
+﻿Imports System.Configuration
+Imports System.IO
+Imports System.Runtime.InteropServices.ComTypes
 Imports System.Windows.Forms
 Imports System.Xml.Linq
 Imports OMS.Common
 Imports OMS.Data
 Imports Oracle.ManagedDataAccess
 Imports Oracle.ManagedDataAccess.Client
-Imports System.Configuration
 
 Module StraYamahaRobotexMonthlyProcessing
 
@@ -57,6 +58,16 @@ Module StraYamahaRobotexMonthlyProcessing
             Dim userId = ConfigurationManager.ConnectionStrings("OMSConnection").ConnectionString
             Dim logPath = ConfigurationManager.AppSettings("LogPath")
 
+            ' INITIAL
+            Dim wkUpdatedAt = DateTime.Now                  ' WK_UPDATED_AT(更新日時)
+            Dim wkUpdatedUserId = "BkYamahaOdr"             ' WK_UPDATED_USER_ID(更新ユーザーID)
+            Dim wkUpdatedPgId = "Yamaha robotex of Orders"  ' WK_UPDATED_PG_ID(更新プログラムID)
+
+            ' Log
+            _logger = New Logger(Path.Combine(logPath, LogFilename))
+            EnsureDirectory(logPath)
+            _logger.Write($"STRA_YAMAHA_ROBOTEX_MONTHLY_PROCESSING.exe Start: {wkUpdatedAt.ToString()}")
+
             If (userId = "" Or logPath = "") Then
                 Throw New Exception("Configration  Error")
             End If
@@ -70,7 +81,13 @@ Module StraYamahaRobotexMonthlyProcessing
             Dim lastDate = recl.AddWorkingDays2(icalType, New DateTime(nowOption.Year, nowOption.Month, DateTime.DaysInMonth(nowOption.Year, nowOption.Month)), 0)
 
             ' 当月 20日(非稼働日の場合前倒し日)以降のものを削除する処理
-            repo.YamahaRobotexMonthlyProcess(customerCode, firstDate, lastDate)
+            errors.Add(repo.YamahaRobotexMonthlyProcess(customerCode, firstDate, lastDate))
+
+            If (0 = errors.FindAll(Function(x) x <> "").Count) Then
+                _logger.Write($"YamahaRobotexMonthlyProcess.exe Complete: {DateTime.Now.ToString()}")
+            Else
+                Throw New Exception("Update Error")
+            End If
 
         Catch ex As Exception
             errors.Add(ex.Message)
