@@ -1533,6 +1533,8 @@ Namespace Pages.Orders
             'グリッド再描画
             gvImpFilesStage_Init()
             gvImportOrder_Init()
+            'gvImportOrder_Init()
+            'gvImpFilesStage_Init()
 
             lblImportResult.Text = ""
             lblImportError.Text = ""
@@ -1576,11 +1578,13 @@ Namespace Pages.Orders
                 '加工済み受注　取得 2026/11/09
                 'Dim dtCustomerSettingIds As DataTable = _oderStageRepo.GetProcessedCustomerSettingIds(UserId)
                 Dim inClause = ""
-                ' ↓ (有効化)
-                'UpdatePCList()
-                'If (_paramNames IsNot Nothing AndAlso _paramNames.Count > 0) Then
-                '    inClause = $"And customer_setting_id In ({String.Join(", ", _paramNames)}) "
-                'End If
+                ' ↓ (ProfitCenterFilter = true :有効化)
+#If ProfitCenterFilter Then
+                UpdatePCList()
+                If (_paramNames IsNot Nothing AndAlso _paramNames.Count > 0) Then
+                    inClause = $"And customer_setting_id In ({String.Join(", ", _paramNames)}) "
+                End If
+#End If
                 ' ↑
                 Dim dtCustomerSettingIds As DataTable = _oderStageRepo.GetProcessedCustomerSettingIds(UserId, inClause)
 
@@ -1840,11 +1844,14 @@ Namespace Pages.Orders
             Dim inClause As String = ""
             'ファイル選択 リストで [取込み実行]ボタンが押されたときに 使用しているPCリストを更新するため
             ' 画面を一度抜けて から [保存]ボタン押す動作ができないため 機能を無効化している 2026/11/9
-            ' ↓ (有効化)
-            'If (_paramNames Is Nothing OrElse _paramNames.Count = 0) Then
-            'Else
-            '    inClause = $"And customer_setting_id In ({String.Join(", ", _paramNames)}) "
-            'End If
+            ' ↓ (ProfitCenterFilter = true :有効化)
+            UpdatePCList()
+#If ProfitCenterFilter Then
+            If (_paramNames Is Nothing OrElse _paramNames.Count = 0) Then
+            Else
+                inClause = $"And customer_setting_id In ({String.Join(", ", _paramNames)}) "
+            End If
+#End If
             ' ↑
 
             Dim dt As DataTable = repo.GetOrdersStage(
@@ -1901,9 +1908,11 @@ Namespace Pages.Orders
         '''' <param name="e"></param>
         Protected Sub chkSelect_CheckedChanged(sender As Object, e As EventArgs)
             ' 2026/11/9
-            ' ↓ (有効化)
-            'UpdatePCList()
-            'gvImportOrder_Init()
+            ' ↓ (ProfitCenterFilter = true :有効化)
+#If ProfitCenterFilter Then
+            UpdatePCList()
+            gvImportOrder_Init()
+#End If
             ' ↑
         End Sub
         ''' <summary>
