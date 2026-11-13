@@ -102,6 +102,7 @@ body {
     border: 1px solid #ccc; /* 枠線（任意） */
     padding: 0; /* 上部に隙間ができないよう0を明示 */
     position: relative; /* スクロール基準を明確化 */
+    margin: 0;
 }
 
 /* 実際のテーブル本体 */
@@ -110,6 +111,7 @@ body {
     min-width: 800px;
     border-collapse: separate; /* sticky使用時はcollapseだと線が消えることがあるためseparate推奨 */
     border-spacing: 0;
+    border: none; /* テーブル自体の外枠線を消してガタつきを防止 */
     margin: 0; /* 上部の隙間防止 */
 }
 
@@ -117,17 +119,29 @@ body {
     .data-grid th {
         position: sticky;
         top: -1px; /* 【解決2】0ではなく-1pxにすることで上端の隙間（透け）を完全に塞ぐ */
+        /*top: 0;*/ /* 0に戻すことでスクロール開始時の上下のズレをなくす */
         background-color: #333333; /* GridViewのHeaderStyleと色を合わせる */
         z-index: 10; /* データ行より前面に表示 */
+        border: none; /* 一旦リセット */
         border-top: 1px solid #333333; /* 上端の線も背景色と同化させる */
+        /*
+        border-right: 1px solid #555555; * ヘッダーの縦線 *
         border-bottom: 2px solid #292929;
+        */
+        box-shadow: inset -1px 0 0 #555555, inset 0 -2px 0 #292929;
         padding: 8px;
         white-space: nowrap;
     }
+        /* 右端のヘッダーは下線だけにする（右の縦線を消す） */
+        .data-grid th:last-child {
+            box-shadow: inset 0 -2px 0 #292929;
+        }
     /* データ行（td）のスタイル */
     .data-grid td {
         padding: 8px;
-        border-bottom: 1px solid #ddd;
+        border: none;
+        border-right: 1px solid #ddd; /* データ行の縦線 */
+        border-bottom: 1px solid #ddd; /* データ行の横線 */
         white-space: nowrap;
     }
 
