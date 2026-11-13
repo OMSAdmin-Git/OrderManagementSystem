@@ -2016,8 +2016,8 @@ Namespace Pages.Orders
         '''  fraction 端数
         ''' </returns>
         Public Function GetRoundCalc(total As Integer, tdays As Integer, tunit As Integer, splitRationType As Int16) As (roundedUp As Integer, days As Integer, fraction As Integer)
-            ' splitRationType条件設定
-            Dim daysValue As Double = tdays + If(splitRationType = 1, 0, 1)
+            ' splitRationType条件設定 
+            Dim daysValue As Double = tdays '+ If(splitRationType = 1, 0, 1)
             Dim totalQuantity As Double = total
             Dim unit As Double = tunit
             Dim modCount = total Mod daysValue
