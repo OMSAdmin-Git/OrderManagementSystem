@@ -57,10 +57,10 @@ body {
 }
 
 /* ★追加：中のLabel（span）がブラウザの文字色（黒）で上書きされるのを防ぐ */
-.process-header-suzuki span {
-    color: inherit; /* 親（div）の白色を引き継ぐ */
-    font-size: inherit; /* 親の20pxを引き継ぐ */
-}
+/*.process-header-suzuki span {
+    color: inherit;*/  /*親（div）の白色を引き継ぐ*/ 
+    /*font-size: inherit;*/  /*親の20pxを引き継ぐ */ 
+/*}*/
 
 /* ===================================================================
    データ表示エリア（GridView / 表形式）
@@ -75,14 +75,14 @@ body {
     overflow-x: auto;
 }
 
-.data-grid-wrapper {
+/*.data-grid-wrapper {
     display: block;
     max-height: 300px;
     overflow-y: auto;
-}
+}*/
 
 /* 実際のテーブル本体 */
-.data-grid {
+/*.data-grid {
     min-width: 800px;
     border-collapse: collapse;
 }
@@ -92,6 +92,43 @@ body {
         padding: 8px;
         white-space: nowrap;
         overflow: visible;
+    }*/
+
+.data-grid-wrapper {
+    display: block;
+    overflow-y: auto; /* 縦スクロールを有効化 */
+    overflow-x: auto; /* 画面が800px未満になったときの横スクロール用 */
+    max-height: 300px;
+    border: 1px solid #ccc; /* 枠線（任意） */
+    padding: 0; /* 上部に隙間ができないよう0を明示 */
+    position: relative; /* スクロール基準を明確化 */
+}
+
+/* 実際のテーブル本体 */
+.data-grid {
+    width: 100%; /* 【解決1】親要素の幅いっぱいに広げて右側の空白をなくす */
+    min-width: 800px;
+    border-collapse: separate; /* sticky使用時はcollapseだと線が消えることがあるためseparate推奨 */
+    border-spacing: 0;
+    margin: 0; /* 上部の隙間防止 */
+}
+
+    /* ヘッダー行（th）の固定設定 */
+    .data-grid th {
+        position: sticky;
+        top: -1px; /* 【解決2】0ではなく-1pxにすることで上端の隙間（透け）を完全に塞ぐ */
+        background-color: #333333; /* GridViewのHeaderStyleと色を合わせる */
+        z-index: 10; /* データ行より前面に表示 */
+        border-top: 1px solid #333333; /* 上端の線も背景色と同化させる */
+        border-bottom: 2px solid #292929;
+        padding: 8px;
+        white-space: nowrap;
+    }
+    /* データ行（td）のスタイル */
+    .data-grid td {
+        padding: 8px;
+        border-bottom: 1px solid #ddd;
+        white-space: nowrap;
     }
 
 /* 1項目単位の入力ブロック（フォーム等で使用） */
