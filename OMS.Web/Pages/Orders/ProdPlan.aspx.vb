@@ -685,7 +685,7 @@ Namespace Pages.Orders
                                                             'Next
                                                             '日割り
                                                             Case 1
-                                                                Dim ans = GetRoundCalc(qty, businessDay, unit, splitRationType)
+                                                                Dim ans = GetRoundCalc(qty, businessDay, unit, splitRationType, splitMethodType)
                                                                 Dim roundup = ans.roundedUp     ' 注文/day
                                                                 Dim days = ans.days             ' 期間
                                                                 Dim fraction = ans.fraction     ' 端数
@@ -717,7 +717,7 @@ Namespace Pages.Orders
                                                                 Next
                                                             '4分割
                                                             Case 2
-                                                                Dim ans = GetRoundCalc(qty, 4, unit, splitRationType)
+                                                                Dim ans = GetRoundCalc(qty, 4, unit, splitRationType, splitMethodType)
                                                                 Dim roundup = ans.roundedUp     ' 注文/day
                                                                 Dim days = ans.days + If(splitRationType = 1, -1, -2)           ' 期間
                                                                 Dim fraction = ans.fraction     ' 端数
@@ -797,7 +797,7 @@ Namespace Pages.Orders
 
                                                             '2分割
                                                             Case 4
-                                                                Dim ans = GetRoundCalc(qty, 2, unit, splitRationType)
+                                                                Dim ans = GetRoundCalc(qty, 2, unit, splitRationType, splitMethodType)
                                                                 Dim roundup = ans.roundedUp     ' 注文/day
                                                                 Dim days = ans.days             ' 期間
                                                                 Dim fraction = ans.fraction     ' 端数
@@ -2015,9 +2015,10 @@ Namespace Pages.Orders
         '''  days 展開日数
         '''  fraction 端数
         ''' </returns>
-        Public Function GetRoundCalc(total As Integer, tdays As Integer, tunit As Integer, splitRationType As Int16) As (roundedUp As Integer, days As Integer, fraction As Integer)
+        Public Function GetRoundCalc(total As Integer, tdays As Integer, tunit As Integer, splitRationType As Int16, spritMethodType As Int16) As (roundedUp As Integer, days As Integer, fraction As Integer)
             ' splitRationType条件設定 
-            Dim daysValue As Double = tdays '+ If(splitRationType = 1, 0, 1)
+            Dim optionDay As Integer = If(spritMethodType = 1, 0, 1)
+            Dim daysValue As Double = tdays + optionDay ' + If(splitRationType = 1, 0, 1)
             Dim totalQuantity As Double = total
             Dim unit As Double = tunit
             Dim modCount = total Mod daysValue
