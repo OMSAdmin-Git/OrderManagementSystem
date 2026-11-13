@@ -3119,7 +3119,7 @@ Namespace OMS.Data
         'End Sub
 
         ''' <summary>
-        ''' 打切処理    INFO_TYPE='N'打切 を'PROCESSED'加工済データに更新する
+        ''' 打切処理    今回取込データのINFO_TYPE='N'打切 を'PROCESSED'加工済データにし、ACTIVE_FLAG='N'に更新する
         ''' </summary>
         ''' <param name="tran">実行中のトランザクション</param>
         ''' <param name="impFileStageId">処理中の一時取込ファイルID</param>
@@ -3151,7 +3151,7 @@ Namespace OMS.Data
         End Sub
 
         ''' <summary>
-        ''' 取消処理    INFO_TYPE='D'取消 を'PROCESSED'加工済データに更新する
+        ''' 取消処理    今回取込データのINFO_TYPE='D'取消 を'PROCESSED'加工済データに更新する※ACTIVE_FLAGはそのまま
         ''' </summary>
         ''' <param name="tran">実行中のトランザクション</param>
         ''' <param name="impFileStageId">処理中の一時取込ファイルID</param>
@@ -3183,6 +3183,89 @@ Namespace OMS.Data
         End Sub
 
         ''' <summary>
+        ''' 除外処理    今回取込データの需要数がゼロでかつ客先発注Noと客先品目Noが一致する過去データがない場合は取込対象外とする処理
+        ''' </summary>
+        ''' <param name="tran">実行中のトランザクション</param>
+        ''' <param name="customerSettingId">処理中の取引先設定ID</param>
+        ''' <param name="impFileStageId">処理中の一時取込ファイルID</param>
+        ''' <param name="OrderType">処理中の受注区分</param>
+        Public Sub UpdateForExclusion(ByVal tran As OracleTransaction, ByVal customerSettingId As Long, ByVal ImpFileStageId As Long, ByVal OrderType As Integer)
+
+            Dim sql As String = ""
+
+            If OrderType = 2 Then
+
+                '確定用
+                ' 今回取込データの需要数がゼロでかつ過去の取込データに客先発注Noと客先品目Noが一致するデータがない場合
+                ' 今回取込データを'PROCESSED'加工済データ ACTIVE_FLAG='N'に更新
+                ' tgt=今回データ cur=過去データ
+                sql =
+                            " UPDATE orders_stage tgt" &
+                            " SET " &
+                            " tgt.status = 'PROCESSED', " &
+                            " tgt.active_flag = 'N' " &
+                            " WHERE tgt.order_type = :p_order_type " &
+                            " AND tgt.active_flag = 'Y' " &
+                            " AND tgt.imp_file_stage_id = :p_imp_file_stage_id " &
+                            " AND demand_qty = 0 " &
+                            " AND NOT EXISTS ( " &
+                            " SELECT 1 " &
+                            " FROM orders_stage cur " &
+                            " WHERE cur.imp_file_stage_id IS NULL " &
+                            " AND cur.customer_setting_id = :p_customer_setting_id " &
+                            " AND cur.order_type = :p_order_type " &
+                            " AND cur.active_flag = 'Y' " &
+                            " AND cur.customer_setting_id = tgt.customer_setting_id " &
+                            " AND cur.order_type = tgt.order_type " &
+                            " AND cur.customer_order_no = tgt.customer_order_no " &
+                            " AND cur.customer_item_no = tgt.customer_item_no) "
+
+            ElseIf OrderType = 3 Then
+
+                ''納入指示用
+                '' 今回取込データの需要数がゼロでかつ過去(ORDERS)の取込データに客先発注Noと客先品目Noが一致するデータがない場合
+                '' 今回取込データを'PROCESSED'加工済データ ACTIVE_FLAG='N'に更新
+                '' tgt=今回データ cur=過去データ
+                'sql =
+                '            " UPDATE orders_stage tgt" &
+                '            " SET " &
+                '            " tgt.status = 'PROCESSED', " &
+                '            " tgt.active_flag = 'N' " &
+                '            " WHERE tgt.order_type = :p_order_type " &
+                '            " AND tgt.active_flag = 'Y' " &
+                '            " AND tgt.imp_file_stage_id = :p_imp_file_stage_id " &
+                '            " AND demand_qty = 0 " &
+                '            " AND NOT EXISTS ( " &
+                '            " SELECT 1 " &
+                '            " FROM orders cur " &
+                '            " WHERE cur.customer_setting_id = :p_customer_setting_id " &
+                '            " AND cur.order_type = :p_order_type " &
+                '            " AND cur.active_flag = 'Y' " &
+                '            " AND cur.customer_setting_id = tgt.customer_setting_id " &
+                '            " AND cur.order_type = tgt.order_type " &
+                '            " AND cur.customer_order_no = tgt.customer_order_no " &
+                '            " AND cur.customer_item_no = tgt.customer_item_no) "
+
+            End If
+
+            Using cmd As New OracleCommand(sql, tran.Connection)
+
+                cmd.Transaction = tran
+                cmd.BindByName = True
+                cmd.CommandType = CommandType.Text
+                cmd.Parameters.Clear()
+
+                cmd.Parameters.Add(":p_customer_setting_id", OracleDbType.Int64).Value = customerSettingId
+                cmd.Parameters.Add(":p_imp_file_stage_id", OracleDbType.Int64).Value = ImpFileStageId
+                cmd.Parameters.Add(":p_order_type", OracleDbType.Int16).Value = OrderType
+
+                cmd.ExecuteNonQuery()
+
+            End Using
+
+        End Sub
+
+        ''' <summary>
         ''' 過去の確定データを無効化して、今回の取込データを更新する(客先発注Noおよび客先品目Noで無効化)
         ''' </summary>
         ''' <param name="tran">トランザクション</param>
@@ -3199,9 +3282,10 @@ Namespace OMS.Data
                                         ByVal updatepgId As String)
 
             '2026/11/11 以前は過去データを無効化してから今回データを更新していたが順番を入れ替え
-            Dim sql As String = ""
 
-            ' 今回の取込データ INFO_TYPE='U'or NULL を'PROCESSED'加工済データ info_type=U(更新)に更新
+            Dim sql As String = ""
+            ' 今回の取込データ INFO_TYPE='U'(更新)or NULL(更新扱い) を'PROCESSED'加工済データ INFO_TYPE=U(更新)に更新
+            ' tgt=今回データ cur=過去データ
             sql =
                         " UPDATE orders_stage tgt" &
                         " SET " &
@@ -3243,9 +3327,9 @@ Namespace OMS.Data
             End Using
 
 
-
-            ' 過去データ（今回取込データ以外）で、キーが一致するものを無効化(REPLACED:洗替済データ active_flag = N)
-            ' info_type=U(更新)D(取消)NULLのデータが対象
+            ' 過去データ（今回取込データ以外）で、キーが一致するものを無効化(REPLACED:洗替済データ ACTIVE_FLAG = N)
+            ' INFO_TYPE=U(更新)D(取消)NULL(更新扱い)のデータが対象
+            ' tgt=過去データ cur=今回データ
             sql =
                         " UPDATE orders_stage tgt" &
                         " SET " &
@@ -3770,7 +3854,7 @@ Namespace OMS.Data
         ''' <param name="tran">実行中のトランザクション</param>
         ''' <param name="impFileStageId">処理中の一時取込ファイルID</param>
         Public Sub UpdateKakuteiNewOrders(ByVal tran As OracleTransaction, ByVal impFileStageId As Long)
-            ' 仕様書 P5「確定新規」の条件に基づくUPDATE文
+
             Const sql As String =
                         " UPDATE orders_stage " &
                         " SET status = 'PROCESSED' " &
@@ -3794,130 +3878,6 @@ Namespace OMS.Data
 
             End Using
         End Sub
-
-        '''' <summary>
-        '''' 確定消込（客先発注No、客先品目Noでの消込）を実行する
-        '''' </summary>
-        '''' <param name="tran">トランザクション</param>
-        '''' <param name="customerSettingId">処理中の取引先設定ID</param>
-        '''' <param name="impFileStageId">今回取込の IMP_FILE_STAGE_ID</param>
-        '''' <param name="updatedAt">更新日時</param>
-        '''' <param name="updateUserId">更新ユーザーID</param>
-        '''' <param name="updatepgId">更新プログラムID</param>
-        'Public Sub ExecuteOrderReconciliationByOrderNo(ByVal tran As OracleTransaction,
-        '                                                ByVal customerSettingId As Long,
-        '                                                ByVal impFileStageId As Long,
-        '                                                ByVal updatedAt As DateTime,
-        '                                                ByVal updateUserId As String,
-        '                                                ByVal updatepgId As String)
-
-        '    '' 1. 同一の CUSTOMER_SETTING_ID と CUSTOMER_ORDER_NO を持つ過去データを特定
-        '    '' 2. DEMAND_QTY を (過去 - 今回) で減数更新
-        '    '' 3. 需要数が0になった場合は STATUS='RECONCILED', ACTIVE_FLAG='N' に更新
-
-        '    'Dim Sql As String =
-        '    '        " MERGE INTO orders_stage tgt " &
-        '    '        " USING ( " &
-        '    '        " WITH cur AS ( " &
-        '    '        " SELECT " &
-        '    '        " c.customer_setting_id, " &
-        '    '        " c.customer_order_no, " &
-        '    '        " c.customer_item_no, " &
-        '    '        " SUM(c.demand_qty) AS demand_qty " &
-        '    '        " FROM orders_stage c " &
-        '    '        " WHERE c.imp_file_stage_id = :p_imp_file_stage_id " &
-        '    '        " AND c.order_type = 3 " &
-        '    '        " AND NVL(c.info_type, 'U') = 'U' " &
-        '    '        " And c.active_flag = 'Y' " &
-        '    '        " GROUP BY c.customer_setting_id, c.customer_order_no, c.customer_item_no " &
-        '    '        " ), " &
-        '    '        " past AS ( " &
-        '    '        " SELECT p.rowid AS rid, p.customer_setting_id, p.customer_order_no, p.customer_item_no, p.demand_qty " &
-        '    '        " FROM orders_stage p " &
-        '    '        " WHERE p.imp_file_id <> :p_imp_file_stage_id " &
-        '    '        " AND p.order_type = 2 " &
-        '    '        " AND p.active_flag = 'Y' " &
-        '    '        " AND p.customer_setting_id = :p_customer_setting_id " &
-        '    '        " ) " &
-        '    '        " SELECT  " &
-        '    '        " p.rid, " &
-        '    '        " p.demand_qty AS past_qty, " &
-        '    '        " c.demand_qty AS cur_qty " &
-        '    '        " FROM past p " &
-        '    '        " JOIN cur c ON c.customer_setting_id = p.customer_setting_id " &
-        '    '        " AND c.customer_order_no = p.customer_order_no " &
-        '    '        " AND c.customer_item_no = p.customer_item_no " &
-        '    '        " ) m " &
-        '    '        " ON (tgt.rowid = m.rid) " &
-        '    '        " WHEN MATCHED THEN " &
-        '    '        " UPDATE SET " &
-        '    '        " tgt.demand_qty      = NVL(m.past_qty, 0) - NVL(m.cur_qty, 0), " &
-        '    '        " tgt.status          = CASE WHEN NVL(m.past_qty, 0) - NVL(m.cur_qty, 0) = 0 THEN 'RECONCILED' ELSE tgt.status END, " &
-        '    '        " tgt.active_flag     = CASE WHEN NVL(m.past_qty, 0) - NVL(m.cur_qty, 0) = 0 THEN 'N' ELSE tgt.active_flag END, " &
-        '    '        " tgt.updated_at      = :p_updated_at, " &
-        '    '        " tgt.updated_user_id = :p_user_id, " &
-        '    '        " tgt.updated_pg_id   = :p_updated_pg_id "
-        '    Dim Sql As String =
-        '            " MERGE INTO orders_stage tgt " &
-        '            " USING ( " &
-        '            " WITH cur AS ( " &
-        '            " SELECT " &
-        '            " c.customer_setting_id, " &
-        '            " c.customer_order_no, " &
-        '            " c.customer_item_no, " &
-        '            " SUM(c.demand_qty) AS demand_qty " &
-        '            " FROM orders_stage c " &
-        '            " WHERE c.imp_file_stage_id = :p_imp_file_stage_id " &
-        '            " AND c.order_type = 3 " &
-        '            " AND NVL(c.info_type, 'U') = 'U' " &
-        '            " And c.active_flag = 'Y' " &
-        '            " GROUP BY c.customer_setting_id, c.customer_order_no, c.customer_item_no " &
-        '            " ), " &
-        '            " past AS ( " &
-        '            " SELECT p.rowid AS rid, p.customer_setting_id, p.customer_order_no, p.customer_item_no, p.demand_qty " &
-        '            " FROM orders_stage p " &
-        '            " WHERE (p.imp_file_id <> :p_imp_file_stage_id or p.imp_file_stage_id <> :p_imp_file_stage_id ) " &
-        '            " AND p.order_type = 2 " &
-        '            " AND p.active_flag = 'Y' " &
-        '            " AND p.customer_setting_id = :p_customer_setting_id " &
-        '            " ) " &
-        '            " SELECT  " &
-        '            " p.rid, " &
-        '            " p.demand_qty AS past_qty, " &
-        '            " c.demand_qty AS cur_qty " &
-        '            " FROM past p " &
-        '            " JOIN cur c ON c.customer_setting_id = p.customer_setting_id " &
-        '            " AND c.customer_order_no = p.customer_order_no " &
-        '            " AND c.customer_item_no = p.customer_item_no " &
-        '            " ) m " &
-        '            " ON (tgt.rowid = m.rid) " &
-        '            " WHEN MATCHED THEN " &
-        '            " UPDATE SET " &
-        '            " tgt.demand_qty      = NVL(m.past_qty, 0) - NVL(m.cur_qty, 0), " &
-        '            " tgt.status          = CASE WHEN NVL(m.past_qty, 0) - NVL(m.cur_qty, 0) = 0 THEN 'RECONCILED' ELSE tgt.status END, " &
-        '            " tgt.active_flag     = CASE WHEN NVL(m.past_qty, 0) - NVL(m.cur_qty, 0) = 0 THEN 'N' ELSE tgt.active_flag END, " &
-        '            " tgt.updated_at      = :p_updated_at, " &
-        '            " tgt.updated_user_id = :p_user_id, " &
-        '            " tgt.updated_pg_id   = :p_updated_pg_id "
-
-        '    Using cmd As New OracleCommand(Sql, tran.Connection)
-        '        cmd.Transaction = tran
-        '        cmd.BindByName = True
-        '        cmd.CommandType = CommandType.Text
-        '        cmd.Parameters.Clear()
-
-        '        ' パラメータ設定
-        '        cmd.Parameters.Add(":p_customer_setting_id", OracleDbType.Int64).Value = customerSettingId
-        '        cmd.Parameters.Add(":p_imp_file_stage_id", OracleDbType.Int64).Value = impFileStageId
-        '        cmd.Parameters.Add(":p_updated_at", OracleDbType.Date).Value = updatedAt
-        '        cmd.Parameters.Add(":p_user_id", OracleDbType.Varchar2, 9).Value = SafeVarchar(updateUserId, 9)
-        '        cmd.Parameters.Add(":p_updated_pg_id", OracleDbType.Varchar2, 150).Value = SafeVarchar(updatepgId, 150)
-
-
-        '        cmd.ExecuteNonQuery()
-
-        '    End Using
-        'End Sub
 
         ''' <summary>
         ''' 確定消込（客先発注No、客先品目Noでの消込）を実行する

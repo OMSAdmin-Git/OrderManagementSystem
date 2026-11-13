@@ -4151,6 +4151,11 @@ Namespace OMS.Data
                     '取消処理
                     _oderStageRepo.UpdateCancel(tran, impfilestageId, 2)
 
+                    '2026/11/13
+                    '取込データ需要数ゼロチェック
+                    '需要数ゼロで客先発注No、客先品目Noが一致する過去データが存在しない場合は取込対象
+                    _oderStageRepo.UpdateForExclusion(tran, CustomerSettingId, impfilestageId, 2)
+                    '--
 
                     '確定データ無効化(客先発注No、客先品目No)
                     _oderStageRepo.ReplaceKakuteiRelation(tran,
@@ -4159,6 +4164,7 @@ Namespace OMS.Data
                                                       Now,
                                                       UserId,
                                                       pgId)
+
 
                     'デバック用
                     'tran.Commit()
@@ -4231,6 +4237,12 @@ Namespace OMS.Data
 
                     '取消処理
                     _oderStageRepo.UpdateCancel(tran, impfilestageId, 3)
+
+                    '2026/11/13
+                    '取込データ需要数ゼロチェック
+                    '需要数ゼロで客先発注No、客先品目Noが一致する過去データが存在しない場合は取込対象
+                    '_oderStageRepo.UpdateForExclusion(tran, CustomerSettingId, impfilestageId, 3)
+                    '--
 
                     '消込フラグをチェック
                     If ReconcileFlag = "Y" Then
