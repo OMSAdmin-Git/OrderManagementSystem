@@ -79,7 +79,8 @@
             <div class="data-list">
                 <div class="data-grid-wrapper">
                     <asp:GridView ID="gvSelectCustomers" runat="server"
-                        AutoGenerateColumns="False"
+                        UseAccessibleHeader="true" 
+                        AutoGenerateColumns="false"
                         CssClass="data-grid"
                         BackColor="White"
                         BorderColor="#CCCCCC" BorderStyle="None" BorderWidth="1px"

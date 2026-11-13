@@ -88,7 +88,8 @@
             <div class="data-list">
                 <div class="data-grid-wrapper">
                     <asp:GridView ID="gvImpFilesStage" runat="server"
-                        AutoGenerateColumns="False"
+                        UseAccessibleHeader="true" 
+                        AutoGenerateColumns="false"
                         CssClass="data-grid"
                         BackColor="White"
                         BorderColor="#CCCCCC" BorderStyle="None" BorderWidth="1px"
@@ -170,7 +171,8 @@
             <div class="data-list">
                 <div class="data-grid-wrapper">
                     <asp:GridView ID="gvImportOrder" runat="server"
-                        AutoGenerateColumns="False"
+                        UseAccessibleHeader="true" 
+                        AutoGenerateColumns="false"
                         CssClass="data-grid"
                         BackColor="White"
                         BorderColor="#CCCCCC" BorderStyle="None" BorderWidth="1px"
@@ -185,7 +187,7 @@
                             <asp:BoundField DataField="CustomerUnitId" HeaderText="注文工場／担当者ID" Visible="false" />
                             <asp:BoundField DataField="CustomerUnitName" HeaderText="注文工場／担当者名" />
                             <asp:BoundField DataField="OrderType" HeaderText="受注区分" />
-                            <asp:BoundField DataField="CustomerOrderNo" HeaderText="客先発注No"/>
+                            <asp:BoundField DataField="CustomerOrderNo" HeaderText="客先発注No" />
                             <asp:BoundField DataField="OrderDate" HeaderText="受注日" DataFormatString="{0:yyyy/MM/dd}" HtmlEncode="False" />                            
                             <asp:BoundField DataField="DueDate" HeaderText="希望納期" DataFormatString="{0:yyyy/MM/dd}" HtmlEncode="False" />
                             <asp:BoundField DataField="CustomerItemNo" HeaderText="客先品目No" />
