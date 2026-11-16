@@ -2017,8 +2017,18 @@ Namespace Pages.Orders
         ''' </returns>
         Public Function GetRoundCalc(total As Integer, tdays As Integer, tunit As Integer, splitRationType As Int16, spritMethodType As Int16) As (roundedUp As Integer, days As Integer, fraction As Integer)
             ' splitRationType条件設定 
-            Dim optionDay As Integer = If(spritMethodType = 1, 0, 1)
-            Dim daysValue As Double = tdays + optionDay ' + If(splitRationType = 1, 0, 1)
+            'Dim optionDay As Integer = If(spritMethodType = 1, 0, 1)
+            'optionDay = If(splitRationType = 1, 0, 1)
+
+            Dim daysValue As Double = tdays '+ optionDay ' + If(splitRationType = 1, 0, 1)
+
+            If (splitRationType = 2) Then
+
+                If (spritMethodType = 2 Or spritMethodType = 3 Or spritMethodType = 4) Then
+                    daysValue += 1
+                End If
+            End If
+
             Dim totalQuantity As Double = total
             Dim unit As Double = tunit
             Dim modCount = total Mod daysValue
