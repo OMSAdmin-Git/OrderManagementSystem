@@ -285,7 +285,9 @@ Namespace Pages.Orders
                                 Dim cal = New CalenderRepository(Utils.GetConnectionString())
                                 Dim ssd = shipScheduledDate.Value
                                 Dim shipDate = cal.AddWorkingDays(conn, tran, calType, shipScheduledDate.Value, assortLeadTime)
-                                Dim dueDate = cal.AddWorkingDays(conn, tran, calType, shipDateOrg.Value, transferLeadTime)
+                                ' 2026/11/17 元の 出荷日から計算ではなく 、リードタイム計算後の出荷日から計算するように変更
+                                Dim dueDate = cal.AddWorkingDays(conn, tran, calType, shipDate, transferLeadTime)
+                                'Dim dueDate = cal.AddWorkingDays(conn, tran, calType, shipDateOrg.Value, transferLeadTime)
                                 ' リードタイム 0 の時
                                 If (assortLeadTime = 0) Then
                                     shipDate = ssd
