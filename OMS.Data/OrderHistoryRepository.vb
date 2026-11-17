@@ -166,7 +166,7 @@ Namespace OMS.Data
                         cmd.Parameters.Add(":p_order_date", OracleDbType.Date).Value = r.OrderDate
                         cmd.Parameters.Add(":p_due_date", OracleDbType.Date).Value = r.DueDate
                         cmd.Parameters.Add(":p_ship_scheduled_date", OracleDbType.Date).Value = r.ShipScheduledDate
-                        cmd.Parameters.Add(":p_customer_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.CustomerItemNo, 45)
+                        cmd.Parameters.Add(":p_customer_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar2Length(r.CustomerItemNo, 45)
                         cmd.Parameters.Add(":p_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.ItemNo, 45)
 
                         cmd.Parameters.Add(":p_demand_qty", OracleDbType.Int64).Value = r.DemandQty ' NUMBER(10,0)

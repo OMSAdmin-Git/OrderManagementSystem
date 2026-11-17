@@ -294,9 +294,8 @@ Namespace OMS.Data
                         cmd.Parameters.Add(":p_due_date", OracleDbType.Date).Value = r.DueDate
                         cmd.Parameters.Add(":p_ship_scheduled_date", OracleDbType.Date).Value = r.ShipScheduledDate
 
-                        'cmd.Parameters.Add(":p_customer_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.CustomerItemNo, 45)
-                        'cmd.Parameters.Add(":p_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.ItemNo, 45)
-                        cmd.Parameters.Add(":p_customer_item_no", OracleDbType.Varchar2, 45).Value = r.CustomerItemNo
+                        cmd.Parameters.Add(":p_customer_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar2Length(r.CustomerItemNo, 45)
+                        cmd.Parameters.Add(":p_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.ItemNo, 45)
                         cmd.Parameters.Add(":p_item_no", OracleDbType.Varchar2, 45).Value = r.ItemNo
 
                         cmd.Parameters.Add(":p_demand_qty", OracleDbType.Int64).Value = r.DemandQty ' NUMBER(10,0)
@@ -1362,7 +1361,7 @@ Namespace OMS.Data
 
                     cmd.Parameters.Clear()
                     cmd.Parameters.Add(":p_customer_code", OracleDbType.Varchar2, 25).Value = SafeVarchar(pCustomerCode, 25)
-                    cmd.Parameters.Add(":p_customer_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(pCustomerItemNo, 45)
+                    cmd.Parameters.Add(":p_customer_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar2Length(pCustomerItemNo, 45)
                     cmd.Parameters.Add(":pProductCode", OracleDbType.Varchar2, 25).Value = SafeVarchar(pProductCode, 45)
 
                     Dim hitCount As Integer = 0
@@ -1657,7 +1656,7 @@ Namespace OMS.Data
 
                     cmd.Parameters.Clear()
                     cmd.Parameters.Add(":p_customer_code", OracleDbType.Varchar2, 25).Value = SafeVarchar(pCustomerCode, 25)
-                    cmd.Parameters.Add(":p_customer_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(pCustomerItemNo, 45)
+                    cmd.Parameters.Add(":p_customer_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar2Length(pCustomerItemNo, 45)
 
                     Dim hitCount As Integer = 0
                     Dim fprdcd As String = Nothing
@@ -1773,7 +1772,7 @@ Namespace OMS.Data
 
                         cmd.Parameters.Clear()
                         cmd.Parameters.Add(":p_customer_code", OracleDbType.Varchar2, 25).Value = SafeVarchar(pCustomerCode, 25)
-                        cmd.Parameters.Add(":p_customer_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(pCustomerItemNo, 45)
+                        cmd.Parameters.Add(":p_customer_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar2Length(pCustomerItemNo, 45)
 
                         Dim hitCount As Integer = 0
                         Dim fprdcd As String = Nothing
