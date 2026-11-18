@@ -1879,6 +1879,18 @@ Namespace OMS.Data
             Dim pCustomerCode As String = If(String.IsNullOrWhiteSpace(CustomerCode), Nothing, CustomerCode.Trim())
             Dim pCustomerItemNo As String = If(String.IsNullOrWhiteSpace(CustomerItemNo), Nothing, CustomerItemNo.Trim())
 
+            itemNo = ""
+            errorMessage = String.Empty
+
+            If String.IsNullOrEmpty(pCustomerItemNo) Then
+                errorMessage = "客先品目Noが指定されていません。"
+                Return False
+            End If
+
+            ' 検索候補のリストを作成（先頭に「加工なしの生値」を入れる）
+            Dim searchCandidates As New List(Of String)()
+            searchCandidates.Add(pCustomerItemNo)
+
             Dim PatternList As New List(Of String)()
 
             Select Case CustomerCode
@@ -1890,25 +1902,31 @@ Namespace OMS.Data
                     PatternList.AddRange({"3-5-2", "5-5"})
             End Select
 
-            itemNo = ""
-            errorMessage = String.Empty
-
             If PatternList Is Nothing OrElse PatternList.Count = 0 Then
                 errorMessage = "変換パターンリストが指定されていません。"
                 Return False
             End If
 
-            Dim orgCustomerItemNo As String = pCustomerItemNo
+            For Each currentPattern As String In PatternList
+                ' 客先品目Noにハイフォンをつける
+                Dim formatted As String = FormatByCostmerItemNo(pCustomerItemNo, currentPattern)
+                If Not searchCandidates.Contains(formatted) Then
+                    searchCandidates.Add(formatted)
+                End If
+            Next
+
+            'Dim orgCustomerItemNo As String = pCustomerItemNo
 
             ' パターンの数だけループ処理
-            For Each currentPattern As String In PatternList
-                pCustomerItemNo = orgCustomerItemNo
-                ' 客先品目Noにハイフォンをつける
-                pCustomerItemNo = FormatByCostmerItemNo(pCustomerItemNo, currentPattern)
+            'For Each currentPattern As String In PatternList
+            For Each candidateItemNo As String In searchCandidates
+                'pCustomerItemNo = orgCustomerItemNo
+                '' 客先品目Noにハイフォンをつける
+                'pCustomerItemNo = FormatByCostmerItemNo(pCustomerItemNo, currentPattern)
 
                 ' キャッシュ内に該当の客先品目Noが存在するか確認
-                If productCache.ContainsKey(pCustomerItemNo) Then
-                    Dim matchedRecords = productCache(pCustomerItemNo)
+                If productCache.ContainsKey(candidateItemNo) Then
+                    Dim matchedRecords = productCache(candidateItemNo)
 
                     ' ステータス判定 (2: 試作品は末尾'S'、それ以外は'S'以外)
                     Dim targetRecords As IEnumerable(Of ProductCacheData)
