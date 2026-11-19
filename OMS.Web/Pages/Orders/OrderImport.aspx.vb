@@ -1842,7 +1842,7 @@ Namespace Pages.Orders
                                         status:="PROCESSED",
                                         prodMgmtUserId:=PageHelpers.GetUserId(Me),
                                         activeFlag:="Y",
-                                        additionalOption:=$" {inClause} ORDER BY customer_setting_id, due_date ")
+                                        additionalOption:=$" {inClause} ORDER BY customer_setting_id, customer_item_no, due_date ")
             ' 2026/11/9 ここまで
             gvImportOrder.DataSource = dt
             gvImportOrder.DataBind()
