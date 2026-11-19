@@ -2909,19 +2909,53 @@ Namespace OMS.Data
 
                             For intRowidx As Integer = StRowNum To EdRowNum Step stepRow
 
+
                                 '客先品目No   (任意だが、MATRIX形式は製品コードの項目がマトリックス共通表サンプルに存在しないので客先品目Noがないと品目Noが取得できない)
-                                Dim kyakuHinban As String = ""
+                                Dim preCustomerItemNo As String = ""
                                 Dim cell1 As Integer = 0
                                 'Dim cellname As String = ""
                                 If Not String.IsNullOrEmpty(mapResult.mKyakusakiHinmokuNo) Then
                                     xlRow = objSheet.Row(objSheet.Cell(mapResult.mKyakusakiHinmokuNo).Address.RowNumber + (stepRow * ridx))
                                     cell1 = objSheet.Cell(mapResult.mKyakusakiHinmokuNo).Address.ColumnNumber
                                     'cellname = objSheet.Cell(mKyakusakiHinmokuNo).Address.ColumnLetter & xlRow.RowNumber
-                                    kyakuHinban = If(mapResult.mKyakusakiHinmokuNo <> "", xlRow.Cell(cell1).GetValue(Of String)().Trim(), "")
+                                    preCustomerItemNo = If(mapResult.mKyakusakiHinmokuNo <> "", xlRow.Cell(cell1).GetValue(Of String)().Trim(), "")
                                 Else
-                                    kyakuHinban = ""
+                                    preCustomerItemNo = ""
                                 End If
 
+                                '製品コード  （マトリックス共通表サンプルに存在しない）
+                                Dim preProductcode As String = ""
+                                preProductcode = ""
+
+                                '品目No
+                                'STRAMMIC.PRDSLSODRMより取得
+                                itemNo = ""
+                                errMsg = ""
+                                If _oderStageRepo.GetProductCode(customerCode, preCustomerItemNo, preProductcode, itemNo, errMsg) = False Then
+                                    If mapResult.mKyakusakiHinmokuNo = "" Then
+                                        errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　{errMsg} (マッピングマスタ未登録)")
+                                    Else
+                                        errors.Add($"取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　セル名 {objSheet.Cell(mapResult.mKyakusakiHinmokuNo).Address.ColumnLetter & xlRow.RowNumber} ：{errMsg}")
+                                    End If
+                                    errcnt += 1
+                                    '品目Noが取得できなかった場合、エラーメッセージあり、エラーカウントする、また品目NoのPCも取得できないのでこの先のPC一致チェックで取込対象外となる
+                                    'ErrFlg = True
+                                    'HeaderErrFlg = True
+                                End If
+
+                                If String.IsNullOrEmpty(preCustomerItemNo?.Trim()) Then
+                                    '客先品目Noが取得できない場合
+                                    Continue For ' カウントせず、次の行の読み込みへ飛ばす
+                                End If
+
+                                '品目NoのPC
+                                Dim preProfitCenter As String = ""
+                                _oderStageRepo.GetProfitCenter3(ProfitCenterCache, itemNo, preProfitCenter, errMsg)
+
+                                If String.IsNullOrEmpty(profitcenterCSM) OrElse String.IsNullOrEmpty(preProfitCenter) OrElse profitcenterCSM <> preProfitCenter Then
+                                    '取引先設定IDのPCと品目NoのPCが不一致
+                                    Continue For ' カウントせず、次の行の読み込みへ飛ばす
+                                End If
 
                                 '納期の列番号を始点として最終列までループ(横へループ)
                                 For intColIdx As Integer = StColNum To EdColNum
@@ -2939,28 +2973,29 @@ Namespace OMS.Data
                                     End If
 
                                     '客先発注No   (ordertype = 1:内示は任意、2:確定と3：納入指示は必須)
-                                    Dim kyakuNo As String = ""
+                                    Dim preCustomerOrderNo As String = ""
                                     xlRow = objSheet.Row(objSheet.Cell(mapResult.mKyakusakiHattyuNo).Address.RowNumber + (stepRow * ridx))
-                                    kyakuNo = If((mapResult.mKyakusakiHattyuNo) <> "", xlRow.Cell(intColIdx).GetValue(Of String)().Trim(), "")
+                                    preCustomerOrderNo = If((mapResult.mKyakusakiHattyuNo) <> "", xlRow.Cell(intColIdx).GetValue(Of String)().Trim(), "")
 
-                                    If String.IsNullOrEmpty(kyakuNo?.Trim()) Then
+                                    If String.IsNullOrEmpty(preCustomerOrderNo?.Trim()) Then
+                                        '客先発注Noが取得できない場合
                                         Continue For ' カウントせず、次の行の読み込みへ飛ばす
                                     End If
 
-                                    Dim juchuKbun As String = ""
+                                    Dim PreOrdertype As String = ""
                                     'フォルダタイプで処理分岐
                                     If FolderType = 4 Then
                                         '受注区分   (混在フォルダの場合は必須)
                                         xlRow = objSheet.Row(objSheet.Cell(mapResult.mJutyuKubun).Address.RowNumber + (stepRow * ridx))
-                                        juchuKbun = If(mapResult.mJutyuKubun <> "", xlRow.Cell(intColIdx).GetValue(Of String)().Trim(), "")
+                                        PreOrdertype = If(mapResult.mJutyuKubun <> "", xlRow.Cell(intColIdx).GetValue(Of String)().Trim(), "")
                                     Else
                                         '受注区分   (任意)
-                                        juchuKbun = FolderType
+                                        PreOrdertype = FolderType
                                     End If
 
 
                                     '複合キーの作成(受注区分_客先発注No_客先品目No)
-                                    Dim uniqueKey As String = $"{juchuKbun}_{kyakuNo}_{kyakuHinban}"
+                                    Dim uniqueKey As String = $"{PreOrdertype}_{preCustomerOrderNo}_{preCustomerItemNo}"
 
 
                                     '辞書にカウントを記録
@@ -3154,39 +3189,28 @@ Namespace OMS.Data
                                     End If
 
                                     '2026/10/19 重複データ(同一受注区分、同一客先発注No、同一客先品目No)除外処理を追加
-                                    Dim juchuKbun As String = ""
+                                    Dim PreOrdertype As String = ""
                                     'フォルダタイプで処理分岐
                                     If FolderType = 4 Then
                                         '受注区分   (混在フォルダの場合は必須)
                                         xlRow = objSheet.Row(objSheet.Cell(mapResult.mJutyuKubun).Address.RowNumber + (stepRow * ridx))
-                                        juchuKbun = If(mapResult.mJutyuKubun <> "", xlRow.Cell(intColIdx).GetValue(Of String)().Trim(), "")
+                                        PreOrdertype = If(mapResult.mJutyuKubun <> "", xlRow.Cell(intColIdx).GetValue(Of String)().Trim(), "")
                                     Else
                                         '受注区分   (任意)
-                                        juchuKbun = FolderType
+                                        PreOrdertype = FolderType
                                     End If
 
                                     '客先発注No   (ordertype = 1:内示は任意、2:確定と3：納入指示は必須)
-                                    Dim kyakuNo As String = ""
                                     xlRow = objSheet.Row(objSheet.Cell(mapResult.mKyakusakiHattyuNo).Address.RowNumber + (stepRow * ridx))
-                                    kyakuNo = If((mapResult.mKyakusakiHattyuNo) <> "", xlRow.Cell(intColIdx).GetValue(Of String)().Trim(), "")
+                                    customerorderNo = If((mapResult.mKyakusakiHattyuNo) <> "", xlRow.Cell(intColIdx).GetValue(Of String)().Trim(), "")
 
                                     '複合キーの作成(受注区分_客先発注No_客先品目No)
-                                    Dim uniqueKey As String = $"{juchuKbun}_{kyakuNo}_{customeritemNo}"
+                                    Dim uniqueKey As String = $"{PreOrdertype}_{customerorderNo}_{customeritemNo}"
                                     '--
-
-
 
                                     '取引先設定IDのPCと同じPCのみ取込対象とする
                                     If String.IsNullOrEmpty(profitcenterCSM) OrElse String.IsNullOrEmpty(profitcenter) OrElse profitcenterCSM <> profitcenter Then
                                         'PCが違う場合は取込しない、エラーメッセージなし、エラーカウントしない、ファイル移動もなし
-
-                                        ' 【修正追加】PCが違う場合は取込対象外となるため、重複カウントから減算する(CSV/LIST形式と同等)
-                                        If Not String.IsNullOrEmpty(kyakuNo?.Trim()) Then
-                                            If keyCounts.ContainsKey(uniqueKey) AndAlso keyCounts(uniqueKey) > 1 Then
-                                                keyCounts(uniqueKey) -= 1
-                                            End If
-                                        End If
-
                                         Continue For
                                     End If
 
@@ -3216,9 +3240,11 @@ Namespace OMS.Data
                                         ErrFlg = True
                                     End If
 
-                                    '客先発注Noが空の場合は処理をスルー
-                                    If Not String.IsNullOrEmpty(kyakuNo?.Trim()) Then
-                                        '客先発注Noがある場合のみ、重複チェックを行う
+                                    '2026/10/19 重複データ(同一受注区分、同一客先発注No、同一客先品目No)除外処理を追加
+                                    If (PreOrdertype = "2" OrElse PreOrdertype = "3") AndAlso
+                                        Not String.IsNullOrEmpty(customerorderNo) AndAlso
+                                        Not String.IsNullOrEmpty(customeritemNo) Then
+                                        '処理区分=2:確定 または 3:納入指示で客先発注Noと客先品目Noがある場合のみ、重複チェックを行う
                                         If keyCounts.ContainsKey(uniqueKey) AndAlso keyCounts(uniqueKey) > 1 Then
                                             errors.Add($" 取引先コード：{customerCode} 取込ファイル：[{TorikomiFile} ] セル名 {xlRow.Cell(intColIdx).Address.ColumnLetter & xlRow.RowNumber} ：客先発注No、客先品目Noが重複しています。")
                                             '受注区分、客先発注No、客先品目Noが重複している場合は取込しない
@@ -3226,8 +3252,7 @@ Namespace OMS.Data
                                             Continue For
                                         End If
                                     End If
-
-
+                                    '--
 
                                     '日割前受注数 ※需要数をセット
                                     predailyorderqty = demandqty
@@ -3338,13 +3363,14 @@ Namespace OMS.Data
 
                                     End If
 
-                                    '客先発注No   (ordertype = 1:内示は任意、2:確定と3：納入指示は必須)
-                                    If Not String.IsNullOrEmpty(mapResult.mKyakusakiHattyuNo) Then
-                                        xlRow = objSheet.Row(objSheet.Cell(mapResult.mKyakusakiHattyuNo).Address.RowNumber + (stepRow * ridx))
-                                        customerorderNo = If((mapResult.mKyakusakiHattyuNo) <> "", xlRow.Cell(intColIdx).GetValue(Of String)().Trim(), "")
-                                    Else
-                                        customerorderNo = ""
-                                    End If
+                                    ''客先発注No   (ordertype = 1:内示は任意、2:確定と3：納入指示は必須)
+                                    'If Not String.IsNullOrEmpty(mapResult.mKyakusakiHattyuNo) Then
+                                    'xlRow = objSheet.Row(objSheet.Cell(mapResult.mKyakusakiHattyuNo).Address.RowNumber + (stepRow * ridx))
+                                    '    customerorderNo = If((mapResult.mKyakusakiHattyuNo) <> "", xlRow.Cell(intColIdx).GetValue(Of String)().Trim(), "")
+                                    'Else
+                                    '    customerorderNo = ""
+                                    'End If
+                                    xlRow = objSheet.Row(objSheet.Cell(mapResult.mKyakusakiHattyuNo).Address.RowNumber + (stepRow * ridx))
                                     'If folderType = 2 OrElse folderType = 3 Then
                                     If ordertype = 2 OrElse ordertype = 3 Then
                                         'ordertype = 1:内示は任意、2:確定と3：納入指示は必須
