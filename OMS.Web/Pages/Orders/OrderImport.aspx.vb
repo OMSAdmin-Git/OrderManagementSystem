@@ -953,7 +953,12 @@ Namespace Pages.Orders
                     'lblImportResult.Text &= $"（ORDERS_STAGE 読込 {resultRowCnt} 件）"
                     Dim customerSettingIDList As List(Of Long) = groups.Keys.Select(Function(key) Long.Parse(key)).ToList()
                     Dim targetRowCnt As Long = _oderStageRepo.GetOrdersStageCountByCustomerSettingIds(Utils.GetConnectionString(), customerSettingIDList)
+
+#If ProfitCenterFilter Then
                     Dim alreadyText = $"（ORDERS_STAGE 読込 {resultRowCnt} 件 対象 {targetRowCnt}件)"
+#Else
+                    Dim alreadyText = $"（ORDERS_STAGE 読込 {resultRowCnt} 件 )"
+#End If
                     Dim addText = String.Join("<br/>", successs.Select(Function(s) Server.HtmlEncode(s)))
                     If String.IsNullOrEmpty(alreadyText) Then
                         lblImportResult.Text = addText
