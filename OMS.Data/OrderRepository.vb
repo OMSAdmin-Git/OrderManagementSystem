@@ -2235,6 +2235,7 @@ Namespace OMS.Data
             'End Using
             Return errors
         End Function
+
     End Class
     ''' <summary>
     ''' Customer data class
