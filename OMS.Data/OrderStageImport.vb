@@ -4273,6 +4273,7 @@ Namespace OMS.Data
                                                              UserId,
                                                              pgId)
 
+
                             Else
                                 ' Yamaha Robotex
                                 _oderStageRepo.ReconcileForecastYamahaRobotex(tran,
@@ -4339,14 +4340,25 @@ Namespace OMS.Data
                         '                                               Now,
                         '                                               UserId,
                         '                                               pgId)
+                        '2026/11/19 酒井  PLOD_PLANでも確定消込をする
                         '戻り値として確定消込で消込された品目No毎の数量を引数として受け取る
-                        Dim consumedDict As Dictionary(Of String, Decimal) = _oderStageRepo.ExecuteOrderReconciliationByOrderNo(tran,
+                        'Dim consumedDict As Dictionary(Of String, Decimal) = _oderStageRepo.ExecuteOrderReconciliationByOrderNo(tran,
+                        '                                               CustomerSettingId,
+                        '                                               impfilestageId,
+                        '                                               Now,
+                        '                                               UserId,
+                        '                                               pgId)
+                        Dim stageConsumedDict As Dictionary(Of String, Decimal) = Nothing
+                        Dim prodPlanConsumedDict As Dictionary(Of String, Decimal) = Nothing
+                        _oderStageRepo.ExecuteOrderReconciliationByOrderNo(tran,
                                                                        CustomerSettingId,
                                                                        impfilestageId,
                                                                        Now,
                                                                        UserId,
-                                                                       pgId)
-
+                                                                       pgId,
+                                                                       stageConsumedDict,
+                                                                       prodPlanConsumedDict)
+                        '--
 
                         '内示消込フラグをチェック
                         If FcstReconcileFlag = "Y" Then
@@ -4380,7 +4392,8 @@ Namespace OMS.Data
                                                              Now,
                                                              UserId,
                                                              pgId,
-                                                             consumedDict)
+                                                             stageConsumedDict,
+                                                             prodPlanConsumedDict)
 
                             End If
 
