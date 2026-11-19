@@ -1887,9 +1887,11 @@ Namespace OMS.Data
                 Return False
             End If
 
-            ' 検索候補のリストを作成（先頭に「加工なしの生値」を入れる）
+            ' 検索候補のリスト作成
             Dim searchCandidates As New List(Of String)()
-            searchCandidates.Add(pCustomerItemNo)
+
+            '先頭に加工前の客先品目Noをセット(既にハイフン付与済みの客先品目Noも検索候補に入れる)
+            'searchCandidates.Add(pCustomerItemNo)
 
             Dim PatternList As New List(Of String)()
 
