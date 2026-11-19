@@ -522,7 +522,12 @@ Namespace Pages.Orders
                                                             '   3(納期の4週前)  ：  出荷予定日4週前～出荷予定日1週前  （例：出荷予定日が2026/3/13の場合、2/13～3/6）→ 2/12 ～ 3/14
                                                             startDate = Get4WeeksBefore(shipScheduledDate)
                                                             endDate = startDate.AddDays(28 - 1)
-
+														' 2026/11/19
+														'case 4
+														'	" 3営業日前 2026/11/18追加
+                                                        '    startDate = Get3DaysBefore(shipScheduledDate)
+                                                        '    endDate = startDate.AddDays(28 - 1)
+															
                                                     End Select
                                                     'Order_Stage テーブルに 対象月の稼働日でレコードを作成
                                                     Dim ordersStage = New List(Of OrdersStageRow)()
@@ -1792,6 +1797,15 @@ Namespace Pages.Orders
         ''' <returns></returns>
         Public Function Get4WeeksBefore(tgDate As Date) As Date
             Return GetDaysBefore(tgDate, 7 * 4) ' + 1)
+        End Function
+
+        ''' <summary>
+        ''' 3営業日前の日付を取得する
+        ''' </summary>
+        ''' <param name="tgDate"></param>
+        ''' <returns></returns>
+        Public Function Get3DaysBefore(tgDate As Date) As Date
+            Return GetDaysBefore(tgDate, 3) ' + 1)
         End Function
 
         ''' <summary>

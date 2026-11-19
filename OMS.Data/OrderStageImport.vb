@@ -1351,6 +1351,11 @@ Namespace OMS.Data
                                 Dim kyakuHinban As String = ""
                                 kyakuHinban = If(precsv.ColumnCount > mapResult.nKyakusakiHinmokuNo AndAlso mapResult.nKyakusakiHinmokuNo > -1, precsv.GetField(mapResult.nKyakusakiHinmokuNo).Trim(), "")
 
+                                ' 製品コード
+                                Dim customerProductCode As String = ""
+                                customerProductCode = If(precsv.ColumnCount > mapResult.nSeihinCode AndAlso mapResult.nSeihinCode > -1, precsv.GetField(mapResult.nSeihinCode).Trim(), "")
+
+
                                 '複合キーの作成(受注区分_客先発注No_客先品目No)
                                 Dim uniqueKey As String = $"{juchuKbun}_{kyakuNo}_{kyakuHinban}"
 

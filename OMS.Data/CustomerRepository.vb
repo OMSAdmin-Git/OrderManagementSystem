@@ -873,6 +873,64 @@ Namespace OMS.Data
             End Using
         End Function
 
+
+        ''' <summary>
+        ''' CustomerSettingId から CUSTOMER_UNIT_NAME を取得します。該当レコードが存在しない場合は空文字を返します。
+        ''' </summary>
+        ''' <param name="conn"></param>
+        ''' <param name="tran"></param>
+        ''' <param name="customerSettingId"></param>
+        ''' <returns></returns>
+        Public Function GetCustomerUnitName(conn As OracleConnection, tran As OracleTransaction, customerSettingId As Long) As String
+            Dim unitName As String = ""
+            Dim sb As New StringBuilder()
+            sb.AppendLine(" SELECT ")
+            sb.AppendLine("     u.CUSTOMER_UNIT_NAME ")
+            sb.AppendLine(" FROM ")
+            sb.AppendLine("     CUSTOMER_UNIT_MST u ")
+            sb.AppendLine(" WHERE ")
+            sb.AppendLine("     u.CUSTOMER_UNIT_ID = ( ")
+            sb.AppendLine("         SELECT ")
+            sb.AppendLine("             s.CUSTOMER_UNIT_ID ")
+            sb.AppendLine("         FROM ")
+            sb.AppendLine("             CUSTOMER_SETTING_MST s ")
+            sb.AppendLine("         WHERE ")
+            sb.AppendLine("             s.CUSTOMER_SETTING_ID = :customer_setting_id ")
+            sb.AppendLine("         FETCH FIRST 1 ROW ONLY ")
+            sb.AppendLine("     ) ")
+            sb.AppendLine(" FETCH FIRST 1 ROW ONLY ")
+
+            ' 接続とコマンドの生成（Usingでリソースを自動解放）
+            'Using conn As New OracleConnection(connString)
+            Using cmd As New OracleCommand(sb.ToString(), conn)
+                ' パラメータの設定（Number(10,0) に合わせて Int64 を指定）
+                cmd.Parameters.Add("customer_setting_id", OracleDbType.Int64).Value = customerSettingId
+
+                Try
+                    'conn.Open()
+                    ' 先頭の1行1列目の値を取得
+                    Dim result As Object = cmd.ExecuteScalar()
+
+                    ' NULL（該当レコードなし）でなければ文字列に変換
+                    If result IsNot Nothing AndAlso Not IsDBNull(result) Then
+                        unitName = result.ToString()
+                    End If
+
+                Catch ex As OracleException
+                    ' Oracle固有のエラー処理
+                    Console.WriteLine("Oracleエラー: " & ex.Message)
+                    Throw
+                Catch ex As Exception
+                    ' その他のエラー処理
+                    Console.WriteLine("エラー: " & ex.Message)
+                    Throw
+                End Try
+            End Using
+            ' End Using
+
+            Return unitName
+        End Function
+
 #End Region
 
 #Region "更新（排他：updated_at一致時のみ）"
