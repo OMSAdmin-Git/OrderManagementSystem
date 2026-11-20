@@ -6,6 +6,7 @@ Imports System.Runtime.Remoting.Metadata.W3cXsd2001
 Imports System.Security.Cryptography
 Imports System.Text
 Imports DocumentFormat.OpenXml.Drawing.Charts
+Imports DocumentFormat.OpenXml.Drawing.Spreadsheet
 Imports DocumentFormat.OpenXml.Spreadsheet
 Imports DocumentFormat.OpenXml.Wordprocessing
 Imports Microsoft.VisualBasic.ApplicationServices
@@ -3727,10 +3728,13 @@ Namespace OMS.Data
                                 End If
 
                                 ' --- データベース更新 (rowid指定でピンポイント更新) ---
-                                UpdateProdPlanRow(tran, rid, newDemandQty, updatedAt, updateUserId, updatepgId)
+                                UpdateProdPlanRow(tran, customerSettingId, rid, newDemandQty, updatedAt, updateUserId, updatepgId)
                             End If
                         End If
                     End While
+                    ' 残りの レコードを Post_plan_due_set　に更新
+                    UpdateProdPlanPostPlanDueSet(tran, customerSettingId, updatedAt, updateUserId, updatepgId)
+
                 End Using
             End Using
             '--
@@ -4165,7 +4169,6 @@ Namespace OMS.Data
                                    ByVal updatedAt As DateTime,
                                    ByVal updateUserId As String,
                                    ByVal updatepgId As String)
-
             Dim sql As String = "
                     UPDATE orders_stage SET 
                         demand_qty = :p_qty,
@@ -4174,7 +4177,7 @@ Namespace OMS.Data
                         updated_at = :p_updated_at,
                         updated_user_id = :p_user_id,
                         updated_pg_id = :p_updated_pg_id
-                    WHERE rowid = :p_rid"
+                    WHERE rowid = :p_rid "
 
             Using cmd As New OracleCommand(sql, tran.Connection)
                 cmd.Transaction = tran
@@ -4197,27 +4200,40 @@ Namespace OMS.Data
         ''' レコード更新用(rowid指定でピンポイント更新)
         ''' </summary>
         ''' <param name="tran">トランザクション</param>
+        ''' <param name="customerSettingId"></param>
         ''' <param name="rowid">更新対象の行ID</param>
         ''' <param name="qty">需要数</param>
         ''' <param name="updatedAt">更新日時</param>
         ''' <param name="updateUserId">更新ユーザーID</param>
         ''' <param name="updatepgId">更新プログラムID</param>
         Private Sub UpdateProdPlanRow(ByVal tran As OracleTransaction,
-                                   ByVal rowid As String,
-                                   ByVal qty As Decimal,
-                                   ByVal updatedAt As DateTime,
-                                   ByVal updateUserId As String,
-                                   ByVal updatepgId As String)
+                                    ByVal customerSettingId As Long,
+                                    ByVal rowid As String,
+                                    ByVal qty As Decimal,
+                                    ByVal updatedAt As DateTime,
+                                    ByVal updateUserId As String,
+                                    ByVal updatepgId As String)
 
+            ' 2026/11/20 sagisaka
             Dim sql As String = "
                     UPDATE prod_plan SET 
                         demand_qty = :p_qty,
-                        status = CASE WHEN :p_qty <= 0 THEN 'RECONCILED' ELSE status END,
+                        status = CASE WHEN :p_qty <= 0 THEN 'RECONCILED' ELSE 'POST_PLAN_DUE_SET' END,
                         active_flag = CASE WHEN :p_qty <= 0 THEN 'N' ELSE active_flag END,
                         updated_at = :p_updated_at,
                         updated_user_id = :p_user_id,
                         updated_pg_id = :p_updated_pg_id
-                    WHERE rowid = :p_rid"
+                    WHERE rowid = :p_rid  "
+
+            'Dim sql As String = "
+            '        UPDATE prod_plan SET 
+            '            demand_qty = :p_qty,
+            '            status = CASE WHEN :p_qty <= 0 THEN 'RECONCILED' ELSE status END,
+            '            active_flag = CASE WHEN :p_qty <= 0 THEN 'N' ELSE active_flag END,
+            '            updated_at = :p_updated_at,
+            '            updated_user_id = :p_user_id,
+            '            updated_pg_id = :p_updated_pg_id
+            '        WHERE rowid = :p_rid"
 
             Using cmd As New OracleCommand(sql, tran.Connection)
                 cmd.Transaction = tran
@@ -4230,11 +4246,51 @@ Namespace OMS.Data
                 cmd.Parameters.Add(":p_updated_at", OracleDbType.Date).Value = updatedAt
                 cmd.Parameters.Add(":p_user_id", OracleDbType.Varchar2, 9).Value = SafeVarchar(updateUserId, 9)
                 cmd.Parameters.Add(":p_updated_pg_id", OracleDbType.Varchar2, 150).Value = SafeVarchar(updatepgId, 150)
+                cmd.Parameters.Add(":p_customerSettingId", OracleDbType.Int64).Value = customerSettingId
 
                 cmd.ExecuteNonQuery()
             End Using
         End Sub
         '--
+
+        ''' <summary>
+        ''' 一括 更新
+        ''' </summary>
+        ''' <param name="tran"></param>
+        ''' <param name="customerSettingId"></param>
+        ''' <param name="updatedAt"></param>
+        ''' <param name="updateUserId"></param>
+        ''' <param name="updatepgId"></param>
+        Private Sub UpdateProdPlanPostPlanDueSet(ByVal tran As OracleTransaction,
+                                    ByVal customerSettingId As Long,
+                                    ByVal updatedAt As DateTime,
+                                    ByVal updateUserId As String,
+                                    ByVal updatepgId As String)
+
+
+            Dim sql As String = "
+                    UPDATE prod_plan SET 
+                        status = 'POST_PLAN_DUE_SET',
+                        updated_at = :p_updated_at,
+                        updated_user_id = :p_user_id,
+                        updated_pg_id = :p_updated_pg_id
+                    WHERE customer_setting_id = :p_customerSettingId And active_flag = 'Y' And status <> 'RECONCILED' "
+
+            Using cmd As New OracleCommand(sql, tran.Connection)
+                cmd.Transaction = tran
+                cmd.BindByName = True
+                cmd.CommandType = CommandType.Text
+                cmd.Parameters.Clear()
+                cmd.Parameters.Add(":p_updated_at", OracleDbType.Date).Value = updatedAt
+                cmd.Parameters.Add(":p_user_id", OracleDbType.Varchar2, 9).Value = SafeVarchar(updateUserId, 9)
+                cmd.Parameters.Add(":p_updated_pg_id", OracleDbType.Varchar2, 150).Value = SafeVarchar(updatepgId, 150)
+                cmd.Parameters.Add(":p_customerSettingId", OracleDbType.Int64).Value = customerSettingId
+
+                cmd.ExecuteNonQuery()
+            End Using
+
+        End Sub
+
 
         ''' <summary>
         ''' 今回取込したレコードのステータス更新(確定 新規)を実行する

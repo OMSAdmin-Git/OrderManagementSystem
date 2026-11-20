@@ -525,6 +525,10 @@ Namespace Pages.Orders
                                                     ' 指定期間の カレンダーを取得(仕様書では カレンダーは もっと上で取得することになっているが 期間が判明するここで取得する)
                                                     Dim calm As CalenderRepository = New CalenderRepository(Utils.GetConnectionString())
 
+                                                    'Dim bdt As Date = #4/10/2027#
+                                                    'Dim lDay = -3
+                                                    'Dim shipScaduleDate2 = cal.AddWorkingDays(conn, tran, "00001", bdt, lDay)
+
                                                     Select Case (splitStartType)
                                                         Case 1
                                                             '   1(月初)        ：  月初～月末                         （例：2026年3月が対象の場合、3/1～3/31）

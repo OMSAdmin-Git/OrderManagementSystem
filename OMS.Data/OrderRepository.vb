@@ -1137,52 +1137,52 @@ Namespace OMS.Data
             Return errorMessage
 
         End Function
-        ''' <summary>
-        ''' orders_stage の生産計画済みのレコードと同じOrders 側のレコードを削除する
-        ''' </summary>
-        ''' <param name="conn"></param>
-        ''' <param name="tran"></param>
-        ''' <returns></returns>
-        Public Function DeleteOrderStagePlanSetRecordByCustomerSettingId(conn As OracleConnection, tran As OracleTransaction)
+        '''' <summary>
+        '''' orders_stage の生産計画済みのレコードと同じOrders 側のレコードを削除する
+        '''' </summary>
+        '''' <param name="conn"></param>
+        '''' <param name="tran"></param>
+        '''' <returns></returns>
+        'Public Function DeleteOrderStagePlanSetRecordByCustomerSettingId(conn As OracleConnection, tran As OracleTransaction)
 
-            Return DeleteOrderStagePlanSetRecordByCustomerSettingId(conn, tran, OrdersTable.Orders)
+        '    Return DeleteOrderStagePlanSetRecordByCustomerSettingId(conn, tran, OrdersTable.Orders)
 
-        End Function
-        ''' <summary>
-        ''' orders_stage の生産計画済みのレコードと同じOrders 側のレコードを削除する
-        ''' </summary>
-        ''' <param name="conn"></param>
-        ''' <param name="tran"></param>
-        ''' <returns></returns>
-        Public Function DeleteOrderStagePlanSetRecordByCustomerSettingId(conn As OracleConnection, tran As OracleTransaction, type As OrdersTable)
-            Dim errorMessage = ""
-            Dim dt As New DataTable()
-            Try
-                Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
-                    cmd.CommandText = $"
-                            Delete 
-                            From 
-                                {GetTableName(type)} 
-                            Where 
-                                status = 'PLAN_SET' 
-                            And customer_setting_id 
-                            In ( 
-                                Select 
-                                    customer_setting_id 
-                                From 
-                                    orders_stage 
-                                Where 
-                                    status = 'PLAN_SET' 
-                            ); "
-                    cmd.ExecuteNonQuery()
-                End Using
-            Catch e As OracleException
-                errorMessage = "Number: " & e.Number & vbCrLf & "Message: " & e.Message
-            Finally
-            End Try
+        'End Function
+        '''' <summary>
+        '''' orders_stage の生産計画済みのレコードと同じOrders 側のレコードを削除する
+        '''' </summary>
+        '''' <param name="conn"></param>
+        '''' <param name="tran"></param>
+        '''' <returns></returns>
+        'Public Function DeleteOrderStagePlanSetRecordByCustomerSettingId(conn As OracleConnection, tran As OracleTransaction, type As OrdersTable)
+        '    Dim errorMessage = ""
+        '    Dim dt As New DataTable()
+        '    Try
+        '        Using cmd As New OracleCommand() With {.Connection = conn, .BindByName = True}
+        '            cmd.CommandText = $"
+        '                    Delete 
+        '                    From 
+        '                        {GetTableName(type)} 
+        '                    Where 
+        '                        status = 'PLAN_SET' 
+        '                    And customer_setting_id 
+        '                    In ( 
+        '                        Select 
+        '                            customer_setting_id 
+        '                        From 
+        '                            orders_stage 
+        '                        Where 
+        '                            status = 'PLAN_SET' 
+        '                    ); "
+        '            cmd.ExecuteNonQuery()
+        '        End Using
+        '    Catch e As OracleException
+        '        errorMessage = "Number: " & e.Number & vbCrLf & "Message: " & e.Message
+        '    Finally
+        '    End Try
 
-            Return errorMessage
-        End Function
+        '    Return errorMessage
+        'End Function
 
         ''' <summary>
         ''' DataRow to class
@@ -2032,50 +2032,50 @@ Namespace OMS.Data
             Return recordCount
         End Function
 
-        ' 2026/10/08 仕様変更
-        ''' <summary>
-        ''' 生産計画 実行した　customer_setting_id のリストに登録されているidと一致するレコードを削除する
-        ''' </summary>
-        ''' <param name="conn"></param>
-        ''' <param name="tran"></param>
-        ''' <param name="idSelectList"></param>
-        ''' <returns></returns>
-        Public Function DeleteOrders(conn As OracleConnection, tran As OracleTransaction, idSelectList As List(Of Long)) As String
-            Dim errors = ""
-            ' 削除対象がない場合は何もしない
-            If idSelectList Is Nothing OrElse idSelectList.Count = 0 Then Return ""
+        '' 2026/10/08 仕様変更
+        '''' <summary>
+        '''' 生産計画 実行した　customer_setting_id のリストに登録されているidと一致するレコードを削除する
+        '''' </summary>
+        '''' <param name="conn"></param>
+        '''' <param name="tran"></param>
+        '''' <param name="idSelectList"></param>
+        '''' <returns></returns>
+        'Public Function DeleteOrders(conn As OracleConnection, tran As OracleTransaction, idSelectList As List(Of Long)) As String
+        '    Dim errors = ""
+        '    ' 削除対象がない場合は何もしない
+        '    If idSelectList Is Nothing OrElse idSelectList.Count = 0 Then Return ""
 
-            ' 1. 実行する SQL 文（パラメーターは 1 つだけ用意する）
-            Dim sql As String = "DELETE FROM Orders WHERE customer_setting_id = :id"
+        '    ' 1. 実行する SQL 文（パラメーターは 1 つだけ用意する）
+        '    Dim sql As String = "DELETE FROM Orders WHERE customer_setting_id = :id"
 
-            'Using conn As New OracleConnection(connectionString)
-            'conn.Open()
+        '    'Using conn As New OracleConnection(connectionString)
+        '    'conn.Open()
 
-            Using cmd As New OracleCommand(sql, conn)
-                Try
-                    ' 2. パラメーター配列（Array Binding）の有効化
-                    ' リストの件数分、一括して SQL を高速実行する設定
-                    cmd.ArrayBindCount = idSelectList.Count
+        '    Using cmd As New OracleCommand(sql, conn)
+        '        Try
+        '            ' 2. パラメーター配列（Array Binding）の有効化
+        '            ' リストの件数分、一括して SQL を高速実行する設定
+        '            cmd.ArrayBindCount = idSelectList.Count
 
-                    ' 3. パラメーターの追加（List を配列に変換して渡す）
-                    Dim idParam As New OracleParameter()
-                    idParam.ParameterName = "id"
-                    idParam.OracleDbType = OracleDbType.Int64 ' Long 型に対応
-                    idParam.Value = idSelectList.ToArray()    ' 配列としてセット
+        '            ' 3. パラメーターの追加（List を配列に変換して渡す）
+        '            Dim idParam As New OracleParameter()
+        '            idParam.ParameterName = "id"
+        '            idParam.OracleDbType = OracleDbType.Int64 ' Long 型に対応
+        '            idParam.Value = idSelectList.ToArray()    ' 配列としてセット
 
-                    cmd.Parameters.Add(idParam)
+        '            cmd.Parameters.Add(idParam)
 
-                    ' 4. 削除の実行
-                    Dim rowsDeleted As Integer = cmd.ExecuteNonQuery()
-                    'Console.WriteLine($"{rowsDeleted} 件のレコードを削除しました。")
-                Catch ex As Exception
-                    errors = ex.Message
-                End Try
-            End Using
-            'End Using
+        '            ' 4. 削除の実行
+        '            Dim rowsDeleted As Integer = cmd.ExecuteNonQuery()
+        '            'Console.WriteLine($"{rowsDeleted} 件のレコードを削除しました。")
+        '        Catch ex As Exception
+        '            errors = ex.Message
+        '        End Try
+        '    End Using
+        '    'End Using
 
-            Return errors
-        End Function
+        '    Return errors
+        'End Function
         '''' <summary>
         '''' idSelectList に登録されている customer_setting_id の prod_plan_stage のレコードを orders テーブルにコピーする
         '''' </summary>
