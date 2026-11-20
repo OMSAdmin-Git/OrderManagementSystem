@@ -3456,7 +3456,7 @@ Namespace OMS.Data
                                         ByVal updatepgId As String)
 
             ' 前工程での消費数がない（減算不要な）場合は Nothing を渡して本体を呼び出す
-            ReconcileForecast(tran, customerSettingId, impFileStageId, orderType, reconcileType, updatedAt, updateUserId, updatepgId, Nothing)
+            ReconcileForecast(tran, customerSettingId, impFileStageId, orderType, reconcileType, updatedAt, updateUserId, updatepgId, Nothing, Nothing)
 
         End Sub
         ''' <summary>
@@ -3470,7 +3470,8 @@ Namespace OMS.Data
         ''' <param name="updatedAt">更新日時</param>
         ''' <param name="updateUserId">更新ユーザーID</param>
         ''' <param name="updatepgId">更新プログラムID</param>
-        ''' <param name="consumedDict">確定データの品目No毎消込数</param>
+        ''' <param name="stageconsumedDict">ORDERS_STAGEテーブル用 確定データの品目No毎消込数</param>
+        ''' <param name="prodPlanconsumedDict">PROD_PLANテーブル用 確定データの品目No毎消込数</param>
         Public Sub ReconcileForecast(ByVal tran As OracleTransaction,
                                         ByVal customerSettingId As Long,
                                         ByVal impFileStageId As Long,
@@ -3479,11 +3480,13 @@ Namespace OMS.Data
                                         ByVal updatedAt As DateTime,
                                         ByVal updateUserId As String,
                                         ByVal updatepgId As String,
-                                        ByVal consumedDict As Dictionary(Of String, Decimal))
+                                        ByVal stageconsumedDict As Dictionary(Of String, Decimal),
+                                        ByVal prodPlanconsumedDict As Dictionary(Of String, Decimal))
 
 
             ' --- 1. 今回取込データの集計（品目ごとの需要数の合計を取得、納期は最も古いものを採用） ---
-            Dim curList As New Dictionary(Of String, OrderSummaryRow)
+            Dim stageList As New Dictionary(Of String, OrderSummaryRow)
+            Dim prodplanList As New Dictionary(Of String, OrderSummaryRow)
 
             Dim curSelect As String = ""
             Dim curWhere As String = ""
@@ -3549,22 +3552,7 @@ Namespace OMS.Data
 
                         Dim itemNo As String = dr("item_no").ToString()
                         Dim dueDate As DateTime = Convert.ToDateTime(dr("earliest_due_date"))
-                        Dim totalDemandQty As Decimal = Convert.ToDecimal(dr("total_demand_qty"))
-
-                        '確定消込で消込された数量がある場合は差し引く
-                        If consumedDict IsNot Nothing AndAlso consumedDict.ContainsKey(itemNo) Then
-                            totalDemandQty -= consumedDict(itemNo)
-                            ' 全て確定消込で相殺されて残数がない場合は、内示消込枠として登録しない
-                            If totalDemandQty <= 0 Then
-                                Continue While
-                            End If
-                        End If
-
-                        Dim row As New OrderSummaryRow With {
-                            .ItemNo = itemNo,
-                            .EarliestDueDate = dueDate,
-                            .TotalDemandQty = totalDemandQty
-                        }
+                        Dim baseDemandQty As Decimal = Convert.ToDecimal(dr("total_demand_qty"))
 
                         Dim dictKey As String = itemNo
                         If reconcileType = 3 Then
@@ -3572,7 +3560,35 @@ Namespace OMS.Data
                             dictKey = $"{itemNo}_{dueDate:yyyyMM}"
                         End If
 
-                        curList.Add(dictKey, row)
+
+                        'ORDERS_STAGEテーブル用
+                        '確定消込で消込された数量がある場合は差し引く
+                        Dim stageDemandQty As Decimal = baseDemandQty
+                        If stageconsumedDict IsNot Nothing AndAlso stageconsumedDict.ContainsKey(itemNo) Then
+                            stageDemandQty -= stageconsumedDict(itemNo)
+                        End If
+                        If stageDemandQty > 0 Then
+                            stageList.Add(dictKey, New OrderSummaryRow With {
+                                .ItemNo = itemNo,
+                                .EarliestDueDate = dueDate,
+                                .TotalDemandQty = stageDemandQty
+                            })
+                        End If
+
+                        'PROD_PLANテーブル用
+                        '確定消込で消込された数量がある場合は差し引く
+                        Dim prodPlanDemandQty As Decimal = baseDemandQty
+                        If prodPlanconsumedDict IsNot Nothing AndAlso prodPlanconsumedDict.ContainsKey(itemNo) Then
+                            prodPlanDemandQty -= prodPlanconsumedDict(itemNo)
+                        End If
+                        If prodPlanDemandQty > 0 Then
+                            prodplanList.Add(dictKey, New OrderSummaryRow With {
+                                .ItemNo = itemNo,
+                                .EarliestDueDate = dueDate,
+                                .TotalDemandQty = prodPlanDemandQty
+                            })
+                        End If
+
 
                     End While
                 End Using
@@ -3604,8 +3620,8 @@ Namespace OMS.Data
                         End If
 
                         ' Dictionaryに該当品目（かつ該当月）の消込枠があるか確認
-                        If curList.ContainsKey(dictKey) Then
-                            Dim summary = curList(dictKey)
+                        If stageList.ContainsKey(dictKey) Then
+                            Dim summary = stageList(dictKey)
 
                             ' --- 消込対象かどうかの判定 (reconcileTypeによる比較) ---
                             Dim isTarget As Boolean = False
@@ -3646,6 +3662,77 @@ Namespace OMS.Data
                 End Using
 
             End Using
+
+            '2026/11/19 酒井  PLOD_PLANでも内示消込をする
+            ' --- 3. 生産計画データ(PLOD_PLAN)の内示データを出荷予定日の古い順に取得
+            Dim prodPlanSql As String = $"
+                    SELECT p.rowid, p.item_no, p.demand_qty, p.ship_scheduled_date
+                    FROM prod_plan p
+                    WHERE p.order_type = 1 
+                      AND p.active_flag = 'Y' 
+                      AND p.self_fcst_flag = 'N' 
+                      AND p.ship_scheduled_date IS NOT NULL
+                    ORDER BY p.item_no, p.ship_scheduled_date, p.rowid"
+
+            Using cmdProdPlan As New OracleCommand(prodPlanSql, tran.Connection)
+                cmdProdPlan.Transaction = tran
+                cmdProdPlan.BindByName = True
+                cmdProdPlan.CommandType = CommandType.Text
+                cmdProdPlan.Parameters.Clear()
+
+                Using drProd As OracleDataReader = cmdProdPlan.ExecuteReader()
+                    While drProd.Read()
+                        Dim itemNo As String = drProd("item_no").ToString()
+                        Dim shipScheduledDate As DateTime = Convert.ToDateTime(drProd("ship_scheduled_date"))
+
+                        Dim dictKey As String = itemNo
+                        If reconcileType = 3 Then
+                            dictKey = $"{itemNo}_{shipScheduledDate:yyyyMM}"
+                        End If
+
+                        ' Dictionaryに該当品目（かつ該当月）の消込枠があるか確認
+                        If prodplanList.ContainsKey(dictKey) Then
+                            Dim summary = prodplanList(dictKey)
+
+                            ' --- 消込対象かどうかの判定 (reconcileTypeによる比較) ---
+                            Dim isTarget As Boolean = False
+                            ' 年月のみで比較するための変数作成
+                            Dim fcstMonth As DateTime = New DateTime(shipScheduledDate.Year, shipScheduledDate.Month, 1)
+                            Dim curMonth As DateTime = New DateTime(summary.EarliestDueDate.Year, summary.EarliestDueDate.Month, 1)
+
+                            Select Case reconcileType
+                                Case 1 : isTarget = True ' 1:順次（全対象）
+                                Case 2 : isTarget = (fcstMonth <= curMonth) ' 2:同月まで
+                                Case 3 : isTarget = (fcstMonth = curMonth)  ' 3:同月のみ
+                            End Select
+
+                            ' 対象であり、かつまだ消込枠(注文合計)が残っている場合のみ処理
+                            If isTarget AndAlso summary.TotalDemandQty > 0 Then
+                                Dim rid As String = drProd("rowid").ToString()
+                                Dim pastQty As Decimal = Convert.ToDecimal(drProd("demand_qty"))
+                                Dim remainLimit As Decimal = summary.TotalDemandQty ' 現在の消込可能残数
+
+                                Dim newDemandQty As Decimal = 0
+
+                                ' --- 消込計算ロジック ---
+                                If pastQty > remainLimit Then
+                                    ' 内示残数の方が大きい場合：内示を一部減らし、消込枠を使い切る
+                                    newDemandQty = pastQty - remainLimit
+                                    summary.TotalDemandQty = 0
+                                Else
+                                    ' 消込枠の方が多い場合：この内示レコードを0にし、残った枠を次の納期分へ
+                                    newDemandQty = 0
+                                    summary.TotalDemandQty -= pastQty
+                                End If
+
+                                ' --- データベース更新 (rowid指定でピンポイント更新) ---
+                                UpdateProdPlanRow(tran, rid, newDemandQty, updatedAt, updateUserId, updatepgId)
+                            End If
+                        End If
+                    End While
+                End Using
+            End Using
+            '--
 
         End Sub
         ''' <summary>
@@ -3869,6 +3956,50 @@ Namespace OMS.Data
             End Using
         End Sub
 
+        '2026/11/19 酒井  PLOD_PLANでも内示消込をする
+        ''' <summary>
+        ''' レコード更新用(rowid指定でピンポイント更新)
+        ''' </summary>
+        ''' <param name="tran">トランザクション</param>
+        ''' <param name="rowid">更新対象の行ID</param>
+        ''' <param name="qty">需要数</param>
+        ''' <param name="updatedAt">更新日時</param>
+        ''' <param name="updateUserId">更新ユーザーID</param>
+        ''' <param name="updatepgId">更新プログラムID</param>
+        Private Sub UpdateProdPlanRow(ByVal tran As OracleTransaction,
+                                   ByVal rowid As String,
+                                   ByVal qty As Decimal,
+                                   ByVal updatedAt As DateTime,
+                                   ByVal updateUserId As String,
+                                   ByVal updatepgId As String)
+
+            Dim sql As String = "
+                    UPDATE prod_plan SET 
+                        demand_qty = :p_qty,
+                        status = CASE WHEN :p_qty <= 0 THEN 'RECONCILED' ELSE status END,
+                        active_flag = CASE WHEN :p_qty <= 0 THEN 'N' ELSE active_flag END,
+                        updated_at = :p_updated_at,
+                        updated_user_id = :p_user_id,
+                        updated_pg_id = :p_updated_pg_id
+                    WHERE rowid = :p_rid"
+
+            Using cmd As New OracleCommand(sql, tran.Connection)
+                cmd.Transaction = tran
+                cmd.BindByName = True
+                cmd.CommandType = CommandType.Text
+                cmd.Parameters.Clear()
+
+                cmd.Parameters.Add(":p_qty", OracleDbType.Decimal).Value = qty
+                cmd.Parameters.Add(":p_rid", OracleDbType.Varchar2).Value = rowid
+                cmd.Parameters.Add(":p_updated_at", OracleDbType.Date).Value = updatedAt
+                cmd.Parameters.Add(":p_user_id", OracleDbType.Varchar2, 9).Value = SafeVarchar(updateUserId, 9)
+                cmd.Parameters.Add(":p_updated_pg_id", OracleDbType.Varchar2, 150).Value = SafeVarchar(updatepgId, 150)
+
+                cmd.ExecuteNonQuery()
+            End Using
+        End Sub
+        '--
+
         ''' <summary>
         ''' 今回取込したレコードのステータス更新(確定 新規)を実行する
         ''' </summary>
@@ -3900,6 +4031,126 @@ Namespace OMS.Data
             End Using
         End Sub
 
+        '''' <summary>
+        '''' 確定消込（客先発注No、客先品目Noでの消込）を実行する
+        '''' </summary>
+        '''' <param name="tran">トランザクション</param>
+        '''' <param name="customerSettingId">処理中の取引先設定ID</param>
+        '''' <param name="impFileStageId">今回取込の IMP_FILE_STAGE_ID</param>
+        '''' <param name="updatedAt">更新日時</param>
+        '''' <param name="updateUserId">更新ユーザーID</param>
+        '''' <param name="updatepgId">更新プログラムID</param>
+        'Public Function ExecuteOrderReconciliationByOrderNo(ByVal tran As OracleTransaction,
+        '                                                ByVal customerSettingId As Long,
+        '                                                ByVal impFileStageId As Long,
+        '                                                ByVal updatedAt As DateTime,
+        '                                                ByVal updateUserId As String,
+        '                                                ByVal updatepgId As String) As Dictionary(Of String, Decimal)
+
+        '    ' 1. 同一の CUSTOMER_SETTING_ID、CUSTOMER_ORDER_NO、CUSTOMER_ITEM_NOを持つ過去の確定データを特定
+        '    ' 2. DEMAND_QTY を (過去 - 今回) で減数
+        '    ' 3. 需要数が0以下になった場合は STATUS='RECONCILED', ACTIVE_FLAG='N' に更新
+        '    ' 4. 需要数がマイナスになる場合はその残数で次の内示消込を行う
+
+        '    Dim consumedDict As New Dictionary(Of String, Decimal)
+
+        '    ' 1. 品目No(item_no)毎の「確定と相殺される」算出　cur(納入指示の今回データ) past(確定の過去データ)
+        '    Dim sqlSelect As String =
+        '            " WITH cur AS ( " &
+        '            "   SELECT customer_setting_id, customer_order_no, customer_item_no, MAX(item_no) AS item_no, SUM(demand_qty) AS cur_qty " &
+        '            "   FROM orders_stage " &
+        '            "   WHERE imp_file_stage_id = :p_imp_file_stage_id " &
+        '            "     AND order_type = 3 AND NVL(info_type, 'U') = 'U' AND active_flag = 'Y' " &
+        '            "   GROUP BY customer_setting_id, customer_order_no, customer_item_no " &
+        '            " ), " &
+        '            " past AS ( " &
+        '            "   SELECT customer_setting_id, customer_order_no, customer_item_no, SUM(demand_qty) AS past_qty " &
+        '            "   FROM orders_stage " &
+        '            "   WHERE (imp_file_id <> :p_imp_file_stage_id OR imp_file_stage_id <> :p_imp_file_stage_id) " &
+        '            "     AND order_type = 2 AND active_flag = 'Y' AND customer_setting_id = :p_customer_setting_id " &
+        '            "   GROUP BY customer_setting_id, customer_order_no, customer_item_no " &
+        '            " ) " &
+        '            " SELECT c.item_no, " &
+        '            "        LEAST(NVL(c.cur_qty, 0), NVL(p.past_qty, 0)) AS consumed_qty " &
+        '            " FROM cur c " &
+        '            " JOIN past p ON c.customer_setting_id = p.customer_setting_id " &
+        '            "            AND c.customer_order_no = p.customer_order_no " &
+        '            "            AND c.customer_item_no = p.customer_item_no "
+
+        '    Using cmdSel As New OracleCommand(sqlSelect, tran.Connection)
+        '        cmdSel.Transaction = tran
+        '        cmdSel.BindByName = True
+        '        cmdSel.CommandType = CommandType.Text
+        '        cmdSel.Parameters.Add(":p_imp_file_stage_id", OracleDbType.Int64).Value = impFileStageId
+        '        cmdSel.Parameters.Add(":p_customer_setting_id", OracleDbType.Int64).Value = customerSettingId
+
+        '        Using dr As OracleDataReader = cmdSel.ExecuteReader()
+        '            While dr.Read()
+
+        '                '相殺処理用のDictionaryへ格納
+        '                Dim itemNo As String = dr("item_no").ToString()
+        '                Dim consumed As Decimal = Convert.ToDecimal(dr("consumed_qty"))
+        '                If consumedDict.ContainsKey(itemNo) Then
+        '                    consumedDict(itemNo) += consumed
+        '                Else
+        '                    consumedDict(itemNo) = consumed
+        '                End If
+
+        '            End While
+        '        End Using
+        '    End Using
+
+        '    ' 2. 確定データ(order_type=2)のみを更新する、需要数がマイナスになる場合はゼロに置き換え
+        '    Dim sqlUpdate As String =
+        '        " MERGE INTO orders_stage tgt " &
+        '        " USING ( " &
+        '        "   WITH cur AS ( " &
+        '        "     SELECT customer_setting_id, customer_order_no, customer_item_no, SUM(demand_qty) AS cur_qty " &
+        '        "     FROM orders_stage " &
+        '        "     WHERE imp_file_stage_id = :p_imp_file_stage_id " &
+        '        "       AND order_type = 3 AND NVL(info_type, 'U') = 'U' AND active_flag = 'Y' " &
+        '        "     GROUP BY customer_setting_id, customer_order_no, customer_item_no " &
+        '        "   ), " &
+        '        "   past AS ( " &
+        '        "     SELECT rowid AS rid, customer_setting_id, customer_order_no, customer_item_no, demand_qty " &
+        '        "     FROM orders_stage " &
+        '        "     WHERE (imp_file_id <> :p_imp_file_stage_id OR imp_file_stage_id <> :p_imp_file_stage_id) " &
+        '        "       AND order_type = 2 AND active_flag = 'Y' AND customer_setting_id = :p_customer_setting_id " &
+        '        "   ) " &
+        '        "   SELECT p.rid, p.demand_qty AS past_qty, c.cur_qty " &
+        '        "   FROM past p " &
+        '        "   JOIN cur c ON c.customer_setting_id = p.customer_setting_id " &
+        '        "             AND c.customer_order_no = p.customer_order_no " &
+        '        "             AND c.customer_item_no = p.customer_item_no " &
+        '        " ) m " &
+        '        " ON (tgt.rowid = m.rid) " &
+        '        " WHEN MATCHED THEN " &
+        '        "   UPDATE SET " &
+        '        "     tgt.demand_qty      = GREATEST(NVL(m.past_qty, 0) - NVL(m.cur_qty, 0), 0), " &
+        '        "     tgt.status          = CASE WHEN (NVL(m.past_qty, 0) - NVL(m.cur_qty, 0)) <= 0 THEN 'RECONCILED' ELSE tgt.status END, " &
+        '        "     tgt.active_flag     = CASE WHEN (NVL(m.past_qty, 0) - NVL(m.cur_qty, 0)) <= 0 THEN 'N' ELSE tgt.active_flag END, " &
+        '        "     tgt.updated_at      = :p_updated_at, " &
+        '        "     tgt.updated_user_id = :p_user_id, " &
+        '        "     tgt.updated_pg_id   = :p_updated_pg_id "
+
+        '    Using cmdUpd As New OracleCommand(sqlUpdate, tran.Connection)
+        '        cmdUpd.Transaction = tran
+        '        cmdUpd.BindByName = True
+        '        cmdUpd.CommandType = CommandType.Text
+        '        cmdUpd.Parameters.Add(":p_imp_file_stage_id", OracleDbType.Int64).Value = impFileStageId
+        '        cmdUpd.Parameters.Add(":p_customer_setting_id", OracleDbType.Int64).Value = customerSettingId
+        '        cmdUpd.Parameters.Add(":p_updated_at", OracleDbType.Date).Value = updatedAt
+        '        cmdUpd.Parameters.Add(":p_user_id", OracleDbType.Varchar2, 9).Value = SafeVarchar(updateUserId, 9)
+        '        cmdUpd.Parameters.Add(":p_updated_pg_id", OracleDbType.Varchar2, 150).Value = SafeVarchar(updatepgId, 150)
+
+        '        cmdUpd.ExecuteNonQuery()
+        '    End Using
+
+        '    Return consumedDict
+
+        'End Function
+
+        '2026/11/19 酒井  PLOD_PLANでも確定消込をする
         ''' <summary>
         ''' 確定消込（客先発注No、客先品目Noでの消込）を実行する
         ''' </summary>
@@ -3909,19 +4160,24 @@ Namespace OMS.Data
         ''' <param name="updatedAt">更新日時</param>
         ''' <param name="updateUserId">更新ユーザーID</param>
         ''' <param name="updatepgId">更新プログラムID</param>
-        Public Function ExecuteOrderReconciliationByOrderNo(ByVal tran As OracleTransaction,
+        Public Sub ExecuteOrderReconciliationByOrderNo(ByVal tran As OracleTransaction,
                                                         ByVal customerSettingId As Long,
                                                         ByVal impFileStageId As Long,
                                                         ByVal updatedAt As DateTime,
                                                         ByVal updateUserId As String,
-                                                        ByVal updatepgId As String) As Dictionary(Of String, Decimal)
+                                                        ByVal updatepgId As String,
+                                                        ByRef stageConsumedDict As Dictionary(Of String, Decimal),
+                                                        ByRef prodPlanConsumedDict As Dictionary(Of String, Decimal))
+
+            stageConsumedDict = New Dictionary(Of String, Decimal)()
+            prodPlanConsumedDict = New Dictionary(Of String, Decimal)()
 
             ' 1. 同一の CUSTOMER_SETTING_ID、CUSTOMER_ORDER_NO、CUSTOMER_ITEM_NOを持つ過去の確定データを特定
             ' 2. DEMAND_QTY を (過去 - 今回) で減数
             ' 3. 需要数が0以下になった場合は STATUS='RECONCILED', ACTIVE_FLAG='N' に更新
             ' 4. 需要数がマイナスになる場合はその残数で次の内示消込を行う
 
-            Dim consumedDict As New Dictionary(Of String, Decimal)
+            'ORDERS_STAGEテーブル用
 
             ' 1. 品目No(item_no)毎の「確定と相殺される」算出　cur(納入指示の今回データ) past(確定の過去データ)
             Dim sqlSelect As String =
@@ -3959,10 +4215,10 @@ Namespace OMS.Data
                         '相殺処理用のDictionaryへ格納
                         Dim itemNo As String = dr("item_no").ToString()
                         Dim consumed As Decimal = Convert.ToDecimal(dr("consumed_qty"))
-                        If consumedDict.ContainsKey(itemNo) Then
-                            consumedDict(itemNo) += consumed
+                        If stageConsumedDict.ContainsKey(itemNo) Then
+                            stageConsumedDict(itemNo) += consumed
                         Else
-                            consumedDict(itemNo) = consumed
+                            stageConsumedDict(itemNo) = consumed
                         End If
 
                     End While
@@ -4015,9 +4271,97 @@ Namespace OMS.Data
                 cmdUpd.ExecuteNonQuery()
             End Using
 
-            Return consumedDict
 
-        End Function
+            'PROD_PLANテーブル(生産計画)用
+            '3. 品目No(item_no)毎の「確定と相殺される」算出　cur(納入指示の今回データ) past(PROD_PLANテーブル(生産計画)の確定データ)
+            Dim sqlSelectProdPlan As String =
+                    " WITH cur AS ( " &
+                    "   SELECT customer_setting_id, customer_order_no, customer_item_no, MAX(item_no) AS item_no, SUM(demand_qty) AS cur_qty " &
+                    "   FROM orders_stage " &
+                    "   WHERE imp_file_stage_id = :p_imp_file_stage_id " &
+                    "     AND order_type = 3 AND NVL(info_type, 'U') = 'U' AND active_flag = 'Y' " &
+                    "   GROUP BY customer_setting_id, customer_order_no, customer_item_no " &
+                    " ), " &
+                    " past AS ( " &
+                    "   SELECT customer_setting_id, customer_order_no, customer_item_no, SUM(demand_qty) AS past_qty " &
+                    "   FROM prod_plan " &
+                    "   WHERE order_type = 2 AND active_flag = 'Y' AND customer_setting_id = :p_customer_setting_id " &
+                    "   GROUP BY customer_setting_id, customer_order_no, customer_item_no " &
+                    " ) " &
+                    " SELECT c.item_no, " &
+                    "        LEAST(NVL(c.cur_qty, 0), NVL(p.past_qty, 0)) AS consumed_qty " &
+                    " FROM cur c " &
+                    " JOIN past p ON c.customer_setting_id = p.customer_setting_id " &
+                    "            AND c.customer_order_no = p.customer_order_no " &
+                    "            AND c.customer_item_no = p.customer_item_no "
+
+            Using cmdSelProd As New OracleCommand(sqlSelectProdPlan, tran.Connection)
+                cmdSelProd.Transaction = tran
+                cmdSelProd.BindByName = True
+                cmdSelProd.CommandType = CommandType.Text
+                cmdSelProd.Parameters.Add(":p_imp_file_stage_id", OracleDbType.Int64).Value = impFileStageId
+                cmdSelProd.Parameters.Add(":p_customer_setting_id", OracleDbType.Int64).Value = customerSettingId
+
+                Using drProd As OracleDataReader = cmdSelProd.ExecuteReader()
+                    While drProd.Read()
+                        Dim itemNo As String = drProd("item_no").ToString()
+                        Dim consumed As Decimal = Convert.ToDecimal(drProd("consumed_qty"))
+                        If prodPlanConsumedDict.ContainsKey(itemNo) Then
+                            prodPlanConsumedDict(itemNo) += consumed
+                        Else
+                            prodPlanConsumedDict(itemNo) = consumed
+                        End If
+                    End While
+                End Using
+            End Using
+
+            ' 4. PLOD_PLANテーブル(生産計画)の確定データ(order_type=2)のみを更新する、需要数がマイナスになる場合はゼロに置き換え
+            Dim sqlPlodPlanUpdate As String =
+                " MERGE INTO prod_plan tgt " &
+                " USING ( " &
+                "   WITH cur AS ( " &
+                "     SELECT customer_setting_id, customer_order_no, customer_item_no, SUM(demand_qty) AS cur_qty " &
+                "     FROM orders_stage " &
+                "     WHERE imp_file_stage_id = :p_imp_file_stage_id " &
+                "       AND order_type = 3 AND NVL(info_type, 'U') = 'U' AND active_flag = 'Y' " &
+                "     GROUP BY customer_setting_id, customer_order_no, customer_item_no " &
+                "   ), " &
+                "   past AS ( " &
+                "     SELECT rowid AS rid, customer_setting_id, customer_order_no, customer_item_no, demand_qty " &
+                "     FROM prod_plan " &
+                "     WHERE order_type = 2 AND active_flag = 'Y' AND customer_setting_id = :p_customer_setting_id " &
+                "   ) " &
+                "   SELECT p.rid, p.demand_qty AS past_qty, c.cur_qty " &
+                "   FROM past p " &
+                "   JOIN cur c ON c.customer_setting_id = p.customer_setting_id " &
+                "             AND c.customer_order_no = p.customer_order_no " &
+                "             AND c.customer_item_no = p.customer_item_no " &
+                " ) m " &
+                " ON (tgt.rowid = m.rid) " &
+                " WHEN MATCHED THEN " &
+                "   UPDATE SET " &
+                "     tgt.demand_qty      = GREATEST(NVL(m.past_qty, 0) - NVL(m.cur_qty, 0), 0), " &
+                "     tgt.status          = CASE WHEN (NVL(m.past_qty, 0) - NVL(m.cur_qty, 0)) <= 0 THEN 'RECONCILED' ELSE tgt.status END, " &
+                "     tgt.active_flag     = CASE WHEN (NVL(m.past_qty, 0) - NVL(m.cur_qty, 0)) <= 0 THEN 'N' ELSE tgt.active_flag END, " &
+                "     tgt.updated_at      = :p_updated_at, " &
+                "     tgt.updated_user_id = :p_user_id, " &
+                "     tgt.updated_pg_id   = :p_updated_pg_id "
+
+            Using cmdPlodPlanUpd As New OracleCommand(sqlPlodPlanUpdate, tran.Connection)
+                cmdPlodPlanUpd.Transaction = tran
+                cmdPlodPlanUpd.BindByName = True
+                cmdPlodPlanUpd.CommandType = CommandType.Text
+                cmdPlodPlanUpd.Parameters.Add(":p_imp_file_stage_id", OracleDbType.Int64).Value = impFileStageId
+                cmdPlodPlanUpd.Parameters.Add(":p_customer_setting_id", OracleDbType.Int64).Value = customerSettingId
+                cmdPlodPlanUpd.Parameters.Add(":p_updated_at", OracleDbType.Date).Value = updatedAt
+                cmdPlodPlanUpd.Parameters.Add(":p_user_id", OracleDbType.Varchar2, 9).Value = SafeVarchar(updateUserId, 9)
+                cmdPlodPlanUpd.Parameters.Add(":p_updated_pg_id", OracleDbType.Varchar2, 150).Value = SafeVarchar(updatepgId, 150)
+
+                cmdPlodPlanUpd.ExecuteNonQuery()
+            End Using
+
+        End Sub
+        '--
 
         ''' <summary>
         ''' 今回取込した納入指示データ取得
