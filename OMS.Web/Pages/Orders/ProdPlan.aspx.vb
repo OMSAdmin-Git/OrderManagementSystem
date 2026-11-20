@@ -2,6 +2,7 @@
 Imports System.Data
 Imports System.Globalization
 Imports System.IO
+Imports System.IO.Packaging
 Imports System.Linq
 Imports System.Runtime.Remoting.Metadata.W3cXsd2001
 Imports System.Web.UI
@@ -415,10 +416,27 @@ Namespace Pages.Orders
                             ' ORDER_TYPE（受注区分）
                             ' PRORATED_TYPE（分割区分）
                             ' SHIP_SCHEDULED_DATE（出荷予定日）のyyyy/mm
-
                             ' 上記 Order.Field でグループ分け
-                            Dim ordersStageRowsGroup = orderStageRowsOrg.GroupBy(Function(x) New With {Key x.CustomerSettingId, Key x.CustomerItemNo, Key x.OrderType, Key x.ProratedType, Key x.ShipScheduledDate.Value.Year, Key x.ShipScheduledDate.Value.Month}).ToList()
-                            'Dim ordersStageRowsGroup = orderStageRowsOrg.GroupBy(Function(x) New With {Key x.CustomerSettingId, Key x.CustomerItemNo, Key x.OrderType, Key x.ProratedType, Key x.DueDate.Value.Year, Key x.DueDate.Value.Month}).ToList()
+                            Dim prodPlanRule = prodp.GetProdPlanRule(conn, tran, customerSettingId)
+                            ' 2026/11/20 4週前は Group 分けを行わない
+                            Dim isGroup As Boolean = prodPlanRule.SplitStartType = 3
+                            Dim ordersStageRowsGroup = orderStageRowsOrg.GroupBy(
+                                Function(x) New With {
+                                    Key x.CustomerSettingId,
+                                    Key x.CustomerItemNo,
+                                    Key x.OrderType,
+                                    Key x.ProratedType,
+                                    Key x.ShipScheduledDate.Value.Year,
+                                    Key x.ShipScheduledDate.Value.Month,
+                                    Key .UniqueKey = If(isGroup, Nothing, x)}).ToList()
+
+                            Dim cal = New CalenderRepository(Utils.GetConnectionString())
+                            ' ### DEBUG ###
+                            'Dim bdt As Date = #4/10/2027#
+                            'Dim lDay = -3
+                            'Dim shipScaduleDate2 = cal.AddWorkingDays(conn, tran, "00001", bdt, lDay)
+                            ' ### DEBUG ###
+
                             ' 当月 顧客単位の OrderStage リスト 
                             Dim ordersStageRows = New List(Of OrdersStageRow)
                             ' グループ分け　Loop
@@ -431,7 +449,6 @@ Namespace Pages.Orders
                                 Next
                                 ' 更新しない項目については、出荷予定日の昇順で最初のレコードの情報を反映させる。
                                 Dim ordersStageRow = ordersStageRows.ToList().OrderBy(Function(x) x.ShipScheduledDate).FirstOrDefault()
-                                Dim prodPlanRule = prodp.GetProdPlanRule(conn, tran, customerSettingId)
                                 'prodPlanRule = Nothing
                                 If (prodPlanRule IsNot Nothing) Then
                                     Dim splitCaseFlag = prodPlanRule.SplitCaseFlag
@@ -504,7 +521,6 @@ Namespace Pages.Orders
                                                     ''Dim transferLeadTime = shproutm.GetTransferLeadTime("71587158", "M999")
                                                     '' ++++++++++++++++++++++ DEBUG
 
-
                                                     'SPLIT_START_TYPE（分割開始区分）出荷予定日 期間を決定
                                                     ' 指定期間の カレンダーを取得(仕様書では カレンダーは もっと上で取得することになっているが 期間が判明するここで取得する)
                                                     Dim calm As CalenderRepository = New CalenderRepository(Utils.GetConnectionString())
@@ -522,12 +538,12 @@ Namespace Pages.Orders
                                                             '   3(納期の4週前)  ：  出荷予定日4週前～出荷予定日1週前  （例：出荷予定日が2026/3/13の場合、2/13～3/6）→ 2/12 ～ 3/14
                                                             startDate = Get4WeeksBefore(shipScheduledDate)
                                                             endDate = startDate.AddDays(28 - 1)
-														' 2026/11/19
-														'case 4
-														'	" 3営業日前 2026/11/18追加
-                                                        '    startDate = Get3DaysBefore(shipScheduledDate)
-                                                        '    endDate = startDate.AddDays(28 - 1)
-															
+                                                            ' 2026/11/19
+                                                            'case 4
+                                                            '	" 3営業日前 2026/11/18追加
+                                                            '    startDate = Get3DaysBefore(shipScheduledDate)
+                                                            '    endDate = startDate.AddDays(28 - 1)
+
                                                     End Select
                                                     'Order_Stage テーブルに 対象月の稼働日でレコードを作成
                                                     Dim ordersStage = New List(Of OrdersStageRow)()

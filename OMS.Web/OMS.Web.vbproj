@@ -615,6 +615,7 @@
       <DependentUpon>DueDateSettingFromImport.aspx</DependentUpon>
       <SubType>ASPXCodebehind</SubType>
     </Compile>
+    <Compile Include="Pages\Orders\IGrouping.vb" />
     <Compile Include="Pages\Orders\OrderImportStage.aspx.designer.vb">
       <DependentUpon>OrderImportStage.aspx</DependentUpon>
     </Compile>
