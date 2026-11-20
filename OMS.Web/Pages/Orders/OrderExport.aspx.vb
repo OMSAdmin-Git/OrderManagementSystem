@@ -151,6 +151,8 @@ Namespace Pages.Orders
             Dim reph = New OrderHistoryRepository(Utils.GetConnectionString())
             ' 生産計画条件
             Dim prodp = New ProdPlanRuleRepository(Utils.GetConnectionString())
+            ' Customer Setting mst
+            Dim repm = New CustomerRepository(Utils.GetConnectionString())
             ' 分割条件
             Dim splitp = New SplitCaseRepository(Utils.GetConnectionString())
             ' 処理対象となる CustomerSettingId リスト
@@ -158,6 +160,8 @@ Namespace Pages.Orders
 
             Dim fileList As List(Of String) = New List(Of String)()
             Dim strPath = Server.MapPath("~/App_Data/Files/")
+            Dim FileOutKeyList = New List(Of (CustomerCode As String, ProfitCenter As String, CustomerSettingId As String, CustomerUnitName As String))
+
             'Dim count As (unofficialNotice As Integer, confirmed As Integer, rerr As Integer) = (0, 0, 0)
             Try
                 '値取得
@@ -201,9 +205,22 @@ Namespace Pages.Orders
                             Dim customerCode As String = csidObj.ToString()
                             csidObj = keys("ProfitCenter")
                             Dim profitCenter As String = csidObj.ToString()
+                            csidObj = keys("CustomerUnitId")
+                            Dim customerUnitId As String = csidObj.ToString()
+                            'csidObj = keys("CustomerUnitName")
+                            'Dim customerUnitName As String = csidObj.ToString()
+                            Dim customerUnitName = repm.GetCustomerUnitName(conn, tran, Long.Parse(customerSettingId))
                             Dim updatedAt = DateTime.Now
                             ' Customer Setting ID リストに追加
                             idList.Add(customerSettingId)
+
+                            ' 2026/11/18
+                            Dim FileOutKey As (CustomerCode As String, ProfitCenter As String, CustomerSettingId As String, CustomerUnitName As String)
+                            FileOutKey.CustomerCode = customerCode
+                            FileOutKey.ProfitCenter = profitCenter
+                            FileOutKey.CustomerSettingId = customerSettingId
+                            FileOutKey.CustomerUnitName = customerUnitName                         ' 工場名 
+                            FileOutKeyList.Add(FileOutKey)
 
                             ' 生産計画ワーク追加
                             'PROD_PLAN（生産計画テーブル）から以下全ての条件を満たすレコードをPROD_PLAN_STAGE（生産計画ワークテーブル）へ追加する。	
@@ -365,61 +382,86 @@ Namespace Pages.Orders
                                                                                         ("SHIP_PLAN_DATE", "yyyyMMdd"),
                                                                                         ("PRE_DAILY_DELIVERY_DATE", "yyyyMMdd")
                                                                                       }
-
                 ' #### 2026/09/15 (要チェック)
                 ' このSQLでは 過去日チェックの条件は考慮されないので、エラーレコードも出力される。
                 '
-                'CSV出力(内示)
                 tran.Commit()
                 tran = conn.BeginTransaction()
-                Dim sql = " SELECT * 
-                            FROM prod_plan_stra_view 
-                            WHERE demand_status = 'F' "
-                Dim delimiter = DELIMITER_COMMA
-                Dim enclosure = QUOTE_NONE
-                Dim headerYN = "N"
-                Dim lineEnding = NEWLINE_CRLF
-                Dim charset = ENCODING_UTF8_BOM
-                Dim processDate = FileDate
-                Dim fileBaseName = "A-R-COEDI-F_"
-                'ExportQueryToCsvResponse2(sql, delimiter, enclosure, headerYN, lineEnding, charset, processDate, fileBaseName:=fileBaseName, formatEx:=formatEx)
+                '---------------
+                'CSV出力(内示)
+                ' 2026/11/18 仕様変更
+                For Each fok In FileOutKeyList
 
-                Dim fCustomerCode = ""
-                Dim fProfitCenter = ""
-                Dim customerUnitName = ""
-                trfilename = repo.GetProdPlanStraViewCsvFilename(strPath, fileBaseName, FileDate, fCustomerCode, fProfitCenter, customerUnitName)
+                    Dim delimiter = DELIMITER_COMMA
+                    Dim enclosure = QUOTE_NONE
+                    Dim headerYN = "N"
+                    Dim lineEnding = NEWLINE_CRLF
+                    Dim charset = ENCODING_UTF8_BOM
+                    Dim processDate = FileDate
 
-                Dim rt = repo.ProdPlanStraViewCsvFile(sql, delimiter, enclosure, headerYN, lineEnding, charset, processDate, filename:=trfilename, formatEx:=formatEx)
-                errors.Add(rt.err)
-                If (rt.cnt = 0) Then
-                    If (File.Exists(trfilename)) Then
-                        File.Delete(trfilename)
-                        unofficialNotice = 0
+                    'Dim sql = " SELECT * 
+                    '        FROM prod_plan_stra_view 
+                    '        WHERE demand_status = 'F' "
+
+                    Dim sql = $" SELECT * 
+                                FROM prod_plan_stra_view 
+                                WHERE demand_status = 'F' 
+                                AND CUSTOMER_CODE = {fok.CustomerCode} 
+                                AND CUSTOMER_SETTING_ID = {fok.CustomerSettingId} 
+                                -- AND = {fok.ProfitCenter} 
+                                "
+                    Dim fileBaseName = $"A-R-COEDI-F_"
+                    ''ExportQueryToCsvResponse2(sql, delimiter, enclosure, headerYN, lineEnding, charset, processDate, fileBaseName:=fileBaseName, formatEx:=formatEx)
+
+                    'Dim fCustomerCode = ""
+                    'Dim fProfitCenter = ""
+                    'Dim customerUnitName = ""
+                    Dim fCustomerCode = fok.CustomerCode
+                    Dim fProfitCenter = fok.ProfitCenter
+                    Dim fCustomerUnitName = fok.CustomerUnitName
+                    trfilename = repo.GetProdPlanStraViewCsvFilename(strPath, fileBaseName, FileDate, fCustomerCode, fProfitCenter, fCustomerUnitName)
+
+                    Dim rt = repo.ProdPlanStraViewCsvFile(sql, delimiter, enclosure, headerYN, lineEnding, charset, processDate, filename:=trfilename, formatEx:=formatEx)
+                    errors.Add(rt.err)
+                    If (rt.cnt = 0) Then
+                        If (File.Exists(trfilename)) Then
+                            File.Delete(trfilename)
+                            unofficialNotice = 0
+                        End If
+                        'errors.Add($"内示データが存在しないため、CSV出力は行われませんでした。")
+                    Else
+                        fileList.Add(trfilename)
                     End If
-                    'errors.Add($"内示データが存在しないため、CSV出力は行われませんでした。")
-                Else
-                    fileList.Add(trfilename)
-                End If
 
-                'CSV出力(確定/納入指示)
-                sql = " SELECT * 
-                            FROM prod_plan_stra_view 
-                            WHERE  demand_status = 'O' "
-                fileBaseName = "A-R-COEDI-O_"
-                'ExportQueryToCsvResponse2(sql, delimiter, enclosure, headerYN, lineEnding, charset, processDate, fileBaseName:=fileBaseName, formatEx:=formatEx)
+                    'CSV出力(確定/納入指示)
+                    'sql = " SELECT * 
+                    '            FROM prod_plan_stra_view 
+                    '            WHERE  demand_status = 'O' "
+                    sql = $" SELECT * 
+                                FROM prod_plan_stra_view 
+                                WHERE demand_status = 'O' 
+                                AND CUSTOMER_CODE = {fok.CustomerCode} 
+                                AND CUSTOMER_SETTING_ID = {fok.CustomerSettingId} 
+                                -- AND = {fok.ProfitCenter} 
+                                "
+                    fileBaseName = "A-R-COEDI-O_"
 
-                trfilename = repo.GetProdPlanStraViewCsvFilename(strPath, fileBaseName, FileDate, fCustomerCode, fProfitCenter, customerUnitName)
-                rt = repo.ProdPlanStraViewCsvFile(sql, delimiter, enclosure, headerYN, lineEnding, charset, processDate, filename:=trfilename, formatEx:=formatEx)
-                errors.Add(rt.err)
-                If (rt.cnt = 0) Then
-                    If (File.Exists(trfilename)) Then
-                        File.Delete(trfilename)
-                        confirmed = 0
+                    ''ExportQueryToCsvResponse2(sql, delimiter, enclosure, headerYN, lineEnding, charset, processDate, fileBaseName:=fileBaseName, formatEx:=formatEx)
+
+                    trfilename = repo.GetProdPlanStraViewCsvFilename(strPath, fileBaseName, FileDate, fCustomerCode, fProfitCenter, fCustomerUnitName)
+                    rt = repo.ProdPlanStraViewCsvFile(sql, delimiter, enclosure, headerYN, lineEnding, charset, processDate, filename:=trfilename, formatEx:=formatEx)
+                    errors.Add(rt.err)
+                    If (rt.cnt = 0) Then
+                        If (File.Exists(trfilename)) Then
+                            File.Delete(trfilename)
+                            confirmed = 0
+                        End If
+                        'errors.Add($"内示データが存在しないため、確定/納入指示 出力は行われませんでした。")
+                    Else
+                        fileList.Add(trfilename)
                     End If
-                    'errors.Add($"内示データが存在しないため、確定/納入指示 出力は行われませんでした。")
-                Else
-                    fileList.Add(trfilename)
-                End If
+                Next
+                '-------------------------------
 
                 ' 最後の Ordere レコード更新用に取得しておく
                 Dim rowsu = reps.ToClass(reps.GetOrders(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, status:="POST_PLAN_DUE_SET", activeFlag:="Y"))
@@ -540,7 +582,7 @@ Namespace Pages.Orders
                     If (errors.Count > 0) Then
                         lblError.Text = String.Join("<br/>", errors.Select(Function(s) Server.HtmlEncode(s)))
                     End If
-                    tran.Rollback()
+                    'tran.Rollback()
                 End If
                 If (unofficialNotice = 0 And confirmed = 0 And pastErrorCnt = 0) Then
                     lblResult.Text = $"有効なデータが無かったため受注データの出力は行われませんでした。"

@@ -241,7 +241,7 @@ Namespace OMS.Data
                         cmd.Parameters.Add(":p_due_date", OracleDbType.Date).Value = r.DueDate
                         cmd.Parameters.Add(":p_ship_scheduled_date", OracleDbType.Date).Value = r.ShipScheduledDate
 
-                        cmd.Parameters.Add(":p_customer_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.CustomerItemNo, 45)
+                        cmd.Parameters.Add(":p_customer_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar2Length(r.CustomerItemNo, 45)
                         cmd.Parameters.Add(":p_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.ItemNo, 45)
 
                         cmd.Parameters.Add(":p_demand_qty", OracleDbType.Int64).Value = r.DemandQty ' NUMBER(10,0)
@@ -1392,16 +1392,16 @@ Namespace OMS.Data
         ''' <returns></returns>
         Public Function GetProdPlanStraViewCsvFilename(fileBaseName As String, processDate As DateTime, customerCode As String, profitCenter As String, customerUnitName As String)
 
-            customerCode = If(customerCode Is Nothing, "", "_" & customerCode)
-            profitCenter = If(profitCenter Is Nothing, "", "_" & profitCenter)
-            customerUnitName = If(customerUnitName Is Nothing, "", "_" & customerUnitName & "_")
+            customerCode = If(String.IsNullOrEmpty(customerCode), "", "_" & customerCode)
+            profitCenter = If(String.IsNullOrEmpty(profitCenter), "", "_" & profitCenter)
+            customerUnitName = If(String.IsNullOrEmpty(customerUnitName), "", "_" & customerUnitName & "_")
             ' 2026/06/01 更新 (保留事項)
-            customerCode = ""
-            profitCenter = ""
-            customerUnitName = ""
+            'customerCode = ""
+            'profitCenter = ""
+            'customerUnitName = ""
             Dim filename As String = ""
             ' 2026/6/2 ファイル名 '_' 付加不具合修正
-            filename = $"{fileBaseName}{customerCode}{profitCenter}{customerUnitName}{processDate:yyyyMMddHHmmss}.csv"
+            filename = $"{fileBaseName}{customerCode}{profitCenter}{customerUnitName}_{processDate:yyyyMMddHHmmss}.csv"
             Return filename
         End Function
         ''' <summary>
@@ -1476,6 +1476,26 @@ Namespace OMS.Data
             Return (uc, cc, ec)
         End Function
 
+        ''' <summary>
+        ''' ProdPlanStraView から csv ファイルを作成する
+        ''' stream でDownload出力していた内容だが複数ファイル
+        ''' のDownload 対応するためファイルを先に生成することになった
+        ''' </summary>
+        ''' <param name="sql"></param>
+        ''' <param name="delimiterCode"></param>
+        ''' <param name="enclosureCode"></param>
+        ''' <param name="headerYN"></param>
+        ''' <param name="lineEndingCode"></param>
+        ''' <param name="charsetCode"></param>
+        ''' <param name="processDate"></param>
+        ''' <param name="filename"></param>
+        ''' <param name="connectionStringName"></param>
+        ''' <param name="parameters"></param>
+        ''' <param name="endResponse"></param>
+        ''' <param name="formatEx"></param>
+        ''' <param name="maxCol"></param>
+        ''' <param name="spaceEx"></param>
+        ''' <returns></returns>
         Public Function ProdPlanStraViewCsvFile(
             ByVal sql As String,
             ByVal delimiterCode As String,
@@ -2215,6 +2235,7 @@ Namespace OMS.Data
             'End Using
             Return errors
         End Function
+
     End Class
     ''' <summary>
     ''' Customer data class

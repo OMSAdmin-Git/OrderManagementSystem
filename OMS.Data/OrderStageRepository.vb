@@ -294,8 +294,9 @@ Namespace OMS.Data
                         cmd.Parameters.Add(":p_due_date", OracleDbType.Date).Value = r.DueDate
                         cmd.Parameters.Add(":p_ship_scheduled_date", OracleDbType.Date).Value = r.ShipScheduledDate
 
-                        cmd.Parameters.Add(":p_customer_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.CustomerItemNo, 45)
+                        cmd.Parameters.Add(":p_customer_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar2Length(r.CustomerItemNo, 45)
                         cmd.Parameters.Add(":p_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(r.ItemNo, 45)
+                        cmd.Parameters.Add(":p_item_no", OracleDbType.Varchar2, 45).Value = r.ItemNo
 
                         cmd.Parameters.Add(":p_demand_qty", OracleDbType.Int64).Value = r.DemandQty ' NUMBER(10,0)
                         cmd.Parameters.Add(":p_demand_unit", OracleDbType.Varchar2, 4).Value = SafeVarchar(r.DemandUnit, 4)
@@ -1360,7 +1361,7 @@ Namespace OMS.Data
 
                     cmd.Parameters.Clear()
                     cmd.Parameters.Add(":p_customer_code", OracleDbType.Varchar2, 25).Value = SafeVarchar(pCustomerCode, 25)
-                    cmd.Parameters.Add(":p_customer_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(pCustomerItemNo, 45)
+                    cmd.Parameters.Add(":p_customer_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar2Length(pCustomerItemNo, 45)
                     cmd.Parameters.Add(":pProductCode", OracleDbType.Varchar2, 25).Value = SafeVarchar(pProductCode, 45)
 
                     Dim hitCount As Integer = 0
@@ -1655,7 +1656,7 @@ Namespace OMS.Data
 
                     cmd.Parameters.Clear()
                     cmd.Parameters.Add(":p_customer_code", OracleDbType.Varchar2, 25).Value = SafeVarchar(pCustomerCode, 25)
-                    cmd.Parameters.Add(":p_customer_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(pCustomerItemNo, 45)
+                    cmd.Parameters.Add(":p_customer_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar2Length(pCustomerItemNo, 45)
 
                     Dim hitCount As Integer = 0
                     Dim fprdcd As String = Nothing
@@ -1771,7 +1772,7 @@ Namespace OMS.Data
 
                         cmd.Parameters.Clear()
                         cmd.Parameters.Add(":p_customer_code", OracleDbType.Varchar2, 25).Value = SafeVarchar(pCustomerCode, 25)
-                        cmd.Parameters.Add(":p_customer_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar(pCustomerItemNo, 45)
+                        cmd.Parameters.Add(":p_customer_item_no", OracleDbType.Varchar2, 45).Value = SafeVarchar2Length(pCustomerItemNo, 45)
 
                         Dim hitCount As Integer = 0
                         Dim fprdcd As String = Nothing
@@ -6656,6 +6657,42 @@ Namespace OMS.Data
             End Using
 
             Return ReconciledCount
+
+        End Function
+        ''' <summary>
+        ''' 指定の CustomerSettingId の Orders テーブルの件数を取得する
+        ''' </summary>
+        ''' <param name="connectionString"></param>
+        ''' <param name="customerSettingIDList"></param>
+        ''' <returns></returns>
+        Public Function GetOrdersStageCountByCustomerSettingIds(ByVal connectionString As String, ByVal customerSettingIDList As List(Of Long)) As Long
+
+            ' リストが空なら0を返す
+            If customerSettingIDList Is Nothing OrElse customerSettingIDList.Count = 0 Then
+                Return 0
+            End If
+
+            Using conn As New OracleConnection(connectionString)
+                Using cmd As New OracleCommand()
+                    cmd.Connection = conn
+                    cmd.BindByName = True
+
+                    Dim paramNames As New List(Of String)
+
+                    ' リストの要素数分だけバインド変数を追加
+                    For i As Integer = 0 To customerSettingIDList.Count - 1
+                        Dim paramName As String = $"p{i}"
+                        paramNames.Add($":{paramName}")
+                        cmd.Parameters.Add(paramName, OracleDbType.Int64).Value = customerSettingIDList(i)
+                    Next
+
+                    ' SQL組み立て（例: SELECT COUNT(*) FROM Orders WHERE Customer_setting_id IN (:p0, :p1)）
+                    cmd.CommandText = $"SELECT COUNT(*) FROM Orders_stage WHERE Customer_setting_id IN ({String.Join(", ", paramNames)})"
+
+                    conn.Open()
+                    Return Convert.ToInt64(cmd.ExecuteScalar())
+                End Using
+            End Using
 
         End Function
 

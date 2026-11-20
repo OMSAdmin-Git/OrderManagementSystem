@@ -951,9 +951,9 @@ Namespace Pages.Orders
 
 
                     'lblImportResult.Text &= $"（ORDERS_STAGE 読込 {resultRowCnt} 件）"
-
-
-                    Dim alreadyText = $"（ORDERS_STAGE 読込 {resultRowCnt} 件）"
+                    Dim customerSettingIDList As List(Of Long) = groups.Keys.Select(Function(key) Long.Parse(key)).ToList()
+                    Dim targetRowCnt As Long = _oderStageRepo.GetOrdersStageCountByCustomerSettingIds(Utils.GetConnectionString(), customerSettingIDList)
+                    Dim alreadyText = $"（ORDERS_STAGE 読込 {resultRowCnt} 件 対象 {targetRowCnt}件)"
                     Dim addText = String.Join("<br/>", successs.Select(Function(s) Server.HtmlEncode(s)))
                     If String.IsNullOrEmpty(alreadyText) Then
                         lblImportResult.Text = addText
@@ -1842,7 +1842,7 @@ Namespace Pages.Orders
                                         status:="PROCESSED",
                                         prodMgmtUserId:=PageHelpers.GetUserId(Me),
                                         activeFlag:="Y",
-                                        additionalOption:=$" {inClause} ORDER BY customer_setting_id, due_date ")
+                                        additionalOption:=$" {inClause} ORDER BY customer_setting_id, customer_item_no, due_date ")
             ' 2026/11/9 ここまで
             gvImportOrder.DataSource = dt
             gvImportOrder.DataBind()

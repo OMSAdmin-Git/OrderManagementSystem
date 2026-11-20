@@ -1407,6 +1407,11 @@ Namespace OMS.Data
                                     Continue While ' カウントせず、次の行の読み込みへ飛ばす
                                 End If
 
+                                ' 製品コード
+                                Dim customerProductCode As String = ""
+                                customerProductCode = If(precsv.ColumnCount > mapResult.nSeihinCode AndAlso mapResult.nSeihinCode > -1, precsv.GetField(mapResult.nSeihinCode).Trim(), "")
+
+
                                 '複合キーの作成(受注区分_客先発注No_客先品目No)
                                 Dim uniqueKey As String = $"{PreOrdertype}_{preCustomerOrderNo}_{preCustomerItemNo}"
 

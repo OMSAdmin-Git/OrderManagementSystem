@@ -209,6 +209,29 @@ Namespace OMS.Common
         End Function
 
         ''' <summary>文字列を最大長までトリムして返す（NULLは DBNull.Value）</summary>
+        Public Function SafeVarchar2Length(s As String, maxLen As Integer) As Object
+            Dim dummy As Boolean
+            Return SafeVarchar2Length(s, maxLen, dummy)
+        End Function
+        ''' <summary>文字列を最大長までトリムして返す（NULLは DBNull.Value）</summary>
+        Public Function SafeVarchar2Length(s As String, maxLen As Integer, ByRef isTruncated As Boolean) As Object
+
+            If s Is Nothing Then
+                Return DBNull.Value
+            End If
+
+            Dim t As String = s.Trim()
+
+            If (t.Length < maxLen) Then
+                Return t
+            End If
+
+            Return t.Substring(0, maxLen)
+
+        End Function
+
+
+        ''' <summary>文字列を最大長までトリムして返す（NULLは DBNull.Value）</summary>
         Public Function SafeVarchar(s As String, maxLen As Integer) As Object
             Dim dummy As Boolean
             Return SafeVarchar(s, maxLen, dummy)
@@ -266,7 +289,6 @@ Namespace OMS.Common
             Return SafeVarcharLength(s, maxLen, dummy)
         End Function
 
-
         ''' <summary>文字列を最大長までトリムして返す（NULLは DBNull.Value）</summary>
         Public Function SafeVarcharLength(s As String, maxLen As Integer, ByRef isTruncated As Boolean) As Object
             isTruncated = False
@@ -276,8 +298,6 @@ Namespace OMS.Common
             isTruncated = True
             Return t.Substring(0, maxLen)
         End Function
-
-
 
         ''' <summary>空/空白なら Nothing、そうでなければ Trim 済み文字列</summary>
         Public Function NullIfWhite(ByVal s As String) As String
