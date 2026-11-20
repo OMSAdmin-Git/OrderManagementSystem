@@ -410,7 +410,7 @@ Namespace Pages.Orders
                                 AND CUSTOMER_SETTING_ID = {fok.CustomerSettingId} 
                                 -- AND = {fok.ProfitCenter} 
                                 "
-                    Dim fileBaseName = $"A-R-COEDI-F_"
+                    Dim fileBaseName = $"A-R-COEDI-F"
                     ''ExportQueryToCsvResponse2(sql, delimiter, enclosure, headerYN, lineEnding, charset, processDate, fileBaseName:=fileBaseName, formatEx:=formatEx)
 
                     'Dim fCustomerCode = ""
@@ -444,7 +444,7 @@ Namespace Pages.Orders
                                 AND CUSTOMER_SETTING_ID = {fok.CustomerSettingId} 
                                 -- AND = {fok.ProfitCenter} 
                                 "
-                    fileBaseName = "A-R-COEDI-O_"
+                    fileBaseName = "A-R-COEDI-O"
 
                     ''ExportQueryToCsvResponse2(sql, delimiter, enclosure, headerYN, lineEnding, charset, processDate, fileBaseName:=fileBaseName, formatEx:=formatEx)
 

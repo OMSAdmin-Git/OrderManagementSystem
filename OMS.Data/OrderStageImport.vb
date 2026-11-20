@@ -4380,16 +4380,18 @@ Namespace OMS.Data
                                 ''--------------------------------
                                 ''納入指示データで内示消込
                                 ''--------------------------------
-                                '_oderStageRepo.ReconcileForecast(tran,
-                                '                             CustomerSettingId,
-                                '                             impfilestageId,
-                                '                             3,
-                                '                             ReconcileType,
-                                '                             Now,
-                                '                             UserId,
-                                '                             pgId)
-                                '確定消込で消込された品目No毎の数量を渡す
-                                _oderStageRepo.ReconcileForecast(tran,
+                                ' 通常
+                                If (spprocesstype <> 3) Then
+                                    '_oderStageRepo.ReconcileForecast(tran,
+                                    '                             CustomerSettingId,
+                                    '                             impfilestageId,
+                                    '                             3,
+                                    '                             ReconcileType,
+                                    '                             Now,
+                                    '                             UserId,
+                                    '                             pgId)
+                                    '確定消込で消込された品目No毎の数量を渡す
+                                    _oderStageRepo.ReconcileForecast(tran,
                                                              CustomerSettingId,
                                                              impfilestageId,
                                                              3,
@@ -4399,6 +4401,19 @@ Namespace OMS.Data
                                                              pgId,
                                                              stageConsumedDict,
                                                              prodPlanConsumedDict)
+                                    ' Yamaha Robotex
+                                Else
+                                    _oderStageRepo.ReconcileForecastYamahaRobotex(tran,
+                                                             CustomerSettingId,
+                                                             impfilestageId,
+                                                             2,
+                                                             ReconcileType,
+                                                             Now,
+                                                             UserId,
+                                                             pgId,
+                                                             stageConsumedDict,
+                                                             prodPlanConsumedDict)
+                                End If
 
                             End If
 

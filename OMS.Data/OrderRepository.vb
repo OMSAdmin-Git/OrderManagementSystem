@@ -1401,7 +1401,7 @@ Namespace OMS.Data
             'customerUnitName = ""
             Dim filename As String = ""
             ' 2026/6/2 ファイル名 '_' 付加不具合修正
-            filename = $"{fileBaseName}{customerCode}{profitCenter}{customerUnitName}_{processDate:yyyyMMddHHmmss}.csv"
+            filename = $"{fileBaseName}{customerCode}{profitCenter}{customerUnitName}{processDate:yyyyMMddHHmmss}.csv"
             Return filename
         End Function
         ''' <summary>
