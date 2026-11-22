@@ -16,6 +16,7 @@ Imports DocumentFormat.OpenXml.Office2013.Excel
 Imports DocumentFormat.OpenXml.Spreadsheet
 Imports DocumentFormat.OpenXml.VariantTypes
 Imports DocumentFormat.OpenXml.Vml
+Imports DocumentFormat.OpenXml.Vml.Wordprocessing
 Imports DocumentFormat.OpenXml.Wordprocessing
 Imports OMS.Common
 Imports OMS.Data
@@ -352,6 +353,8 @@ Namespace Pages.Orders
             Dim splitp = New SplitCaseRepository(Utils.GetConnectionString())
             ' 処理対象となる CustomerSettingId リスト
             Dim idList As New List(Of Long)
+            ' 削除対象 CUstomerSettingId リスト
+            Dim EraceCustomerSettingIdList As List(Of Long) = New List(Of Long)()
 
             Try
                 ' 処理対象 がチェックされている行
@@ -465,6 +468,13 @@ Namespace Pages.Orders
                                     Dim orderType = ordersStageRow.OrderType
                                     Dim proratedType = ordersStageRow.ProratedType
                                     Dim splitMethodType = prodPlanRule.SplitMethodType
+                                    ' 内示の場合は 削除対象とする フラグをセットする
+                                    If (orderType = 1) Then
+                                        If (Not EraceCustomerSettingIdList.Contains(customerSettingId)) Then
+                                            EraceCustomerSettingIdList.Add(customerSettingId)
+                                        End If
+                                    End If
+
                                     '' ++++++++++++++++++++++ DEBUG
                                     'splitFlag = "Y"
                                     'orderType = 1
@@ -1030,7 +1040,7 @@ Namespace Pages.Orders
                     ' DELETE (生産計画)
                     ' Delete 登録済みの Orders を 生産計画から 削除
                     '----------------------------
-                    errors.Add(repo.DeleteRegisteredOrders(conn, tran, OrderRepository.OrdersTable.ProductPlan, idSelectList))
+                    errors.Add(repo.DeleteRegisteredOrders(conn, tran, OrderRepository.OrdersTable.ProductPlan, EraceCustomerSettingIdList))
                     '#If DEBUG Then
                     '                ' #### DEBUG
                     '                tran.Commit()

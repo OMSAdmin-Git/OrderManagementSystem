@@ -1072,16 +1072,21 @@ Namespace OMS.Data
 
         'End Function
         ''' <summary>
-        ''' Orders レコードをCUSTOMER_SETTING_ID（取引先設定ID）で検索し該当レコードを削除する
+        ''' Orders レコードをCUSTOMER_SETTING_ID（取引先設定ID）ACTIVE_FLAG 'Y' DEMAND_STATUS 'F' status 'EX{PORTED'で検索し該当レコードを削除する
         ''' </summary>
         ''' <param name="conn"></param>
         ''' <param name="tran"></param>
         ''' <returns></returns>
         Public Function DeleteRegisteredOrders(conn As OracleConnection, tran As OracleTransaction, type As OrdersTable, customerSettingIdList As List(Of Long)) As String
 
+            If (customerSettingIdList.Count = 0) Then
+                Return ""
+            End If
+
             Dim indexList = ""
             customerSettingIdList.ForEach(Sub(x) indexList &= $"{x},")
-            Dim additionalParam As String = $"AND customer_setting_id IN ({indexList.TrimEnd(","c)}) "
+            Dim additionalParam As String = $"AND customer_setting_id IN ({indexList.TrimEnd(","c)})  "
+            additionalParam += "AND active_flag = 'Y'  AND demand_status = 'F' AND status = 'EXPORTED' "
             Return Delete(conn, tran, type, additionalParam:=additionalParam)
 
         End Function

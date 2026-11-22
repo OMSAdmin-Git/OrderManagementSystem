@@ -171,6 +171,7 @@ Namespace Pages.Orders
                 '(生産計画ワーク)
                 ' ①	STATUS（ステータス） = 'POST_PLAN_DUE_SET' 	
                 errors.Add(reps.Delete(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, status:="POST_PLAN_DUE_SET"))
+                errors.Add(reps.Delete(conn, tran, OrderStageRepository.OrdersTable.ProductPlan, status:="EXPORTED"))
                 If (CheckError(errors)) Then
                     ' エラー
                 End If
