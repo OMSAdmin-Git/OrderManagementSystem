@@ -1493,6 +1493,7 @@ Namespace OMS.Data
         ''' <param name="lineEndingCode"></param>
         ''' <param name="charsetCode"></param>
         ''' <param name="processDate"></param>
+        ''' <param name="ignList"></param>
         ''' <param name="filename"></param>
         ''' <param name="connectionStringName"></param>
         ''' <param name="parameters"></param>
@@ -1509,6 +1510,7 @@ Namespace OMS.Data
             ByVal lineEndingCode As String,
             ByVal charsetCode As String,
             ByVal processDate As DateTime,
+            ByVal ignList As List(Of String),
             Optional ByVal filename As String = Nothing,
             Optional ByVal connectionStringName As String = "OMSConnection",
             Optional ByVal parameters As IEnumerable(Of OdbcParameter) = Nothing,
@@ -1523,7 +1525,7 @@ Namespace OMS.Data
             Dim newline As String = Utils.MapNewline(lineEndingCode)
             Dim enc As Encoding = Utils.MapEncoding(charsetCode)
 
-            Return ProdPlanStraViewCsvFile(sql, delimiter, enclosure, includeHeader:=String.Equals(headerYN, "Y", StringComparison.OrdinalIgnoreCase), newline, enc, processDate, filename, connectionStringName, parameters, formatEx, maxCol, spaceEx)
+            Return ProdPlanStraViewCsvFile(sql, delimiter, enclosure, includeHeader:=String.Equals(headerYN, "Y", StringComparison.OrdinalIgnoreCase), newline, enc, processDate, ignList, filename, connectionStringName, parameters, formatEx, maxCol, spaceEx)
 
         End Function
         ''' <summary>
@@ -1538,6 +1540,7 @@ Namespace OMS.Data
         ''' <param name="newline"></param>
         ''' <param name="enc"></param>
         ''' <param name="processDate"></param>
+        ''' <param name="ignList"></param>
         ''' <param name="filename"></param>
         ''' <param name="connectionStringName"></param>
         ''' <param name="parameters"></param>
@@ -1552,6 +1555,7 @@ Namespace OMS.Data
             ByVal newline As String,
             ByVal enc As Encoding,
             ByVal processDate As DateTime,
+            ByVal ignList As List(Of String),
             ByVal filename As String,
             ByVal connectionStringName As String,
             ByVal parameters As IEnumerable(Of OracleParameter),
@@ -1561,6 +1565,10 @@ Namespace OMS.Data
         ) As (err As String, cnt As Integer)
             Dim rt = ""
             Dim rowCount As Integer = 0
+
+            If (ignList Is Nothing) Then
+                ignList = New List(Of String)
+            End If
 
             ' --- 検証（SELECTのみ許可）
             If String.IsNullOrWhiteSpace(sql) OrElse Not sql.TrimStart().StartsWith("SELECT", StringComparison.OrdinalIgnoreCase) Then
@@ -1615,25 +1623,29 @@ Namespace OMS.Data
                                         If rdr.IsDBNull(i) Then
                                             cols.Add("")
                                         Else
+                                            ' ignList As List(Of String)
                                             Dim n = rdr.GetName(i)
                                             Dim t = rdr.GetFieldType(i)
                                             Dim v As Object = rdr.GetValue(i)
                                             Dim s As String
                                             Dim f As String = Nothing
-                                            ' フィールド名 同じもののフォーマット情報を取得する
-                                            If (formatEx IsNot Nothing) Then
-                                                f = formatEx.Find(Function(x) x.name.ToUpper() = n.ToUpper()).format
+                                            If (Not ignList.Contains(n)) Then
+
+                                                ' フィールド名 同じもののフォーマット情報を取得する
+                                                If (formatEx IsNot Nothing) Then
+                                                    f = formatEx.Find(Function(x) x.name.ToUpper() = n.ToUpper()).format
+                                                End If
+                                                If t Is GetType(DateTime) Then
+                                                    f = If(f Is Nothing, "yyyy/MM/dd HH:mm:ss", f)
+                                                    s = CType(v, DateTime).ToString(f, CultureInfo.InvariantCulture)
+                                                ElseIf GetType(IFormattable).IsAssignableFrom(t) Then
+                                                    f = If(f Is Nothing, "0.##########", f)
+                                                    s = DirectCast(v, IFormattable).ToString(f, CultureInfo.InvariantCulture)
+                                                Else
+                                                    s = Convert.ToString(v, CultureInfo.InvariantCulture)
+                                                End If
+                                                cols.Add(CsvFormat(s, delimiter, enclosure))
                                             End If
-                                            If t Is GetType(DateTime) Then
-                                                f = If(f Is Nothing, "yyyy/MM/dd HH:mm:ss", f)
-                                                s = CType(v, DateTime).ToString(f, CultureInfo.InvariantCulture)
-                                            ElseIf GetType(IFormattable).IsAssignableFrom(t) Then
-                                                f = If(f Is Nothing, "0.##########", f)
-                                                s = DirectCast(v, IFormattable).ToString(f, CultureInfo.InvariantCulture)
-                                            Else
-                                                s = Convert.ToString(v, CultureInfo.InvariantCulture)
-                                            End If
-                                            cols.Add(CsvFormat(s, delimiter, enclosure))
                                         End If
                                         '' 空データ項目追加
                                         'If (spaceEx IsNot Nothing) Then

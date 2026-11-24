@@ -10,7 +10,11 @@
 <body>
     <form id="form1" runat="server">
         <div class="login-container">
-            <h2>ログイン</h2>
+            <h2>
+                ログイン
+                    <asp:Label ID="lblTestEnv" runat="server" Text="【テスト環境】" Visible="false" 
+                    ForeColor="Red" Font-Bold="True" style="margin-left: 10px; font-size: 0.8em;" />
+            </h2>
 
             <asp:Label ID="lblError" runat="server" CssClass="error-message"></asp:Label>
 

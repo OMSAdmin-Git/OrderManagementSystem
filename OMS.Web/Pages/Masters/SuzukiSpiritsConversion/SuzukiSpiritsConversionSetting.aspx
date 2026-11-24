@@ -19,7 +19,11 @@
 
             <!-- ヘッダー -->
             <div class="process-header">
-                <h1>スズキSPIRITS納入ホーム変換マスタ設定</h1>
+                <h1>
+                    スズキSPIRITS納入ホーム変換マスタ設定
+                    <asp:Label ID="lblTestEnv" runat="server" Text="【テスト環境】" Visible="false" 
+                    ForeColor="Red" Font-Bold="True" style="margin-left: 10px; font-size: 0.8em;" />
+                </h1>
                 <div class="user-info">
                     <asp:Label ID="lblUser" runat="server" Text="ようこそ"></asp:Label>
                 </div>

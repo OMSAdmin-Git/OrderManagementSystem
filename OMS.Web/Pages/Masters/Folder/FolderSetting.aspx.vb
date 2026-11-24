@@ -21,6 +21,10 @@ Namespace Pages.Masters.Folder
 #Region "ページ ライフサイクル"
         Protected Sub Page_Load(ByVal sender As Object, ByVal e As EventArgs) Handles Me.Load
             If Not IsPostBack Then
+                Dim isTestEnv As String = ConfigurationManager.AppSettings("IsTestEnvironment")
+                If String.Equals(isTestEnv, "true", StringComparison.OrdinalIgnoreCase) Then
+                    lblTestEnv.Visible = True
+                End If
                 PageHelpers.SetUserName(Me, lblUser)
                 LoadFolderHeader(FolderId)
             End If

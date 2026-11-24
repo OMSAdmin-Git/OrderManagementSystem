@@ -13,6 +13,11 @@ Namespace Pages.Orders
 #Region "ページ ライフサイクル"
         Protected Sub Page_Load(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Load
             If Not IsPostBack Then
+                ' Web.config の設定を確認してテスト環境ラベルを表示
+                Dim isTestEnv As String = ConfigurationManager.AppSettings("IsTestEnvironment")
+                If String.Equals(isTestEnv, "true", StringComparison.OrdinalIgnoreCase) Then
+                    lblTestEnv.Visible = True
+                End If
                 ' ユーザー名表示
                 PageHelpers.SetUserName(Me, lblUser)
 
@@ -417,12 +422,13 @@ Namespace Pages.Orders
                     'Dim fCustomerCode = ""
                     'Dim fProfitCenter = ""
                     'Dim customerUnitName = ""
+                    Dim ignList = New List(Of String) From {"CUSTOMER_SETTING_ID"}
                     Dim fCustomerCode = fok.CustomerCode
                     Dim fProfitCenter = fok.ProfitCenter
                     Dim fCustomerUnitName = fok.CustomerUnitName
                     trfilename = repo.GetProdPlanStraViewCsvFilename(strPath, fileBaseName, FileDate, fCustomerCode, fProfitCenter, fCustomerUnitName)
 
-                    Dim rt = repo.ProdPlanStraViewCsvFile(sql, delimiter, enclosure, headerYN, lineEnding, charset, processDate, filename:=trfilename, formatEx:=formatEx)
+                    Dim rt = repo.ProdPlanStraViewCsvFile(sql, delimiter, enclosure, headerYN, lineEnding, charset, processDate, ignList, filename:=trfilename, formatEx:=formatEx)
                     errors.Add(rt.err)
                     If (rt.cnt = 0) Then
                         If (File.Exists(trfilename)) Then
@@ -450,7 +456,7 @@ Namespace Pages.Orders
                     ''ExportQueryToCsvResponse2(sql, delimiter, enclosure, headerYN, lineEnding, charset, processDate, fileBaseName:=fileBaseName, formatEx:=formatEx)
 
                     trfilename = repo.GetProdPlanStraViewCsvFilename(strPath, fileBaseName, FileDate, fCustomerCode, fProfitCenter, fCustomerUnitName)
-                    rt = repo.ProdPlanStraViewCsvFile(sql, delimiter, enclosure, headerYN, lineEnding, charset, processDate, filename:=trfilename, formatEx:=formatEx)
+                    rt = repo.ProdPlanStraViewCsvFile(sql, delimiter, enclosure, headerYN, lineEnding, charset, processDate, ignList, filename:=trfilename, formatEx:=formatEx)
                     errors.Add(rt.err)
                     If (rt.cnt = 0) Then
                         If (File.Exists(trfilename)) Then

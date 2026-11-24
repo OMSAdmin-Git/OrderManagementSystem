@@ -8,6 +8,11 @@ Namespace Pages
 #Region "ページ ライフサイクル"
         Protected Sub Page_Load(sender As Object, e As EventArgs) Handles Me.Load
             If Not IsPostBack Then
+                ' Web.config の設定を確認してテスト環境ラベルを表示
+                Dim isTestEnv As String = ConfigurationManager.AppSettings("IsTestEnvironment")
+                If String.Equals(isTestEnv, "true", StringComparison.OrdinalIgnoreCase) Then
+                    lblTestEnv.Visible = True
+                End If
                 ' ユーザー名表示
                 PageHelpers.SetUserName(Me, lblUser)
             End If

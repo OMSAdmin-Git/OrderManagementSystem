@@ -23,6 +23,10 @@ Namespace Pages.Masters.ProdPlanRule
 #Region "ページ ライフサイクル"
         Protected Sub Page_Load(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Load
             If Not IsPostBack Then
+                Dim isTestEnv As String = ConfigurationManager.AppSettings("IsTestEnvironment")
+                If String.Equals(isTestEnv, "true", StringComparison.OrdinalIgnoreCase) Then
+                    lblTestEnv.Visible = True
+                End If
                 ResetGrid()
                 PageHelpers.SetUserName(Me, lblUser)
                 BindDropDown(ddlSplitFlag, SplitFlagMap, sortByLabel:=False)

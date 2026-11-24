@@ -13,7 +13,11 @@
     <form id="form1" runat="server">
         <div class="menu-wrapper">
             <div class="menu-header">
-                <h1>トップメニュー</h1>
+                <h1>
+                    トップメニュー
+                    <asp:Label ID="lblTestEnv" runat="server" Text="【テスト環境】" Visible="false" 
+                    ForeColor="Red" Font-Bold="True" style="margin-left: 10px; font-size: 0.8em;" />
+                </h1>
                 <div class="user-info">
                     <asp:Label ID="lblUser" runat="server" Text="ようこそ"></asp:Label>
                     &nbsp;

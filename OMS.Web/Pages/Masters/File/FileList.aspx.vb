@@ -11,6 +11,10 @@ Namespace Pages.Masters.File
 #Region "ページ ライフサイクル"
         Protected Sub Page_Load(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Load
             If Not IsPostBack Then
+                Dim isTestEnv As String = ConfigurationManager.AppSettings("IsTestEnvironment")
+                If String.Equals(isTestEnv, "true", StringComparison.OrdinalIgnoreCase) Then
+                    lblTestEnv.Visible = True
+                End If
                 ' ユーザー名表示
                 PageHelpers.SetUserName(Me, lblUser)
 

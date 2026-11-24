@@ -7,12 +7,23 @@ Imports Oracle.ManagedDataAccess.Client
 Namespace Pages.Login
     Partial Public Class Login
         Inherits System.Web.UI.Page
-
 #Region "フィールド"
         Private _logger As Logger
         Private _repo As UserRepository
 #End Region
-
+#Region "ページ ライフサイクル"
+        Protected Sub Page_Load(sender As Object, e As EventArgs) Handles Me.Load
+            If Not IsPostBack Then
+                ' 初回ロード時の処理（必要に応じて）
+                'lblError.Text = String.Empty
+                ' Web.config の設定を確認してテスト環境ラベルを表示
+                Dim isTestEnv As String = ConfigurationManager.AppSettings("IsTestEnvironment")
+                If String.Equals(isTestEnv, "true", StringComparison.OrdinalIgnoreCase) Then
+                    lblTestEnv.Visible = True
+                End If
+            End If
+        End Sub
+#End Region
 #Region "ページ初期化（Page_Init）"
         Protected Sub Page_Init(sender As Object, e As EventArgs) Handles Me.Init
             Dim logPath = Server.MapPath("~/App_Data/logs/app.log")

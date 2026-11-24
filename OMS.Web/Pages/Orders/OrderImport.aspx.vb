@@ -71,6 +71,11 @@ Namespace Pages.Orders
 
             If Not IsPostBack Then
 
+                ' Web.config の設定を確認してテスト環境ラベルを表示
+                Dim isTestEnv As String = ConfigurationManager.AppSettings("IsTestEnvironment")
+                If String.Equals(isTestEnv, "true", StringComparison.OrdinalIgnoreCase) Then
+                    lblTestEnv.Visible = True
+                End If
                 ' ユーザー名表示
                 PageHelpers.SetUserName(Me, lblUser)
 
@@ -757,6 +762,13 @@ Namespace Pages.Orders
                                     blnHandFlag = False
                                 End If
 
+#If ProfitCenterFilter Then
+                                '
+                                ' 対象以外の レコード削除
+                                '
+                                ' CustomerSettingId が一致しない要素をすべて削除する
+                                rowsForTemp2.RemoveAll(Function(x) x.CustomerSettingId <> customerSettingId)
+#End If
                                 '---------------------------------
                                 'ORDERS_STAGEテーブルへ登録処理
                                 '---------------------------------
@@ -954,11 +966,11 @@ Namespace Pages.Orders
                     Dim customerSettingIDList As List(Of Long) = groups.Keys.Select(Function(key) Long.Parse(key)).ToList()
                     Dim targetRowCnt As Long = _oderStageRepo.GetOrdersStageCountByCustomerSettingIds(Utils.GetConnectionString(), customerSettingIDList)
 
-#If ProfitCenterFilter Then
-                    Dim alreadyText = $"（ORDERS_STAGE 読込 {resultRowCnt} 件 対象 {targetRowCnt}件)"
-#Else
+                    '#If ProfitCenterFilter Then
+                    'Dim alreadyText = $"（ORDERS_STAGE 読込 {resultRowCnt} 件 対象 {targetRowCnt}件)"
+                    '#Else
                     Dim alreadyText = $"（ORDERS_STAGE 読込 {resultRowCnt} 件 )"
-#End If
+                    '#End If
                     Dim addText = String.Join("<br/>", successs.Select(Function(s) Server.HtmlEncode(s)))
                     If String.IsNullOrEmpty(alreadyText) Then
                         lblImportResult.Text = addText

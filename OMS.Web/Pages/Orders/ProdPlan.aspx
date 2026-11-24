@@ -67,7 +67,11 @@
 
             <!-- ヘッダー -->
             <div class="process-header">
-                <h1>生産計画</h1>
+                <h1>
+                    生産計画
+                                        <asp:Label ID="lblTestEnv" runat="server" Text="【テスト環境】" Visible="false" 
+                    ForeColor="Red" Font-Bold="True" style="margin-left: 10px; font-size: 0.8em;" />
+                </h1>
 
                 <!-- スズキ 状況表示 -->
                 <div class="process-header-suzuki">

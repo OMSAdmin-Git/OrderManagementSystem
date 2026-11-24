@@ -3739,6 +3739,7 @@ Namespace OMS.Data
             End Using
             '--
         End Sub
+        ''' <summary>
         ''' 内示消込処理を実行する(確定データの内示消込用)
         ''' </summary>
         ''' <param name="tran">トランザクション</param>

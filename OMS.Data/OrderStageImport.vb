@@ -1254,8 +1254,8 @@ Namespace OMS.Data
             Dim profitcenterCSM As String
             Dim errMsg As String
 
-            Dim itemstatus As String
-            Dim infotypecode As String
+            Dim itemstatus As String = ""
+            Dim infotypecode As String = ""
 
 
             Dim isTruncated As Boolean = False
