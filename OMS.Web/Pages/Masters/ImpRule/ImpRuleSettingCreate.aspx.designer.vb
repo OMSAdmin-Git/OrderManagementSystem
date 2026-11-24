@@ -24,6 +24,15 @@ Namespace Pages.Masters.ImpRule
         Protected WithEvents form1 As Global.System.Web.UI.HtmlControls.HtmlForm
 
         '''<summary>
+        '''lblTestEnv コントロール。
+        '''</summary>
+        '''<remarks>
+        '''自動生成されたフィールド。
+        '''変更するには、フィールドの宣言をデザイナー ファイルから分離コード ファイルに移動します。
+        '''</remarks>
+        Protected WithEvents lblTestEnv As Global.System.Web.UI.WebControls.Label
+
+        '''<summary>
         '''lblUser コントロール。
         '''</summary>
         '''<remarks>
