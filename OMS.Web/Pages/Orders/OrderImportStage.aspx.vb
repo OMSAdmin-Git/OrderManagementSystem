@@ -1,13 +1,14 @@
 ﻿Imports System
+Imports System.Configuration
 Imports System.Data
 Imports System.IO
-Imports System.Configuration
 Imports System.Linq
 Imports System.Web.UI
 Imports System.Web.UI.WebControls
+Imports Microsoft.Ajax.Utilities
+Imports OMS.Business.Services
 Imports OMS.Common
 Imports OMS.Data
-Imports OMS.Business.Services
 
 Namespace Pages.Orders
     Public Class OrderImportStage
@@ -243,6 +244,11 @@ Namespace Pages.Orders
 
             lblResult.Text = ""
             lblError.Text = ""
+            ' Mapping master 確認用
+            Dim _mappingRepo As MappingRepository
+            Dim csSetting = ConfigurationManager.ConnectionStrings("OMSConnection")
+            Dim connStr As String = csSetting.ConnectionString
+            _mappingRepo = New MappingRepository(connStr)
 
             Dim loginUserId As String = PageHelpers.GetUserId(Me)
             If String.IsNullOrWhiteSpace(loginUserId) Then
@@ -321,6 +327,9 @@ Namespace Pages.Orders
                         Continue For
                     End If
 
+                    '' folderInfos から FolderType だけを抽出して新しいリストを作成
+                    'Dim typeList As List(Of Integer) = folderInfos.Select(Function(x) x.FolderType).ToList()
+
                     Dim foundInThisCustomer As Boolean = False
 
                     For Each info In folderInfos
@@ -329,6 +338,15 @@ Namespace Pages.Orders
                         ' フォルダ存在確認
                         If Not Directory.Exists(sourceFolder) Then
                             errors.Add($"{customerCode}：フォルダが存在しません [{Server.HtmlEncode(sourceFolder)}]")
+                            Continue For
+                        End If
+
+                        ' Mapping master 確認
+                        Dim mapResult As OrderStageImport.MappingResult = OrderStageImport.ResolveMapping(_mappingRepo, customerSettingId, info.FolderType, errors)
+                        If (mapResult Is Nothing OrElse mapResult.FileType = "") Then
+                            'Dim mappingInfos As List(Of MappingInfo) = _mappingRepo.GetMappingInfo(customerSettingId, info.FolderType)
+                            ' mapResult が Nothing、または 未設定の場合の処理 (無い場合と Active_Flag = false は 空のmapResult)
+                            errors.Add($"{customerCode}：マッピング設定が存在しません [{Server.HtmlEncode(sourceFolder)}]")
                             Continue For
                         End If
 
