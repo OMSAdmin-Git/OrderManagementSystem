@@ -391,7 +391,7 @@ Namespace OMS.Data
                 prm.Add(New OracleParameter(":p_orderid", OracleDbType.Int64) With {.Value = orderId})
             End If
 
-            If status IsNot Nothing Then
+            If Not String.IsNullOrEmpty(status) Then ' status IsNot Nothing Then
                 sb.AppendLine("AND UPPER(status) LIKE UPPER(:p_status) ESCAPE '\' ")
                 prm.Add(New OracleParameter(":p_status", OracleDbType.Varchar2) With {.Value = status})
             End If
@@ -618,12 +618,12 @@ Namespace OMS.Data
         ''' <param name="type"></param>
         ''' <param name="customerSettingIdList"></param>
         ''' <returns></returns>
-        Public Function GetRegisteredOrders(conn As OracleConnection, tran As OracleTransaction, type As OrdersTable, status As String, customerSettingIdList As List(Of Long)) As DataTable
+        Public Function GetRegisteredOrders(conn As OracleConnection, tran As OracleTransaction, type As OrdersTable, status As String, customerSettingIdList As List(Of Long), Optional additinnalParam As String = "") As DataTable
 
             Dim indexList = ""
             customerSettingIdList.ForEach(Sub(x) indexList &= $"{x},")
-            Dim additionalParam As String = $" AND customer_setting_id IN ({indexList.TrimEnd(","c)}) "
-            Return GetOrders(conn, tran, type, status:=status, additionalConditions:=additionalParam)
+            Dim additionalConditions As String = $" AND customer_setting_id IN ({indexList.TrimEnd(","c)}) " + additinnalParam
+            Return GetOrders(conn, tran, type, status:=status, additionalConditions:=additionalConditions)
 
         End Function
         ''' <summary>
@@ -1072,12 +1072,12 @@ Namespace OMS.Data
 
         'End Function
         ''' <summary>
-        ''' Orders レコードをCUSTOMER_SETTING_ID（取引先設定ID）ACTIVE_FLAG 'Y' DEMAND_STATUS 'F' status 'EX{PORTED'で検索し該当レコードを削除する
+        ''' Orders レコードをCUSTOMER_SETTING_ID（取引先設定ID）ACTIVE_FLAG 'Y' DEMAND_STATUS 'F' status 'EXPORTED'で検索し該当レコードを削除する
         ''' </summary>
         ''' <param name="conn"></param>
         ''' <param name="tran"></param>
         ''' <returns></returns>
-        Public Function DeleteRegisteredOrders(conn As OracleConnection, tran As OracleTransaction, type As OrdersTable, customerSettingIdList As List(Of Long)) As String
+        Public Function DeleteRegisteredOrders(conn As OracleConnection, tran As OracleTransaction, type As OrdersTable, customerSettingIdList As List(Of Long), Optional additionalParam As String = "") As String
 
             If (customerSettingIdList.Count = 0) Then
                 Return ""
@@ -1085,9 +1085,9 @@ Namespace OMS.Data
 
             Dim indexList = ""
             customerSettingIdList.ForEach(Sub(x) indexList &= $"{x},")
-            Dim additionalParam As String = $"AND customer_setting_id IN ({indexList.TrimEnd(","c)})  "
-            additionalParam += "AND active_flag = 'Y'  AND demand_status = 'F' AND status = 'EXPORTED' "
-            Return Delete(conn, tran, type, additionalParam:=additionalParam)
+            Dim param As String = $"AND customer_setting_id IN ({indexList.TrimEnd(","c)})  "
+            param += additionalParam
+            Return Delete(conn, tran, type, additionalParam:=param)
 
         End Function
 

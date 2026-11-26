@@ -349,7 +349,7 @@ Namespace Pages.Orders
                 Dim trfilename = ""
                 ''出荷状況エラーリスト出力	
                 Dim repos = New OrderStraRepository(Utils.GetConnectionString())
-                Dim errorRows = repos.GetOrderStage(conn, tran, status:="POST_PLAN_DUE_SET", activeFlag:="N", additionalConditions:=" AND TRUNC(ship_scheduled_date) >=  TRUNC(order_date)  AND order_type > 1 ")
+                Dim errorRows = repos.GetOrderStage(conn, tran, status:="POST_PLAN_DUE_SET", activeFlag:="N", additionalConditions:=" AND TRUNC(ship_scheduled_date) >=  TRUNC(order_date)  AND order_type > 1 ORDER BY customer_setting_id, customer_item_no, due_date ")
                 sippingStatusErrorCnt = errorRows.Rows.Count
                 If (errorRows.Rows.Count <> 0) Then
                     errors.Add(OrderProductionPlanExcelFile.ShippingStatusErrorExcelOut(strPath, FileDate, repos.ToClass(errorRows)))
@@ -361,7 +361,7 @@ Namespace Pages.Orders
                     fileList.Add(trfilename)
                 End If
                 '過去日エラーリスト出力
-                Dim pastErrorRows = repos.GetOrderStage(conn, tran, status:="POST_PLAN_DUE_SET", activeFlag:="N", additionalConditions:=" AND TRUNC(ship_scheduled_date) <  TRUNC(order_date) ")
+                Dim pastErrorRows = repos.GetOrderStage(conn, tran, status:="POST_PLAN_DUE_SET", activeFlag:="N", additionalConditions:=" AND TRUNC(ship_scheduled_date) <  TRUNC(order_date) ORDER BY customer_setting_id, customer_item_no, due_date ")
                 pastErrorCnt = pastErrorRows.Rows.Count
                 If (pastErrorRows.Rows.Count <> 0) Then
                     errors.Add(OrderProductionPlanExcelFile.PastDateErrorExcelOut(strPath, FileDate, repos.ToClass(pastErrorRows)))
@@ -415,6 +415,7 @@ Namespace Pages.Orders
                                 AND CUSTOMER_CODE = {fok.CustomerCode} 
                                 AND CUSTOMER_SETTING_ID = {fok.CustomerSettingId} 
                                 -- AND = {fok.ProfitCenter} 
+                                ORDER BY customer_setting_id, customer_item_no, due_date 
                                 "
                     Dim fileBaseName = $"A-R-COEDI-F"
                     ''ExportQueryToCsvResponse2(sql, delimiter, enclosure, headerYN, lineEnding, charset, processDate, fileBaseName:=fileBaseName, formatEx:=formatEx)
@@ -450,6 +451,7 @@ Namespace Pages.Orders
                                 AND CUSTOMER_CODE = {fok.CustomerCode} 
                                 AND CUSTOMER_SETTING_ID = {fok.CustomerSettingId} 
                                 -- AND = {fok.ProfitCenter} 
+                                ORDER BY customer_setting_id, customer_item_no, due_date 
                                 "
                     fileBaseName = "A-R-COEDI-O"
 
@@ -512,7 +514,9 @@ Namespace Pages.Orders
                 For Each customerSettingId In idList
                     Dim trgRow = rowsu.FirstOrDefault(Function(x) x.CustomerSettingId = customerSettingId)
                     If (trgRow IsNot Nothing) Then
-                        errors.Add(repo.UpdateOrderStatus(conn, tran, trgRow.UpdatedAt, trgRow.UpdatedUserId, trgRow.UpdatedPgId))
+                        If (trgRow.OrderType <> 1) Then
+                            errors.Add(repo.UpdateOrderStatus(conn, tran, trgRow.UpdatedAt, trgRow.UpdatedUserId, trgRow.UpdatedPgId))
+                        End If
                     End If
                 Next
                 If (CheckError(errors)) Then
@@ -528,7 +532,9 @@ Namespace Pages.Orders
                 For Each customerSettingId In idList
                     Dim trgRow = rowsu.FirstOrDefault(Function(x) x.CustomerSettingId = customerSettingId)
                     If (trgRow IsNot Nothing) Then
-                        errors.Add(repost.UpdateOrderStageStatus(conn, tran, trgRow.UpdatedAt, trgRow.UpdatedUserId, trgRow.UpdatedPgId))
+                        If (trgRow.OrderType <> 1) Then
+                            errors.Add(repost.UpdateOrderStageStatus(conn, tran, trgRow.UpdatedAt, trgRow.UpdatedUserId, trgRow.UpdatedPgId))
+                        End If
                     End If
                 Next
                 If (CheckError(errors)) Then

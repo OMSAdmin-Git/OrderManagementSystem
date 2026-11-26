@@ -245,6 +245,7 @@ Namespace OMS.Data
                             objSheet1.Cell(row.index, 7).Value = row.item.ShipTo
                         End If
                         If (row.item.OrderDate.HasValue) Then
+                            row.item.OrderDate = If(row.item.OrderDate.HasValue, row.item.OrderDate.Value.Date, Nothing)
                             objSheet1.Cell(row.index, 8).Value = row.item.OrderDate
                         End If
                         If (row.item.DueDate.HasValue) Then

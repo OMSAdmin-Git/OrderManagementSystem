@@ -789,7 +789,8 @@ Namespace Pages.Orders
                                 Dim savedCount As Integer = importResult.InsertedCount
 
                                 Dim reconciledCount As Integer = importResult.ReConciledCount
-
+                                Dim deleteCount As Integer = importResult.DeleteCount
+                                Dim validCount As Integer = savedCount - deleteCount
                                 If savedCount > 0 Then
 
                                     'If ErrFlg = False Then
@@ -803,6 +804,9 @@ Namespace Pages.Orders
                                         successs.Add($" 取引先コード：{customerCode}　取込ファイル：[{TorikomiFile} ]　読込 {savedCount} 件 (消込 {reconciledCount} 件)　異常 {errcnt} 件")
                                     End If
 
+                                    If spprocesstype = 3 AndAlso folderType <> 4 Then
+                                        successs.Add($" 有効: {validCount} 件  削除：{deleteCount} 件")
+                                    End If
                                     'End If
 
                                 Else

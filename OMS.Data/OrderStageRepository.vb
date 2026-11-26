@@ -1,6 +1,7 @@
 ﻿
 Imports System.ComponentModel
 Imports System.Data
+Imports System.Data.SqlClient
 Imports System.IO
 Imports System.Runtime.Remoting.Metadata.W3cXsd2001
 Imports System.Security.Cryptography
@@ -22,7 +23,6 @@ Namespace OMS.Data
             Orders = 1
             ProductPlan = 2
         End Enum
-
         Private ReadOnly _connectionString As String
 
         Public Sub New(connectionString As String)
@@ -474,13 +474,13 @@ Namespace OMS.Data
         ''' <param name="type"></param>
         ''' <param name="customerSettingIdList"></param>
         ''' <returns></returns>
-        Public Function GetRegisteredOrders(conn As OracleConnection, tran As OracleTransaction, type As OrdersTable, customerSettingIdList As List(Of Long)) As DataTable
+        Public Function GetRegisteredOrders(conn As OracleConnection, tran As OracleTransaction, type As OrdersTable, customerSettingIdList As List(Of Long), Optional additionalParam As String = "") As DataTable
 
             Dim indexList = ""
             customerSettingIdList.ForEach(Sub(x) indexList &= $"{x},")
-            Dim additionalParam As String = $"AND customer_setting_id IN ({indexList.TrimEnd(","c)}) ORDER BY ship_scheduled_date "
+            Dim additionalConditions As String = $"AND customer_setting_id IN ({indexList.TrimEnd(","c)})  " + additionalParam
 
-            Return GetOrders(conn, tran, type, additionalConditions:=additionalParam)
+            Return GetOrders(conn, tran, type, additionalConditions:=additionalConditions)
 
         End Function
         ''' <summary>
@@ -5029,7 +5029,30 @@ Namespace OMS.Data
             End Using
             'End Using
         End Sub
+        ''' <summary>
+        ''' Demand_qty が0のレコードを削除する
+        ''' </summary>
+        ''' <param name="tran"></param>
+        ''' <param name="customerSettingId"></param>
+        ''' <returns></returns>
+        Public Function DeleteZeroDemandOrders(ByVal tran As OracleTransaction, ByVal customerSettingId As Long) As Integer
+            Dim deletedCount As Integer = 0
 
+            ' テーブル名・カラム名は実際の環境に合わせて調整してください
+            Dim sql As String = "DELETE FROM orders_stage WHERE customer_setting_id = :p_CustomerSettingId AND demand_qty = 0"
+
+            'Using conn As New SqlConnection(connectionString)
+            Using cmd As New OracleCommand(sql, tran.Connection)
+                ' SQLインジェクション対策としてパラメータを使用（型はDBの定義に合わせて変更してください）
+                cmd.Parameters.Add(":p_CustomerSettingId", OracleDbType.Int64).Value = customerSettingId
+
+                'conn.Open()
+                ' ExecuteNonQuery() は DELETE で削除されたレコード数を返します
+                deletedCount = cmd.ExecuteNonQuery()
+            End Using
+            'End Using
+            Return deletedCount
+        End Function
         ''' <summary>
         ''' Yamaha robotex 指示日(出荷予定日)更新 次の稼働日取得
         ''' </summary>
