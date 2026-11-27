@@ -341,14 +341,14 @@ Namespace Pages.Orders
                             Continue For
                         End If
 
-                        ' Mapping master 確認
-                        Dim mapResult As OrderStageImport.MappingResult = OrderStageImport.ResolveMapping(_mappingRepo, customerSettingId, info.FolderType, errors)
-                        If (mapResult Is Nothing OrElse mapResult.FileType = "") Then
-                            'Dim mappingInfos As List(Of MappingInfo) = _mappingRepo.GetMappingInfo(customerSettingId, info.FolderType)
-                            ' mapResult が Nothing、または 未設定の場合の処理 (無い場合と Active_Flag = false は 空のmapResult)
-                            errors.Add($"{customerCode}：マッピング設定が存在しません [{Server.HtmlEncode(sourceFolder)}]")
-                            Continue For
-                        End If
+                        '' Mapping master 確認
+                        'Dim mapResult As OrderStageImport.MappingResult = OrderStageImport.ResolveMapping(_mappingRepo, customerSettingId, info.FolderType, errors)
+                        'If (mapResult Is Nothing OrElse mapResult.FileType = "") Then
+                        '    'Dim mappingInfos As List(Of MappingInfo) = _mappingRepo.GetMappingInfo(customerSettingId, info.FolderType)
+                        '    ' mapResult が Nothing、または 未設定の場合の処理 (無い場合と Active_Flag = false は 空のmapResult)
+                        '    errors.Add($"{customerCode}：マッピング設定が存在しません [{Server.HtmlEncode(sourceFolder)}]")
+                        '    Continue For
+                        'End If
 
                         If spprocesstype = "1" Then
                             ' --- スズキ (SPIRITS) 特殊取込前処理 ---
