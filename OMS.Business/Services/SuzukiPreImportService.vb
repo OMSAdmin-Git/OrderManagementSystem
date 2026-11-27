@@ -578,7 +578,7 @@ Namespace Services
 
                 Case "6604", "6634"
                     Dim repo As New Spirits6604And6634Repository(_connectionString)
-                    Dim rows = SuzukiCsvParser.ParseSpirits6604And6634(filePath)
+                    Dim rows = SuzukiCsvParser.ParseSpirits6604And6634(filePath, _connectionString)
                     If rows.Count = 0 Then Throw New Exception("対象データが1件もありません。")
                     For Each r In rows
                         r.ImpRunId = impRunId

@@ -601,9 +601,20 @@ Namespace Services
         ''' <summary>
         ''' Spirits6604And6634 形式の CSV をパースします。
         ''' </summary>
-        Public Shared Function ParseSpirits6604And6634(filePath As String) As List(Of Spirits6604And6634Row)
+        Public Shared Function ParseSpirits6604And6634(
+            filePath As String,
+            Optional connectionString As String = Nothing,
+            Optional calRepo As CalenderRepository = Nothing
+        ) As List(Of Spirits6604And6634Row)
             Dim list As New List(Of Spirits6604And6634Row)()
             Dim lines As String() = ReadLinesAutoEncoding(filePath)
+
+            Dim effectiveCalRepo As CalenderRepository = calRepo
+            If effectiveCalRepo Is Nothing AndAlso Not String.IsNullOrEmpty(connectionString) Then
+                effectiveCalRepo = New CalenderRepository(connectionString)
+            End If
+
+            Dim workingDayCache As New Dictionary(Of String, Date?)()
 
             For lineIdx As Integer = 0 To lines.Length - 1
                 Dim line = lines(lineIdx)
@@ -643,7 +654,7 @@ Namespace Services
                     .Reserve = CleanCol(cols, 24),
                     .OrderDataType = CleanCol(cols, 25),
                     .DeliveryDateType = CleanCol(cols, 26),
-                    .DeliveryDate = If(cols.Length > 27, ParseDate(CleanCol(cols, 27)), Nothing),
+                    .DeliveryDate = If(cols.Length > 27, ParseFlexibleDeliveryDate(CleanCol(cols, 27), effectiveCalRepo, workingDayCache), Nothing),
                     .OrderQty = If(cols.Length > 28, ParseInt(CleanCol(cols, 28)), Nothing),
                     .OldOrderQty = If(cols.Length > 29, ParseInt(CleanCol(cols, 29)), Nothing),
                     .ActiveFlag = "Y",
