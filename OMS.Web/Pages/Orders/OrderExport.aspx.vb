@@ -552,9 +552,9 @@ Namespace Pages.Orders
                     Dim trgRow = rowsu.FirstOrDefault(Function(x) x.CustomerSettingId = customerSettingId)
                     If (trgRow IsNot Nothing) Then
                         'errors.Add(repo.Update(conn, tran, OrderRepository.OrdersTable.Orders, kCustomerSettingId:=customerSettingId, kDemandStatus:="F", kStatus:="DUE_SET", kActiveFlag:="Y", updatedAt:=trgRow.UpdatedAt, updatedUserId:=trgRow.UpdatedUserId, updatedPgId:=trgRow.UpdatedPgId))
-                        errors.Add(repo.Update(conn, tran, OrderRepository.OrdersTable.Orders, kCustomerSettingId:=customerSettingId, kDemandStatus:="F", kStatus:="DUE_SET", kActiveFlag:="Y", status:="EXPORTED", updatedAt:=trgRow.UpdatedAt, updatedUserId:=trgRow.UpdatedUserId, updatedPgId:=trgRow.UpdatedPgId))
+                        errors.Add(repo.Update(conn, tran, OrderRepository.OrdersTable.Orders, kCustomerSettingId:=customerSettingId, kStatus:="DUE_SET", kActiveFlag:="Y", status:="EXPORTED", updatedAt:=trgRow.UpdatedAt, updatedUserId:=trgRow.UpdatedUserId, updatedPgId:=trgRow.UpdatedPgId))
                         ' 2026/11/27 
-                        errors.Add(reps.Update(conn, tran, OrderRepository.OrdersTable.Orders, kCustomerSettingId:=customerSettingId, kDemandStatus:="F", kStatus:="DUE_SET", kActiveFlag:="Y", status:="EXPORTED", updatedAt:=trgRow.UpdatedAt, updatedUserId:=trgRow.UpdatedUserId, updatedPgId:=trgRow.UpdatedPgId))
+                        errors.Add(reps.Update(conn, tran, OrderRepository.OrdersTable.Orders, kCustomerSettingId:=customerSettingId, kStatus:="DUE_SET", kActiveFlag:="Y", status:="EXPORTED", updatedAt:=trgRow.UpdatedAt, updatedUserId:=trgRow.UpdatedUserId, updatedPgId:=trgRow.UpdatedPgId))
                     End If
                 Next
                 If (CheckError(errors)) Then

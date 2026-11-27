@@ -3903,6 +3903,7 @@ Namespace OMS.Data
 
                 Using drProd As OracleDataReader = cmdProdPlan.ExecuteReader()
                     'Dim ridList As List(Of String) = New List(Of String)
+                    Dim OrderType1UpdateFlag = False
                     While drProd.Read()
                         Dim itemNo As String = drProd("item_no").ToString()
                         Dim shipScheduledDate As DateTime = Convert.ToDateTime(drProd("ship_scheduled_date"))
@@ -3950,13 +3951,16 @@ Namespace OMS.Data
                                 ' --- データベース更新 (rowid指定でピンポイント更新) ---
                                 UpdateProdPlanRow(tran, customerSettingId, rid, newDemandQty, updatedAt, updateUserId, updatepgId)
                                 'ridList.Add(rid)
+                                OrderType1UpdateFlag = True
                             End If
                         End If
                     End While
-
-                    ' 残りの レコードを Post_plan_due_set　に更新
-                    Dim additinalParam As String = "And active_flag = 'Y' And status <> 'RECONCILED' And order_type = 1"
-                    UpdateProdPlanPostPlanDueSet(tran, customerSettingId, updatedAt, updateUserId, updatepgId, additinalParam)
+                    ' 内示変更は 全レコード出力
+                    If (OrderType1UpdateFlag) Then
+                        ' 残りの レコードを Post_plan_due_set　に更新
+                        Dim additinalParam As String = "And active_flag = 'Y' And status <> 'RECONCILED' And order_type = 1"
+                        UpdateProdPlanPostPlanDueSet(tran, customerSettingId, updatedAt, updateUserId, updatepgId, additinalParam)
+                    End If
                 End Using
             End Using
             '--
@@ -4144,6 +4148,7 @@ Namespace OMS.Data
                 cmdPast.CommandType = CommandType.Text
                 cmdPast.Parameters.Clear()
 
+                Dim OrderType1UpdateFlag = False
                 Using drPast As OracleDataReader = cmdPast.ExecuteReader()
                     While drPast.Read()
                         Dim itemNo As String = drPast("item_no").ToString()
@@ -4191,13 +4196,15 @@ Namespace OMS.Data
 
                                 ' --- データベース更新 (rowid指定でピンポイント更新) ---
                                 UpdateOrderRow(tran, rid, newDemandQty, updatedAt, updateUserId, updatepgId)
+                                OrderType1UpdateFlag = True
                             End If
                         End If
                     End While
-
-                    ' 残りの 内示レコードを Post_plan_due_set　に更新
-                    Dim additinalParam As String = "And active_flag = 'Y' And status <> 'RECONCILED' And order_type = 1"
-                    UpdateProdPlanPostPlanDueSet(tran, customerSettingId, updatedAt, updateUserId, updatepgId, additinalParam)
+                    If (OrderType1UpdateFlag = True) Then
+                        ' 残りの 内示レコードを Post_plan_due_set　に更新
+                        Dim additinalParam As String = "And active_flag = 'Y' And status <> 'RECONCILED' And order_type = 1"
+                        UpdateProdPlanPostPlanDueSet(tran, customerSettingId, updatedAt, updateUserId, updatepgId, additinalParam)
+                    End If
                 End Using
             End Using
         End Sub
@@ -4682,11 +4689,13 @@ Namespace OMS.Data
                 " WHEN MATCHED THEN " &
                 "   UPDATE SET " &
                 "     tgt.demand_qty      = GREATEST(NVL(m.past_qty, 0) - NVL(m.cur_qty, 0), 0), " &
-                "     tgt.status          = CASE WHEN (NVL(m.past_qty, 0) - NVL(m.cur_qty, 0)) <= 0 THEN 'RECONCILED' ELSE tgt.status END, " &
+                "     tgt.status          = CASE WHEN (NVL(m.past_qty, 0) - NVL(m.cur_qty, 0)) <= 0 THEN 'RECONCILED' ELSE 'POST_PLAN_DUE_SET' END, " &
                 "     tgt.active_flag     = CASE WHEN (NVL(m.past_qty, 0) - NVL(m.cur_qty, 0)) <= 0 THEN 'N' ELSE tgt.active_flag END, " &
                 "     tgt.updated_at      = :p_updated_at, " &
                 "     tgt.updated_user_id = :p_user_id, " &
                 "     tgt.updated_pg_id   = :p_updated_pg_id "
+
+            '"     tgt.status          = CASE WHEN (NVL(m.past_qty, 0) - NVL(m.cur_qty, 0)) <= 0 THEN 'RECONCILED' ELSE tgt.status END, " &
 
             Using cmdPlodPlanUpd As New OracleCommand(sqlPlodPlanUpdate, tran.Connection)
                 cmdPlodPlanUpd.Transaction = tran
