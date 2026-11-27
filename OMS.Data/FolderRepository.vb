@@ -252,7 +252,7 @@ Namespace OMS.Data
             Dim sql As String = "
                 SELECT 1
                 FROM folder_mst
-                WHERE folder_path = :p_path
+                WHERE folder_path = :p_path AND active_flag = 'Y'
             "
 
             If excludeFolderId > 0 Then
