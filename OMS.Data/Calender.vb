@@ -36,7 +36,7 @@ Namespace OMS.Data
                                         From Calem 
                                         Where FDATE >= :p_iDate
                                         And FHOLIDAYFLG = 'W' 
-                                        And FCALETYP = :p_CaleTyp "
+                                        And FCALETYP = :p_iCaleTyp "
                         cmd.Parameters.Add(":p_iDate", OracleDbType.Date).Value = iDate
                         cmd.Parameters.Add(":p_iCaleTyp", OracleDbType.Char, 20).Value = piCaleTyp
                         Dim obj = cmd.ExecuteScalar()
