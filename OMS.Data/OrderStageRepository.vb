@@ -3,6 +3,7 @@ Imports System.ComponentModel
 Imports System.Data
 Imports System.Data.SqlClient
 Imports System.IO
+Imports System.Runtime.InteropServices
 Imports System.Runtime.Remoting.Metadata.W3cXsd2001
 Imports System.Security.Cryptography
 Imports System.Text
@@ -629,7 +630,6 @@ Namespace OMS.Data
             Return errors
 
         End Function
-
         ''' <summary>
         ''' 一括 Update できる場合
         ''' </summary>
@@ -640,9 +640,12 @@ Namespace OMS.Data
         ''' <param name="kOrderId"></param>
         ''' <param name="kCustomerSettingId"></param>
         ''' <param name="kDemandQty"></param>
+        ''' <param name="kDemandStatus"></param>
+        ''' <param name="kImpRunId"></param>
         ''' <param name="kStatus"></param>
         ''' <param name="kActiveFlag"></param>
         ''' <param name="kShipScheduledDate"></param>
+        ''' <param name="kUserId"></param>
         ''' <param name="orderId"></param>
         ''' <param name="customerSettingId"></param>
         ''' <param name="demandQty"></param>
@@ -653,7 +656,7 @@ Namespace OMS.Data
         ''' <param name="activeFlag"></param>
         ''' <param name="shipScheduledDate"></param>
         ''' <param name="orderNo"></param>
-        ''' <param name="ShipPlanDate"></param>
+        ''' <param name="shipPlanDate"></param>
         ''' <param name="createdAt"></param>
         ''' <param name="createdUserId"></param>
         ''' <param name="createdPgId"></param>
@@ -666,9 +669,12 @@ Namespace OMS.Data
                                 Optional ByVal kOrderId As Long? = Nothing,
                                 Optional ByVal kCustomerSettingId As Integer? = Nothing,
                                 Optional ByVal kDemandQty As Long? = Nothing,
+                                Optional ByVal kDemandStatus As String = Nothing,
+                                Optional ByVal kImpRunId As Long? = Nothing,
                                 Optional ByVal kStatus As String = Nothing,
                                 Optional ByVal kActiveFlag As String = Nothing,
                                 Optional ByVal kShipScheduledDate As Date? = Nothing,
+                                Optional ByVal kUserId As String = Nothing,
                                 Optional ByVal orderId As Long? = Nothing,
                                 Optional ByVal customerSettingId As Integer? = Nothing,
                                 Optional ByVal demandQty As Long? = Nothing,
@@ -687,7 +693,6 @@ Namespace OMS.Data
                                 Optional ByVal updatedUserId As String = Nothing,
                                 Optional ByVal updatedPgId As String = Nothing
                                 ) As String
-
             Dim errorMessage As String = ""
             Try
                 Dim dt As New DataTable()
@@ -695,8 +700,7 @@ Namespace OMS.Data
                 Dim prm As New List(Of OracleParameter)()
                 sb.AppendLine($"UPDATE {GetTableName(type)} ")
                 ' セット
-                sb.AppendLine($"SET ")
-
+                sb.AppendLine("SET ")
                 If orderId IsNot Nothing Then
                     sb.AppendLine($" {GetIdName(type)} = :p_orderId, ")
                     prm.Add(New OracleParameter(":p_orderId", OracleDbType.Int64) With {.Value = orderId})
@@ -803,9 +807,23 @@ Namespace OMS.Data
                     prm.Add(New OracleParameter(":p_kDemandQty", OracleDbType.Int64) With {.Value = kDemandQty})
                 End If
 
+                If kDemandStatus IsNot Nothing Then
+                    sb.AppendLine("AND demand_status = :p_kDemandStatus ")
+                    prm.Add(New OracleParameter(":p_kDemandStatus", OracleDbType.Char, 1) With {.Value = kDemandStatus})
+                End If
+
+                If kImpRunId IsNot Nothing Then
+                    sb.AppendLine("AND imp_run_id = :p_kImpRunId ")
+                    prm.Add(New OracleParameter(":p_kImpRunId", OracleDbType.Int64) With {.Value = kImpRunId})
+                End If
+
                 If kStatus IsNot Nothing Then
                     sb.AppendLine("AND UPPER(status) = :p_kStatus ")
                     prm.Add(New OracleParameter(":p_kStatus", OracleDbType.Varchar2) With {.Value = kStatus})
+                End If
+                If kUserId IsNot Nothing Then
+                    sb.AppendLine("AND UPPER(updated_user_Id) = :p_kUserId ")
+                    prm.Add(New OracleParameter(":p_kUserId", OracleDbType.Varchar2) With {.Value = kUserId})
                 End If
                 If kActiveFlag IsNot Nothing Then
                     sb.AppendLine("AND UPPER(active_Flag) = :p_kActiveFlag ")
@@ -828,8 +846,209 @@ Namespace OMS.Data
             Finally
             End Try
             Return errorMessage
-
         End Function
+
+        '''' <summary>
+        '''' 一括 Update できる場合
+        '''' </summary>
+        '''' <param name="conn"></param>
+        '''' <param name="tran"></param>
+        '''' <param name="type"></param>
+        '''' <param name="kOrderStageId"></param>
+        '''' <param name="kOrderId"></param>
+        '''' <param name="kCustomerSettingId"></param>
+        '''' <param name="kDemandQty"></param>
+        '''' <param name="kStatus"></param>
+        '''' <param name="kActiveFlag"></param>
+        '''' <param name="kShipScheduledDate"></param>
+        '''' <param name="orderId"></param>
+        '''' <param name="customerSettingId"></param>
+        '''' <param name="demandQty"></param>
+        '''' <param name="status"></param>
+        '''' <param name="impFileStageId"></param>
+        '''' <param name="impFileId"></param>
+        '''' <param name="impRunId"></param>
+        '''' <param name="activeFlag"></param>
+        '''' <param name="shipScheduledDate"></param>
+        '''' <param name="orderNo"></param>
+        '''' <param name="ShipPlanDate"></param>
+        '''' <param name="createdAt"></param>
+        '''' <param name="createdUserId"></param>
+        '''' <param name="createdPgId"></param>
+        '''' <param name="updatedAt"></param>
+        '''' <param name="updatedUserId"></param>
+        '''' <param name="updatedPgId"></param>
+        '''' <returns></returns>
+        'Public Function Update(conn As OracleConnection, tran As OracleTransaction, type As OrdersTable,
+        '                        Optional ByVal kOrderStageId As Long? = Nothing,
+        '                        Optional ByVal kOrderId As Long? = Nothing,
+        '                        Optional ByVal kCustomerSettingId As Integer? = Nothing,
+        '                        Optional ByVal kDemandQty As Long? = Nothing,
+        '                        Optional ByVal kStatus As String = Nothing,
+        '                        Optional ByVal kActiveFlag As String = Nothing,
+        '                        Optional ByVal kShipScheduledDate As Date? = Nothing,
+        '                        Optional ByVal orderId As Long? = Nothing,
+        '                        Optional ByVal customerSettingId As Integer? = Nothing,
+        '                        Optional ByVal demandQty As Long? = Nothing,
+        '                        Optional ByVal status As String = Nothing,
+        '                        Optional ByVal impFileStageId As Long? = Nothing,
+        '                        Optional ByVal impFileId As Long? = Nothing,
+        '                        Optional ByVal impRunId As Long? = Nothing,
+        '                        Optional ByVal activeFlag As String = Nothing,
+        '                        Optional ByVal shipScheduledDate As Date? = Nothing,
+        '                        Optional ByVal orderNo As String = Nothing,
+        '                        Optional ByVal shipPlanDate As Date? = Nothing,
+        '                        Optional ByVal createdAt As Date? = Nothing,
+        '                        Optional ByVal createdUserId As String = Nothing,
+        '                        Optional ByVal createdPgId As String = Nothing,
+        '                        Optional ByVal updatedAt As Date? = Nothing,
+        '                        Optional ByVal updatedUserId As String = Nothing,
+        '                        Optional ByVal updatedPgId As String = Nothing
+        '                        ) As String
+
+        '    Dim errorMessage As String = ""
+        '    Try
+        '        Dim dt As New DataTable()
+        '        Dim sb As New StringBuilder()
+        '        Dim prm As New List(Of OracleParameter)()
+        '        sb.AppendLine($"UPDATE {GetTableName(type)} ")
+        '        ' セット
+        '        sb.AppendLine($"SET ")
+
+        '        If orderId IsNot Nothing Then
+        '            sb.AppendLine($" {GetIdName(type)} = :p_orderId, ")
+        '            prm.Add(New OracleParameter(":p_orderId", OracleDbType.Int64) With {.Value = orderId})
+        '        End If
+        '        If customerSettingId IsNot Nothing Then
+        '            sb.AppendLine(" customer_setting_id = :p_customerSettingId, ")
+        '            prm.Add(New OracleParameter(":p_customerSettingId", OracleDbType.Int64) With {.Value = customerSettingId})
+        '        End If
+        '        If demandQty IsNot Nothing Then
+        '            sb.AppendLine(" demand_qty = :p_demandQty, ")
+        '            prm.Add(New OracleParameter(":p_demandQty", OracleDbType.Int64) With {.Value = demandQty})
+        '        End If
+
+        '        If status IsNot Nothing Then
+        '            sb.AppendLine(" status = :p_status, ")
+        '            prm.Add(New OracleParameter(":p_status", OracleDbType.Varchar2) With {.Value = status})
+        '        End If
+
+        '        If impFileStageId IsNot Nothing Then
+        '            sb.AppendLine(" imp_file_stage_id = :p_impFileStageId, ")
+        '            prm.Add(New OracleParameter(":p_impFileStageId", OracleDbType.Int64) With {.Value = impFileStageId})
+        '        End If
+
+        '        If impFileId IsNot Nothing Then
+        '            sb.AppendLine(" imp_file_id = :p_impFileId, ")
+        '            prm.Add(New OracleParameter(":p_impFileId", OracleDbType.Int64) With {.Value = impFileId})
+        '        End If
+
+        '        If impRunId IsNot Nothing Then
+        '            sb.AppendLine(" imp_run_id = :p_impRunId, ")
+        '            prm.Add(New OracleParameter(":p_impRunId", OracleDbType.Long) With {.Value = impRunId})
+        '        End If
+
+        '        If activeFlag IsNot Nothing Then
+        '            sb.AppendLine(" active_flag = :p_activeFlag, ")
+        '            prm.Add(New OracleParameter(":p_activeFlag", OracleDbType.Varchar2) With {.Value = activeFlag})
+        '        End If
+
+        '        If createdAt IsNot Nothing Then
+        '            sb.AppendLine(" created_at = :p_createdAt, ")
+        '            prm.Add(New OracleParameter(":p_createdAt", OracleDbType.Date) With {.Value = createdAt})
+        '        End If
+
+        '        If createdUserId IsNot Nothing Then
+        '            sb.AppendLine(" created_user_id = :p_createdUserId, ")
+        '            prm.Add(New OracleParameter(":p_createdUserId", OracleDbType.Varchar2) With {.Value = createdUserId})
+        '        End If
+
+        '        If createdPgId IsNot Nothing Then
+        '            sb.AppendLine(" created_pg_id = :p_createdPgId, ")
+        '            prm.Add(New OracleParameter(":p_createdPgId", OracleDbType.Varchar2) With {.Value = createdPgId})
+        '        End If
+
+        '        If updatedAt IsNot Nothing Then
+        '            sb.AppendLine(" updated_at = :p_updatedAt, ")
+        '            prm.Add(New OracleParameter(":p_updatedAt", OracleDbType.Date) With {.Value = updatedAt})
+        '        End If
+
+        '        If updatedUserId IsNot Nothing Then
+        '            sb.AppendLine(" updated_user_id = :p_updatedUserId, ")
+        '            prm.Add(New OracleParameter(":p_updatedUserId", OracleDbType.Varchar2) With {.Value = updatedUserId})
+        '        End If
+
+        '        If updatedPgId IsNot Nothing Then
+        '            sb.AppendLine(" updated_pg_id = :p_updatedPgId, ")
+        '            prm.Add(New OracleParameter(":p_updatedPgId", OracleDbType.Varchar2) With {.Value = updatedPgId})
+        '        End If
+
+        '        If shipScheduledDate IsNot Nothing Then
+        '            sb.AppendLine(" ship_scheduled_date = :p_shipScheduledDate, ")
+        '            prm.Add(New OracleParameter(":p_shipScheduledDate", OracleDbType.Date) With {.Value = shipScheduledDate})
+        '        End If
+
+        '        If shipPlanDate IsNot Nothing Then
+        '            sb.AppendLine(" ship_plan_date = :p_shipPlanDate, ")
+        '            prm.Add(New OracleParameter(":p_shipPlanDate", OracleDbType.Date) With {.Value = shipPlanDate})
+        '        End If
+
+        '        ' 最後のカンマ削除
+        '        If sb.Length > 0 Then
+        '            Dim startPos As Integer = Math.Max(0, sb.Length - 5)
+        '            sb.Replace(",", " ", startPos, sb.Length - startPos)
+        '        End If
+
+        '        sb.AppendLine(" WHERE 1=1 ")
+
+        '        ' 絞り込み
+        '        If kOrderStageId IsNot Nothing Then
+        '            sb.AppendLine("AND stage_id = :p_kOrderStageId ")
+        '            prm.Add(New OracleParameter(":p_kOrderStageId", OracleDbType.Int64) With {.Value = kOrderStageId})
+        '        End If
+        '        If kOrderId IsNot Nothing Then
+        '            sb.AppendLine($"AND {GetIdName(type)} = :p_kOrderId ")
+        '            prm.Add(New OracleParameter(":p_kOrderId", OracleDbType.Int64) With {.Value = kOrderId})
+        '        End If
+
+        '        If kCustomerSettingId IsNot Nothing Then
+        '            sb.AppendLine("AND customer_setting_id = :p_kCustomerSettingId ")
+        '            prm.Add(New OracleParameter(":p_kCustomerSettingId", OracleDbType.Int64) With {.Value = kCustomerSettingId})
+        '        End If
+
+        '        If kDemandQty IsNot Nothing Then
+        '            sb.AppendLine("AND demand_qty = :p_kDemandQty ")
+        '            prm.Add(New OracleParameter(":p_kDemandQty", OracleDbType.Int64) With {.Value = kDemandQty})
+        '        End If
+
+        '        If kStatus IsNot Nothing Then
+        '            sb.AppendLine("AND UPPER(status) = :p_kStatus ")
+        '            prm.Add(New OracleParameter(":p_kStatus", OracleDbType.Varchar2) With {.Value = kStatus})
+        '        End If
+        '        If kActiveFlag IsNot Nothing Then
+        '            sb.AppendLine("AND UPPER(active_Flag) = :p_kActiveFlag ")
+        '            prm.Add(New OracleParameter(":p_kActiveFlag", OracleDbType.Varchar2) With {.Value = kActiveFlag})
+        '        End If
+        '        If kShipScheduledDate IsNot Nothing Then
+        '            sb.AppendLine("AND ship_scheduled_date = :p_kShipScheduledDate ")
+        '            prm.Add(New OracleParameter(":p_kShipScheduledDate", OracleDbType.Date) With {.Value = kShipScheduledDate})
+        '        End If
+
+        '        Using cmd As New OracleCommand(sb.ToString(), conn)
+        '            cmd.BindByName = True
+        '            cmd.CommandType = CommandType.Text
+        '            If prm.Count > 0 Then cmd.Parameters.AddRange(prm.ToArray())
+        '            cmd.ExecuteNonQuery()
+        '        End Using
+
+        '    Catch e As OracleException
+        '        errorMessage = "Number: " & e.Number & vbCrLf & "Message: " & e.Message
+        '    Finally
+        '    End Try
+        '    Return errorMessage
+
+        'End Function
+
         ''' <summary>
         ''' 納期設定
         ''' Order の id より
@@ -3683,6 +3902,7 @@ Namespace OMS.Data
                 cmdProdPlan.Parameters.Clear()
 
                 Using drProd As OracleDataReader = cmdProdPlan.ExecuteReader()
+                    'Dim ridList As List(Of String) = New List(Of String)
                     While drProd.Read()
                         Dim itemNo As String = drProd("item_no").ToString()
                         Dim shipScheduledDate As DateTime = Convert.ToDateTime(drProd("ship_scheduled_date"))
@@ -3729,12 +3949,14 @@ Namespace OMS.Data
 
                                 ' --- データベース更新 (rowid指定でピンポイント更新) ---
                                 UpdateProdPlanRow(tran, customerSettingId, rid, newDemandQty, updatedAt, updateUserId, updatepgId)
+                                'ridList.Add(rid)
                             End If
                         End If
                     End While
-                    ' 残りの レコードを Post_plan_due_set　に更新
-                    UpdateProdPlanPostPlanDueSet(tran, customerSettingId, updatedAt, updateUserId, updatepgId)
 
+                    ' 残りの レコードを Post_plan_due_set　に更新
+                    Dim additinalParam As String = "And active_flag = 'Y' And status <> 'RECONCILED' And order_type = 1"
+                    UpdateProdPlanPostPlanDueSet(tran, customerSettingId, updatedAt, updateUserId, updatepgId, additinalParam)
                 End Using
             End Using
             '--
@@ -3972,188 +4194,13 @@ Namespace OMS.Data
                             End If
                         End If
                     End While
+
+                    ' 残りの 内示レコードを Post_plan_due_set　に更新
+                    Dim additinalParam As String = "And active_flag = 'Y' And status <> 'RECONCILED' And order_type = 1"
+                    UpdateProdPlanPostPlanDueSet(tran, customerSettingId, updatedAt, updateUserId, updatepgId, additinalParam)
                 End Using
             End Using
         End Sub
-
-        '''' <summary>
-        '''' 内示消込処理を実行する YamahaRobotex用
-        '''' OrderNo 先頭文字が 'R' を取り除き、残りの OrderNo の桁数が6桁のものを対象
-        '''' </summary>
-        '''' <param name="tran">トランザクション</param>
-        '''' <param name="customerSettingId">処理中の取引先設定ID</param>
-        '''' <param name="impFileStageId">処理中の取込ワークファイルID</param>
-        '''' <param name="orderType">受注区分（2:確定 or 3:納入指示）</param>
-        '''' <param name="reconcileType">消込条件（1:順次, 2:同月まで, 3:同月のみ）</param>
-        '''' <param name="updatedAt">更新日時</param>
-        '''' <param name="updateUserId">更新ユーザーID</param>
-        '''' <param name="updatepgId">更新プログラムID</param>
-        'Public Sub ReconcileForecastYamahaRobotex(ByVal tran As OracleTransaction,
-        '                                            ByVal customerSettingId As Long,
-        '                                            ByVal impFileStageId As Long,
-        '                                            ByVal orderType As Integer,
-        '                                            ByVal reconcileType As Integer,
-        '                                            ByVal updatedAt As DateTime,
-        '                                            ByVal updateUserId As String,
-        '                                            ByVal updatepgId As String)
-
-
-        '    ' --- 1. 今回取込データの集計（品目ごとの需要数の合計を取得、納期は最も古いものを採用） ---
-        '    Dim curList As New Dictionary(Of String, OrderSummaryRow)
-
-        '    Dim curSelect As String = ""
-        '    Dim curWhere As String = ""
-        '    Dim curGroupBy As String = ""
-        '    Select Case reconcileType
-        '        Case 1
-        '            curSelect = " MIN(due_date) AS earliest_due_date,"
-        '            'curWhere = ""
-        '            If orderType = 2 Then
-        '                curWhere = " AND (info_type IS NULL OR info_type = 'I')"
-        '            End If
-        '            curGroupBy = ""
-        '        Case 2
-        '            curSelect = " MAX(due_date) AS earliest_due_date,"
-        '            'curWhere = " AND (info_type IS NULL OR info_type = 'I')"
-        '            If orderType = 2 Then
-        '                curWhere = " AND (info_type IS NULL OR info_type = 'I')"
-        '            End If
-        '            curGroupBy = ""
-        '        Case 3
-        '            ' YamahaRobotexでは、消込条件は「同月のみ」
-        '            curSelect = " TRUNC(due_date, 'MM') AS earliest_due_date,"
-        '            'curWhere = ""
-        '            If orderType = 2 Then
-        '                curWhere = " AND (info_type IS NULL OR info_type = 'I')"
-        '            End If
-        '            curGroupBy = " ,TRUNC(due_date, 'MM')"
-        '        Case Else
-        '            curSelect = " MIN(due_date) AS earliest_due_date,"
-        '            'curWhere = ""
-        '            If orderType = 2 Then
-        '                curWhere = " AND (info_type IS NULL OR info_type = 'I')"
-        '            End If
-        '            curGroupBy = ""
-        '    End Select
-
-
-        '    Dim cursql As String = $"
-        '        SELECT
-        '            item_no,
-        '            {curSelect}
-        '            SUM(demand_qty) AS total_demand_qty
-        '        FROM orders_stage
-        '        WHERE imp_file_stage_id = :p_imp_file_stage_id
-        '            AND order_type = :p_order_type
-        '            AND status = 'IMPORTED'
-        '            AND active_flag = 'Y'
-        '            -- ↓ YamahaRobotex 追加した条件（客先発注No 先頭の'R'を除去した後の桁数が6桁）
-        '            AND LENGTH(REGEXP_REPLACE(customer_order_no, '^R')) = 6
-        '            {curWhere}
-        '        GROUP BY order_type,item_no
-        '            {curGroupBy}
-        '        ORDER BY item_no ASC"
-
-        '    Using cmdCur As New OracleCommand(cursql, tran.Connection)
-        '        cmdCur.Transaction = tran
-        '        cmdCur.BindByName = True
-        '        cmdCur.CommandType = CommandType.Text
-        '        cmdCur.Parameters.Clear()
-
-        '        cmdCur.Parameters.Add(":p_imp_file_stage_id", OracleDbType.Long).Value = impFileStageId
-        '        cmdCur.Parameters.Add(":p_order_type", OracleDbType.Int32).Value = orderType
-
-        '        Using dr As OracleDataReader = cmdCur.ExecuteReader()
-        '            While dr.Read()
-
-        '                Dim itemNo As String = dr("item_no").ToString()
-        '                Dim dueDate As DateTime = Convert.ToDateTime(dr("earliest_due_date"))
-
-        '                Dim row As New OrderSummaryRow With {
-        '                    .ItemNo = itemNo,
-        '                    .EarliestDueDate = dueDate,
-        '                    .TotalDemandQty = Convert.ToDecimal(dr("total_demand_qty"))
-        '                }
-        '                Dim dictKey As String = itemNo
-        '                If reconcileType = 3 Then
-        '                    ' 品目No_202310 のような形式で月ごとに枠を管理する
-        '                    dictKey = $"{itemNo}_{dueDate:yyyyMM}"
-        '                End If
-
-        '                curList.Add(dictKey, row)
-
-        '            End While
-        '        End Using
-        '    End Using
-
-        '    ' --- 2. 今回取込データの内示データを古い順に取得
-        '    Dim pastSql As String = $"
-        '            SELECT p.rowid, p.item_no, p.demand_qty, p.due_date
-        '            FROM orders_stage p
-        '            WHERE p.order_type = 1 
-        '              AND p.active_flag = 'Y' 
-        '              AND p.self_fcst_flag = 'N' 
-        '            ORDER BY p.item_no, p.due_date, p.rowid"
-
-        '    Using cmdPast As New OracleCommand(pastSql, tran.Connection)
-        '        cmdPast.Transaction = tran
-        '        cmdPast.BindByName = True
-        '        cmdPast.CommandType = CommandType.Text
-        '        cmdPast.Parameters.Clear()
-
-        '        Using drPast As OracleDataReader = cmdPast.ExecuteReader()
-        '            While drPast.Read()
-        '                Dim itemNo As String = drPast("item_no").ToString()
-        '                Dim forecastDate As DateTime = Convert.ToDateTime(drPast("due_date"))
-
-        '                Dim dictKey As String = itemNo
-        '                If reconcileType = 3 Then
-        '                    dictKey = $"{itemNo}_{forecastDate:yyyyMM}"
-        '                End If
-
-        '                ' Dictionaryに該当品目（かつ該当月）の消込枠があるか確認
-        '                If curList.ContainsKey(dictKey) Then
-        '                    Dim summary = curList(dictKey)
-
-        '                    ' --- 消込対象かどうかの判定 (reconcileTypeによる比較) ---
-        '                    Dim isTarget As Boolean = False
-        '                    ' 年月のみで比較するための変数作成
-        '                    Dim fcstMonth As DateTime = New DateTime(forecastDate.Year, forecastDate.Month, 1)
-        '                    Dim curMonth As DateTime = New DateTime(summary.EarliestDueDate.Year, summary.EarliestDueDate.Month, 1)
-
-        '                    Select Case reconcileType
-        '                        Case 1 : isTarget = True ' 1:順次（全対象）
-        '                        Case 2 : isTarget = (fcstMonth <= curMonth) ' 2:同月まで
-        '                        Case 3 : isTarget = (fcstMonth = curMonth)  ' 3:同月のみ
-        '                    End Select
-
-        '                    ' 対象であり、かつまだ消込枠(注文合計)が残っている場合のみ処理
-        '                    If isTarget AndAlso summary.TotalDemandQty > 0 Then
-        '                        Dim rid As String = drPast("rowid").ToString()
-        '                        Dim pastQty As Decimal = Convert.ToDecimal(drPast("demand_qty"))
-        '                        Dim remainLimit As Decimal = summary.TotalDemandQty ' 現在の消込可能残数
-
-        '                        Dim newDemandQty As Decimal = 0
-
-        '                        ' --- 消込計算ロジック ---
-        '                        If pastQty > remainLimit Then
-        '                            ' 内示残数の方が大きい場合：内示を一部減らし、消込枠を使い切る
-        '                            newDemandQty = pastQty - remainLimit
-        '                            summary.TotalDemandQty = 0
-        '                        Else
-        '                            ' 消込枠の方が多い場合：この内示レコードを0にし、残った枠を次の納期分へ
-        '                            newDemandQty = 0
-        '                            summary.TotalDemandQty -= pastQty
-        '                        End If
-
-        '                        ' --- データベース更新 (rowid指定でピンポイント更新) ---
-        '                        UpdateOrderRow(tran, rid, newDemandQty, updatedAt, updateUserId, updatepgId)
-        '                    End If
-        '                End If
-        '            End While
-        '        End Using
-        '    End Using
-        'End Sub
 
         ''' <summary>
         ''' レコード更新用(rowid指定でピンポイント更新)
@@ -4266,7 +4313,8 @@ Namespace OMS.Data
                                     ByVal customerSettingId As Long,
                                     ByVal updatedAt As DateTime,
                                     ByVal updateUserId As String,
-                                    ByVal updatepgId As String)
+                                    ByVal updatepgId As String,
+                                    Optional additinalParam As String = "")
 
 
             Dim sql As String = "
@@ -4275,7 +4323,7 @@ Namespace OMS.Data
                         updated_at = :p_updated_at,
                         updated_user_id = :p_user_id,
                         updated_pg_id = :p_updated_pg_id
-                    WHERE customer_setting_id = :p_customerSettingId And active_flag = 'Y' And status <> 'RECONCILED' "
+                    WHERE customer_setting_id = :p_customerSettingId " + additinalParam
 
             Using cmd As New OracleCommand(sql, tran.Connection)
                 cmd.Transaction = tran

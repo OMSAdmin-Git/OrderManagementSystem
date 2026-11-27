@@ -631,14 +631,34 @@ Namespace OMS.Data
         ''' </summary>
         ''' <param name="conn"></param>
         ''' <param name="tran"></param>
+        ''' <param name="type"></param>
+        ''' <param name="kOrderStageId"></param>
         ''' <param name="kOrderId"></param>
         ''' <param name="kCustomerSettingId"></param>
         ''' <param name="kDemandQty"></param>
+        ''' <param name="kDemandStatus"></param>
+        ''' <param name="kImpRunId"></param>
         ''' <param name="kStatus"></param>
+        ''' <param name="kActiveFlag"></param>
+        ''' <param name="kShipScheduledDate"></param>
+        ''' <param name="kUserId"></param>
         ''' <param name="orderId"></param>
         ''' <param name="customerSettingId"></param>
         ''' <param name="demandQty"></param>
         ''' <param name="status"></param>
+        ''' <param name="impFileStageId"></param>
+        ''' <param name="impFileId"></param>
+        ''' <param name="impRunId"></param>
+        ''' <param name="activeFlag"></param>
+        ''' <param name="shipScheduledDate"></param>
+        ''' <param name="orderNo"></param>
+        ''' <param name="shipPlanDate"></param>
+        ''' <param name="createdAt"></param>
+        ''' <param name="createdUserId"></param>
+        ''' <param name="createdPgId"></param>
+        ''' <param name="updatedAt"></param>
+        ''' <param name="updatedUserId"></param>
+        ''' <param name="updatedPgId"></param>
         ''' <returns></returns>
         Public Function Update(conn As OracleConnection, tran As OracleTransaction, type As OrdersTable,
                                 Optional ByVal kOrderStageId As Long? = Nothing,
@@ -655,7 +675,7 @@ Namespace OMS.Data
                                 Optional ByVal customerSettingId As Integer? = Nothing,
                                 Optional ByVal demandQty As Long? = Nothing,
                                 Optional ByVal status As String = Nothing,
-                                Optional ByVal impFilesStageId As Long? = Nothing,
+                                Optional ByVal impFileStageId As Long? = Nothing,
                                 Optional ByVal impFileId As Long? = Nothing,
                                 Optional ByVal impRunId As Long? = Nothing,
                                 Optional ByVal activeFlag As String = Nothing,
@@ -696,9 +716,9 @@ Namespace OMS.Data
                     prm.Add(New OracleParameter(":p_status", OracleDbType.Varchar2) With {.Value = status})
                 End If
 
-                If impFilesStageId IsNot Nothing Then
-                    sb.AppendLine(" imp_files_stage_id = :p_impFilesStageId, ")
-                    prm.Add(New OracleParameter(":p_impFilesStageId", OracleDbType.Int64) With {.Value = impFilesStageId})
+                If impFileStageId IsNot Nothing Then
+                    sb.AppendLine(" imp_file_stage_id = :p_impFileStageId, ")
+                    prm.Add(New OracleParameter(":p_impFileStageId", OracleDbType.Int64) With {.Value = impFileStageId})
                 End If
 
                 If impFileId IsNot Nothing Then

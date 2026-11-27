@@ -545,13 +545,16 @@ Namespace Pages.Orders
                 ' 2026/11/06 仕様変更
                 ' 2026/10/01 Orders status を 'EXPORTED'に更新を中止 (再 生産管理実行 のため)
                 '--------------------------
-                ' UPDATE (受注) orders
+                ' UPDATE (受注) orders の status を 'EXPORTED' に更新
+                ' 2026/11/27 と orders_stage の status を合わせるため、orders の status を 'EXPORTED' に更新する
                 '--------------------------
                 For Each customerSettingId In idList
                     Dim trgRow = rowsu.FirstOrDefault(Function(x) x.CustomerSettingId = customerSettingId)
                     If (trgRow IsNot Nothing) Then
                         'errors.Add(repo.Update(conn, tran, OrderRepository.OrdersTable.Orders, kCustomerSettingId:=customerSettingId, kDemandStatus:="F", kStatus:="DUE_SET", kActiveFlag:="Y", updatedAt:=trgRow.UpdatedAt, updatedUserId:=trgRow.UpdatedUserId, updatedPgId:=trgRow.UpdatedPgId))
                         errors.Add(repo.Update(conn, tran, OrderRepository.OrdersTable.Orders, kCustomerSettingId:=customerSettingId, kDemandStatus:="F", kStatus:="DUE_SET", kActiveFlag:="Y", status:="EXPORTED", updatedAt:=trgRow.UpdatedAt, updatedUserId:=trgRow.UpdatedUserId, updatedPgId:=trgRow.UpdatedPgId))
+                        ' 2026/11/27 
+                        errors.Add(reps.Update(conn, tran, OrderRepository.OrdersTable.Orders, kCustomerSettingId:=customerSettingId, kDemandStatus:="F", kStatus:="DUE_SET", kActiveFlag:="Y", status:="EXPORTED", updatedAt:=trgRow.UpdatedAt, updatedUserId:=trgRow.UpdatedUserId, updatedPgId:=trgRow.UpdatedPgId))
                     End If
                 Next
                 If (CheckError(errors)) Then
